@@ -4,9 +4,9 @@ import spock.lang.Specification
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 
-class UnixFileModeTest extends Specification {
+class PosixFileTest extends Specification {
     @Rule TemporaryFolder tmpDir
-    final UnixFileMode file = Platform.get(UnixFileMode.class)
+    final PosixFile file = Platform.get(PosixFile.class)
 
     def "can set mode on a file"() {
         def testFile = tmpDir.newFile("test.txt")

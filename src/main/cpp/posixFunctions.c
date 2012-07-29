@@ -2,6 +2,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <unistd.h>
 
 void markFailed(JNIEnv *env, jobject result) {
     jclass destClass = env->GetObjectClass(result);
@@ -30,4 +31,20 @@ Java_net_rubygrapefruit_platform_internal_PosixFileFunctions_stat(JNIEnv *env, j
     jclass destClass = env->GetObjectClass(dest);
     jfieldID modeField = env->GetFieldID(destClass, "mode", "I");
     env->SetIntField(dest, modeField, 0777 & fileInfo.st_mode);
+}
+
+JNIEXPORT jint JNICALL
+Java_net_rubygrapefruit_platform_internal_PosixProcessFunctions_getPid(JNIEnv *env, jclass target) {
+    return getpid();
+}
+
+JNIEXPORT jboolean JNICALL
+Java_net_rubygrapefruit_platform_internal_PosixTerminalFunctions_isatty(JNIEnv *env, jclass target, jint output) {
+    switch (output) {
+    case 0:
+    case 1:
+        return isatty(output+1) ? JNI_TRUE : JNI_FALSE;
+    default:
+        return JNI_FALSE;
+    }
 }

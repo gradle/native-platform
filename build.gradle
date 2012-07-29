@@ -2,6 +2,7 @@ apply plugin: 'java'
 apply plugin: 'groovy'
 apply plugin: 'cpp-lib'
 apply plugin: 'idea'
+apply plugin: 'application'
 
 repositories {
     mavenCentral()
@@ -12,6 +13,7 @@ dependencies {
     testCompile 'org.spockframework:spock-core:0.6-groovy-1.8'
 }
 
+mainClassName = 'net.rubygrapefruit.platform.Main'
 def nativeHeadersDir = file("$buildDir/nativeHeaders")
 
 libraries {
@@ -34,6 +36,8 @@ task nativeHeaders {
             args '-o', outputFile
             args '-classpath', sourceSets.main.output.classesDir
             args 'net.rubygrapefruit.platform.internal.PosixFileFunctions'
+            args 'net.rubygrapefruit.platform.internal.PosixProcessFunctions'
+            args 'net.rubygrapefruit.platform.internal.PosixTerminalFunctions'
         }
     }
 }
