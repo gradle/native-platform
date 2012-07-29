@@ -31,12 +31,7 @@ public class Platform {
             return type.cast(new DefaultProcess());
         }
         if (type.equals(Terminal.class)) {
-            return type.cast(new Terminal(){
-                @Override
-                public boolean isTerminal(Output output) {
-                    return PosixTerminalFunctions.isatty(output.ordinal());
-                }
-            });
+            return type.cast(new DefaultTerminal());
         }
         throw new UnsupportedOperationException(String.format("Cannot load unknown native integration %s.",
                 type.getName()));
@@ -68,6 +63,24 @@ public class Platform {
         @Override
         public int getPid() throws NativeException {
             return PosixProcessFunctions.getPid();
+        }
+    }
+
+    private static class DefaultTerminal implements Terminal {
+        @Override
+        public boolean isTerminal(Output output) {
+            return PosixTerminalFunctions.isatty(output.ordinal());
+        }
+
+        @Override
+        public TerminalSize getTerminalSize(Output output) {
+            MutableTerminalSize terminalSize = new MutableTerminalSize();
+            FunctionResult result = new FunctionResult();
+            PosixTerminalFunctions.getTerminalSize(output.ordinal(), terminalSize, result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not get terminal size. Errno is %d.", result.getErrno()));
+            }
+            return terminalSize;
         }
     }
 }

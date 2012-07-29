@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
 
 void markFailed(JNIEnv *env, jobject result) {
     jclass destClass = env->GetObjectClass(result);
@@ -47,4 +48,19 @@ Java_net_rubygrapefruit_platform_internal_PosixTerminalFunctions_isatty(JNIEnv *
     default:
         return JNI_FALSE;
     }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_PosixTerminalFunctions_getTerminalSize(JNIEnv *env, jclass target, jint output, jobject dimension, jobject result) {
+    struct winsize screen_size;
+    int retval = ioctl(output+1, TIOCGWINSZ, &screen_size);
+    if (retval != 0) {
+        markFailed(env, result);
+        return;
+    }
+    jclass dimensionClass = env->GetObjectClass(dimension);
+    jfieldID widthField = env->GetFieldID(dimensionClass, "cols", "I");
+    env->SetIntField(dimension, widthField, screen_size.ws_col);
+    jfieldID heightField = env->GetFieldID(dimensionClass, "rows", "I");
+    env->SetIntField(dimension, heightField, screen_size.ws_row);
 }
