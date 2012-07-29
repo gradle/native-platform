@@ -1,0 +1,43 @@
+apply plugin: 'java'
+apply plugin: 'groovy'
+apply plugin: 'cpp-lib'
+apply plugin: 'idea'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    groovy 'org.codehaus.groovy:groovy:1.8.7'
+    testCompile 'org.spockframework:spock-core:0.6-groovy-1.8'
+}
+
+def nativeHeadersDir = file("$buildDir/nativeHeaders")
+
+libraries {
+    main {
+        spec {
+            includes([nativeHeadersDir])
+            includes(['/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers/'])
+        }
+    }
+}
+
+task nativeHeaders {
+    def outputFile = file("$nativeHeadersDir/native.h")
+    inputs.files sourceSets.main.output
+    outputs.file outputFile
+    doLast {
+        outputFile.parentFile.mkdirs()
+        exec {
+            executable org.gradle.internal.jvm.Jvm.current().getExecutable('javah')
+            args '-o', outputFile
+            args '-classpath', sourceSets.main.output.classesDir
+            args 'net.rubygrapefruit.platform.internal.PosixFileFunctions'
+        }
+    }
+}
+
+compileMain.dependsOn nativeHeaders
+test.dependsOn compileMain
+
