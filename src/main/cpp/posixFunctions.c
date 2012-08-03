@@ -7,8 +7,8 @@
 
 void markFailed(JNIEnv *env, jobject result) {
     jclass destClass = env->GetObjectClass(result);
-    jfieldID errnoField = env->GetFieldID(destClass, "errno", "I");
-    env->SetIntField(result, errnoField, errno);
+    jmethodID method = env->GetMethodID(destClass, "failed", "(I)V");
+    env->CallVoidMethod(result, method, errno);
 }
 
 JNIEXPORT void JNICALL

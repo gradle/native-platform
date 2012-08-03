@@ -17,7 +17,11 @@ public class Platform {
             if (!loaded) {
                 System.setProperty("java.library.path", new File("build/binaries").getAbsolutePath());
                 try {
-                    System.load(new File("build/binaries/libnative-platform.dylib").getCanonicalPath());
+                    File libFile = new File("build/binaries/libnative-platform.dylib");
+                    if (!libFile.isFile()) {
+                        libFile = new File("build/binaries/libnative-platform.so");
+                    }
+                    System.load(libFile.getCanonicalPath());
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }

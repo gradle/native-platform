@@ -20,7 +20,12 @@ libraries {
     main {
         spec {
             includes([nativeHeadersDir])
-            includes(['/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers/'])
+            if (org.gradle.internal.os.OperatingSystem.current().macOsX) {
+                includes(['/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers/'])
+            } else {
+                includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
+                includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/linux"])
+            }
         }
     }
 }

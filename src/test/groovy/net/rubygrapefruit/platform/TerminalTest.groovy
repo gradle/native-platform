@@ -14,12 +14,12 @@ class TerminalTest extends Specification {
         !terminal.isTerminal(Terminal.Output.Stderr);
     }
 
-    def "cannot detemine terminal size from a test"() {
+    def "cannot determine terminal size from a test"() {
         when:
         terminal.getTerminalSize(Terminal.Output.Stdout)
 
         then:
         NativeException e = thrown()
-        e.message == 'Could not get terminal size. Errno is 25.'
+        e.message.startsWith('Could not get terminal size. Errno is ')
     }
 }
