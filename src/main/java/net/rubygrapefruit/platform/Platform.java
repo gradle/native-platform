@@ -4,6 +4,7 @@ import net.rubygrapefruit.platform.internal.*;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 
 /**
  * Provides access to the native integrations. Use {@link #get(Class)} to load a particular integration.
@@ -24,6 +25,10 @@ public class Platform {
                     System.load(libFile.getCanonicalPath());
                 } catch (IOException e) {
                     throw new RuntimeException(e);
+                }
+                int nativeVersion = NativeLibraryFunctions.getVersion();
+                if (nativeVersion != NativeLibraryFunctions.VERSION) {
+                    throw new NativeException(String.format("Unexpected native library version loaded. Expected %s, was %s.", nativeVersion, NativeLibraryFunctions.VERSION));
                 }
                 loaded = true;
             }
@@ -71,6 +76,8 @@ public class Platform {
     }
 
     private static class DefaultTerminalAccess implements TerminalAccess {
+        private static Output currentlyOpen;
+
         @Override
         public boolean isTerminal(Output output) {
             return PosixTerminalFunctions.isatty(output.ordinal());
@@ -78,18 +85,35 @@ public class Platform {
 
         @Override
         public Terminal getTerminal(Output output) {
-            if (!isTerminal(output)) {
-                throw new NativeException(String.format("%s is not attached to a terminal.", output));
+            if (currentlyOpen != null) {
+                throw new UnsupportedOperationException("Currently only one output can be used as a terminal.");
             }
-            return new DefaultTerminal(output);
+
+            DefaultTerminal terminal = new DefaultTerminal(output);
+            terminal.init();
+
+            currentlyOpen = output;
+            return terminal;
         }
     }
 
     private static class DefaultTerminal implements Terminal {
         private final TerminalAccess.Output output;
+        private final PrintStream stream;
 
         public DefaultTerminal(TerminalAccess.Output output) {
             this.output = output;
+            stream = output == TerminalAccess.Output.Stdout ? System.out : System.err;
+        }
+
+        public void init() {
+            stream.flush();
+            FunctionResult result = new FunctionResult();
+            TerminfoFunctions.initTerminal(output.ordinal(), result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not open terminal. Errno is %d.",
+                        result.getErrno()));
+            }
         }
 
         @Override
@@ -102,6 +126,38 @@ public class Platform {
                         result.getErrno()));
             }
             return terminalSize;
+        }
+
+        @Override
+        public Terminal bold() {
+            stream.flush();
+            FunctionResult result = new FunctionResult();
+            TerminfoFunctions.bold(output.ordinal(), result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not switch to bold mode. Errno is %d.",
+                        result.getErrno()));
+            }
+            return this;
+        }
+
+        @Override
+        public Terminal bold(String output) {
+            bold();
+            stream.print(output);
+            normal();
+            return this;
+        }
+
+        @Override
+        public Terminal normal() {
+            stream.flush();
+            FunctionResult result = new FunctionResult();
+            TerminfoFunctions.normal(output.ordinal(), result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not switch to normal mode. Errno is %d.",
+                        result.getErrno()));
+            }
+            return this;
         }
     }
 }

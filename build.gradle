@@ -26,6 +26,7 @@ libraries {
                 includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
                 includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/linux"])
             }
+            args("-lcurses")
         }
     }
 }
@@ -40,9 +41,11 @@ task nativeHeaders {
             executable org.gradle.internal.jvm.Jvm.current().getExecutable('javah')
             args '-o', outputFile
             args '-classpath', sourceSets.main.output.classesDir
+            args 'net.rubygrapefruit.platform.internal.NativeLibraryFunctions'
             args 'net.rubygrapefruit.platform.internal.PosixFileFunctions'
             args 'net.rubygrapefruit.platform.internal.PosixProcessFunctions'
             args 'net.rubygrapefruit.platform.internal.PosixTerminalFunctions'
+            args 'net.rubygrapefruit.platform.internal.TerminfoFunctions'
         }
     }
 }

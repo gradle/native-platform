@@ -20,6 +20,6 @@ class TerminalTest extends Specification {
 
         then:
         NativeException e = thrown()
-        e.message.startsWith('Stdout is not attached to a terminal.')
+        e.message.startsWith('Could not open terminal. Errno is ')
     }
 }

@@ -15,6 +15,11 @@ public class Main {
             Terminal terminal = terminalAccess.getTerminal(TerminalAccess.Output.Stdout);
             TerminalSize terminalSize = terminal.getTerminalSize();
             System.out.println("* terminal size: " + terminalSize.getCols() + " cols x " + terminalSize.getRows() + " rows");
+            System.out.print("[normal] ");
+            terminal.bold();
+            System.out.print("[bold]");
+            terminal.normal();
+            System.out.println(" [normal]");
         }
     }
 }
