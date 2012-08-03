@@ -34,8 +34,8 @@ public class Platform {
         if (type.equals(Process.class)) {
             return type.cast(new DefaultProcess());
         }
-        if (type.equals(Terminal.class)) {
-            return type.cast(new DefaultTerminal());
+        if (type.equals(TerminalAccess.class)) {
+            return type.cast(new DefaultTerminalAccess());
         }
         throw new UnsupportedOperationException(String.format("Cannot load unknown native integration %s.",
                 type.getName()));
@@ -70,19 +70,36 @@ public class Platform {
         }
     }
 
-    private static class DefaultTerminal implements Terminal {
+    private static class DefaultTerminalAccess implements TerminalAccess {
         @Override
         public boolean isTerminal(Output output) {
             return PosixTerminalFunctions.isatty(output.ordinal());
         }
 
         @Override
-        public TerminalSize getTerminalSize(Output output) {
+        public Terminal getTerminal(Output output) {
+            if (!isTerminal(output)) {
+                throw new NativeException(String.format("%s is not attached to a terminal.", output));
+            }
+            return new DefaultTerminal(output);
+        }
+    }
+
+    private static class DefaultTerminal implements Terminal {
+        private final TerminalAccess.Output output;
+
+        public DefaultTerminal(TerminalAccess.Output output) {
+            this.output = output;
+        }
+
+        @Override
+        public TerminalSize getTerminalSize() {
             MutableTerminalSize terminalSize = new MutableTerminalSize();
             FunctionResult result = new FunctionResult();
             PosixTerminalFunctions.getTerminalSize(output.ordinal(), terminalSize, result);
             if (result.isFailed()) {
-                throw new NativeException(String.format("Could not get terminal size. Errno is %d.", result.getErrno()));
+                throw new NativeException(String.format("Could not get terminal size. Errno is %d.",
+                        result.getErrno()));
             }
             return terminalSize;
         }
