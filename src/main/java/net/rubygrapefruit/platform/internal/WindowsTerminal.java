@@ -4,6 +4,7 @@ import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.Terminal;
 import net.rubygrapefruit.platform.TerminalAccess;
 import net.rubygrapefruit.platform.TerminalSize;
+import net.rubygrapefruit.platform.internal.jni.TerminfoFunctions;
 import net.rubygrapefruit.platform.internal.jni.WindowsConsoleFunctions;
 
 public class WindowsTerminal extends AbstractTerminal {
@@ -80,31 +81,61 @@ public class WindowsTerminal extends AbstractTerminal {
 
     @Override
     public Terminal cursorDown(int count) throws NativeException {
-        throw new UnsupportedOperationException();
+        FunctionResult result = new FunctionResult();
+        WindowsConsoleFunctions.down(count, result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not move cursor down for %s: %s", this, result.getMessage()));
+        }
+        return this;
     }
 
     @Override
     public Terminal cursorUp(int count) throws NativeException {
-        throw new UnsupportedOperationException();
+        FunctionResult result = new FunctionResult();
+        WindowsConsoleFunctions.up(count, result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not move cursor up for %s: %s", this, result.getMessage()));
+        }
+        return this;
     }
 
     @Override
     public Terminal cursorLeft(int count) throws NativeException {
-        throw new UnsupportedOperationException();
+        FunctionResult result = new FunctionResult();
+        WindowsConsoleFunctions.left(count, result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not move cursor left for %s: %s", this, result.getMessage()));
+        }
+        return this;
     }
 
     @Override
     public Terminal cursorRight(int count) throws NativeException {
-        throw new UnsupportedOperationException();
+        FunctionResult result = new FunctionResult();
+        WindowsConsoleFunctions.right(count, result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not move cursor right for %s: %s", this, result.getMessage()));
+        }
+        return this;
     }
 
     @Override
     public Terminal cursorStartOfLine() throws NativeException {
-        throw new UnsupportedOperationException();
+        FunctionResult result = new FunctionResult();
+        WindowsConsoleFunctions.startLine(result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not move cursor to start of line for %s: %s", this, result.getMessage()));
+        }
+        return this;
     }
 
     @Override
     public Terminal clearToEndOfLine() throws NativeException {
-        throw new UnsupportedOperationException();
+        FunctionResult result = new FunctionResult();
+        WindowsConsoleFunctions.clearToEndOfLine(result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could clear to end of line for %s: %s", this, result.getMessage()));
+        }
+        return this;
     }
 }

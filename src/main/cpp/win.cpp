@@ -51,11 +51,11 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_isConsole(
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_getConsoleSize (JNIEnv *env, jclass target, jint output, jobject dimension, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_getConsoleSize(JNIEnv *env, jclass target, jint output, jobject dimension, jobject result) {
     CONSOLE_SCREEN_BUFFER_INFO console_info;
     HANDLE handle = getHandle(env, output, result);
     if (handle == NULL) {
-        mark_failed_with_message(env, "not a terminal", result);
+        mark_failed_with_message(env, "not a console", result);
         return;
     }
     if (!GetConsoleScreenBufferInfo(handle, &console_info)) {
@@ -153,6 +153,83 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_foreground
     SetConsoleTextAttribute(current_console, current_attributes);
     if (!SetConsoleTextAttribute(current_console, current_attributes)) {
         mark_failed_with_errno(env, "could not set text attributes", result);
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_left(JNIEnv *env, jclass target, jint count, jobject result) {
+    CONSOLE_SCREEN_BUFFER_INFO console_info;
+    if (!GetConsoleScreenBufferInfo(current_console, &console_info)) {
+        mark_failed_with_errno(env, "could not get console buffer", result);
+        return;
+    }
+    console_info.dwCursorPosition.X -= count;
+    if (!SetConsoleCursorPosition(current_console, console_info.dwCursorPosition)) {
+        mark_failed_with_errno(env, "could not set cursor position", result);
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_right(JNIEnv *env, jclass target, jint count, jobject result) {
+    CONSOLE_SCREEN_BUFFER_INFO console_info;
+    if (!GetConsoleScreenBufferInfo(current_console, &console_info)) {
+        mark_failed_with_errno(env, "could not get console buffer", result);
+        return;
+    }
+    console_info.dwCursorPosition.X += count;
+    if (!SetConsoleCursorPosition(current_console, console_info.dwCursorPosition)) {
+        mark_failed_with_errno(env, "could not set cursor position", result);
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_up(JNIEnv *env, jclass target, jint count, jobject result) {
+    CONSOLE_SCREEN_BUFFER_INFO console_info;
+    if (!GetConsoleScreenBufferInfo(current_console, &console_info)) {
+        mark_failed_with_errno(env, "could not get console buffer", result);
+        return;
+    }
+    console_info.dwCursorPosition.Y -= count;
+    if (!SetConsoleCursorPosition(current_console, console_info.dwCursorPosition)) {
+        mark_failed_with_errno(env, "could not set cursor position", result);
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_down(JNIEnv *env, jclass target, jint count, jobject result) {
+    CONSOLE_SCREEN_BUFFER_INFO console_info;
+    if (!GetConsoleScreenBufferInfo(current_console, &console_info)) {
+        mark_failed_with_errno(env, "could not get console buffer", result);
+        return;
+    }
+    console_info.dwCursorPosition.Y += count;
+    if (!SetConsoleCursorPosition(current_console, console_info.dwCursorPosition)) {
+        mark_failed_with_errno(env, "could not set cursor position", result);
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_startLine(JNIEnv *env, jclass target, jobject result) {
+    CONSOLE_SCREEN_BUFFER_INFO console_info;
+    if (!GetConsoleScreenBufferInfo(current_console, &console_info)) {
+        mark_failed_with_errno(env, "could not get console buffer", result);
+        return;
+    }
+    console_info.dwCursorPosition.X = 0;
+    if (!SetConsoleCursorPosition(current_console, console_info.dwCursorPosition)) {
+        mark_failed_with_errno(env, "could not set cursor position", result);
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_clearToEndOfLine(JNIEnv *env, jclass target, jobject result) {
+    CONSOLE_SCREEN_BUFFER_INFO console_info;
+    if (!GetConsoleScreenBufferInfo(current_console, &console_info)) {
+        mark_failed_with_errno(env, "could not get console buffer", result);
+        return;
+    }
+    for (int i = console_info.dwCursorPosition.X; i < console_info.dwSize.X; i++) {
+        WriteConsole(current_console, " ", 1, NULL, NULL);
     }
 }
 
