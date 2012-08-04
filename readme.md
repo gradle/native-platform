@@ -10,8 +10,15 @@ Provides Java bindings for various native APIs.
 
 Currently only ported to OS X (10.7.4) and Linux (Ubuntu 12.04).
 
-#### TODO
+## Building
 
+### Ubuntu
+
+You need to install the `libncurses5-dev` package to pick up the ncurses header files. Also worth installing the `ncurses-doc` package too.
+
+## TODO
+
+* Fix TERM=dumb on linux
 * Split out separate native library for terminal handling.
 * String names for errno values.
 * Split into multiple projects.
