@@ -36,7 +36,7 @@ class PosixFileTest extends Specification {
 
         then:
         NativeException e = thrown()
-        e.message == "Could not set UNIX mode on $file. Errno is 2."
+        e.message == "Could not set UNIX mode on $file: could not chmod file (errno 2)"
     }
 
     def "throws exception on failure to get mode"() {
@@ -47,6 +47,6 @@ class PosixFileTest extends Specification {
 
         then:
         NativeException e = thrown()
-        e.message == "Could not get UNIX mode on $file. Errno is 2."
+        e.message == "Could not get UNIX mode on $file: could not stat file (errno 2)"
     }
 }

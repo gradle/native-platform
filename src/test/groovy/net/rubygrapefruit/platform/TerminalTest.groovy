@@ -20,6 +20,6 @@ class TerminalTest extends Specification {
 
         then:
         NativeException e = thrown()
-        e.message.startsWith('Could not open terminal. Errno is ')
+        e.message == 'Could not open terminal: not a terminal'
     }
 }

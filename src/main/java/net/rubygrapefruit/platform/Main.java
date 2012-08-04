@@ -15,11 +15,24 @@ public class Main {
             Terminal terminal = terminalAccess.getTerminal(TerminalAccess.Output.Stdout);
             TerminalSize terminalSize = terminal.getTerminalSize();
             System.out.println("* terminal size: " + terminalSize.getCols() + " cols x " + terminalSize.getRows() + " rows");
+            System.out.println();
+            System.out.println("TERMINAL OUTPUT");
             System.out.print("[normal] ");
             terminal.bold();
             System.out.print("[bold]");
             terminal.normal();
             System.out.println(" [normal]");
+
+            System.out.println("here are the colors:");
+            for (Terminal.Color color : Terminal.Color.values()) {
+                terminal.foreground(color);
+                System.out.print(String.format("[%s] ", color.toString().toLowerCase()));
+                terminal.bold();
+                System.out.print(String.format("[%s]", color.toString().toLowerCase()));
+                terminal.normal();
+                System.out.println();
+            }
+            System.out.println();
         }
     }
 }

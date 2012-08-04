@@ -52,7 +52,7 @@ public class Platform {
             FunctionResult result = new FunctionResult();
             PosixFileFunctions.chmod(file.getPath(), perms, result);
             if (result.isFailed()) {
-                throw new NativeException(String.format("Could not set UNIX mode on %s. Errno is %d.", file, result.getErrno()));
+                throw new NativeException(String.format("Could not set UNIX mode on %s: %s", file, result.getMessage()));
             }
         }
 
@@ -62,7 +62,7 @@ public class Platform {
             FileStat stat = new FileStat();
             PosixFileFunctions.stat(file.getPath(), stat, result);
             if (result.isFailed()) {
-                throw new NativeException(String.format("Could not get UNIX mode on %s. Errno is %d.", file, result.getErrno()));
+                throw new NativeException(String.format("Could not get UNIX mode on %s: %s", file, result.getMessage()));
             }
             return stat.mode;
         }
@@ -100,6 +100,7 @@ public class Platform {
     private static class DefaultTerminal implements Terminal {
         private final TerminalAccess.Output output;
         private final PrintStream stream;
+        private Color foreground;
 
         public DefaultTerminal(TerminalAccess.Output output) {
             this.output = output;
@@ -111,9 +112,14 @@ public class Platform {
             FunctionResult result = new FunctionResult();
             TerminfoFunctions.initTerminal(output.ordinal(), result);
             if (result.isFailed()) {
-                throw new NativeException(String.format("Could not open terminal. Errno is %d.",
-                        result.getErrno()));
+                throw new NativeException(String.format("Could not open terminal: %s", result.getMessage()));
             }
+            Runtime.getRuntime().addShutdownHook(new Thread(){
+                @Override
+                public void run() {
+                    reset();
+                }
+            });
         }
 
         @Override
@@ -122,40 +128,50 @@ public class Platform {
             FunctionResult result = new FunctionResult();
             PosixTerminalFunctions.getTerminalSize(output.ordinal(), terminalSize, result);
             if (result.isFailed()) {
-                throw new NativeException(String.format("Could not get terminal size. Errno is %d.",
-                        result.getErrno()));
+                throw new NativeException(String.format("Could not get terminal size: %s", result.getMessage()));
             }
             return terminalSize;
+        }
+
+        @Override
+        public Terminal foreground(Color color) {
+            stream.flush();
+            FunctionResult result = new FunctionResult();
+            TerminfoFunctions.foreground(color.ordinal(), result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not switch foreground color: %s", result.getMessage()));
+            }
+            foreground = color;
+            return this;
         }
 
         @Override
         public Terminal bold() {
             stream.flush();
             FunctionResult result = new FunctionResult();
-            TerminfoFunctions.bold(output.ordinal(), result);
+            TerminfoFunctions.bold(result);
             if (result.isFailed()) {
-                throw new NativeException(String.format("Could not switch to bold mode. Errno is %d.",
-                        result.getErrno()));
+                throw new NativeException(String.format("Could not switch to bold mode: %s", result.getMessage()));
             }
             return this;
         }
 
         @Override
-        public Terminal bold(String output) {
-            bold();
-            stream.print(output);
-            normal();
+        public Terminal normal() {
+            reset();
+            if (foreground != null) {
+                foreground(foreground);
+            }
             return this;
         }
 
         @Override
-        public Terminal normal() {
+        public Terminal reset() {
             stream.flush();
             FunctionResult result = new FunctionResult();
-            TerminfoFunctions.normal(output.ordinal(), result);
+            TerminfoFunctions.reset(result);
             if (result.isFailed()) {
-                throw new NativeException(String.format("Could not switch to normal mode. Errno is %d.",
-                        result.getErrno()));
+                throw new NativeException(String.format("Could not reset terminal: %s", result.getMessage()));
             }
             return this;
         }

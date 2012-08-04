@@ -6,7 +6,12 @@ public class TerminfoFunctions {
      */
     public static native void initTerminal(int filedes, FunctionResult result);
 
-    public static native void bold(int filedes, FunctionResult result);
+    public static native void bold(FunctionResult result);
 
-    public static native void normal(int filedes, FunctionResult result);
+    public static native void reset(FunctionResult result);
+
+    /**
+     * Set the foreground color to the given ansi color.
+     */
+    public static native void foreground(int ansiColor, FunctionResult result);
 }

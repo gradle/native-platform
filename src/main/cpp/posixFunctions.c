@@ -8,10 +8,24 @@
 #include <curses.h>
 #include <term.h>
 
-void markFailed(JNIEnv *env, jobject result) {
+/*
+ * Marks the given result as failed, using the current value of errno
+ */
+void mark_failed_with_errno(JNIEnv *env, const char* message, jobject result) {
     jclass destClass = env->GetObjectClass(result);
-    jmethodID method = env->GetMethodID(destClass, "failed", "(I)V");
-    env->CallVoidMethod(result, method, errno);
+    jmethodID method = env->GetMethodID(destClass, "failed", "(Ljava/lang/String;I)V");
+    jstring message_str = env->NewStringUTF(message);
+    env->CallVoidMethod(result, method, message_str, errno);
+}
+
+/*
+ * Marks the given result as failed, using the given error message
+ */
+void mark_failed_with_message(JNIEnv *env, const char* message, jobject result) {
+    jclass destClass = env->GetObjectClass(result);
+    jmethodID method = env->GetMethodID(destClass, "failed", "(Ljava/lang/String;)V");
+    jstring message_str = env->NewStringUTF(message);
+    env->CallVoidMethod(result, method, message_str);
 }
 
 /*
@@ -20,7 +34,7 @@ void markFailed(JNIEnv *env, jobject result) {
 
 JNIEXPORT jint JNICALL
 Java_net_rubygrapefruit_platform_internal_NativeLibraryFunctions_getVersion(JNIEnv *env, jclass target) {
-    return 1;
+    return 2;
 }
 
 /*
@@ -31,8 +45,9 @@ JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_PosixFileFunctions_chmod(JNIEnv *env, jclass target, jstring path, jint mode, jobject result) {
     const char* pathUtf8 = env->GetStringUTFChars(path, NULL);
     int retval = chmod(pathUtf8, mode);
+    env->ReleaseStringUTFChars(path, pathUtf8);
     if (retval != 0) {
-        markFailed(env, result);
+        mark_failed_with_errno(env, "could not chmod file", result);
     }
 }
 
@@ -41,8 +56,9 @@ Java_net_rubygrapefruit_platform_internal_PosixFileFunctions_stat(JNIEnv *env, j
     struct stat fileInfo;
     const char* pathUtf8 = env->GetStringUTFChars(path, NULL);
     int retval = stat(pathUtf8, &fileInfo);
+    env->ReleaseStringUTFChars(path, pathUtf8);
     if (retval != 0) {
-        markFailed(env, result);
+        mark_failed_with_errno(env, "could not stat file", result);
         return;
     }
     jclass destClass = env->GetObjectClass(dest);
@@ -79,7 +95,7 @@ Java_net_rubygrapefruit_platform_internal_PosixTerminalFunctions_getTerminalSize
     struct winsize screen_size;
     int retval = ioctl(output+1, TIOCGWINSZ, &screen_size);
     if (retval != 0) {
-        markFailed(env, result);
+        mark_failed_with_errno(env, "could not fetch terminal size", result);
         return;
     }
     jclass dimensionClass = env->GetObjectClass(dimension);
@@ -102,25 +118,29 @@ int write_to_terminal(int ch) {
 void write_capability(JNIEnv *env, const char* capability, jobject result) {
     char* cap = tgetstr((char*)capability, NULL);
     if (cap == NULL) {
-        markFailed(env, result);
+        mark_failed_with_message(env, "unknown terminal capability", result);
         return;
     }
     if (tputs(cap, 1, write_to_terminal) == ERR) {
-        markFailed(env, result);
+        mark_failed_with_message(env, "could not write to terminal", result);
         return;
     }
 }
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_TerminfoFunctions_initTerminal(JNIEnv *env, jclass target, jint output, jobject result) {
+    if (!isatty(output+1)) {
+        mark_failed_with_message(env, "not a terminal", result);
+        return;
+    }
     char* termType = getenv("TERM");
     if (termType == NULL) {
-        markFailed(env, result);
+        mark_failed_with_message(env, "$TERM not set", result);
         return;
     }
     int retval = tgetent(NULL, termType);
     if (retval != 1) {
-        markFailed(env, result);
+        mark_failed_with_message(env, "could not get termcap entry", result);
         return;
     }
     current_terminal = output + 1;
@@ -128,11 +148,31 @@ Java_net_rubygrapefruit_platform_internal_TerminfoFunctions_initTerminal(JNIEnv 
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_TerminfoFunctions_bold(JNIEnv *env, jclass target, jint output, jobject result) {
+Java_net_rubygrapefruit_platform_internal_TerminfoFunctions_bold(JNIEnv *env, jclass target, jobject result) {
     write_capability(env, "md", result);
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_TerminfoFunctions_normal(JNIEnv *env, jclass target, jint output, jobject result) {
+Java_net_rubygrapefruit_platform_internal_TerminfoFunctions_reset(JNIEnv *env, jclass target, jobject result) {
     write_capability(env, "me", result);
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_TerminfoFunctions_foreground(JNIEnv *env, jclass target, jint color, jobject result) {
+    char* capability = tgetstr((char*)"AF", NULL);
+    if (capability == NULL) {
+        mark_failed_with_message(env, "unknown terminal capability", result);
+        return;
+    }
+
+    capability = tparm(capability, color, 0, 0, 0, 0, 0, 0, 0, 0);
+    if (capability == NULL) {
+        mark_failed_with_message(env, "could not format terminal capability string", result);
+        return;
+    }
+
+    if (tputs(capability, 1, write_to_terminal) == ERR) {
+        mark_failed_with_message(env, "could not write to terminal", result);
+        return;
+    }
 }
