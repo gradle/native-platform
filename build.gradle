@@ -56,6 +56,7 @@ task nativeHeaders {
             args 'net.rubygrapefruit.platform.internal.PosixProcessFunctions'
             args 'net.rubygrapefruit.platform.internal.PosixTerminalFunctions'
             args 'net.rubygrapefruit.platform.internal.TerminfoFunctions'
+            args 'net.rubygrapefruit.platform.internal.WindowsConsoleFunctions'
         }
     }
 }

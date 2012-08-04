@@ -8,7 +8,11 @@ Provides Java bindings for various native APIs.
 * Switch between bold and normal mode on the terminal.
 * Change foreground color on the terminal.
 
-Currently only ported to OS X (10.7.4) and Linux (Ubuntu 12.04).
+Currently ported to OS X, Linux and Windows. Tested on:
+
+* OS X 10.7.4
+* Ubunutu 12.04 (amd64)
+* Windows 7 (amd64)
 
 ## Building
 
@@ -24,3 +28,4 @@ You need to install the `libncurses5-dev` package to pick up the ncurses header 
 * Split into multiple projects.
 * Handle multiple architectures.
 * IBM JVM.
+* Convert to c.

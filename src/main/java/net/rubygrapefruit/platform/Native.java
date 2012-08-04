@@ -191,11 +191,56 @@ public class Native {
     private static class WindowsTerminalAccess implements TerminalAccess {
         @Override
         public boolean isTerminal(Output output) {
-            return false;
+            FunctionResult result = new FunctionResult();
+            boolean console = WindowsConsoleFunctions.isConsole(output.ordinal(), result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not determine if %s is a console: %s", output,
+                        result.getMessage()));
+            }
+            return console;
         }
 
         @Override
         public Terminal getTerminal(Output output) {
+            return new WindowsTerminal(output);
+        }
+    }
+
+    private static class WindowsTerminal implements Terminal {
+        private final TerminalAccess.Output output;
+
+        public WindowsTerminal(TerminalAccess.Output output) {
+            this.output = output;
+        }
+
+        @Override
+        public TerminalSize getTerminalSize() {
+            FunctionResult result = new FunctionResult();
+            MutableTerminalSize size = new MutableTerminalSize();
+            WindowsConsoleFunctions.getConsoleSize(output.ordinal(), size, result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not determine terminal size: %s", result.getMessage()));
+            }
+            return size;
+        }
+
+        @Override
+        public Terminal bold() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Terminal foreground(Color color) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Terminal normal() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Terminal reset() {
             throw new UnsupportedOperationException();
         }
     }

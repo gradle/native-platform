@@ -1,6 +1,7 @@
 #ifndef WIN32
 
 #include "native.h"
+#include "generic.h"
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -14,20 +15,7 @@
  * Marks the given result as failed, using the current value of errno
  */
 void mark_failed_with_errno(JNIEnv *env, const char* message, jobject result) {
-    jclass destClass = env->GetObjectClass(result);
-    jmethodID method = env->GetMethodID(destClass, "failed", "(Ljava/lang/String;I)V");
-    jstring message_str = env->NewStringUTF(message);
-    env->CallVoidMethod(result, method, message_str, errno);
-}
-
-/*
- * Marks the given result as failed, using the given error message
- */
-void mark_failed_with_message(JNIEnv *env, const char* message, jobject result) {
-    jclass destClass = env->GetObjectClass(result);
-    jmethodID method = env->GetMethodID(destClass, "failed", "(Ljava/lang/String;)V");
-    jstring message_str = env->NewStringUTF(message);
-    env->CallVoidMethod(result, method, message_str);
+    mark_failed_with_code(env, message, errno, result);
 }
 
 /*
