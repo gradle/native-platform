@@ -15,6 +15,7 @@ dependencies {
 
 mainClassName = 'net.rubygrapefruit.platform.Main'
 def nativeHeadersDir = file("$buildDir/nativeHeaders")
+targetCompatibility = 1.5
 
 libraries {
     main {
