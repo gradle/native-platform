@@ -6,7 +6,7 @@ public class Main {
         System.out.println("* OS: " + System.getProperty("os.name") + ' ' + System.getProperty("os.version") + ' ' + System.getProperty("os.arch"));
 
         Process process = Native.get(Process.class);
-        System.out.println("* PID: " + process.getPid());
+        System.out.println("* PID: " + process.getProcessId());
 
         TerminalAccess terminalAccess = Native.get(TerminalAccess.class);
         boolean stdoutIsTerminal = terminalAccess.isTerminal(TerminalAccess.Output.Stdout);

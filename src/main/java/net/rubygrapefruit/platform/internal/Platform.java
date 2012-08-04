@@ -25,23 +25,43 @@ public abstract class Platform {
         return true;
     }
 
+    public boolean isPosix() {
+        return false;
+    }
+
+    public boolean isWindows() {
+        return false;
+    }
+
     public abstract String getLibraryName();
 
     private static class Windows extends Platform {
+        @Override
+        public boolean isWindows() {
+            return true;
+        }
+
         @Override
         public String getLibraryName() {
             return "native-platform.dll";
         }
     }
 
-    private static class Linux extends Platform {
+    private static abstract class Posix extends Platform {
+        @Override
+        public boolean isPosix() {
+            return true;
+        }
+    }
+
+    private static class Linux extends Posix {
         @Override
         public String getLibraryName() {
             return "libnative-platform.so";
         }
     }
 
-    private static class OsX extends Platform {
+    private static class OsX extends Posix {
         @Override
         public String getLibraryName() {
             return "libnative-platform.dylib";

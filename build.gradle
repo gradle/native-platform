@@ -15,7 +15,11 @@ dependencies {
 
 mainClassName = 'net.rubygrapefruit.platform.Main'
 def nativeHeadersDir = file("$buildDir/nativeHeaders")
+sourceCompatibility = 1.5
 targetCompatibility = 1.5
+
+println org.gradle.internal.jvm.Jvm.current().javaHome
+println org.gradle.internal.jvm.Jvm.current().toolsJar
 
 libraries {
     main {
@@ -23,11 +27,16 @@ libraries {
             includes([nativeHeadersDir])
             if (org.gradle.internal.os.OperatingSystem.current().macOsX) {
                 includes(['/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers/'])
+                args("-lcurses")
+            } else if (org.gradle.internal.os.OperatingSystem.current().windows) {
+                includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
+                includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"])
+                args("/DWIN32")
             } else {
                 includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
                 includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/linux"])
+                args("-lcurses")
             }
-            args("-lcurses")
         }
     }
 }

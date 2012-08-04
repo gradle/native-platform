@@ -10,6 +10,6 @@ class ProcessTest extends Specification {
 
     def "can get PID"() {
         expect:
-        process.getPid() != 0
+        process.getProcessId() != 0
     }
 }

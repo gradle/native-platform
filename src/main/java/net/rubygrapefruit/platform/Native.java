@@ -14,9 +14,9 @@ public class Native {
     private static boolean loaded;
 
     static <T extends NativeIntegration> T get(Class<T> type) {
+        Platform platform = Platform.current();
         synchronized (lock) {
             if (!loaded) {
-                Platform platform = Platform.current();
                 if (!platform.isSupported()) {
                     throw new NativeException(String.format("The current platform is not supported."));
                 }
@@ -35,16 +35,25 @@ public class Native {
                 loaded = true;
             }
         }
-        if (type.equals(PosixFile.class)) {
-            return type.cast(new DefaultPosixFile());
+        if (platform.isPosix()) {
+            if (type.equals(PosixFile.class)) {
+                return type.cast(new DefaultPosixFile());
+            }
+            if (type.equals(Process.class)) {
+                return type.cast(new DefaultProcess());
+            }
+            if (type.equals(TerminalAccess.class)) {
+                return type.cast(new TerminfoTerminalAccess());
+            }
+        } else if (platform.isWindows()) {
+            if (type.equals(Process.class)) {
+                return type.cast(new DefaultProcess());
+            }
+            if (type.equals(TerminalAccess.class)) {
+                return type.cast(new WindowsTerminalAccess());
+            }
         }
-        if (type.equals(Process.class)) {
-            return type.cast(new DefaultProcess());
-        }
-        if (type.equals(TerminalAccess.class)) {
-            return type.cast(new DefaultTerminalAccess());
-        }
-        throw new UnsupportedOperationException(String.format("Cannot load unknown native integration %s.",
+        throw new UnsupportedOperationException(String.format("Cannot load unsupported native integration %s.",
                 type.getName()));
     }
 
@@ -72,12 +81,12 @@ public class Native {
 
     private static class DefaultProcess implements Process {
         @Override
-        public int getPid() throws NativeException {
+        public int getProcessId() throws NativeException {
             return PosixProcessFunctions.getPid();
         }
     }
 
-    private static class DefaultTerminalAccess implements TerminalAccess {
+    private static class TerminfoTerminalAccess implements TerminalAccess {
         private static Output currentlyOpen;
 
         @Override
@@ -176,6 +185,18 @@ public class Native {
                 throw new NativeException(String.format("Could not reset terminal: %s", result.getMessage()));
             }
             return this;
+        }
+    }
+
+    private static class WindowsTerminalAccess implements TerminalAccess {
+        @Override
+        public boolean isTerminal(Output output) {
+            return false;
+        }
+
+        @Override
+        public Terminal getTerminal(Output output) {
+            throw new UnsupportedOperationException();
         }
     }
 }

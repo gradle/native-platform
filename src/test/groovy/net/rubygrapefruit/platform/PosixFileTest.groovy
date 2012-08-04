@@ -3,7 +3,10 @@ package net.rubygrapefruit.platform
 import spock.lang.Specification
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
+import spock.lang.IgnoreIf
+import net.rubygrapefruit.platform.internal.Platform
 
+@IgnoreIf({Platform.current().windows})
 class PosixFileTest extends Specification {
     @Rule TemporaryFolder tmpDir
     final PosixFile file = Native.get(PosixFile.class)

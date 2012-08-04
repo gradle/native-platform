@@ -14,7 +14,7 @@ class TerminalTest extends Specification {
         !terminal.isTerminal(TerminalAccess.Output.Stderr);
     }
 
-    def "cannot determine terminal size from a test"() {
+    def "cannot access terminal from a test"() {
         when:
         terminal.getTerminal(TerminalAccess.Output.Stdout)
 
