@@ -16,7 +16,7 @@ void mark_failed_with_errno(JNIEnv *env, const char* message, jobject result) {
  */
 
 JNIEXPORT jint JNICALL
-Java_net_rubygrapefruit_platform_internal_PosixProcessFunctions_getPid(JNIEnv *env, jclass target) {
+Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_getPid(JNIEnv *env, jclass target) {
     return GetCurrentProcessId();
 }
 
@@ -34,7 +34,7 @@ HANDLE getHandle(JNIEnv *env, int output, jobject result) {
 }
 
 JNIEXPORT jboolean JNICALL
-Java_net_rubygrapefruit_platform_internal_WindowsConsoleFunctions_isConsole(JNIEnv *env, jclass target, jint output, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_isConsole(JNIEnv *env, jclass target, jint output, jobject result) {
     CONSOLE_SCREEN_BUFFER_INFO console_info;
     HANDLE handle = getHandle(env, output, result);
     if (handle == NULL) {
@@ -51,7 +51,7 @@ Java_net_rubygrapefruit_platform_internal_WindowsConsoleFunctions_isConsole(JNIE
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_WindowsConsoleFunctions_getConsoleSize (JNIEnv *env, jclass target, jint output, jobject dimension, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_getConsoleSize (JNIEnv *env, jclass target, jint output, jobject dimension, jobject result) {
     CONSOLE_SCREEN_BUFFER_INFO console_info;
     HANDLE handle = getHandle(env, output, result);
     if (handle == NULL) {

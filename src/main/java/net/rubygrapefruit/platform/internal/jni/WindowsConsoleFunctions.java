@@ -1,4 +1,7 @@
-package net.rubygrapefruit.platform.internal;
+package net.rubygrapefruit.platform.internal.jni;
+
+import net.rubygrapefruit.platform.internal.FunctionResult;
+import net.rubygrapefruit.platform.internal.MutableTerminalSize;
 
 public class WindowsConsoleFunctions {
     public static native boolean isConsole(int filedes, FunctionResult result);

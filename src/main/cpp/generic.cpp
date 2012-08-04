@@ -16,6 +16,6 @@ void mark_failed_with_code(JNIEnv *env, const char* message, int error_code, job
 }
 
 JNIEXPORT jint JNICALL
-Java_net_rubygrapefruit_platform_internal_NativeLibraryFunctions_getVersion(JNIEnv *env, jclass target) {
+Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getVersion(JNIEnv *env, jclass target) {
     return 2;
 }
