@@ -70,4 +70,90 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_getConsole
     env->SetIntField(dimension, heightField, console_info.srWindow.Bottom - console_info.srWindow.Top + 1);
 }
 
+HANDLE current_console = NULL;
+WORD original_attributes = 0;
+WORD current_attributes = 0;
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_initConsole(JNIEnv *env, jclass target, jint output, jobject result) {
+    CONSOLE_SCREEN_BUFFER_INFO console_info;
+    HANDLE handle = getHandle(env, output, result);
+    if (handle == NULL) {
+        mark_failed_with_message(env, "not a terminal", result);
+        return;
+    }
+    if (!GetConsoleScreenBufferInfo(handle, &console_info)) {
+        if (GetLastError() == ERROR_INVALID_HANDLE) {
+            mark_failed_with_message(env, "not a console", result);
+        } else {
+            mark_failed_with_errno(env, "could not get console buffer", result);
+        }
+        return;
+    }
+    current_console = handle;
+    original_attributes = console_info.wAttributes;
+    current_attributes = original_attributes;
+    Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_normal(env, target, result);
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_bold(JNIEnv *env, jclass target, jobject result) {
+    current_attributes |= FOREGROUND_INTENSITY;
+    if (!SetConsoleTextAttribute(current_console, current_attributes)) {
+        mark_failed_with_errno(env, "could not set text attributes", result);
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_normal(JNIEnv *env, jclass target, jobject result) {
+    current_attributes &= ~FOREGROUND_INTENSITY;
+    SetConsoleTextAttribute(current_console, current_attributes);
+    if (!SetConsoleTextAttribute(current_console, current_attributes)) {
+        mark_failed_with_errno(env, "could not set text attributes", result);
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_reset(JNIEnv *env, jclass target, jobject result) {
+    SetConsoleTextAttribute(current_console, original_attributes);
+    if (!SetConsoleTextAttribute(current_console, current_attributes)) {
+        mark_failed_with_errno(env, "could not set text attributes", result);
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_foreground(JNIEnv *env, jclass target, jint color, jobject result) {
+    current_attributes &= ~ (FOREGROUND_BLUE|FOREGROUND_RED|FOREGROUND_GREEN);
+    switch (color) {
+        case 0:
+            break;
+        case 1:
+            current_attributes |= FOREGROUND_RED;
+            break;
+        case 2:
+            current_attributes |= FOREGROUND_GREEN;
+            break;
+        case 3:
+            current_attributes |= FOREGROUND_RED|FOREGROUND_GREEN;
+            break;
+        case 4:
+            current_attributes |= FOREGROUND_BLUE;
+            break;
+        case 5:
+            current_attributes |= FOREGROUND_RED|FOREGROUND_BLUE;
+            break;
+        case 6:
+            current_attributes |= FOREGROUND_GREEN|FOREGROUND_BLUE;
+            break;
+        default:
+            current_attributes |= FOREGROUND_RED|FOREGROUND_GREEN|FOREGROUND_BLUE;
+            break;
+    }
+
+    SetConsoleTextAttribute(current_console, current_attributes);
+    if (!SetConsoleTextAttribute(current_console, current_attributes)) {
+        mark_failed_with_errno(env, "could not set text attributes", result);
+    }
+}
+
 #endif

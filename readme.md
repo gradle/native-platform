@@ -29,3 +29,5 @@ You need to install the `libncurses5-dev` package to pick up the ncurses header 
 * Handle multiple architectures.
 * IBM JVM.
 * Convert to c.
+* Thread safety.
+* Windows: flush System.out or System.err on attribute change.

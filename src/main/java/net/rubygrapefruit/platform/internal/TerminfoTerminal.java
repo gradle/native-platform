@@ -9,29 +9,29 @@ import net.rubygrapefruit.platform.internal.jni.TerminfoFunctions;
 
 import java.io.PrintStream;
 
-public class DefaultTerminal implements Terminal {
+public class TerminfoTerminal extends AbstractTerminal {
     private final TerminalAccess.Output output;
     private final PrintStream stream;
     private Color foreground;
 
-    public DefaultTerminal(TerminalAccess.Output output) {
+    public TerminfoTerminal(TerminalAccess.Output output) {
         this.output = output;
         stream = output == TerminalAccess.Output.Stdout ? System.out : System.err;
     }
 
-    public void init() {
+    @Override
+    public String toString() {
+        return output.toString().toLowerCase();
+    }
+
+    @Override
+    protected void doInit() {
         stream.flush();
         FunctionResult result = new FunctionResult();
         TerminfoFunctions.initTerminal(output.ordinal(), result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not open terminal: %s", result.getMessage()));
+            throw new NativeException(String.format("Could not open terminal for %s: %s", this, result.getMessage()));
         }
-        Runtime.getRuntime().addShutdownHook(new Thread(){
-            @Override
-            public void run() {
-                reset();
-            }
-        });
     }
 
     @Override
@@ -40,7 +40,7 @@ public class DefaultTerminal implements Terminal {
         FunctionResult result = new FunctionResult();
         PosixTerminalFunctions.getTerminalSize(output.ordinal(), terminalSize, result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not get terminal size: %s", result.getMessage()));
+            throw new NativeException(String.format("Could not get terminal size for %s: %s", this, result.getMessage()));
         }
         return terminalSize;
     }
@@ -51,7 +51,7 @@ public class DefaultTerminal implements Terminal {
         FunctionResult result = new FunctionResult();
         TerminfoFunctions.foreground(color.ordinal(), result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not switch foreground color: %s", result.getMessage()));
+            throw new NativeException(String.format("Could not switch foreground color for %s: %s", this, result.getMessage()));
         }
         foreground = color;
         return this;
@@ -63,7 +63,7 @@ public class DefaultTerminal implements Terminal {
         FunctionResult result = new FunctionResult();
         TerminfoFunctions.bold(result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not switch to bold mode: %s", result.getMessage()));
+            throw new NativeException(String.format("Could not switch to bold mode for %s: %s", this, result.getMessage()));
         }
         return this;
     }
@@ -83,7 +83,7 @@ public class DefaultTerminal implements Terminal {
         FunctionResult result = new FunctionResult();
         TerminfoFunctions.reset(result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not reset terminal: %s", result.getMessage()));
+            throw new NativeException(String.format("Could not reset terminal for %s: %s", this, result.getMessage()));
         }
         return this;
     }

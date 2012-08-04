@@ -18,7 +18,7 @@ public class TerminfoTerminalAccess implements TerminalAccess {
             throw new UnsupportedOperationException("Currently only one output can be used as a terminal.");
         }
 
-        DefaultTerminal terminal = new DefaultTerminal(output);
+        TerminfoTerminal terminal = new TerminfoTerminal(output);
         terminal.init();
 
         currentlyOpen = output;

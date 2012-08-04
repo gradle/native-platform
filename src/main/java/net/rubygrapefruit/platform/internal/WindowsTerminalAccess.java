@@ -6,6 +6,8 @@ import net.rubygrapefruit.platform.TerminalAccess;
 import net.rubygrapefruit.platform.internal.jni.WindowsConsoleFunctions;
 
 public class WindowsTerminalAccess implements TerminalAccess {
+    private static Output currentlyOpen;
+
     @Override
     public boolean isTerminal(Output output) {
         FunctionResult result = new FunctionResult();
@@ -19,6 +21,14 @@ public class WindowsTerminalAccess implements TerminalAccess {
 
     @Override
     public Terminal getTerminal(Output output) {
-        return new WindowsTerminal(output);
+        if (currentlyOpen != null) {
+            throw new UnsupportedOperationException("Currently only one output can be used as a terminal.");
+        }
+
+        WindowsTerminal terminal = new WindowsTerminal(output);
+        terminal.init();
+
+        currentlyOpen = output;
+        return terminal;
     }
 }
