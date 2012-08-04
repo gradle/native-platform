@@ -9,26 +9,28 @@ import java.io.PrintStream;
 /**
  * Provides access to the native integrations. Use {@link #get(Class)} to load a particular integration.
  */
-public class Platform {
+public class Native {
     private static final Object lock = new Object();
     private static boolean loaded;
 
     static <T extends NativeIntegration> T get(Class<T> type) {
         synchronized (lock) {
             if (!loaded) {
-                System.setProperty("java.library.path", new File("build/binaries").getAbsolutePath());
+                Platform platform = Platform.current();
+                if (!platform.isSupported()) {
+                    throw new NativeException(String.format("The current platform is not supported."));
+                }
                 try {
-                    File libFile = new File("build/binaries/libnative-platform.dylib");
-                    if (!libFile.isFile()) {
-                        libFile = new File("build/binaries/libnative-platform.so");
-                    }
+                    File libFile = new File("build/binaries/" + platform.getLibraryName());
                     System.load(libFile.getCanonicalPath());
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
                 int nativeVersion = NativeLibraryFunctions.getVersion();
                 if (nativeVersion != NativeLibraryFunctions.VERSION) {
-                    throw new NativeException(String.format("Unexpected native library version loaded. Expected %s, was %s.", nativeVersion, NativeLibraryFunctions.VERSION));
+                    throw new NativeException(String.format(
+                            "Unexpected native library version loaded. Expected %s, was %s.", nativeVersion,
+                            NativeLibraryFunctions.VERSION));
                 }
                 loaded = true;
             }

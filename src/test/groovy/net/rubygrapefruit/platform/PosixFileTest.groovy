@@ -6,7 +6,7 @@ import org.junit.rules.TemporaryFolder
 
 class PosixFileTest extends Specification {
     @Rule TemporaryFolder tmpDir
-    final PosixFile file = Platform.get(PosixFile.class)
+    final PosixFile file = Native.get(PosixFile.class)
 
     def "can set mode on a file"() {
         def testFile = tmpDir.newFile("test.txt")

@@ -6,7 +6,7 @@ import spock.lang.Specification
 
 class ProcessTest extends Specification {
     @Rule TemporaryFolder tmpDir
-    final Process process = Platform.get(Process.class)
+    final Process process = Native.get(Process.class)
 
     def "can get PID"() {
         expect:

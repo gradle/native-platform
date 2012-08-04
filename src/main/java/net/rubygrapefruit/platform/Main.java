@@ -5,10 +5,10 @@ public class Main {
         System.out.println();
         System.out.println("* OS: " + System.getProperty("os.name") + ' ' + System.getProperty("os.version") + ' ' + System.getProperty("os.arch"));
 
-        Process process = Platform.get(Process.class);
+        Process process = Native.get(Process.class);
         System.out.println("* PID: " + process.getPid());
 
-        TerminalAccess terminalAccess = Platform.get(TerminalAccess.class);
+        TerminalAccess terminalAccess = Native.get(TerminalAccess.class);
         boolean stdoutIsTerminal = terminalAccess.isTerminal(TerminalAccess.Output.Stdout);
         boolean stderrIsTerminal = terminalAccess.isTerminal(TerminalAccess.Output.Stderr);
         System.out.println("* stdout: " + (stdoutIsTerminal ? "terminal" : "not a terminal"));
@@ -34,7 +34,8 @@ public class Main {
                 terminal.normal();
                 System.out.println();
             }
-            System.out.println();
         }
+
+        System.out.println();
     }
 }

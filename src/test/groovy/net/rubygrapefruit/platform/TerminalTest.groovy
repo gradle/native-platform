@@ -6,7 +6,7 @@ import spock.lang.Specification
 
 class TerminalTest extends Specification {
     @Rule TemporaryFolder tmpDir
-    final TerminalAccess terminal = Platform.get(TerminalAccess.class)
+    final TerminalAccess terminal = Native.get(TerminalAccess.class)
 
     def "can check if attached to terminal"() {
         expect:
