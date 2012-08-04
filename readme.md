@@ -14,3 +14,6 @@ Currently only ported to OS X (10.7.4) and Linux (Ubuntu 12.04).
 
 * Split out separate native library for terminal handling.
 * String names for errno values.
+* Split into multiple projects.
+* Handle multiple architectures.
+* IBM JVM.
