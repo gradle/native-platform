@@ -87,4 +87,48 @@ public class TerminfoTerminal extends AbstractTerminal {
         }
         return this;
     }
+
+    @Override
+    public Terminal cursorDown(int count) {
+        stream.flush();
+        FunctionResult result = new FunctionResult();
+        TerminfoFunctions.down(count, result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not move cursor down for %s: %s", this, result.getMessage()));
+        }
+        return this;
+    }
+
+    @Override
+    public Terminal cursorUp(int count) {
+        stream.flush();
+        FunctionResult result = new FunctionResult();
+        TerminfoFunctions.up(count, result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not move cursor up for %s: %s", this, result.getMessage()));
+        }
+        return this;
+    }
+
+    @Override
+    public Terminal cursorLeft(int count) {
+        stream.flush();
+        FunctionResult result = new FunctionResult();
+        TerminfoFunctions.left(count, result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not move cursor left for %s: %s", this, result.getMessage()));
+        }
+        return this;
+    }
+
+    @Override
+    public Terminal cursorRight(int count) {
+        stream.flush();
+        FunctionResult result = new FunctionResult();
+        TerminfoFunctions.right(count, result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not move cursor right for %s: %s", this, result.getMessage()));
+        }
+        return this;
+    }
 }

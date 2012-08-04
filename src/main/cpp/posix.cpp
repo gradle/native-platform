@@ -108,6 +108,25 @@ void write_capability(JNIEnv *env, const char* capability, jobject result) {
     }
 }
 
+void write_param_capability(JNIEnv *env, const char* capability, int count, jobject result) {
+    char* cap = tgetstr((char*)capability, NULL);
+    if (cap == NULL) {
+        mark_failed_with_message(env, "unknown terminal capability", result);
+        return;
+    }
+
+    cap = tparm(cap, count, 0, 0, 0, 0, 0, 0, 0, 0);
+    if (cap == NULL) {
+        mark_failed_with_message(env, "could not format terminal capability string", result);
+        return;
+    }
+
+    if (tputs(cap, 1, write_to_terminal) == ERR) {
+        mark_failed_with_message(env, "could not write to terminal", result);
+        return;
+    }
+}
+
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_initTerminal(JNIEnv *env, jclass target, jint output, jobject result) {
     if (!isatty(output+1)) {
@@ -140,22 +159,36 @@ Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_reset(JNIEnv *en
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_foreground(JNIEnv *env, jclass target, jint color, jobject result) {
-    char* capability = tgetstr((char*)"AF", NULL);
-    if (capability == NULL) {
-        mark_failed_with_message(env, "unknown terminal capability", result);
-        return;
-    }
+    write_param_capability(env, "AF", color, result);
+}
 
-    capability = tparm(capability, color, 0, 0, 0, 0, 0, 0, 0, 0);
-    if (capability == NULL) {
-        mark_failed_with_message(env, "could not format terminal capability string", result);
-        return;
-    }
-
-    if (tputs(capability, 1, write_to_terminal) == ERR) {
-        mark_failed_with_message(env, "could not write to terminal", result);
-        return;
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_up(JNIEnv *env, jclass target, jint count, jobject result) {
+    for (jint i = 0; i < count; i++) {
+        write_capability(env, "up", result);
     }
 }
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_down(JNIEnv *env, jclass target, jint count, jobject result) {
+    for (jint i = 0; i < count; i++) {
+        write_capability(env, "do", result);
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_left(JNIEnv *env, jclass target, jint count, jobject result) {
+    for (jint i = 0; i < count; i++) {
+        write_capability(env, "le", result);
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_right(JNIEnv *env, jclass target, jint count, jobject result) {
+    for (jint i = 0; i < count; i++) {
+        write_capability(env, "nd", result);
+    }
+}
+
 
 #endif

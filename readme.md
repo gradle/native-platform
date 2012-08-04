@@ -1,12 +1,23 @@
 
+
 Provides Java bindings for various native APIs.
+
+# Available bindings
+
+## Generic
 
 * Get and set UNIX file mode.
 * Get PID of current process.
+
+## Terminal and console
+
+These bindings work for both the UNIX terminal and Windows console:
+
 * Determine if stdout/stderr are attached to a terminal.
 * Query the terminal size.
 * Switch between bold and normal mode on the terminal.
 * Change foreground color on the terminal.
+* Move terminal cursor up, down, left, right.
 
 Currently ported to OS X, Linux and Windows. Tested on:
 
@@ -14,13 +25,17 @@ Currently ported to OS X, Linux and Windows. Tested on:
 * Ubunutu 12.04 (amd64)
 * Windows 7 (amd64)
 
-## Building
+# Building
 
-### Ubuntu
+## Ubuntu
 
 You need to install the `libncurses5-dev` package to pick up the ncurses header files. Also worth installing the `ncurses-doc` package too.
 
-## TODO
+## Windows
+
+You need to install Visual studio, and build from a Visual studio command prompt.
+
+# TODO
 
 * Fix TERM=dumb on linux
 * Split out separate native library for terminal handling.

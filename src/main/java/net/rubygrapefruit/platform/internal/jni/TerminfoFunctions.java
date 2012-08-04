@@ -12,8 +12,13 @@ public class TerminfoFunctions {
 
     public static native void reset(FunctionResult result);
 
-    /**
-     * Set the foreground color to the given ansi color.
-     */
     public static native void foreground(int ansiColor, FunctionResult result);
+
+    public static native void left(int count, FunctionResult result);
+
+    public static native void right(int count, FunctionResult result);
+
+    public static native void up(int count, FunctionResult result);
+
+    public static native void down(int count, FunctionResult result);
 }

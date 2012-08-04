@@ -77,4 +77,24 @@ public class WindowsTerminal extends AbstractTerminal {
         }
         return this;
     }
+
+    @Override
+    public Terminal cursorDown(int count) throws NativeException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Terminal cursorUp(int count) throws NativeException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Terminal cursorLeft(int count) throws NativeException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Terminal cursorRight(int count) throws NativeException {
+        throw new UnsupportedOperationException();
+    }
 }

@@ -34,6 +34,31 @@ public class Main {
                 terminal.normal();
                 System.out.println();
             }
+
+            System.out.println();
+            terminal.reset();
+
+            System.out.println("CURSOR MOVEMENT");
+            System.out.println("                    ");
+            System.out.println("                    ");
+            System.out.println("                    ");
+            System.out.print("draw      ");
+
+            terminal.cursorLeft(10);
+            terminal.cursorUp(1);
+            terminal.cursorRight(10);
+            System.out.print("[4]");
+            terminal.cursorUp(1);
+            terminal.cursorLeft(3);
+            System.out.print("[2]");
+            terminal.cursorLeft(13);
+            System.out.print("[1]");
+            terminal.cursorLeft(3);
+            terminal.cursorDown(1);
+            System.out.print("[3]");
+            terminal.cursorDown(1);
+            terminal.cursorRight(10);
+            System.out.println("done!");
         }
 
         System.out.println();
