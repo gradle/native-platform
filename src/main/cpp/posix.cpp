@@ -190,5 +190,15 @@ Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_right(JNIEnv *en
     }
 }
 
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_startLine(JNIEnv *env, jclass target, jobject result) {
+    write_capability(env, "cr", result);
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_clearToEndOfLine(JNIEnv *env, jclass target, jobject result) {
+    write_capability(env, "ce", result);
+}
+
 
 #endif

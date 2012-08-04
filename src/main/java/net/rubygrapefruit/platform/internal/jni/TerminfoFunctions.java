@@ -21,4 +21,8 @@ public class TerminfoFunctions {
     public static native void up(int count, FunctionResult result);
 
     public static native void down(int count, FunctionResult result);
+
+    public static native void startLine(FunctionResult result);
+
+    public static native void clearToEndOfLine(FunctionResult result);
 }

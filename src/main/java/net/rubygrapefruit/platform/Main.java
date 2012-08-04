@@ -25,7 +25,8 @@ public class Main {
             terminal.normal();
             System.out.println(" [normal]");
 
-            System.out.println("here are the colors:");
+            System.out.println();
+            System.out.println("COLORS");
             for (Terminal.Color color : Terminal.Color.values()) {
                 terminal.foreground(color);
                 System.out.print(String.format("[%s] ", color.toString().toLowerCase()));
@@ -42,9 +43,9 @@ public class Main {
             System.out.println("                    ");
             System.out.println("                    ");
             System.out.println("                    ");
-            System.out.print("draw      ");
+            System.out.print("[delete me]");
 
-            terminal.cursorLeft(10);
+            terminal.cursorLeft(11);
             terminal.cursorUp(1);
             terminal.cursorRight(10);
             System.out.print("[4]");
@@ -57,7 +58,8 @@ public class Main {
             terminal.cursorDown(1);
             System.out.print("[3]");
             terminal.cursorDown(1);
-            terminal.cursorRight(10);
+            terminal.cursorStartOfLine();
+            terminal.clearToEndOfLine();
             System.out.println("done!");
         }
 

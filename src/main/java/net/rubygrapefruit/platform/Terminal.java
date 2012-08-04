@@ -72,4 +72,18 @@ public interface Terminal {
      * @throws NativeException On failure.
      */
     Terminal cursorDown(int count) throws NativeException;
+
+    /**
+     * Moves the cursor to the start of the current line.
+     *
+     * @throws NativeException On failure.
+     */
+    Terminal cursorStartOfLine() throws NativeException;
+
+    /**
+     * Clears characters from the cursor position to the end of the current line.
+     *
+     * @throws NativeException On failure.
+     */
+    Terminal clearToEndOfLine() throws NativeException;
 }

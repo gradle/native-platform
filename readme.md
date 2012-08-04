@@ -17,7 +17,8 @@ These bindings work for both the UNIX terminal and Windows console:
 * Query the terminal size.
 * Switch between bold and normal mode on the terminal.
 * Change foreground color on the terminal.
-* Move terminal cursor up, down, left, right.
+* Move terminal cursor up, down, left, right, start of line.
+* Clear to end of line.
 
 Currently ported to OS X, Linux and Windows. Tested on:
 
@@ -37,7 +38,7 @@ You need to install Visual studio, and build from a Visual studio command prompt
 
 # TODO
 
-* Fix TERM=dumb on linux
+* Fix TERM=dumb
 * Split out separate native library for terminal handling.
 * String names for errno values.
 * Split into multiple projects.

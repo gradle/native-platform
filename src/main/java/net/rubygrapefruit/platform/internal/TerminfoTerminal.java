@@ -131,4 +131,26 @@ public class TerminfoTerminal extends AbstractTerminal {
         }
         return this;
     }
+
+    @Override
+    public Terminal cursorStartOfLine() throws NativeException {
+        stream.flush();
+        FunctionResult result = new FunctionResult();
+        TerminfoFunctions.startLine(result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not move cursor to start of line for %s: %s", this, result.getMessage()));
+        }
+        return this;
+    }
+
+    @Override
+    public Terminal clearToEndOfLine() throws NativeException {
+        stream.flush();
+        FunctionResult result = new FunctionResult();
+        TerminfoFunctions.clearToEndOfLine(result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not clear to end of line for %s: %s", this, result.getMessage()));
+        }
+        return this;
+    }
 }
