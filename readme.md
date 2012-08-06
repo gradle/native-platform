@@ -1,5 +1,4 @@
 
-
 Provides Java bindings for various native APIs.
 
 # Available bindings
@@ -41,6 +40,10 @@ You need to install Visual studio, and build from a Visual studio command prompt
 ## OS X
 
 The g++ compiler is required to build the native library. You will need to install the XCode tools.
+
+## Solaris
+
+For Solaris 11, you need to install the `gcc-45` and `system/header` packages.
 
 # TODO
 

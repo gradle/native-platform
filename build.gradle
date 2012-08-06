@@ -32,10 +32,14 @@ libraries {
                 includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
                 includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"])
                 args("/DWIN32")
-            } else {
+            } else if (org.gradle.internal.os.OperatingSystem.current().linux) {
                 includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
                 includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/linux"])
                 args("-lcurses")
+            } else {
+                includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
+                includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/solaris"])
+                args("-DSOLARIS", "-lcurses")
             }
         }
     }

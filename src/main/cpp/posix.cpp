@@ -92,7 +92,13 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixTerminalFunctions_getTerminal
 
 int current_terminal = -1;
 
-int write_to_terminal(int ch) {
+#ifdef SOLARIS
+#define TERMINAL_CHAR_TYPE char
+#else
+#define TERMINAL_CHAR_TYPE int
+#endif
+
+int write_to_terminal(TERMINAL_CHAR_TYPE ch) {
     write(current_terminal, &ch, 1);
 }
 

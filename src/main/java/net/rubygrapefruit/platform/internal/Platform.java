@@ -13,6 +13,8 @@ public abstract class Platform {
                     platform = new Linux();
                 } else if (osName.contains("os x")) {
                     platform = new OsX();
+                } else if (osName.contains("sunos")) {
+                    platform = new Solaris();
                 } else {
                     platform = new Unsupported();
                 }
@@ -54,11 +56,17 @@ public abstract class Platform {
         }
     }
 
-    private static class Linux extends Posix {
+    private static class Unix extends Posix {
         @Override
         public String getLibraryName() {
             return "libnative-platform.so";
         }
+    }
+
+    private static class Linux extends Unix {
+    }
+
+    private static class Solaris extends Unix {
     }
 
     private static class OsX extends Posix {
