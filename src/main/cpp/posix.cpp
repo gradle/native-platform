@@ -90,7 +90,15 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixTerminalFunctions_getTerminal
  * Terminfo functions
  */
 
-int current_terminal = -1;
+#define NORMAL_TEXT 0
+#define BRIGHT_TEXT 1
+#define FOREGROUND_COLOR 2
+#define CURSOR_UP 3
+#define CURSOR_DOWN 4
+#define CURSOR_LEFT 5
+#define CURSOR_RIGHT 6
+#define CURSOR_START_LINE 7
+#define CLEAR_END_OF_LINE 8
 
 #ifdef SOLARIS
 #define TERMINAL_CHAR_TYPE char
@@ -98,36 +106,37 @@ int current_terminal = -1;
 #define TERMINAL_CHAR_TYPE int
 #endif
 
+int current_terminal = -1;
+const char* terminal_capabilities[9];
+
 int write_to_terminal(TERMINAL_CHAR_TYPE ch) {
     write(current_terminal, &ch, 1);
 }
 
 void write_capability(JNIEnv *env, const char* capability, jobject result) {
-    char* cap = tgetstr((char*)capability, NULL);
-    if (cap == NULL) {
+    if (capability == NULL) {
         mark_failed_with_message(env, "unknown terminal capability", result);
         return;
     }
-    if (tputs(cap, 1, write_to_terminal) == ERR) {
+    if (tputs(capability, 1, write_to_terminal) == ERR) {
         mark_failed_with_message(env, "could not write to terminal", result);
         return;
     }
 }
 
 void write_param_capability(JNIEnv *env, const char* capability, int count, jobject result) {
-    char* cap = tgetstr((char*)capability, NULL);
-    if (cap == NULL) {
+    if (capability == NULL) {
         mark_failed_with_message(env, "unknown terminal capability", result);
         return;
     }
 
-    cap = tparm(cap, count, 0, 0, 0, 0, 0, 0, 0, 0);
-    if (cap == NULL) {
+    capability = tparm((char*)capability, count, 0, 0, 0, 0, 0, 0, 0, 0);
+    if (capability == NULL) {
         mark_failed_with_message(env, "could not format terminal capability string", result);
         return;
     }
 
-    if (tputs(cap, 1, write_to_terminal) == ERR) {
+    if (tputs(capability, 1, write_to_terminal) == ERR) {
         mark_failed_with_message(env, "could not write to terminal", result);
         return;
     }
@@ -139,72 +148,82 @@ Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_initTerminal(JNI
         mark_failed_with_message(env, "not a terminal", result);
         return;
     }
-    char* termType = getenv("TERM");
-    if (termType == NULL) {
-        mark_failed_with_message(env, "$TERM not set", result);
-        return;
-    }
-    int retval = tgetent(NULL, termType);
-    if (retval != 1) {
-        mark_failed_with_message(env, "could not get termcap entry", result);
-        return;
+    if (current_terminal < 0) {
+        char* termType = getenv("TERM");
+        if (termType == NULL) {
+            mark_failed_with_message(env, "$TERM not set", result);
+            return;
+        }
+        int retval = tgetent(NULL, termType);
+        if (retval != 1) {
+            mark_failed_with_message(env, "could not get termcap entry", result);
+            return;
+        }
+        terminal_capabilities[NORMAL_TEXT] = tgetstr((char*)"me", NULL);
+        terminal_capabilities[BRIGHT_TEXT] = tgetstr((char*)"md", NULL);
+        terminal_capabilities[FOREGROUND_COLOR] = tgetstr((char*)"AF", NULL);
+        terminal_capabilities[CURSOR_UP] = tgetstr((char*)"up", NULL);
+        terminal_capabilities[CURSOR_DOWN] = tgetstr((char*)"do", NULL);
+        terminal_capabilities[CURSOR_LEFT] = tgetstr((char*)"le", NULL);
+        terminal_capabilities[CURSOR_RIGHT] = tgetstr((char*)"nd", NULL);
+        terminal_capabilities[CURSOR_START_LINE] = tgetstr((char*)"cr", NULL);
+        terminal_capabilities[CLEAR_END_OF_LINE] = tgetstr((char*)"ce", NULL);
     }
     current_terminal = output + 1;
-    write_capability(env, "me", result);
+    write_capability(env, terminal_capabilities[NORMAL_TEXT], result);
 }
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_bold(JNIEnv *env, jclass target, jobject result) {
-    write_capability(env, "md", result);
+    write_capability(env, terminal_capabilities[BRIGHT_TEXT], result);
 }
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_reset(JNIEnv *env, jclass target, jobject result) {
-    write_capability(env, "me", result);
+    write_capability(env, terminal_capabilities[NORMAL_TEXT], result);
 }
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_foreground(JNIEnv *env, jclass target, jint color, jobject result) {
-    write_param_capability(env, "AF", color, result);
+    write_param_capability(env, terminal_capabilities[FOREGROUND_COLOR], color, result);
 }
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_up(JNIEnv *env, jclass target, jint count, jobject result) {
     for (jint i = 0; i < count; i++) {
-        write_capability(env, "up", result);
+        write_capability(env, terminal_capabilities[CURSOR_UP], result);
     }
 }
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_down(JNIEnv *env, jclass target, jint count, jobject result) {
     for (jint i = 0; i < count; i++) {
-        write_capability(env, "do", result);
+        write_capability(env, terminal_capabilities[CURSOR_DOWN], result);
     }
 }
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_left(JNIEnv *env, jclass target, jint count, jobject result) {
     for (jint i = 0; i < count; i++) {
-        write_capability(env, "le", result);
+        write_capability(env, terminal_capabilities[CURSOR_LEFT], result);
     }
 }
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_right(JNIEnv *env, jclass target, jint count, jobject result) {
     for (jint i = 0; i < count; i++) {
-        write_capability(env, "nd", result);
+        write_capability(env, terminal_capabilities[CURSOR_RIGHT], result);
     }
 }
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_startLine(JNIEnv *env, jclass target, jobject result) {
-    write_capability(env, "cr", result);
+    write_capability(env, terminal_capabilities[CURSOR_START_LINE], result);
 }
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_clearToEndOfLine(JNIEnv *env, jclass target, jobject result) {
-    write_capability(env, "ce", result);
+    write_capability(env, terminal_capabilities[CLEAR_END_OF_LINE], result);
 }
-
 
 #endif
