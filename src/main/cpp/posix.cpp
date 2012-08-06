@@ -113,6 +113,14 @@ int write_to_terminal(TERMINAL_CHAR_TYPE ch) {
     write(current_terminal, &ch, 1);
 }
 
+const char* getcap(const char* capability) {
+    char* cap = tgetstr((char*)capability, NULL);
+//    if (cap == NULL) {
+//        printf("unknown capability '%s'\n", capability);
+//    }
+    return cap;
+}
+
 void write_capability(JNIEnv *env, const char* capability, jobject result) {
     if (capability == NULL) {
         mark_failed_with_message(env, "unknown terminal capability", result);
@@ -159,15 +167,15 @@ Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_initTerminal(JNI
             mark_failed_with_message(env, "could not get termcap entry", result);
             return;
         }
-        terminal_capabilities[NORMAL_TEXT] = tgetstr((char*)"me", NULL);
-        terminal_capabilities[BRIGHT_TEXT] = tgetstr((char*)"md", NULL);
-        terminal_capabilities[FOREGROUND_COLOR] = tgetstr((char*)"AF", NULL);
-        terminal_capabilities[CURSOR_UP] = tgetstr((char*)"up", NULL);
-        terminal_capabilities[CURSOR_DOWN] = tgetstr((char*)"do", NULL);
-        terminal_capabilities[CURSOR_LEFT] = tgetstr((char*)"le", NULL);
-        terminal_capabilities[CURSOR_RIGHT] = tgetstr((char*)"nd", NULL);
-        terminal_capabilities[CURSOR_START_LINE] = tgetstr((char*)"cr", NULL);
-        terminal_capabilities[CLEAR_END_OF_LINE] = tgetstr((char*)"ce", NULL);
+        terminal_capabilities[NORMAL_TEXT] = getcap("me");
+        terminal_capabilities[BRIGHT_TEXT] = getcap("md");
+        terminal_capabilities[FOREGROUND_COLOR] = getcap("AF");
+        terminal_capabilities[CURSOR_UP] = getcap("up");
+        terminal_capabilities[CURSOR_DOWN] = getcap("do");
+        terminal_capabilities[CURSOR_LEFT] = getcap("le");
+        terminal_capabilities[CURSOR_RIGHT] = getcap("nd");
+        terminal_capabilities[CURSOR_START_LINE] = getcap("cr");
+        terminal_capabilities[CLEAR_END_OF_LINE] = getcap("ce");
     }
     current_terminal = output + 1;
     write_capability(env, terminal_capabilities[NORMAL_TEXT], result);
