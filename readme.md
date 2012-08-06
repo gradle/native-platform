@@ -30,11 +30,17 @@ Currently ported to OS X, Linux and Windows. Tested on:
 
 ## Ubuntu
 
+The g++ compiler is required to build the native library. Generally this is already installed.
+
 You need to install the `libncurses5-dev` package to pick up the ncurses header files. Also worth installing the `ncurses-doc` package too.
 
 ## Windows
 
 You need to install Visual studio, and build from a Visual studio command prompt.
+
+## OS X
+
+The g++ compiler is required to build the native library. You will need to install the XCode tools.
 
 # TODO
 
