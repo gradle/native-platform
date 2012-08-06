@@ -115,9 +115,9 @@ int write_to_terminal(TERMINAL_CHAR_TYPE ch) {
 
 const char* getcap(const char* capability) {
     char* cap = tgetstr((char*)capability, NULL);
-//    if (cap == NULL) {
-//        printf("unknown capability '%s'\n", capability);
-//    }
+    if (cap == NULL) {
+        printf("unknown capability '%s'\n", capability);
+    }
     return cap;
 }
 
@@ -126,7 +126,7 @@ void write_capability(JNIEnv *env, const char* capability, jobject result) {
         mark_failed_with_message(env, "unknown terminal capability", result);
         return;
     }
-    if (tputs(capability, 1, write_to_terminal) == ERR) {
+    if (tputs((char*)capability, 1, write_to_terminal) == ERR) {
         mark_failed_with_message(env, "could not write to terminal", result);
         return;
     }
@@ -144,7 +144,7 @@ void write_param_capability(JNIEnv *env, const char* capability, int count, jobj
         return;
     }
 
-    if (tputs(capability, 1, write_to_terminal) == ERR) {
+    if (tputs((char*)capability, 1, write_to_terminal) == ERR) {
         mark_failed_with_message(env, "could not write to terminal", result);
         return;
     }
