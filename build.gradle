@@ -18,8 +18,7 @@ def nativeHeadersDir = file("$buildDir/nativeHeaders")
 sourceCompatibility = 1.5
 targetCompatibility = 1.5
 
-println org.gradle.internal.jvm.Jvm.current().javaHome
-println org.gradle.internal.jvm.Jvm.current().toolsJar
+configurations.compile.extendsFrom = []
 
 libraries {
     main {
