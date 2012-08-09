@@ -21,10 +21,28 @@ These bindings work for both the UNIX terminal and Windows console:
 
 Currently ported to OS X, Linux, Solaris and Windows. Tested on:
 
-* OS X 10.7.4
+* OS X 10.7.4, 10.8
 * Ubunutu 12.04 (amd64)
 * Solaris 11 (x86)
 * Windows 7 (amd64)
+
+## Using
+
+Include `native-platform.jar` and `native-platform-jni.jar` in your classpath.
+
+    import net.rubygrapefruit.platform.Native;
+    import net.rubygrapefruit.platform.TerminalAccess;
+    import static net.rubygrapefruit.platform.TerminalAccess.Output.*;
+
+    TerminalAccess terminalAccess = Native.get(TerminalAccess.class);
+
+    // check if terminal
+    terminalAccess.isTerminal(Stdout);
+
+    // use terminal
+    terminalAccess.getTerminal(Stdout).bold();
+    System.out.println("bold text");
+
 
 ## Building
 
@@ -50,15 +68,23 @@ For Solaris 11, you need to install the `development/gcc-45` and `system/header`
 
 ## Running
 
-Run `gradle compileMain install` to build.
+Run `gradle install` to install into `build/install/native-platform`. Or `gradle distZip` to create an application distribtion
+in `build/distributions/native-platform.zip`.
 
-Run `./build/install/native-platform/bin/native-platform` to run test application.
+You can run `$INSTALL_DIR/bin/native-platform` to run the test application.
 
 ## TODO
 
+### Fixes
+
 * Fix terminal detection on OS X 10.8
-* Package up native lib into self-extracting jar.
 * Build 32 bit and 64 bit libraries.
+* Windows: flush System.out or System.err on attribute change.
+* Solaris: fix unicode file name handling.
+
+### Improvements
+
+* Handle multiple platforms in self-extracting jar.
 * Support for cygwin terminal
 * Use TERM=xtermc instead of TERM=xterm on Solaris.
 * Add diagnostics for terminal.
@@ -69,6 +95,5 @@ Run `./build/install/native-platform/bin/native-platform` to run test applicatio
 * Test on IBM JVM.
 * Convert to c.
 * Thread safety.
-* Windows: flush System.out or System.err on attribute change.
-* Solaris: fix unicode file name handling.
 * Improve error message when unsupported capability is used.
+* Initial release.
