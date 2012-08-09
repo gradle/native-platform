@@ -4,7 +4,6 @@ import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.Terminal;
 import net.rubygrapefruit.platform.TerminalAccess;
 import net.rubygrapefruit.platform.TerminalSize;
-import net.rubygrapefruit.platform.internal.jni.TerminfoFunctions;
 import net.rubygrapefruit.platform.internal.jni.WindowsConsoleFunctions;
 
 public class WindowsTerminal extends AbstractTerminal {
@@ -26,6 +25,21 @@ public class WindowsTerminal extends AbstractTerminal {
         if (result.isFailed()) {
             throw new NativeException(String.format("Could not open console for %s: %s", this, result.getMessage()));
         }
+    }
+
+    @Override
+    public boolean supportsColor() {
+        return true;
+    }
+
+    @Override
+    public boolean supportsTextAttributes() {
+        return true;
+    }
+
+    @Override
+    public boolean supportsCursorMotion() {
+        return true;
     }
 
     @Override

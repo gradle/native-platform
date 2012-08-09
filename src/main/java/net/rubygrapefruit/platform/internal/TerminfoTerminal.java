@@ -12,6 +12,7 @@ import java.io.PrintStream;
 public class TerminfoTerminal extends AbstractTerminal {
     private final TerminalAccess.Output output;
     private final PrintStream stream;
+    private final TerminalCapabilities capabilities = new TerminalCapabilities();
     private Color foreground;
 
     public TerminfoTerminal(TerminalAccess.Output output) {
@@ -28,7 +29,7 @@ public class TerminfoTerminal extends AbstractTerminal {
     protected void doInit() {
         stream.flush();
         FunctionResult result = new FunctionResult();
-        TerminfoFunctions.initTerminal(output.ordinal(), result);
+        TerminfoFunctions.initTerminal(output.ordinal(), capabilities, result);
         if (result.isFailed()) {
             throw new NativeException(String.format("Could not open terminal for %s: %s", this, result.getMessage()));
         }
@@ -46,12 +47,32 @@ public class TerminfoTerminal extends AbstractTerminal {
     }
 
     @Override
+    public boolean supportsColor() {
+        return capabilities.colors;
+    }
+
+    @Override
+    public boolean supportsCursorMotion() {
+        return capabilities.cursorMotion;
+    }
+
+    @Override
+    public boolean supportsTextAttributes() {
+        return capabilities.textAttributes;
+    }
+
+    @Override
     public Terminal foreground(Color color) {
+        if (!capabilities.colors) {
+            return this;
+        }
+
         stream.flush();
         FunctionResult result = new FunctionResult();
         TerminfoFunctions.foreground(color.ordinal(), result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not switch foreground color for %s: %s", this, result.getMessage()));
+            throw new NativeException(String.format("Could not switch foreground color for %s: %s", this,
+                    result.getMessage()));
         }
         foreground = color;
         return this;
@@ -59,11 +80,16 @@ public class TerminfoTerminal extends AbstractTerminal {
 
     @Override
     public Terminal bold() {
+        if (!capabilities.textAttributes) {
+            return this;
+        }
+
         stream.flush();
         FunctionResult result = new FunctionResult();
         TerminfoFunctions.bold(result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not switch to bold mode for %s: %s", this, result.getMessage()));
+            throw new NativeException(String.format("Could not switch to bold mode for %s: %s", this,
+                    result.getMessage()));
         }
         return this;
     }

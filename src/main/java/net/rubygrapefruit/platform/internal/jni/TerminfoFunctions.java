@@ -1,12 +1,13 @@
 package net.rubygrapefruit.platform.internal.jni;
 
 import net.rubygrapefruit.platform.internal.FunctionResult;
+import net.rubygrapefruit.platform.internal.TerminalCapabilities;
 
 public class TerminfoFunctions {
     /**
      * Sets up terminal info and switches output to normal mode.
      */
-    public static native void initTerminal(int filedes, FunctionResult result);
+    public static native void initTerminal(int filedes, TerminalCapabilities terminalCapabilities, FunctionResult result);
 
     public static native void bold(FunctionResult result);
 

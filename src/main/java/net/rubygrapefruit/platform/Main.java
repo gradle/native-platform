@@ -4,6 +4,7 @@ public class Main {
     public static void main(String[] args) {
         System.out.println();
         System.out.println("* OS: " + System.getProperty("os.name") + ' ' + System.getProperty("os.version") + ' ' + System.getProperty("os.arch"));
+        System.out.println("* JVM: " + System.getProperty("java.vm.vendor") + ' ' + System.getProperty("java.version"));
 
         Process process = Native.get(Process.class);
         System.out.println("* PID: " + process.getProcessId());
@@ -17,8 +18,11 @@ public class Main {
             Terminal terminal = terminalAccess.getTerminal(TerminalAccess.Output.Stdout);
             TerminalSize terminalSize = terminal.getTerminalSize();
             System.out.println("* terminal size: " + terminalSize.getCols() + " cols x " + terminalSize.getRows() + " rows");
+            System.out.println("* text attributes: " + (terminal.supportsTextAttributes() ? "yes" : "no"));
+            System.out.println("* color: " + (terminal.supportsColor() ? "yes" : "no"));
+            System.out.println("* cursor motion: " + (terminal.supportsCursorMotion() ? "yes" : "no"));
             System.out.println();
-            System.out.println("TERMINAL OUTPUT");
+            System.out.println("TEXT ATTRIBUTES");
             System.out.print("[normal] ");
             terminal.bold();
             System.out.print("[bold]");
@@ -39,28 +43,29 @@ public class Main {
             System.out.println();
             terminal.reset();
 
-            System.out.println("CURSOR MOVEMENT");
-            System.out.println("                    ");
-            System.out.println("                    ");
-            System.out.println("                    ");
-            System.out.print("[delete me]");
+            if (terminal.supportsCursorMotion()) {
+                System.out.println("CURSOR MOVEMENT");
+                System.out.println("                    ");
+                System.out.println("                    ");
+                System.out.print("[delete me]");
 
-            terminal.cursorLeft(11);
-            terminal.cursorUp(1);
-            terminal.cursorRight(10);
-            System.out.print("[4]");
-            terminal.cursorUp(1);
-            terminal.cursorLeft(3);
-            System.out.print("[2]");
-            terminal.cursorLeft(13);
-            System.out.print("[1]");
-            terminal.cursorLeft(3);
-            terminal.cursorDown(1);
-            System.out.print("[3]");
-            terminal.cursorDown(1);
-            terminal.cursorStartOfLine();
-            terminal.clearToEndOfLine();
-            System.out.println("done!");
+                terminal.cursorLeft(11);
+                terminal.cursorUp(1);
+                terminal.cursorRight(10);
+                System.out.print("[4]");
+                terminal.cursorUp(1);
+                terminal.cursorLeft(3);
+                System.out.print("[2]");
+                terminal.cursorLeft(13);
+                System.out.print("[1]");
+                terminal.cursorLeft(3);
+                terminal.cursorDown(1);
+                System.out.print("[3]");
+                terminal.cursorDown(1);
+                terminal.cursorStartOfLine();
+                terminal.clearToEndOfLine();
+                System.out.println("done!");
+            }
         }
 
         System.out.println();

@@ -115,9 +115,9 @@ int write_to_terminal(TERMINAL_CHAR_TYPE ch) {
 
 const char* getcap(const char* capability) {
     char* cap = tgetstr((char*)capability, NULL);
-    if (cap == NULL) {
-        printf("unknown capability '%s'\n", capability);
-    }
+//    if (cap == NULL) {
+//        printf("unknown capability '%s'\n", capability);
+//    }
     return cap;
 }
 
@@ -151,7 +151,7 @@ void write_param_capability(JNIEnv *env, const char* capability, int count, jobj
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_initTerminal(JNIEnv *env, jclass target, jint output, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_initTerminal(JNIEnv *env, jclass target, jint output, jobject capabilities, jobject result) {
     if (!isatty(output+1)) {
         mark_failed_with_message(env, "not a terminal", result);
         return;
@@ -167,18 +167,42 @@ Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_initTerminal(JNI
             mark_failed_with_message(env, "could not get termcap entry", result);
             return;
         }
+
+        jclass destClass = env->GetObjectClass(capabilities);
+        jfieldID field = env->GetFieldID(destClass, "terminalName", "Ljava/lang/String;");
+        jstring jtermType = env->NewStringUTF(termType);
+        env->SetObjectField(capabilities, field, jtermType);
+
+        // Text attributes
         terminal_capabilities[NORMAL_TEXT] = getcap("me");
         terminal_capabilities[BRIGHT_TEXT] = getcap("md");
+        field = env->GetFieldID(destClass, "textAttributes", "Z");
+        env->SetBooleanField(capabilities, field, terminal_capabilities[NORMAL_TEXT] != NULL && terminal_capabilities[BRIGHT_TEXT] != NULL);
+
+        // Colors
         terminal_capabilities[FOREGROUND_COLOR] = getcap("AF");
+        field = env->GetFieldID(destClass, "colors", "Z");
+        env->SetBooleanField(capabilities, field, terminal_capabilities[FOREGROUND_COLOR] != NULL);
+
+        // Cursor motion
         terminal_capabilities[CURSOR_UP] = getcap("up");
         terminal_capabilities[CURSOR_DOWN] = getcap("do");
         terminal_capabilities[CURSOR_LEFT] = getcap("le");
         terminal_capabilities[CURSOR_RIGHT] = getcap("nd");
         terminal_capabilities[CURSOR_START_LINE] = getcap("cr");
         terminal_capabilities[CLEAR_END_OF_LINE] = getcap("ce");
+        field = env->GetFieldID(destClass, "cursorMotion", "Z");
+        env->SetBooleanField(capabilities, field, terminal_capabilities[CURSOR_UP] != NULL
+                                && terminal_capabilities[CURSOR_DOWN] != NULL
+                                && terminal_capabilities[CURSOR_RIGHT] != NULL
+                                && terminal_capabilities[CURSOR_LEFT] != NULL
+                                && terminal_capabilities[CURSOR_START_LINE] != NULL
+                                && terminal_capabilities[CLEAR_END_OF_LINE] != NULL);
     }
     current_terminal = output + 1;
-    write_capability(env, terminal_capabilities[NORMAL_TEXT], result);
+    if (terminal_capabilities[NORMAL_TEXT] != NULL) {
+        write_capability(env, terminal_capabilities[NORMAL_TEXT], result);
+    }
 }
 
 JNIEXPORT void JNICALL
@@ -188,7 +212,9 @@ Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_bold(JNIEnv *env
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_reset(JNIEnv *env, jclass target, jobject result) {
-    write_capability(env, terminal_capabilities[NORMAL_TEXT], result);
+    if (terminal_capabilities[NORMAL_TEXT] != NULL) {
+        write_capability(env, terminal_capabilities[NORMAL_TEXT], result);
+    }
 }
 
 JNIEXPORT void JNICALL
