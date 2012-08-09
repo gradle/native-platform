@@ -62,9 +62,16 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_getPid(JNIEn
 
 JNIEXPORT jboolean JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixTerminalFunctions_isatty(JNIEnv *env, jclass target, jint output) {
+    struct stat fileInfo;
+    int result;
     switch (output) {
     case 0:
     case 1:
+        printf("=> checking file descriptor %d\n", output+1);
+        printf("=> isatty(): %d\n", isatty(output+1));
+        result = fstat(output+1, &fileInfo);
+        printf("=> fstat(): %d\n", result);
+        printf("=> mode: %o\n", fileInfo.st_mode);
         return isatty(output+1) ? JNI_TRUE : JNI_FALSE;
     default:
         return JNI_FALSE;
