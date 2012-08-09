@@ -6,6 +6,7 @@ import net.rubygrapefruit.platform.internal.jni.PosixTerminalFunctions;
 
 public class TerminfoTerminalAccess implements TerminalAccess {
     private static Output currentlyOpen;
+    private static TerminfoTerminal current;
 
     @Override
     public boolean isTerminal(Output output) {
@@ -14,14 +15,15 @@ public class TerminfoTerminalAccess implements TerminalAccess {
 
     @Override
     public Terminal getTerminal(Output output) {
-        if (currentlyOpen != null) {
+        if (currentlyOpen != null && currentlyOpen != output) {
             throw new UnsupportedOperationException("Currently only one output can be used as a terminal.");
         }
-
-        TerminfoTerminal terminal = new TerminfoTerminal(output);
-        terminal.init();
+        if (current == null) {
+            current = new TerminfoTerminal(output);
+            current.init();
+        }
 
         currentlyOpen = output;
-        return terminal;
+        return current;
     }
 }

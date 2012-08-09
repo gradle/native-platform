@@ -64,6 +64,16 @@ task nativeHeaders {
     }
 }
 
+task nativeJar(type: Jar) {
+    from compileMain
+    archiveName = 'native-platform-jni.jar'
+}
+
+startScripts.classpath += nativeJar.outputs.files
+applicationDistribution.from(nativeJar) {
+    into 'lib'
+}
+
 compileMain.dependsOn nativeHeaders
 test.dependsOn compileMain
 
