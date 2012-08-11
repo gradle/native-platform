@@ -26,7 +26,7 @@ libraries {
             includes([nativeHeadersDir])
             if (org.gradle.internal.os.OperatingSystem.current().macOsX) {
                 includes(['/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers/'])
-                args("-lcurses")
+                args("-lcurses", "-arch", "x86_64", "-arch", "i386", "-o", outputFile)
             } else if (org.gradle.internal.os.OperatingSystem.current().windows) {
                 includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
                 includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"])
