@@ -54,7 +54,6 @@ public class Native {
                 loaded = true;
             }
         }
-
     }
 
     static <T extends NativeIntegration> T get(Class<T> type) {
@@ -70,12 +69,28 @@ public class Native {
             if (type.equals(TerminalAccess.class)) {
                 return type.cast(new TerminfoTerminalAccess());
             }
+            if (type.equals(SystemInfo.class)) {
+                MutableSystemInfo systemInfo = new MutableSystemInfo();
+                FunctionResult result = new FunctionResult();
+                NativeLibraryFunctions.getSystemInfo(systemInfo, result);
+                if (result.isFailed()) {
+                    throw new NativeException(String.format("Could not fetch system information: %s",
+                            result.getMessage()));
+                }
+                System.out.println("=> CHARACTER ENCODING: " + systemInfo.characterEncoding);
+                return type.cast(systemInfo);
+            }
         } else if (platform.isWindows()) {
             if (type.equals(Process.class)) {
                 return type.cast(new DefaultProcess());
             }
             if (type.equals(TerminalAccess.class)) {
                 return type.cast(new WindowsTerminalAccess());
+            }
+        }
+        if (platform.isOsX()) {
+            if (type.equals(FileSystems.class)) {
+                return type.cast(new PosixFileSystems());
             }
         }
         throw new UnsupportedOperationException(String.format("Cannot load unsupported native integration %s.",

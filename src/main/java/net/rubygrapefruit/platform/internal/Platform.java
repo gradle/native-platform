@@ -35,6 +35,10 @@ public abstract class Platform {
         return false;
     }
 
+    public boolean isOsX() {
+        return false;
+    }
+
     public abstract String getLibraryName();
 
     private static class Windows extends Platform {
@@ -70,6 +74,11 @@ public abstract class Platform {
     }
 
     private static class OsX extends Posix {
+        @Override
+        public boolean isOsX() {
+            return true;
+        }
+
         @Override
         public String getLibraryName() {
             return "libnative-platform.dylib";

@@ -56,6 +56,7 @@ task nativeHeaders {
             args '-classpath', sourceSets.main.output.classesDir
             args 'net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions'
             args 'net.rubygrapefruit.platform.internal.jni.PosixFileFunctions'
+            args 'net.rubygrapefruit.platform.internal.jni.PosixFileSystemFunctions'
             args 'net.rubygrapefruit.platform.internal.jni.PosixProcessFunctions'
             args 'net.rubygrapefruit.platform.internal.jni.PosixTerminalFunctions'
             args 'net.rubygrapefruit.platform.internal.jni.TerminfoFunctions'

@@ -11,6 +11,10 @@ void mark_failed_with_errno(JNIEnv *env, const char* message, jobject result) {
     mark_failed_with_code(env, message, GetLastError(), result);
 }
 
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getPlatform(JNIEnv *env, jclass target) {
+}
+
 /*
  * Process functions
  */

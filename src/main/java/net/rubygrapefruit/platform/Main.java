@@ -6,8 +6,17 @@ public class Main {
         System.out.println("* OS: " + System.getProperty("os.name") + ' ' + System.getProperty("os.version") + ' ' + System.getProperty("os.arch"));
         System.out.println("* JVM: " + System.getProperty("java.vm.vendor") + ' ' + System.getProperty("java.version"));
 
+        SystemInfo systemInfo = Native.get(SystemInfo.class);
+        System.out.println("* Kernel: " + systemInfo.getKernelName() + ' ' + systemInfo.getKernelVersion() + ' ' + systemInfo.getMachineArchitecture());
+
         Process process = Native.get(Process.class);
         System.out.println("* PID: " + process.getProcessId());
+
+        FileSystems fileSystems = Native.get(FileSystems.class);
+        System.out.println("* File systems: ");
+        for (FileSystem fileSystem : fileSystems.getFileSystems()) {
+            System.out.println("    * " + fileSystem.getMountPoint() + ' ' + fileSystem.getFileSystemType() + ' ' + fileSystem.getDeviceName() + (fileSystem.isRemote() ? " remote" : " local"));
+        }
 
         TerminalAccess terminalAccess = Native.get(TerminalAccess.class);
         boolean stdoutIsTerminal = terminalAccess.isTerminal(TerminalAccess.Output.Stdout);
