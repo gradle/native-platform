@@ -1,12 +1,18 @@
 
 # Native-platform: Java bindings for various native APIs
 
+A collection of cross-platform Java APIs for various native APIs. Supports OS X, Linux, Solaris and Windows.
+
+These APIs support Java 5 and later. Some of these APIs overlap with APIs available in later Java versions.
+
 ## Available bindings
 
 ### Generic
 
 * Get and set UNIX file mode.
 * Get PID of current process.
+* Get kernel name and version.
+* Get machine architecture.
 
 ### Terminal and console
 
@@ -19,9 +25,19 @@ These bindings work for both the UNIX terminal and Windows console:
 * Move terminal cursor up, down, left, right, start of line.
 * Clear to end of line.
 
+### File systems
+
+* List the available file systems on the machine
+* Query file system mount point.
+* Query file system type.
+* Query file system device name.
+* Query whether a file system is local or remote.
+
+## Supported platforms
+
 Currently ported to OS X, Linux, Solaris and Windows. Tested on:
 
-* OS X 10.7.4, 10.8
+* OS X 10.7.4, 10.8 (i386 and x86_64)
 * Ubunutu 12.04 (amd64)
 * Solaris 11 (x86)
 * Windows 7 (amd64)
@@ -77,7 +93,6 @@ You can run `$INSTALL_DIR/bin/native-platform` to run the test application.
 
 ### Fixes
 
-* Fix terminal detection on OS X 10.8
 * Build 32 bit and 64 bit libraries.
 * Windows: flush System.out or System.err on attribute change.
 * Solaris: fix unicode file name handling.
@@ -97,3 +112,5 @@ You can run `$INSTALL_DIR/bin/native-platform` to run the test application.
 * Thread safety.
 * Improve error message when unsupported capability is used.
 * Initial release.
+* Use fully decomposed form for unicode file names on hfs+ filesystems.
+
