@@ -100,6 +100,13 @@ public abstract class Platform {
     }
 
     private static class Linux extends Unix {
+        @Override
+        public <T extends NativeIntegration> T get(Class<T> type) {
+            if (type.equals(FileSystems.class)) {
+                return type.cast(new PosixFileSystems());
+            }
+            return super.get(type);
+        }
     }
 
     private static class Solaris extends Unix {

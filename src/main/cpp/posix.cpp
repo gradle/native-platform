@@ -27,7 +27,7 @@ Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getSystemIn
     jclass infoClass = env->GetObjectClass(info);
 
     // Empty string means load locale from environment.
-    locale_t locale = newlocale(LC_CTYPE_MASK, "", LC_GLOBAL_LOCALE);
+    locale_t locale = newlocale(LC_CTYPE_MASK, "", NULL);
     if (locale == NULL) {
         mark_failed_with_message(env, "could not create locale", result);
         return;

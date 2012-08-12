@@ -96,6 +96,7 @@ You can run `$INSTALL_DIR/bin/native-platform` to run the test application.
 * Build 32 bit and 64 bit libraries.
 * Windows: flush System.out or System.err on attribute change.
 * Solaris: fix unicode file name handling.
+* Linux: detect remote filesystems.
 
 ### Improvements
 
@@ -113,4 +114,3 @@ You can run `$INSTALL_DIR/bin/native-platform` to run the test application.
 * Improve error message when unsupported capability is used.
 * Initial release.
 * Use fully decomposed form for unicode file names on hfs+ filesystems.
-
