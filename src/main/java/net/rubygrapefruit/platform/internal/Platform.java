@@ -85,7 +85,6 @@ public abstract class Platform {
                     throw new NativeException(String.format("Could not fetch system information: %s",
                             result.getMessage()));
                 }
-                System.out.println("=> CHARACTER ENCODING: " + systemInfo.characterEncoding);
                 return type.cast(systemInfo);
             }
             return super.get(type);

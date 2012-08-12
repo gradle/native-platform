@@ -56,21 +56,21 @@ Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getSystemIn
  */
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_chmod(JNIEnv *env, jclass target, jstring path, jint mode, jobject result) {
-    const char* pathUtf8 = env->GetStringUTFChars(path, NULL);
-    int retval = chmod(pathUtf8, mode);
-    env->ReleaseStringUTFChars(path, pathUtf8);
+Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_chmod(JNIEnv *env, jclass target, jbyteArray path, jint mode, jobject result) {
+    jbyte* pathUtf8 = env->GetByteArrayElements(path, NULL);
+    int retval = chmod((const char*)pathUtf8, mode);
+    env->ReleaseByteArrayElements(path, pathUtf8, JNI_ABORT);
     if (retval != 0) {
         mark_failed_with_errno(env, "could not chmod file", result);
     }
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *env, jclass target, jstring path, jobject dest, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *env, jclass target, jbyteArray path, jobject dest, jobject result) {
     struct stat fileInfo;
-    const char* pathUtf8 = env->GetStringUTFChars(path, NULL);
-    int retval = stat(pathUtf8, &fileInfo);
-    env->ReleaseStringUTFChars(path, pathUtf8);
+    jbyte* pathUtf8 = env->GetByteArrayElements(path, NULL);
+    int retval = stat((const char*)pathUtf8, &fileInfo);
+    env->ReleaseByteArrayElements(path, pathUtf8, JNI_ABORT);
     if (retval != 0) {
         mark_failed_with_errno(env, "could not stat file", result);
         return;
