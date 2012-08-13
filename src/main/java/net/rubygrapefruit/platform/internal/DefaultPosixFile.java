@@ -47,7 +47,7 @@ public class DefaultPosixFile implements PosixFile {
         try {
             encodedName = file.getPath().getBytes(characterEncoding);
         } catch (UnsupportedEncodingException e) {
-            throw new NativeException(String.format("Could not encode path for file '%s' using encoding %s.", file.getName(), characterEncoding));
+            throw new NativeException(String.format("Could not encode path for file '%s' using encoding %s.", file.getName(), characterEncoding), e);
         }
         byte[] buffer = new byte[encodedName.length + 1];
         System.arraycopy(encodedName, 0, buffer, 0, encodedName.length);
