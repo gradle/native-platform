@@ -116,3 +116,5 @@ You can run `$INSTALL_DIR/bin/native-platform` to run the test application.
 * Use fully decomposed form for unicode file names on hfs+ filesystems.
 * Handle string encoding for file system details
 * Handle string encoding for system info
+* Expose platform-specific HTTP proxy configuration. Query registry on windows to determine IE settings.
+
