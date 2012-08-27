@@ -35,7 +35,6 @@ public class TerminfoTerminal extends AbstractTerminal {
         }
     }
 
-    @Override
     public TerminalSize getTerminalSize() {
         MutableTerminalSize terminalSize = new MutableTerminalSize();
         FunctionResult result = new FunctionResult();
@@ -46,22 +45,18 @@ public class TerminfoTerminal extends AbstractTerminal {
         return terminalSize;
     }
 
-    @Override
     public boolean supportsColor() {
         return capabilities.colors;
     }
 
-    @Override
     public boolean supportsCursorMotion() {
         return capabilities.cursorMotion;
     }
 
-    @Override
     public boolean supportsTextAttributes() {
         return capabilities.textAttributes;
     }
 
-    @Override
     public Terminal foreground(Color color) {
         if (!capabilities.colors) {
             return this;
@@ -78,7 +73,6 @@ public class TerminfoTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal bold() {
         if (!capabilities.textAttributes) {
             return this;
@@ -94,7 +88,6 @@ public class TerminfoTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal normal() {
         reset();
         if (foreground != null) {
@@ -103,7 +96,6 @@ public class TerminfoTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal reset() {
         stream.flush();
         FunctionResult result = new FunctionResult();
@@ -114,7 +106,6 @@ public class TerminfoTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal cursorDown(int count) {
         stream.flush();
         FunctionResult result = new FunctionResult();
@@ -125,7 +116,6 @@ public class TerminfoTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal cursorUp(int count) {
         stream.flush();
         FunctionResult result = new FunctionResult();
@@ -136,7 +126,6 @@ public class TerminfoTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal cursorLeft(int count) {
         stream.flush();
         FunctionResult result = new FunctionResult();
@@ -147,7 +136,6 @@ public class TerminfoTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal cursorRight(int count) {
         stream.flush();
         FunctionResult result = new FunctionResult();
@@ -158,7 +146,6 @@ public class TerminfoTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal cursorStartOfLine() throws NativeException {
         stream.flush();
         FunctionResult result = new FunctionResult();
@@ -169,7 +156,6 @@ public class TerminfoTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal clearToEndOfLine() throws NativeException {
         stream.flush();
         FunctionResult result = new FunctionResult();

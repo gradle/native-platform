@@ -22,7 +22,6 @@ public class DefaultPosixFile implements PosixFile {
         this.characterEncoding = systemInfo.characterEncoding;
     }
 
-    @Override
     public void setMode(File file, int perms) {
         FunctionResult result = new FunctionResult();
         PosixFileFunctions.chmod(encode(file), perms, result);
@@ -31,7 +30,6 @@ public class DefaultPosixFile implements PosixFile {
         }
     }
 
-    @Override
     public int getMode(File file) {
         FunctionResult result = new FunctionResult();
         FileStat stat = new FileStat();

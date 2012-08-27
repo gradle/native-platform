@@ -17,22 +17,18 @@ public class DefaultFileSystem implements FileSystem {
         this.remote = remote;
     }
 
-    @Override
     public String getDeviceName() {
         return deviceName;
     }
 
-    @Override
     public File getMountPoint() {
         return mountPoint;
     }
 
-    @Override
     public String getFileSystemType() {
         return fileSystemType;
     }
 
-    @Override
     public boolean isRemote() {
         return remote;
     }

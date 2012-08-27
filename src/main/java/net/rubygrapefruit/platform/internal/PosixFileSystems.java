@@ -8,7 +8,6 @@ import net.rubygrapefruit.platform.internal.jni.PosixFileSystemFunctions;
 import java.util.List;
 
 public class PosixFileSystems implements FileSystems {
-    @Override
     public List<FileSystem> getFileSystems() {
         FunctionResult result = new FunctionResult();
         FileSystemList fileSystems = new FileSystemList();

@@ -8,17 +8,14 @@ public class MutableSystemInfo implements SystemInfo {
     public String characterEncoding;
     public String machineArchitecture;
 
-    @Override
     public String getKernelName() {
         return osName;
     }
 
-    @Override
     public String getKernelVersion() {
         return osVersion;
     }
 
-    @Override
     public String getMachineArchitecture() {
         return machineArchitecture;
     }

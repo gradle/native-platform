@@ -27,22 +27,18 @@ public class WindowsTerminal extends AbstractTerminal {
         }
     }
 
-    @Override
     public boolean supportsColor() {
         return true;
     }
 
-    @Override
     public boolean supportsTextAttributes() {
         return true;
     }
 
-    @Override
     public boolean supportsCursorMotion() {
         return true;
     }
 
-    @Override
     public TerminalSize getTerminalSize() {
         FunctionResult result = new FunctionResult();
         MutableTerminalSize size = new MutableTerminalSize();
@@ -53,7 +49,6 @@ public class WindowsTerminal extends AbstractTerminal {
         return size;
     }
 
-    @Override
     public Terminal bold() {
         FunctionResult result = new FunctionResult();
         WindowsConsoleFunctions.bold(result);
@@ -63,7 +58,6 @@ public class WindowsTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal foreground(Color color) {
         FunctionResult result = new FunctionResult();
         WindowsConsoleFunctions.foreground(color.ordinal(), result);
@@ -73,7 +67,6 @@ public class WindowsTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal normal() {
         FunctionResult result = new FunctionResult();
         WindowsConsoleFunctions.normal(result);
@@ -83,7 +76,6 @@ public class WindowsTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal reset() {
         FunctionResult result = new FunctionResult();
         WindowsConsoleFunctions.reset(result);
@@ -93,7 +85,6 @@ public class WindowsTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal cursorDown(int count) throws NativeException {
         FunctionResult result = new FunctionResult();
         WindowsConsoleFunctions.down(count, result);
@@ -103,7 +94,6 @@ public class WindowsTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal cursorUp(int count) throws NativeException {
         FunctionResult result = new FunctionResult();
         WindowsConsoleFunctions.up(count, result);
@@ -113,7 +103,6 @@ public class WindowsTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal cursorLeft(int count) throws NativeException {
         FunctionResult result = new FunctionResult();
         WindowsConsoleFunctions.left(count, result);
@@ -123,7 +112,6 @@ public class WindowsTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal cursorRight(int count) throws NativeException {
         FunctionResult result = new FunctionResult();
         WindowsConsoleFunctions.right(count, result);
@@ -133,7 +121,6 @@ public class WindowsTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal cursorStartOfLine() throws NativeException {
         FunctionResult result = new FunctionResult();
         WindowsConsoleFunctions.startLine(result);
@@ -143,7 +130,6 @@ public class WindowsTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal clearToEndOfLine() throws NativeException {
         FunctionResult result = new FunctionResult();
         WindowsConsoleFunctions.clearToEndOfLine(result);
