@@ -68,7 +68,9 @@ You will need a very recent snapshot of [Gradle](http://www.gradle.org/).
 
 The g++ compiler is required to build the native library. You will need to `g++` package for this. Generally this is already installed.
 
-You need to install the `libncurses5-dev` package to pick up the ncurses header files. Also worth installing the `ncurses-doc` package too.
+You need to install the `gcc-multilib` and `g++-multilib` packages to pick up i386 support.
+
+You need to install the `libncurses5-dev` and `lib32ncurses5-dev` package to pick up the ncurses header files and i386 version. Also worth installing the `ncurses-doc` package too.
 
 ### Windows
 
@@ -116,5 +118,7 @@ You can run `$INSTALL_DIR/bin/native-platform` to run the test application.
 * Use fully decomposed form for unicode file names on hfs+ filesystems.
 * Handle string encoding for file system details
 * Handle string encoding for system info
-* Expose platform-specific HTTP proxy configuration. Query registry on windows to determine IE settings.
 
+### Ideas
+
+* Expose platform-specific HTTP proxy configuration. Query registry on windows to determine IE settings.

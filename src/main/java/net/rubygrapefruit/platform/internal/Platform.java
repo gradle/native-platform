@@ -50,7 +50,7 @@ public abstract class Platform {
 
         @Override
         public String getLibraryName() {
-            return "native-platform.dll";
+            return "native-win32.dll";
         }
 
         @Override
@@ -91,11 +91,7 @@ public abstract class Platform {
         }
     }
 
-    private static class Unix extends Posix {
-        @Override
-        public String getLibraryName() {
-            return "libnative-platform.so";
-        }
+    private abstract static class Unix extends Posix {
     }
 
     private static class Linux extends Unix {
@@ -106,9 +102,21 @@ public abstract class Platform {
             }
             return super.get(type);
         }
+
+        @Override
+        public String getLibraryName() {
+            if (System.getProperty("os.arch").equals("amd64")) {
+                return "libnative-linux-amd64.so";
+            }
+            return "libnative-linux-i386.so";
+        }
     }
 
     private static class Solaris extends Unix {
+        @Override
+        public String getLibraryName() {
+            return "libnative-solaris.so";
+        }
     }
 
     private static class OsX extends Posix {
@@ -122,7 +130,7 @@ public abstract class Platform {
 
         @Override
         public String getLibraryName() {
-            return "libnative-platform.dylib";
+            return "libnative-osx-universal.dylib";
         }
     }
 

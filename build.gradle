@@ -1,6 +1,6 @@
 apply plugin: 'java'
 apply plugin: 'groovy'
-apply plugin: 'cpp-lib'
+apply plugin: 'cpp'
 apply plugin: 'idea'
 apply plugin: 'application'
 
@@ -20,27 +20,55 @@ targetCompatibility = 1.5
 
 configurations.compile.extendsFrom = []
 
+cpp {
+    sourceSets {
+        main
+    }
+}
+
 libraries {
-    main {
-        spec {
-            includes([nativeHeadersDir])
-            if (org.gradle.internal.os.OperatingSystem.current().macOsX) {
-                includes(['/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers/'])
-                args("-lcurses", "-arch", "x86_64", "-arch", "i386", "-o", outputFile)
-            } else if (org.gradle.internal.os.OperatingSystem.current().windows) {
-                includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
-                includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"])
-                args("/DWIN32")
-            } else if (org.gradle.internal.os.OperatingSystem.current().linux) {
+    if (org.gradle.internal.os.OperatingSystem.current().macOsX) {
+        universal.spec {
+            baseName = 'native-osx-universal'
+            includes(['/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers/'])
+            args("-lcurses", "-arch", "x86_64", "-arch", "i386", "-o", outputFile)
+        }
+    } else if (org.gradle.internal.os.OperatingSystem.current().windows) {
+        main.spec {
+            baseName = 'native-win32'
+            includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
+            includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"])
+            args("/DWIN32")
+        }
+    } else if (org.gradle.internal.os.OperatingSystem.current().linux) {
+        all {
+            spec {
                 includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
                 includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/linux"])
                 args("-lcurses")
-            } else {
-                includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
-                includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/solaris"])
-                args("-DSOLARIS", "-lcurses")
             }
         }
+        i386.spec {
+            baseName = 'native-linux-i386'
+            args("-m32")
+        }
+        amd64.spec {
+            baseName = 'native-linux-amd64'
+            args("-m64")
+        }
+    } else {
+        baseName = "native-solaris"
+        main.spec {
+            includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
+            includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/solaris"])
+            args("-DSOLARIS", "-lcurses")
+        }
+    }
+    all {
+        spec {
+            includes([nativeHeadersDir])
+        }
+        sourceSets << cpp.sourceSets.main
     }
 }
 
@@ -66,7 +94,7 @@ task nativeHeaders {
 }
 
 task nativeJar(type: Jar) {
-    from compileMain
+    from libraries.collect { it.spec.task }
     archiveName = 'native-platform-jni.jar'
 }
 
@@ -75,6 +103,7 @@ applicationDistribution.from(nativeJar) {
     into 'lib'
 }
 
-compileMain.dependsOn nativeHeaders
-test.dependsOn compileMain
-
+libraries.all {
+    it.spec.task.dependsOn nativeHeaders
+}
+test.dependsOn libraries.collect { it.spec.task }
