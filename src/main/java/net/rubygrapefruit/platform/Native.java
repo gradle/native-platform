@@ -70,8 +70,14 @@ public class Native {
     public static <T extends NativeIntegration> T get(Class<T> type)
             throws NativeIntegrationUnavailableException, NativeException {
         init(null);
-        Platform platform = Platform.current();
-        return platform.get(type);
+        try {
+            Platform platform = Platform.current();
+            return platform.get(type);
+        } catch (NativeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new NativeException(String.format("Failed to load native integration %s.", type.getSimpleName()), e);
+        }
     }
 
     private static void copy(URL source, File dest) {

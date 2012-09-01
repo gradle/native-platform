@@ -34,7 +34,7 @@ public abstract class Platform {
 
     public <T extends NativeIntegration> T get(Class<T> type) {
         throw new NativeIntegrationUnavailableException(String.format("Native integration %s is not supported on this operating system (%s %s)",
-                type.getName(), getOperatingSystem(), getArchitecture()));
+                type.getSimpleName(), getOperatingSystem(), getArchitecture()));
     }
 
     public abstract String getLibraryName() throws NativeIntegrationUnavailableException;
