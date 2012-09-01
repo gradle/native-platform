@@ -98,9 +98,16 @@ task nativeJar(type: Jar) {
     archiveName = 'native-platform-jni.jar'
 }
 
+javadoc {
+    exclude '**/internal/**'
+}
+
 startScripts.classpath += nativeJar.outputs.files
 applicationDistribution.from(nativeJar) {
     into 'lib'
+}
+applicationDistribution.from(javadoc) {
+    into 'javadoc'
 }
 
 libraries.all {

@@ -6,6 +6,9 @@ package net.rubygrapefruit.platform;
  * Supported on Linux, OS X, Windows.
  */
 public interface Terminal {
+    /**
+     * Colors supported by a terminal.
+     */
     enum Color {
         Black, Red, Green, Yellow, Blue, Magenta, Cyan, White
     }

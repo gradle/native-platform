@@ -13,12 +13,16 @@ public class Native {
     private static final Object lock = new Object();
     private static boolean loaded;
 
+    private Native() {
+    }
+
     /**
      * Initialises the native integration, if not already initialized.
      *
-     * @param extractDir The directory to extract native resources into. May be null.
+     * @param extractDir The directory to extract native resources into. May be null, in which case a default is
+     * selected.
      */
-    static void init(File extractDir) {
+    static public void init(File extractDir) {
         synchronized (lock) {
             if (!loaded) {
                 Platform platform = Platform.current();
@@ -56,7 +60,13 @@ public class Native {
         }
     }
 
-    static <T extends NativeIntegration> T get(Class<T> type) {
+    /**
+     * Locates a native integration of the given type.
+     *
+     * @return The native integration.
+     * @throws UnsupportedOperationException if the given integration is not available.
+     */
+    public static <T extends NativeIntegration> T get(Class<T> type) throws UnsupportedOperationException {
         init(null);
         Platform platform = Platform.current();
         T integration = platform.get(type);

@@ -4,8 +4,6 @@ import java.io.File;
 
 /**
  * Functions to query and modify a file's POSIX meta-data.
- *
- * Supported on Linux, OS X
  */
 public interface PosixFile extends NativeIntegration {
     /**

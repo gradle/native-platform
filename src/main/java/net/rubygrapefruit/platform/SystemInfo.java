@@ -1,27 +1,21 @@
 package net.rubygrapefruit.platform;
 
 /**
- * Provides access to some system information.
+ * Provides access to some system information. This is a snapshot view and does not change.
  */
 public interface SystemInfo extends NativeIntegration {
     /**
      * Returns the name of the kernel for the current operating system.
-     *
-     * @throws NativeException on failure.
      */
-    String getKernelName() throws NativeException;
+    String getKernelName();
 
     /**
      * Returns the version of the kernel for the current operating system.
-     *
-     * @throws NativeException on failure.
      */
-    String getKernelVersion() throws NativeException;
+    String getKernelVersion();
 
     /**
      * Returns the machine architecture, as reported by the operating system.
-     *
-     * @throws NativeException on failure.
      */
-    String getMachineArchitecture() throws NativeException;
+    String getMachineArchitecture();
 }
