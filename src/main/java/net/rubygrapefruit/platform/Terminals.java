@@ -5,7 +5,7 @@ package net.rubygrapefruit.platform;
  *
  * Supported on Linux, OS X, Windows.
  */
-public interface TerminalAccess extends NativeIntegration {
+public interface Terminals extends NativeIntegration {
     enum Output {Stdout, Stderr}
 
     /**

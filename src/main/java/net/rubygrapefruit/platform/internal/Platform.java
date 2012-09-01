@@ -58,8 +58,8 @@ public abstract class Platform {
             if (type.equals(net.rubygrapefruit.platform.Process.class)) {
                 return type.cast(new DefaultProcess());
             }
-            if (type.equals(TerminalAccess.class)) {
-                return type.cast(new WindowsTerminalAccess());
+            if (type.equals(Terminals.class)) {
+                return type.cast(new WindowsTerminals());
             }
             return super.get(type);
         }
@@ -74,8 +74,8 @@ public abstract class Platform {
             if (type.equals(Process.class)) {
                 return type.cast(new DefaultProcess());
             }
-            if (type.equals(TerminalAccess.class)) {
-                return type.cast(new TerminfoTerminalAccess());
+            if (type.equals(Terminals.class)) {
+                return type.cast(new TerminfoTerminals());
             }
             if (type.equals(SystemInfo.class)) {
                 MutableSystemInfo systemInfo = new MutableSystemInfo();

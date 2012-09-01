@@ -1,10 +1,10 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.Terminal;
-import net.rubygrapefruit.platform.TerminalAccess;
+import net.rubygrapefruit.platform.Terminals;
 import net.rubygrapefruit.platform.internal.jni.PosixTerminalFunctions;
 
-public class TerminfoTerminalAccess implements TerminalAccess {
+public class TerminfoTerminals implements Terminals {
     private static Output currentlyOpen;
     private static TerminfoTerminal current;
 

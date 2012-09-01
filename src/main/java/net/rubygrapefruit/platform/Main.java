@@ -18,13 +18,13 @@ public class Main {
             System.out.println("    * " + fileSystem.getMountPoint() + ' ' + fileSystem.getFileSystemType() + ' ' + fileSystem.getDeviceName() + (fileSystem.isRemote() ? " remote" : " local"));
         }
 
-        TerminalAccess terminalAccess = Native.get(TerminalAccess.class);
-        boolean stdoutIsTerminal = terminalAccess.isTerminal(TerminalAccess.Output.Stdout);
-        boolean stderrIsTerminal = terminalAccess.isTerminal(TerminalAccess.Output.Stderr);
+        Terminals terminals = Native.get(Terminals.class);
+        boolean stdoutIsTerminal = terminals.isTerminal(Terminals.Output.Stdout);
+        boolean stderrIsTerminal = terminals.isTerminal(Terminals.Output.Stderr);
         System.out.println("* stdout: " + (stdoutIsTerminal ? "terminal" : "not a terminal"));
         System.out.println("* stderr: " + (stderrIsTerminal ? "terminal" : "not a terminal"));
         if (stdoutIsTerminal) {
-            Terminal terminal = terminalAccess.getTerminal(TerminalAccess.Output.Stdout);
+            Terminal terminal = terminals.getTerminal(Terminals.Output.Stdout);
             TerminalSize terminalSize = terminal.getTerminalSize();
             System.out.println("* terminal size: " + terminalSize.getCols() + " cols x " + terminalSize.getRows() + " rows");
             System.out.println("* text attributes: " + (terminal.supportsTextAttributes() ? "yes" : "no"));

@@ -2,10 +2,10 @@ package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.Terminal;
-import net.rubygrapefruit.platform.TerminalAccess;
+import net.rubygrapefruit.platform.Terminals;
 import net.rubygrapefruit.platform.internal.jni.WindowsConsoleFunctions;
 
-public class WindowsTerminalAccess implements TerminalAccess {
+public class WindowsTerminals implements Terminals {
     private static Output currentlyOpen;
     private static WindowsTerminal current;
 

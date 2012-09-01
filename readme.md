@@ -9,14 +9,13 @@ These APIs support Java 5 and later. Some of these APIs overlap with APIs availa
 
 ### Generic
 
-* Get and set UNIX file mode.
 * Get PID of current process.
 * Get kernel name and version.
 * Get machine architecture.
 
 ### Terminal and console
 
-These bindings work for both the UNIX terminal and Windows console:
+These bindings work for both the UNIX terminal and the Windows console:
 
 * Determine if stdout/stderr are attached to a terminal.
 * Query the terminal size.
@@ -27,6 +26,7 @@ These bindings work for both the UNIX terminal and Windows console:
 
 ### File systems
 
+* Get and set UNIX file mode.
 * List the available file systems on the machine
 * Query file system mount point.
 * Query file system type.
@@ -37,7 +37,7 @@ These bindings work for both the UNIX terminal and Windows console:
 
 Currently ported to OS X, Linux, Solaris and Windows. Tested on:
 
-* OS X 10.7.4, 10.8 (i386 and x86_64)
+* OS X 10.7.4, 10.8 (x86_64)
 * Ubunutu 12.04 (amd64)
 * Solaris 11 (x86)
 * Windows 7 (amd64)
@@ -47,16 +47,18 @@ Currently ported to OS X, Linux, Solaris and Windows. Tested on:
 Include `native-platform.jar` and `native-platform-jni.jar` in your classpath.
 
     import net.rubygrapefruit.platform.Native;
-    import net.rubygrapefruit.platform.TerminalAccess;
-    import static net.rubygrapefruit.platform.TerminalAccess.Output.*;
+    import net.rubygrapefruit.platform.Terminals;
+    import net.rubygrapefruit.platform.Terminal;
+    import static net.rubygrapefruit.platform.Terminals.Output.*;
 
-    TerminalAccess terminalAccess = Native.get(TerminalAccess.class);
+    Terminals terminals = Native.get(Terminals.class);
 
     // check if terminal
-    terminalAccess.isTerminal(Stdout);
+    terminals.isTerminal(Stdout);
 
     // use terminal
-    terminalAccess.getTerminal(Stdout).bold();
+    Terminal stdout = terminals.getTerminal(Stdout);
+    stdout.bold();
     System.out.println("bold text");
 
 
@@ -91,18 +93,30 @@ in `build/distributions/native-platform.zip`.
 
 You can run `$INSTALL_DIR/bin/native-platform` to run the test application.
 
+## Testing
+
+* Test on IBM JVM.
+* Test on Java 5, 6, 7.
+* Test on Windows 7, Windows XP
+
 ## TODO
 
 ### Fixes
 
-* Build 32 bit and 64 bit libraries.
+* Windows: build 32 bit and 64 bit libraries.
 * Windows: flush System.out or System.err on attribute change.
-* Solaris: fix unicode file name handling.
+* Windows: fail for unsupported architecture.
+* Linux: fail for unsupported architecture.
 * Linux: detect remote filesystems.
+* Solaris: fix unicode file name handling.
+* Solaris: fail for unsupported architecture.
+* Solaris: build 32 bit and 64 bit libraries.
+* Freebsd: finish port.
+* Freebsd: fail for unsupported architecture.
+* Freebsd: build 32 bit and 64 bit libraries.
 
 ### Improvements
 
-* Handle multiple platforms in self-extracting jar.
 * Support for cygwin terminal
 * Use TERM=xtermc instead of TERM=xterm on Solaris.
 * Add diagnostics for terminal.
@@ -110,14 +124,13 @@ You can run `$INSTALL_DIR/bin/native-platform` to run the test application.
 * Version each native interface separately.
 * String names for errno values.
 * Split into multiple projects.
-* Test on IBM JVM.
 * Convert to c.
 * Thread safety.
 * Improve error message when unsupported capability is used.
 * Initial release.
 * Use fully decomposed form for unicode file names on hfs+ filesystems.
-* Handle string encoding for file system details
-* Handle string encoding for system info
+* Handle string encoding for file system details.
+* Handle string encoding for system info.
 
 ### Ideas
 

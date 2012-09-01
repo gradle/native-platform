@@ -2,14 +2,14 @@ package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.Terminal;
-import net.rubygrapefruit.platform.TerminalAccess;
+import net.rubygrapefruit.platform.Terminals;
 import net.rubygrapefruit.platform.TerminalSize;
 import net.rubygrapefruit.platform.internal.jni.WindowsConsoleFunctions;
 
 public class WindowsTerminal extends AbstractTerminal {
-    private final TerminalAccess.Output output;
+    private final Terminals.Output output;
 
-    public WindowsTerminal(TerminalAccess.Output output) {
+    public WindowsTerminal(Terminals.Output output) {
         this.output = output;
     }
 

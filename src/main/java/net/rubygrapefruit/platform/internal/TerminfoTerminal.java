@@ -2,7 +2,7 @@ package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.Terminal;
-import net.rubygrapefruit.platform.TerminalAccess;
+import net.rubygrapefruit.platform.Terminals;
 import net.rubygrapefruit.platform.TerminalSize;
 import net.rubygrapefruit.platform.internal.jni.PosixTerminalFunctions;
 import net.rubygrapefruit.platform.internal.jni.TerminfoFunctions;
@@ -10,14 +10,14 @@ import net.rubygrapefruit.platform.internal.jni.TerminfoFunctions;
 import java.io.PrintStream;
 
 public class TerminfoTerminal extends AbstractTerminal {
-    private final TerminalAccess.Output output;
+    private final Terminals.Output output;
     private final PrintStream stream;
     private final TerminalCapabilities capabilities = new TerminalCapabilities();
     private Color foreground;
 
-    public TerminfoTerminal(TerminalAccess.Output output) {
+    public TerminfoTerminal(Terminals.Output output) {
         this.output = output;
-        stream = output == TerminalAccess.Output.Stdout ? System.out : System.err;
+        stream = output == Terminals.Output.Stdout ? System.out : System.err;
     }
 
     @Override
