@@ -105,7 +105,7 @@ public abstract class Platform {
             if (getArchitecture().equals("amd64")) {
                 return "libnative-linux-amd64.so";
             }
-            if (getArchitecture().equals("i386")) {
+            if (getArchitecture().equals("i386") || getArchitecture().equals("x86")) {
                 return "libnative-linux-i386.so";
             }
             throw new NativeIntegrationUnavailableException(String.format(
