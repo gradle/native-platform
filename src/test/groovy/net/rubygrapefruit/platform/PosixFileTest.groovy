@@ -31,25 +31,81 @@ class PosixFileTest extends Specification {
         file.getMode(testFile) == 0740
     }
 
-    def "throws exception on failure to set mode"() {
-        def file = new File(tmpDir.root, "unknown")
+    def "cannot set mode on file that does not exist"() {
+        def testFile = new File(tmpDir.root, "unknown")
 
         when:
-        this.file.setMode(file, 0660)
+        file.setMode(testFile, 0660)
 
         then:
         NativeException e = thrown()
-        e.message == "Could not set UNIX mode on $file: could not chmod file (errno 2)"
+        e.message == "Could not set UNIX mode on $testFile: could not chmod file (errno 2)"
     }
 
-    def "throws exception on failure to get mode"() {
-        def file = new File(tmpDir.root, "unknown")
+    def "cannot get mode on file that does not exist"() {
+        def testFile = new File(tmpDir.root, "unknown")
 
         when:
-        this.file.getMode(file)
+        file.getMode(testFile)
 
         then:
         NativeException e = thrown()
-        e.message == "Could not get UNIX mode on $file: could not stat file (errno 2)"
+        e.message == "Could not get UNIX mode on $testFile: could not stat file (errno 2)"
+    }
+
+    def "can create symbolic link"() {
+        def testFile = new File(tmpDir.root, "test.txt")
+        testFile.text = "hi"
+        def symlinkFile = new File(tmpDir.root, "symlink")
+
+        when:
+        file.symlink(symlinkFile, testFile.name)
+
+        then:
+        symlinkFile.file
+        symlinkFile.text == "hi"
+        symlinkFile.canonicalFile == testFile.canonicalFile
+    }
+
+    def "can read symbolic link"() {
+        def symlinkFile = new File(tmpDir.root, "symlink")
+
+        when:
+        file.symlink(symlinkFile, "target")
+
+        then:
+        file.readLink(symlinkFile) == "target"
+    }
+
+    def "cannot read a symlink that does not exist"() {
+        def symlinkFile = new File(tmpDir.root, "symlink")
+
+        when:
+        file.readLink(symlinkFile)
+
+        then:
+        NativeException e = thrown()
+        e.message == "Could not read symlink $symlinkFile: could not lstat file (errno 2)"
+    }
+
+    def "cannot read a symlink that is not a symlink"() {
+        def symlinkFile = tmpDir.newFile("not-a-symlink.txt")
+
+        when:
+        file.readLink(symlinkFile)
+
+        then:
+        NativeException e = thrown()
+        e.message == "Could not read symlink $symlinkFile: could not readlink (errno 22)"
+    }
+
+    def "can create and read symlink with unicode in its name"() {
+        def symlinkFile = new File(tmpDir.root, "symlink\u03b2")
+
+        when:
+        file.symlink(symlinkFile, "target\u03b2")
+
+        then:
+        file.readLink(symlinkFile) == "target\u03b2"
     }
 }

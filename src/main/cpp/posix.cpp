@@ -80,6 +80,48 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *en
     env->SetIntField(dest, modeField, 0777 & fileInfo.st_mode);
 }
 
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_symlink(JNIEnv *env, jclass target, jbyteArray path, jbyteArray contents, jobject result) {
+    jbyte* pathUtf8 = env->GetByteArrayElements(path, NULL);
+    jbyte* contentsUtf8 = env->GetByteArrayElements(contents, NULL);
+    int retval = symlink((const char*)contentsUtf8, (const char*)pathUtf8);
+    env->ReleaseByteArrayElements(path, pathUtf8, JNI_ABORT);
+    env->ReleaseByteArrayElements(contents, contentsUtf8, JNI_ABORT);
+    if (retval != 0) {
+        mark_failed_with_errno(env, "could not symlink", result);
+    }
+}
+
+JNIEXPORT jbyteArray JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_readlink(JNIEnv *env, jclass target, jbyteArray path, jobject result) {
+    struct stat link_info;
+    jbyte* pathUtf8 = env->GetByteArrayElements(path, NULL);
+    int retval = lstat((const char*)pathUtf8, &link_info);
+    if (retval != 0) {
+        env->ReleaseByteArrayElements(path, pathUtf8, JNI_ABORT);
+        mark_failed_with_errno(env, "could not lstat file", result);
+        return NULL;
+    }
+
+    jbyteArray contents = env->NewByteArray(link_info.st_size);
+    if (contents == NULL) {
+        env->ReleaseByteArrayElements(path, pathUtf8, JNI_ABORT);
+        mark_failed_with_message(env, "could not create array", result);
+        return NULL;
+    }
+
+    jbyte* contentsUtf8 = env->GetByteArrayElements(contents, NULL);
+    retval = readlink((const char*)pathUtf8, (char*)contentsUtf8, link_info.st_size);
+    env->ReleaseByteArrayElements(path, pathUtf8, JNI_ABORT);
+    if (retval < 0) {
+        mark_failed_with_errno(env, "could not readlink", result);
+        env->ReleaseByteArrayElements(contents, contentsUtf8, JNI_ABORT);
+        return NULL;
+    }
+    env->ReleaseByteArrayElements(contents, contentsUtf8, JNI_COMMIT);
+    return contents;
+}
+
 /*
  * Process functions
  */

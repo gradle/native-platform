@@ -27,6 +27,7 @@ These bindings work for both the UNIX terminal and the Windows console:
 ### File systems
 
 * Get and set UNIX file mode.
+* Create and read symbolic links.
 * List the available file systems on the machine
 * Query file system mount point.
 * Query file system type.
@@ -37,7 +38,7 @@ These bindings work for both the UNIX terminal and the Windows console:
 
 Currently ported to OS X, Linux, Solaris and Windows. Tested on:
 
-* OS X 10.7.4, 10.8 (x86_64)
+* OS X 10.7.4, 10.8 (x86_64), 10.6.7 (i386)
 * Ubunutu 12.04 (amd64)
 * Solaris 11 (x86)
 * Windows 7 (amd64)

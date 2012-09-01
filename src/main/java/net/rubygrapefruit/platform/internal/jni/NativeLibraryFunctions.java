@@ -4,7 +4,7 @@ import net.rubygrapefruit.platform.internal.FunctionResult;
 import net.rubygrapefruit.platform.internal.MutableSystemInfo;
 
 public class NativeLibraryFunctions {
-    public static final int VERSION = 6;
+    public static final int VERSION = 7;
 
     public static native int getVersion();
 

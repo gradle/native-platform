@@ -40,12 +40,43 @@ public class DefaultPosixFile implements PosixFile {
         return stat.mode;
     }
 
+    @Override
+    public String readLink(File link) throws NativeException {
+        FunctionResult result = new FunctionResult();
+        byte[] encodedContents = PosixFileFunctions.readlink(encode(link), result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not read symlink %s: %s", link, result.getMessage()));
+        }
+        return decode(encodedContents);
+    }
+
+    @Override
+    public void symlink(File link, String contents) throws NativeException {
+        FunctionResult result = new FunctionResult();
+        PosixFileFunctions.symlink(encode(link), encode(contents), result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not create symlink %s: %s", link, result.getMessage()));
+        }
+    }
+
+    private String decode(byte[] path) {
+        try {
+            return new String(path, 0, path.length, characterEncoding);
+        } catch (UnsupportedEncodingException e) {
+            throw new NativeException(String.format("Could not decode path using encoding %s.", characterEncoding), e);
+        }
+    }
+
     private byte[] encode(File file) {
+        return encode(file.getPath());
+    }
+
+    private byte[] encode(String path) {
         byte[] encodedName;
         try {
-            encodedName = file.getPath().getBytes(characterEncoding);
+            encodedName = path.getBytes(characterEncoding);
         } catch (UnsupportedEncodingException e) {
-            throw new NativeException(String.format("Could not encode path for file '%s' using encoding %s.", file.getName(), characterEncoding), e);
+            throw new NativeException(String.format("Could not encode path '%s' using encoding %s.", path, characterEncoding), e);
         }
         byte[] buffer = new byte[encodedName.length + 1];
         System.arraycopy(encodedName, 0, buffer, 0, encodedName.length);

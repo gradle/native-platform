@@ -19,4 +19,18 @@ public interface PosixFile extends NativeIntegration {
      * @throws NativeException On failure.
      */
     int getMode(File path) throws NativeException;
+
+    /**
+     * Creates a symbolic link.
+     *
+     * @throws NativeException On failure.
+     */
+    void symlink(File link, String contents) throws NativeException;
+
+    /**
+     * Reads the contents of a symbolic link.
+     *
+     * @throws NativeException On failure.
+     */
+    String readLink(File link) throws NativeException;
 }
