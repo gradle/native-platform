@@ -26,9 +26,6 @@ public class Native {
         synchronized (lock) {
             if (!loaded) {
                 Platform platform = Platform.current();
-                if (!platform.isSupported()) {
-                    throw new NativeException(String.format("The current platform is not supported."));
-                }
                 try {
                     File libFile;
                     URL resource = Native.class.getClassLoader().getResource(platform.getLibraryName());
@@ -46,16 +43,18 @@ public class Native {
                         libFile = new File("build/binaries/" + platform.getLibraryName());
                     }
                     System.load(libFile.getCanonicalPath());
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+                    int nativeVersion = NativeLibraryFunctions.getVersion();
+                    if (nativeVersion != NativeLibraryFunctions.VERSION) {
+                        throw new NativeException(String.format(
+                                "Unexpected native library version loaded. Expected %s, was %s.", nativeVersion,
+                                NativeLibraryFunctions.VERSION));
+                    }
+                    loaded = true;
+                } catch (NativeException e) {
+                    throw e;
+                } catch (Exception e) {
+                    throw new NativeException("Failed to initialise native integration.", e);
                 }
-                int nativeVersion = NativeLibraryFunctions.getVersion();
-                if (nativeVersion != NativeLibraryFunctions.VERSION) {
-                    throw new NativeException(String.format(
-                            "Unexpected native library version loaded. Expected %s, was %s.", nativeVersion,
-                            NativeLibraryFunctions.VERSION));
-                }
-                loaded = true;
             }
         }
     }
@@ -64,18 +63,15 @@ public class Native {
      * Locates a native integration of the given type.
      *
      * @return The native integration.
-     * @throws UnsupportedOperationException if the given integration is not available.
+     * @throws NativeIntegrationUnavailableException When the given native integration is not available on the current
+     * machine.
+     * @throws NativeException On failure to load the native integration.
      */
-    public static <T extends NativeIntegration> T get(Class<T> type) throws UnsupportedOperationException {
+    public static <T extends NativeIntegration> T get(Class<T> type)
+            throws NativeIntegrationUnavailableException, NativeException {
         init(null);
         Platform platform = Platform.current();
-        T integration = platform.get(type);
-        if (integration != null) {
-            return integration;
-        }
-
-        throw new UnsupportedOperationException(String.format("Cannot load unsupported native integration %s.",
-                type.getName()));
+        return platform.get(type);
     }
 
     private static void copy(URL source, File dest) {

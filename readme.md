@@ -126,7 +126,7 @@ You can run `$INSTALL_DIR/bin/native-platform` to run the test application.
 * Split into multiple projects.
 * Convert to c.
 * Thread safety.
-* Improve error message when unsupported capability is used.
+* Make native library extraction multi-process safe.
 * Initial release.
 * Use fully decomposed form for unicode file names on hfs+ filesystems.
 * Handle string encoding for file system details.
