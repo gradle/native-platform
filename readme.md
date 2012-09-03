@@ -115,7 +115,6 @@ You can run `$INSTALL_DIR/bin/native-platform` to run the test application.
 * Windows: build 32 bit and 64 bit libraries.
 * Windows: flush System.out or System.err on attribute change.
 * Windows: fail for unsupported architecture.
-* Linux: fail for unsupported architecture.
 * Linux: detect remote filesystems.
 * Solaris: fix unicode file name handling.
 * Solaris: fail for unsupported architecture.
