@@ -97,24 +97,23 @@ task nativeHeaders {
     }
 }
 
-task nativeJar(type: Jar) {
-    from libraries.collect { it.spec.task }
-    archiveName = 'native-platform-jni.jar'
+libraries.all { lib ->
+    def nativeJar = task("nativeJar${lib.name}", type: Jar) {
+        from lib.spec.task
+        archiveName = "${lib.spec.baseName}.jar"
+    }
+    startScripts.classpath += nativeJar.outputs.files
+    applicationDistribution.from(nativeJar) {
+        into 'lib'
+    }
+    lib.spec.task.dependsOn nativeHeaders
+    test.dependsOn lib.spec.task
 }
 
 javadoc {
     exclude '**/internal/**'
 }
 
-startScripts.classpath += nativeJar.outputs.files
-applicationDistribution.from(nativeJar) {
-    into 'lib'
-}
 applicationDistribution.from(javadoc) {
     into 'javadoc'
 }
-
-libraries.all {
-    it.spec.task.dependsOn nativeHeaders
-}
-test.dependsOn libraries.collect { it.spec.task }
