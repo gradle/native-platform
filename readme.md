@@ -39,7 +39,7 @@ These bindings work for both the UNIX terminal and the Windows console:
 Currently ported to OS X, Linux, Solaris and Windows. Tested on:
 
 * OS X 10.7.4, 10.8 (x86_64), 10.6.7 (i386)
-* Ubunutu 12.04 (amd64)
+* Ubunutu 12.04 (amd64), 8.04.4 (i386, amd64)
 * Solaris 11 (x86)
 * Windows 7 (amd64)
 
@@ -69,11 +69,19 @@ You will need a very recent snapshot of [Gradle](http://www.gradle.org/).
 
 ### Ubuntu
 
-The g++ compiler is required to build the native library. You will need to `g++` package for this. Generally this is already installed.
+The g++ compiler is required to build the native library. You will need the `g++` package for this. Generally this is already installed.
+
+You need to install the `libncurses5-dev` package to pick up the ncurses header files. Also worth installing the `ncurses-doc` package too.
+
+#### 64bit machines with multi-arch support
+
+Where multi-arch support is available (newer Ubuntu releases), you can build the i386 and amd64 versions of the library.
 
 You need to install the `gcc-multilib` and `g++-multilib` packages to pick up i386 support.
 
-You need to install the `libncurses5-dev` and `lib32ncurses5-dev` package to pick up the ncurses header files and i386 version. Also worth installing the `ncurses-doc` package too.
+You need to install the `lib32ncurses5-dev` package to pick up the ncurses i386 version.
+
+To build, include `-Pmultiarch` on the command-line.
 
 ### Windows
 

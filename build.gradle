@@ -48,13 +48,17 @@ libraries {
                 args("-lcurses")
             }
         }
-        i386.spec {
-            baseName = 'native-linux-i386'
-            args("-m32")
+        if (System.getProperty('os.arch') == 'i386' || project.hasProperty('multiarch')) {
+            i386.spec {
+                baseName = 'native-linux-i386'
+                args("-m32")
+            }
         }
-        amd64.spec {
-            baseName = 'native-linux-amd64'
-            args("-m64")
+        if (System.getProperty('os.arch') == 'amd64' || project.hasProperty('multiarch')) {
+            amd64.spec {
+                baseName = 'native-linux-amd64'
+                args("-m64")
+            }
         }
     } else {
         baseName = "native-solaris"
