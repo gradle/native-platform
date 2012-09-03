@@ -98,7 +98,7 @@ task nativeHeaders {
 }
 
 libraries.all { lib ->
-    def nativeJar = task("nativeJar${lib.name}", type: Jar) {
+    def nativeJar = task("nativeJar${lib.name.capitalize()}", type: Jar) {
         from lib.spec.task
         archiveName = "${lib.spec.baseName}.jar"
     }
