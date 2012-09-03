@@ -42,6 +42,9 @@ public class Native {
                     } else {
                         libFile = new File("build/binaries/" + platform.getLibraryName());
                     }
+                    if (!libFile.isFile()) {
+                        throw new NativeIntegrationUnavailableException(String.format("Native library is not available for this operating system and architecture."));
+                    }
                     System.load(libFile.getCanonicalPath());
                     int nativeVersion = NativeLibraryFunctions.getVersion();
                     if (nativeVersion != NativeLibraryFunctions.VERSION) {
@@ -52,8 +55,8 @@ public class Native {
                     loaded = true;
                 } catch (NativeException e) {
                     throw e;
-                } catch (Exception e) {
-                    throw new NativeException("Failed to initialise native integration.", e);
+                } catch (Throwable t) {
+                    throw new NativeException("Failed to initialise native integration.", t);
                 }
             }
         }
@@ -75,8 +78,8 @@ public class Native {
             return platform.get(type);
         } catch (NativeException e) {
             throw e;
-        } catch (Exception e) {
-            throw new NativeException(String.format("Failed to load native integration %s.", type.getSimpleName()), e);
+        } catch (Throwable t) {
+            throw new NativeException(String.format("Failed to load native integration %s.", type.getSimpleName()), t);
         }
     }
 
