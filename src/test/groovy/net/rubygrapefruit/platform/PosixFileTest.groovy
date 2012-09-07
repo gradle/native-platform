@@ -100,12 +100,16 @@ class PosixFileTest extends Specification {
     }
 
     def "can create and read symlink with unicode in its name"() {
+        def testFile = new File(tmpDir.root, "target\u03b2")
+        testFile.text = 'hi'
         def symlinkFile = new File(tmpDir.root, "symlink\u03b2")
 
         when:
-        file.symlink(symlinkFile, "target\u03b2")
+        file.symlink(symlinkFile, testFile.name)
 
         then:
-        file.readLink(symlinkFile) == "target\u03b2"
+        file.readLink(symlinkFile) == testFile.name
+        symlinkFile.file
+        symlinkFile.canonicalFile == testFile.canonicalFile
     }
 }
