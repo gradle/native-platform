@@ -6,7 +6,7 @@ import spock.lang.Specification
 import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.IgnoreIf
 
-class TerminalTest extends Specification {
+class TerminalsTest extends Specification {
     @Rule TemporaryFolder tmpDir
     final Terminals terminal = Native.get(Terminals.class)
 
