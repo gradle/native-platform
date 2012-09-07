@@ -14,8 +14,14 @@ public abstract class AbstractTerminals implements Terminals {
             }
 
             if (current == null) {
-                AbstractTerminal terminal = createTerminal(output);
+                final AbstractTerminal terminal = createTerminal(output);
                 terminal.init();
+                Runtime.getRuntime().addShutdownHook(new Thread(){
+                    @Override
+                    public void run() {
+                        terminal.reset();
+                    }
+                });
                 currentlyOpen = output;
                 current = terminal;
             }

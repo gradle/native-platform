@@ -3,8 +3,11 @@ package net.rubygrapefruit.platform;
 /**
  * Provides access to the terminal/console.
  *
- * Supported on Linux, OS X, Windows.
+ * <p>On UNIX based platforms, this provides access to the terminal. On Windows platforms, this provides access to the
+ * console.
+ * </p>
  */
+@ThreadSafe
 public interface Terminals extends NativeIntegration {
     /**
      * System outputs.
@@ -16,6 +19,7 @@ public interface Terminals extends NativeIntegration {
      *
      * @throws NativeException On failure.
      */
+    @ThreadSafe
     boolean isTerminal(Output output) throws NativeException;
 
     /**
@@ -23,5 +27,6 @@ public interface Terminals extends NativeIntegration {
      *
      * @throws NativeException When the output is not attached to a terminal.
      */
+    @ThreadSafe
     Terminal getTerminal(Output output) throws NativeException;
 }

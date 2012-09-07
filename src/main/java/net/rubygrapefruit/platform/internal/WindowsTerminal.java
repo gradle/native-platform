@@ -19,7 +19,7 @@ public class WindowsTerminal extends AbstractTerminal {
     }
 
     @Override
-    protected void doInit() {
+    protected void init() {
         FunctionResult result = new FunctionResult();
         WindowsConsoleFunctions.initConsole(output.ordinal(), result);
         if (result.isFailed()) {

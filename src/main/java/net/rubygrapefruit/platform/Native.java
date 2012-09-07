@@ -9,8 +9,8 @@ import java.io.File;
 /**
  * Provides access to the native integrations. Use {@link #get(Class)} to load a particular integration.
  */
+@ThreadSafe
 public class Native {
-    private static final Object lock = new Object();
     private static boolean loaded;
 
     private Native() {
@@ -22,8 +22,9 @@ public class Native {
      * @param extractDir The directory to extract native resources into. May be null, in which case a default is
      * selected.
      */
+    @ThreadSafe
     static public void init(File extractDir) {
-        synchronized (lock) {
+        synchronized (Native.class) {
             if (!loaded) {
                 Platform platform = Platform.current();
                 try {
@@ -54,6 +55,7 @@ public class Native {
      * machine.
      * @throws NativeException On failure to load the native integration.
      */
+    @ThreadSafe
     public static <T extends NativeIntegration> T get(Class<T> type)
             throws NativeIntegrationUnavailableException, NativeException {
         init(null);

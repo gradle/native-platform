@@ -1,6 +1,9 @@
 package net.rubygrapefruit.platform.internal;
 
+import net.rubygrapefruit.platform.Terminals;
 import net.rubygrapefruit.platform.internal.jni.PosixTerminalFunctions;
+
+import java.io.PrintStream;
 
 public class TerminfoTerminals extends AbstractTerminals {
     public boolean isTerminal(Output output) {
@@ -9,6 +12,7 @@ public class TerminfoTerminals extends AbstractTerminals {
 
     @Override
     protected AbstractTerminal createTerminal(Output output) {
-        return new TerminfoTerminal(output);
+        PrintStream stream = output == Terminals.Output.Stdout ? System.out : System.err;
+        return new WrapperTerminal(stream, new TerminfoTerminal(output));
     }
 }

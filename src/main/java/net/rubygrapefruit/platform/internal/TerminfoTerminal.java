@@ -2,22 +2,18 @@ package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.Terminal;
-import net.rubygrapefruit.platform.Terminals;
 import net.rubygrapefruit.platform.TerminalSize;
+import net.rubygrapefruit.platform.Terminals;
 import net.rubygrapefruit.platform.internal.jni.PosixTerminalFunctions;
 import net.rubygrapefruit.platform.internal.jni.TerminfoFunctions;
 
-import java.io.PrintStream;
-
 public class TerminfoTerminal extends AbstractTerminal {
     private final Terminals.Output output;
-    private final PrintStream stream;
     private final TerminalCapabilities capabilities = new TerminalCapabilities();
     private Color foreground;
 
     public TerminfoTerminal(Terminals.Output output) {
         this.output = output;
-        stream = output == Terminals.Output.Stdout ? System.out : System.err;
     }
 
     @Override
@@ -26,8 +22,7 @@ public class TerminfoTerminal extends AbstractTerminal {
     }
 
     @Override
-    protected void doInit() {
-        stream.flush();
+    protected void init() {
         FunctionResult result = new FunctionResult();
         TerminfoFunctions.initTerminal(output.ordinal(), capabilities, result);
         if (result.isFailed()) {
@@ -62,7 +57,6 @@ public class TerminfoTerminal extends AbstractTerminal {
             return this;
         }
 
-        stream.flush();
         FunctionResult result = new FunctionResult();
         TerminfoFunctions.foreground(color.ordinal(), result);
         if (result.isFailed()) {
@@ -78,7 +72,6 @@ public class TerminfoTerminal extends AbstractTerminal {
             return this;
         }
 
-        stream.flush();
         FunctionResult result = new FunctionResult();
         TerminfoFunctions.bold(result);
         if (result.isFailed()) {
@@ -97,7 +90,6 @@ public class TerminfoTerminal extends AbstractTerminal {
     }
 
     public Terminal reset() {
-        stream.flush();
         FunctionResult result = new FunctionResult();
         TerminfoFunctions.reset(result);
         if (result.isFailed()) {
@@ -107,7 +99,6 @@ public class TerminfoTerminal extends AbstractTerminal {
     }
 
     public Terminal cursorDown(int count) {
-        stream.flush();
         FunctionResult result = new FunctionResult();
         TerminfoFunctions.down(count, result);
         if (result.isFailed()) {
@@ -117,7 +108,6 @@ public class TerminfoTerminal extends AbstractTerminal {
     }
 
     public Terminal cursorUp(int count) {
-        stream.flush();
         FunctionResult result = new FunctionResult();
         TerminfoFunctions.up(count, result);
         if (result.isFailed()) {
@@ -127,7 +117,6 @@ public class TerminfoTerminal extends AbstractTerminal {
     }
 
     public Terminal cursorLeft(int count) {
-        stream.flush();
         FunctionResult result = new FunctionResult();
         TerminfoFunctions.left(count, result);
         if (result.isFailed()) {
@@ -137,7 +126,6 @@ public class TerminfoTerminal extends AbstractTerminal {
     }
 
     public Terminal cursorRight(int count) {
-        stream.flush();
         FunctionResult result = new FunctionResult();
         TerminfoFunctions.right(count, result);
         if (result.isFailed()) {
@@ -147,7 +135,6 @@ public class TerminfoTerminal extends AbstractTerminal {
     }
 
     public Terminal cursorStartOfLine() throws NativeException {
-        stream.flush();
         FunctionResult result = new FunctionResult();
         TerminfoFunctions.startLine(result);
         if (result.isFailed()) {
@@ -157,7 +144,6 @@ public class TerminfoTerminal extends AbstractTerminal {
     }
 
     public Terminal clearToEndOfLine() throws NativeException {
-        stream.flush();
         FunctionResult result = new FunctionResult();
         TerminfoFunctions.clearToEndOfLine(result);
         if (result.isFailed()) {

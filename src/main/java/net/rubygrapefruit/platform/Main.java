@@ -37,8 +37,8 @@ public class Main {
             System.out.print("[bold]");
             terminal.normal();
             System.out.println(" [normal]");
-
             System.out.println();
+
             System.out.println("COLORS");
             for (Terminal.Color color : Terminal.Color.values()) {
                 terminal.foreground(color);
@@ -48,8 +48,8 @@ public class Main {
                 terminal.normal();
                 System.out.println();
             }
-
             System.out.println();
+
             terminal.reset();
 
             if (terminal.supportsCursorMotion()) {
@@ -73,10 +73,10 @@ public class Main {
                 terminal.cursorDown(1);
                 terminal.cursorStartOfLine();
                 terminal.clearToEndOfLine();
+                terminal.foreground(Terminal.Color.Blue).bold();
                 System.out.println("done!");
+                System.out.println();
             }
         }
-
-        System.out.println();
     }
 }
