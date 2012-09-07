@@ -1,14 +1,9 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
-import net.rubygrapefruit.platform.Terminal;
-import net.rubygrapefruit.platform.Terminals;
 import net.rubygrapefruit.platform.internal.jni.WindowsConsoleFunctions;
 
-public class WindowsTerminals implements Terminals {
-    private static Output currentlyOpen;
-    private static WindowsTerminal current;
-
+public class WindowsTerminals extends AbstractTerminals {
     public boolean isTerminal(Output output) {
         FunctionResult result = new FunctionResult();
         boolean console = WindowsConsoleFunctions.isConsole(output.ordinal(), result);
@@ -19,17 +14,8 @@ public class WindowsTerminals implements Terminals {
         return console;
     }
 
-    public Terminal getTerminal(Output output) {
-        if (currentlyOpen !=null && currentlyOpen != output) {
-            throw new UnsupportedOperationException("Currently only one output can be used as a terminal.");
-        }
-
-        if (current == null) {
-            current = new WindowsTerminal(output);
-            current.init();
-        }
-
-        currentlyOpen = output;
-        return current;
+    @Override
+    protected AbstractTerminal createTerminal(Output output) {
+        return new WindowsTerminal(output);
     }
 }
