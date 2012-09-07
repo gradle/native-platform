@@ -47,7 +47,7 @@ public abstract class Platform {
 
         @Override
         public String getLibraryName() {
-            return "native-win32.dll";
+            return "native-platform-win32.dll";
         }
 
         @Override
@@ -103,10 +103,10 @@ public abstract class Platform {
         @Override
         public String getLibraryName() {
             if (getArchitecture().equals("amd64")) {
-                return "libnative-linux-amd64.so";
+                return "libnative-platform-linux-amd64.so";
             }
             if (getArchitecture().equals("i386") || getArchitecture().equals("x86")) {
-                return "libnative-linux-i386.so";
+                return "libnative-platform-linux-i386.so";
             }
             throw new NativeIntegrationUnavailableException(String.format(
                     "Native integration is not available for this architecture (%s) on Linux.", getArchitecture()));
@@ -120,7 +120,7 @@ public abstract class Platform {
     private static class Solaris extends Unix {
         @Override
         public String getLibraryName() {
-            return "libnative-solaris.so";
+            return "libnative-platform-solaris.so";
         }
     }
 
@@ -135,7 +135,7 @@ public abstract class Platform {
 
         @Override
         public String getLibraryName() {
-            return "libnative-osx-universal.dylib";
+            return "libnative-platform-osx-universal.dylib";
         }
     }
 

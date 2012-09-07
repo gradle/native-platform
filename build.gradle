@@ -3,6 +3,7 @@ apply plugin: 'groovy'
 apply plugin: 'cpp'
 apply plugin: 'idea'
 apply plugin: 'application'
+apply plugin: 'maven'
 
 repositories {
     mavenCentral()
@@ -12,6 +13,9 @@ dependencies {
     groovy 'org.codehaus.groovy:groovy:1.8.7'
     testCompile 'org.spockframework:spock-core:0.6-groovy-1.8'
 }
+
+group = 'net.rubygrapefruit'
+version = '0.1'
 
 mainClassName = 'net.rubygrapefruit.platform.Main'
 def nativeHeadersDir = file("$buildDir/nativeHeaders")
@@ -29,13 +33,13 @@ cpp {
 libraries {
     if (org.gradle.internal.os.OperatingSystem.current().macOsX) {
         universal.spec {
-            baseName = 'native-osx-universal'
+            baseName = 'native-platform-osx-universal'
             includes(['/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers/'])
             args("-lcurses", "-arch", "x86_64", "-arch", "i386", "-o", outputFile)
         }
     } else if (org.gradle.internal.os.OperatingSystem.current().windows) {
         main.spec {
-            baseName = 'native-win32'
+            baseName = 'native-platform-win32'
             includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
             includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"])
             args("/DWIN32")
@@ -50,18 +54,18 @@ libraries {
         }
         if (System.getProperty('os.arch') == 'i386' || project.hasProperty('multiarch')) {
             i386.spec {
-                baseName = 'native-linux-i386'
+                baseName = 'native-platform-linux-i386'
                 args("-m32")
             }
         }
         if (System.getProperty('os.arch') == 'amd64' || project.hasProperty('multiarch')) {
             amd64.spec {
-                baseName = 'native-linux-amd64'
+                baseName = 'native-platform-linux-amd64'
                 args("-m64")
             }
         }
     } else {
-        baseName = "native-solaris"
+        baseName = "native-platform-solaris"
         main.spec {
             includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
             includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/solaris"])
@@ -97,6 +101,15 @@ task nativeHeaders {
     }
 }
 
+def deployer = null
+uploadArchives {
+    repositories {
+        deployer = mavenDeployer {
+            repository(url: uri("$buildDir/repo"))
+        }
+    }
+}
+
 libraries.all { lib ->
     def nativeJar = task("nativeJar${lib.name.capitalize()}", type: Jar) {
         from lib.spec.task
@@ -108,6 +121,16 @@ libraries.all { lib ->
     }
     lib.spec.task.dependsOn nativeHeaders
     test.dependsOn lib.spec.task
+    artifacts {
+        archives nativeJar
+    }
+    def jniPom = deployer.addFilter(lib.name) { artifact, file ->
+        return file == nativeJar.archivePath
+    }
+    jniPom.groupId = project.group
+    jniPom.artifactId = lib.spec.baseName
+    jniPom.version = project.version
+    jniPom.scopeMappings.mappings.clear()
 }
 
 javadoc {
@@ -116,4 +139,24 @@ javadoc {
 
 applicationDistribution.from(javadoc) {
     into 'javadoc'
+}
+
+artifacts {
+    archives distZip
+}
+
+def mainPom = deployer.addFilter('main') { artifact, file ->
+    return file == distZip.archivePath || file == jar.archivePath
+}
+mainPom.groupId = project.group
+mainPom.artifactId = jar.baseName
+mainPom.version = project.version
+mainPom.scopeMappings.mappings.clear()
+mainPom.withXml { provider ->
+    def node = provider.asNode()
+    def deps = node.appendNode('dependencies')
+    def dep = deps.appendNode('dependency')
+    dep.appendNode('groupId', project.group)
+    dep.appendNode('artifactId', 'native-platform-osx-universal')
+    dep.appendNode('version', project.version)
 }
