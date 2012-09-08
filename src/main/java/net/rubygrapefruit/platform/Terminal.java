@@ -3,8 +3,11 @@ package net.rubygrapefruit.platform;
 /**
  * Allows the terminal/console to be manipulated.
  *
- * Supported on Linux, OS X, Windows.
+ * <p>On UNIX based platforms, this provides access to the terminal. On Windows platforms, this provides access to the
+ * console.
+ * </p>
  */
+@ThreadSafe
 public interface Terminal {
     /**
      * Colors supported by a terminal.
@@ -16,16 +19,19 @@ public interface Terminal {
     /**
      * Returns true if this terminal supports setting text attributes, such as bold.
      */
+    @ThreadSafe
     boolean supportsTextAttributes();
 
     /**
      * Returns true if this terminal supports setting output colors.
      */
+    @ThreadSafe
     boolean supportsColor();
 
     /**
      * Returns true if this terminal supports moving the cursor.
      */
+    @ThreadSafe
     boolean supportsCursorMotion();
 
     /**
@@ -33,6 +39,7 @@ public interface Terminal {
      *
      * @throws NativeException On failure.
      */
+    @ThreadSafe
     TerminalSize getTerminalSize() throws NativeException;
 
     /**
@@ -41,6 +48,7 @@ public interface Terminal {
      *
      * @throws NativeException On failure.
      */
+    @ThreadSafe
     Terminal foreground(Color color) throws NativeException;
 
     /**
@@ -48,6 +56,7 @@ public interface Terminal {
      *
      * @throws NativeException On failure.
      */
+    @ThreadSafe
     Terminal bold() throws NativeException;
 
     /**
@@ -55,6 +64,7 @@ public interface Terminal {
      *
      * @throws NativeException On failure.
      */
+    @ThreadSafe
     Terminal normal() throws NativeException;
 
     /**
@@ -62,6 +72,7 @@ public interface Terminal {
      *
      * @throws NativeException On failure.
      */
+    @ThreadSafe
     Terminal reset() throws NativeException;
 
     /**
@@ -69,6 +80,7 @@ public interface Terminal {
      *
      * @throws NativeException On failure, or if this terminal does not support cursor motion.
      */
+    @ThreadSafe
     Terminal cursorLeft(int count) throws NativeException;
 
     /**
@@ -76,6 +88,7 @@ public interface Terminal {
      *
      * @throws NativeException On failure, or if this terminal does not support cursor motion.
      */
+    @ThreadSafe
     Terminal cursorRight(int count) throws NativeException;
 
     /**
@@ -83,6 +96,7 @@ public interface Terminal {
      *
      * @throws NativeException On failure, or if this terminal does not support cursor motion.
      */
+    @ThreadSafe
     Terminal cursorUp(int count) throws NativeException;
 
     /**
@@ -90,6 +104,7 @@ public interface Terminal {
      *
      * @throws NativeException On failure, or if this terminal does not support cursor motion.
      */
+    @ThreadSafe
     Terminal cursorDown(int count) throws NativeException;
 
     /**
@@ -97,6 +112,7 @@ public interface Terminal {
      *
      * @throws NativeException On failure, or if this terminal does not support cursor motion.
      */
+    @ThreadSafe
     Terminal cursorStartOfLine() throws NativeException;
 
     /**
@@ -104,5 +120,6 @@ public interface Terminal {
      *
      * @throws NativeException On failure, or if this terminal does not support clearing.
      */
+    @ThreadSafe
     Terminal clearToEndOfLine() throws NativeException;
 }
