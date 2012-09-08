@@ -8,6 +8,11 @@ class SystemInfoTest extends Specification {
     @Rule TemporaryFolder tmpDir
     final SystemInfo systemInfo = Native.get(SystemInfo.class)
 
+    def "caches system info instance"() {
+        expect:
+        Native.get(SystemInfo.class) == systemInfo
+    }
+
     def "can query OS details"() {
         expect:
         systemInfo.kernelName

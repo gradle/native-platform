@@ -4,11 +4,12 @@ import net.rubygrapefruit.platform.Terminal;
 import net.rubygrapefruit.platform.Terminals;
 
 public abstract class AbstractTerminals implements Terminals {
-    private static Output currentlyOpen;
-    private static AbstractTerminal current;
+    private final Object lock = new Object();
+    private Output currentlyOpen;
+    private AbstractTerminal current;
 
     public Terminal getTerminal(Output output) {
-        synchronized (AbstractTerminals.class) {
+        synchronized (lock) {
             if (currentlyOpen != null && currentlyOpen != output) {
                 throw new UnsupportedOperationException("Currently only one output can be used as a terminal.");
             }

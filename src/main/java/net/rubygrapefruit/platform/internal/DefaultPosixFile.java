@@ -2,7 +2,6 @@ package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.PosixFile;
-import net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions;
 import net.rubygrapefruit.platform.internal.jni.PosixFileFunctions;
 
 import java.io.File;
@@ -12,14 +11,8 @@ public class DefaultPosixFile implements PosixFile {
     private final String characterEncoding;
 
     public DefaultPosixFile() {
-        MutableSystemInfo systemInfo = new MutableSystemInfo();
-        FunctionResult result = new FunctionResult();
-        NativeLibraryFunctions.getSystemInfo(systemInfo, result);
-        if (result.isFailed()) {
-            throw new NativeException(String.format("Could not fetch system information: %s",
-                    result.getMessage()));
-        }
-        this.characterEncoding = systemInfo.characterEncoding;
+        DefaultSystemInfo systemInfo = new DefaultSystemInfo();
+        this.characterEncoding = systemInfo.getCharacterEncoding();
     }
 
     public void setMode(File file, int perms) {

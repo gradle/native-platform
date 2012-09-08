@@ -2,7 +2,6 @@ package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.*;
 import net.rubygrapefruit.platform.Process;
-import net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions;
 
 public abstract class Platform {
     private static Platform platform;
@@ -75,14 +74,7 @@ public abstract class Platform {
                 return type.cast(new TerminfoTerminals());
             }
             if (type.equals(SystemInfo.class)) {
-                MutableSystemInfo systemInfo = new MutableSystemInfo();
-                FunctionResult result = new FunctionResult();
-                NativeLibraryFunctions.getSystemInfo(systemInfo, result);
-                if (result.isFailed()) {
-                    throw new NativeException(String.format("Could not fetch system information: %s",
-                            result.getMessage()));
-                }
-                return type.cast(systemInfo);
+                return type.cast(new DefaultSystemInfo());
             }
             return super.get(type);
         }

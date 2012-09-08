@@ -11,6 +11,11 @@ class PosixFileTest extends Specification {
     @Rule TemporaryFolder tmpDir
     final PosixFile file = Native.get(PosixFile.class)
 
+    def "caches file instance"() {
+        expect:
+        Native.get(PosixFile.class) == file
+    }
+
     def "can set mode on a file"() {
         def testFile = tmpDir.newFile("test.txt")
 

@@ -8,18 +8,23 @@ import spock.lang.IgnoreIf
 
 class TerminalsTest extends Specification {
     @Rule TemporaryFolder tmpDir
-    final Terminals terminal = Native.get(Terminals.class)
+    final Terminals terminals = Native.get(Terminals.class)
+
+    def "caches terminals instance"() {
+        expect:
+        Native.get(Terminals.class) == terminals
+    }
 
     def "can check if attached to terminal"() {
         expect:
-        !terminal.isTerminal(Terminals.Output.Stdout);
-        !terminal.isTerminal(Terminals.Output.Stderr);
+        !terminals.isTerminal(Terminals.Output.Stdout);
+        !terminals.isTerminal(Terminals.Output.Stderr);
     }
 
     @IgnoreIf({Platform.current().windows})
     def "cannot access posix terminal from a test"() {
         when:
-        terminal.getTerminal(Terminals.Output.Stdout)
+        terminals.getTerminal(Terminals.Output.Stdout)
 
         then:
         NativeException e = thrown()
@@ -29,7 +34,7 @@ class TerminalsTest extends Specification {
     @IgnoreIf({!Platform.current().windows})
     def "cannot access windows console from a test"() {
         when:
-        terminal.getTerminal(Terminals.Output.Stdout)
+        terminals.getTerminal(Terminals.Output.Stdout)
 
         then:
         NativeException e = thrown()

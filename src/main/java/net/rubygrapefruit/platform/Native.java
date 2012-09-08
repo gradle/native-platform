@@ -5,6 +5,8 @@ import net.rubygrapefruit.platform.internal.Platform;
 import net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions;
 
 import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Provides access to the native integrations. Use {@link #get(Class)} to load a particular integration.
@@ -12,6 +14,7 @@ import java.io.File;
 @ThreadSafe
 public class Native {
     private static boolean loaded;
+    private static final Map<Class<?>, Object> integrations = new HashMap<Class<?>, Object>();
 
     private Native() {
     }
@@ -59,13 +62,19 @@ public class Native {
     public static <T extends NativeIntegration> T get(Class<T> type)
             throws NativeIntegrationUnavailableException, NativeException {
         init(null);
-        try {
-            Platform platform = Platform.current();
-            return platform.get(type);
-        } catch (NativeException e) {
-            throw e;
-        } catch (Throwable t) {
-            throw new NativeException(String.format("Failed to load native integration %s.", type.getSimpleName()), t);
+        synchronized (Native.class) {
+            Object instance = integrations.get(type);
+            if (instance == null) {
+                try {
+                    instance = Platform.current().get(type);
+                } catch (NativeException e) {
+                    throw e;
+                } catch (Throwable t) {
+                    throw new NativeException(String.format("Failed to load native integration %s.", type.getSimpleName()), t);
+                }
+                integrations.put(type, instance);
+            }
+            return type.cast(instance);
         }
     }
 }
