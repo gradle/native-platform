@@ -65,17 +65,18 @@ Include `native-platform.jar` and `native-platform-jni.jar` in your classpath.
 
 ## Building
 
-You will need a very recent snapshot of [Gradle](http://www.gradle.org/).
+You will need to use the Gradle wrapper. Just run `gradlew` in the root directory.
 
 ### Ubuntu
 
-The g++ compiler is required to build the native library. You will need the `g++` package for this. Generally this is already installed.
+The g++ compiler is required to build the native library. You will need the `g++` package for this. Usually this is already installed.
 
 You need to install the `libncurses5-dev` package to pick up the ncurses header files. Also worth installing the `ncurses-doc` package too.
 
-#### 64bit machines with multi-arch support
+#### 64-bit machines with multi-arch support
 
-Where multi-arch support is available (newer Ubuntu releases), you can build the i386 and amd64 versions of the library.
+Where multi-arch support is available (e.g. recent Ubuntu releases), you can build the i386 and amd64 versions of the library on the
+same machine.
 
 You need to install the `gcc-multilib` and `g++-multilib` packages to pick up i386 support.
 
@@ -113,7 +114,6 @@ You can run `$INSTALL_DIR/bin/native-platform` to run the test application.
 ### Fixes
 
 * Windows: build 32 bit and 64 bit libraries.
-* Windows: flush System.out or System.err on attribute change.
 * Windows: fail for unsupported architecture.
 * Linux: detect remote filesystems.
 * Solaris: fix unicode file name handling.
@@ -133,7 +133,6 @@ You can run `$INSTALL_DIR/bin/native-platform` to run the test application.
 * String names for errno values.
 * Split into multiple projects.
 * Convert to c.
-* Thread safety.
 * Make native library extraction multi-process safe.
 * Initial release.
 * Use fully decomposed form for unicode file names on hfs+ filesystems.

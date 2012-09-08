@@ -160,3 +160,7 @@ mainPom.withXml { provider ->
     dep.appendNode('artifactId', 'native-platform-osx-universal')
     dep.appendNode('version', project.version)
 }
+
+task wrapper(type: Wrapper) {
+    gradleVersion = "1.3-20120907220018+0000"
+}
