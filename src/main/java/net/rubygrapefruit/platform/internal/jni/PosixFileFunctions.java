@@ -10,5 +10,5 @@ public class PosixFileFunctions {
 
     public static native void symlink(byte[] file, byte[] content, FunctionResult result);
 
-    public static native byte[] readlink(byte[] file, FunctionResult result);
+    public static native String readlink(byte[] file, FunctionResult result);
 }

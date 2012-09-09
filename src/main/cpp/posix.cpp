@@ -31,14 +31,23 @@ void char_str_free(char_str* str) {
 }
 
 jstring char_to_java(JNIEnv* env, const char* chars, jobject result) {
+    // TODO - share this code with nnn_getSystemInfo() below
+    locale_t locale = newlocale(LC_CTYPE_MASK, "", NULL);
+    if (locale == NULL) {
+        mark_failed_with_message(env, "could not create locale", result);
+        return NULL;
+    }
+    jstring encoding = env->NewStringUTF(nl_langinfo_l(CODESET, locale));
+    freelocale(locale);
+
     size_t len = strlen(chars);
     jbyteArray byteArray = env->NewByteArray(len);
     jbyte* bytes = env->GetByteArrayElements(byteArray, NULL);
     memcpy(bytes, chars, len);
     env->ReleaseByteArrayElements(byteArray, bytes, JNI_COMMIT);
     jclass strClass = env->FindClass("java/lang/String");
-    jmethodID method = env->GetMethodID(strClass, "<init>", "([B)V");
-    return (jstring)env->NewObject(strClass, method, byteArray);
+    jmethodID method = env->GetMethodID(strClass, "<init>", "([BLjava/lang/String;)V");
+    return (jstring)env->NewObject(strClass, method, byteArray, encoding);
 }
 
 JNIEXPORT void JNICALL
@@ -111,7 +120,7 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_symlink(JNIEnv 
     }
 }
 
-JNIEXPORT jbyteArray JNICALL
+JNIEXPORT jstring JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_readlink(JNIEnv *env, jclass target, jbyteArray path, jobject result) {
     struct stat link_info;
     jbyte* pathUtf8 = env->GetByteArrayElements(path, NULL);
@@ -122,23 +131,24 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_readlink(JNIEnv
         return NULL;
     }
 
-    jbyteArray contents = env->NewByteArray(link_info.st_size);
+    char* contents = (char*)malloc(link_info.st_size + 1);
     if (contents == NULL) {
         env->ReleaseByteArrayElements(path, pathUtf8, JNI_ABORT);
         mark_failed_with_message(env, "could not create array", result);
         return NULL;
     }
 
-    jbyte* contentsUtf8 = env->GetByteArrayElements(contents, NULL);
-    retval = readlink((const char*)pathUtf8, (char*)contentsUtf8, link_info.st_size);
+    retval = readlink((const char*)pathUtf8, contents, link_info.st_size);
     env->ReleaseByteArrayElements(path, pathUtf8, JNI_ABORT);
     if (retval < 0) {
+        free(contents);
         mark_failed_with_errno(env, "could not readlink", result);
-        env->ReleaseByteArrayElements(contents, contentsUtf8, JNI_ABORT);
         return NULL;
     }
-    env->ReleaseByteArrayElements(contents, contentsUtf8, JNI_COMMIT);
-    return contents;
+    contents[link_info.st_size] = 0;
+    jstring contents_str = char_to_java(env, contents, result);
+    free(contents);
+    return contents_str;
 }
 
 /*

@@ -36,11 +36,11 @@ public class DefaultPosixFile implements PosixFile {
     @Override
     public String readLink(File link) throws NativeException {
         FunctionResult result = new FunctionResult();
-        byte[] encodedContents = PosixFileFunctions.readlink(encode(link), result);
+        String contents = PosixFileFunctions.readlink(encode(link), result);
         if (result.isFailed()) {
             throw new NativeException(String.format("Could not read symlink %s: %s", link, result.getMessage()));
         }
-        return decode(encodedContents);
+        return contents;
     }
 
     @Override
@@ -49,14 +49,6 @@ public class DefaultPosixFile implements PosixFile {
         PosixFileFunctions.symlink(encode(link), encode(contents), result);
         if (result.isFailed()) {
             throw new NativeException(String.format("Could not create symlink %s: %s", link, result.getMessage()));
-        }
-    }
-
-    private String decode(byte[] path) {
-        try {
-            return new String(path, 0, path.length, characterEncoding);
-        } catch (UnsupportedEncodingException e) {
-            throw new NativeException(String.format("Could not decode path using encoding %s.", characterEncoding), e);
         }
     }
 
