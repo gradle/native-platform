@@ -38,8 +38,8 @@ libraries {
             args("-lcurses", "-arch", "x86_64", "-arch", "i386", "-o", outputFile)
         }
     } else if (org.gradle.internal.os.OperatingSystem.current().windows) {
-        main.spec {
-            baseName = 'native-platform-win32'
+        i386.spec {
+            baseName = 'native-platform-windows-i386'
             includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
             includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"])
             args("/DWIN32")

@@ -12,7 +12,33 @@ void mark_failed_with_errno(JNIEnv *env, const char* message, jobject result) {
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getPlatform(JNIEnv *env, jclass target) {
+Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getSystemInfo(JNIEnv *env, jclass target, jobject info, jobject result) {
+    jclass infoClass = env->GetObjectClass(info);
+
+    OSVERSIONINFOEX versionInfo;
+    versionInfo.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+    if (GetVersionEx((OSVERSIONINFO*)&versionInfo) == 0) {
+        mark_failed_with_errno(env, "could not get version info", result);
+        return;
+    }
+
+    SYSTEM_INFO systemInfo;
+    GetNativeSystemInfo(&systemInfo);
+    jstring arch = NULL;
+    if (systemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64) {
+        arch = env->NewStringUTF("amd64");
+    } else if (systemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_INTEL) {
+        arch = env->NewStringUTF("x86");
+    } else if (systemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_IA64) {
+        arch = env->NewStringUTF("ia64");
+    } else {
+        arch = env->NewStringUTF("unknown");
+    }
+
+    jmethodID method = env->GetMethodID(infoClass, "windows", "(IIIZLjava/lang/String;)V");
+    env->CallVoidMethod(info, method, versionInfo.dwMajorVersion, versionInfo.dwMinorVersion,
+                        versionInfo.dwBuildNumber, versionInfo.wProductType == VER_NT_WORKSTATION,
+                        arch);
 }
 
 /*

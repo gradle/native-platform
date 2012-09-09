@@ -46,7 +46,11 @@ public abstract class Platform {
 
         @Override
         public String getLibraryName() {
-            return "native-platform-win32.dll";
+            if (getArchitecture().equals("x86")) {
+                return "native-platform-windows-i386.dll";
+            }
+            throw new NativeIntegrationUnavailableException(String.format(
+                    "Native integration is not available for this architecture (%s) on Windows.", getArchitecture()));
         }
 
         @Override
@@ -56,6 +60,9 @@ public abstract class Platform {
             }
             if (type.equals(Terminals.class)) {
                 return type.cast(new WindowsTerminals());
+            }
+            if (type.equals(SystemInfo.class)) {
+                return type.cast(new DefaultSystemInfo());
             }
             return super.get(type);
         }

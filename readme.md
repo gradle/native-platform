@@ -128,7 +128,7 @@ You can run `$INSTALL_DIR/bin/native-platform` to run the test application.
 * Cache class, method and field lookups (in particular for String conversions).
 * Determine C charset once at startup
 * Change readLink() implementation so that it does not need to NULL terminate the encoded content
-* Implement java_to_char_str()
+* Don't use NewStringUTF() anywhere
 * Use iconv() to convert from C char string to UTF-16 when converting from C char string to Java String.
 * Support for cygwin terminal
 * Use TERM=xtermc instead of TERM=xterm on Solaris.
@@ -141,8 +141,6 @@ You can run `$INSTALL_DIR/bin/native-platform` to run the test application.
 * Make native library extraction multi-process safe.
 * Initial release.
 * Use fully decomposed form for unicode file names on hfs+ filesystems.
-* Handle string encoding for file system details.
-* Handle string encoding for system info.
 
 ### Ideas
 
