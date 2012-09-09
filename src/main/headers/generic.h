@@ -51,26 +51,12 @@ extern void wchar_str_free(wchar_str* str);
  */
 extern jstring wchar_to_java(JNIEnv* env, const wchar_t* chars, size_t len, jobject result);
 
-typedef struct char_struct {
-    // NULL terminated
-    char* chars;
-    // Number of chars in the string, excluding the NULL terminator
-    size_t len;
-    jstring source;
-    JNIEnv *env;
-} char_str;
-
 /*
- * Converts the given Java string to a char_str. Should call char_str_free() when finished.
+ * Converts the given Java string to a char_str. Should call free() when finished.
  *
  * Returns NULL on failure.
  */
-extern char_str* java_to_char_str(JNIEnv *env, jstring string, jobject result);
-
-/*
- * Releases resources used by the given string.
- */
-extern void char_str_free(char_str* str);
+extern char* java_to_char(JNIEnv *env, jstring string, jobject result);
 
 /*
  * Converts the given NULL terminated char string to a Java string.

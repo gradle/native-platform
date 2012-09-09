@@ -23,11 +23,26 @@ void mark_failed_with_errno(JNIEnv *env, const char* message, jobject result) {
     mark_failed_with_code(env, message, errno, result);
 }
 
-char_str* java_to_char_str(JNIEnv *env, jstring string, jobject result) {
-    return NULL;
-}
+char* java_to_char(JNIEnv *env, jstring string, jobject result) {
+    // TODO - share this code with nnn_getSystemInfo() below
+    locale_t locale = newlocale(LC_CTYPE_MASK, "", NULL);
+    if (locale == NULL) {
+        mark_failed_with_message(env, "could not create locale", result);
+        return NULL;
+    }
 
-void char_str_free(char_str* str) {
+    jstring encoding = env->NewStringUTF(nl_langinfo_l(CODESET, locale));
+    freelocale(locale);
+
+    jclass strClass = env->FindClass("java/lang/String");
+    jmethodID method = env->GetMethodID(strClass, "getBytes", "(Ljava/lang/String;)[B");
+    jbyteArray byteArray = (jbyteArray)env->CallObjectMethod(string, method, encoding);
+    size_t len = env->GetArrayLength(byteArray);
+    char* chars = (char*)malloc(len + 1);
+    env->GetByteArrayRegion(byteArray, 0, len, (jbyte*)chars);
+    chars[len] = 0;
+
+    return chars;
 }
 
 jstring char_to_java(JNIEnv* env, const char* chars, jobject result) {
