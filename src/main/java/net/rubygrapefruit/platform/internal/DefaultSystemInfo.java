@@ -30,8 +30,4 @@ public class DefaultSystemInfo implements SystemInfo {
     public String getMachineArchitecture() {
         return systemInfo.getMachineArchitecture();
     }
-
-    public String getCharacterEncoding() {
-        return systemInfo.characterEncoding;
-    }
 }

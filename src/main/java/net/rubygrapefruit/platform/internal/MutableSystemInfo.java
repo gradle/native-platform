@@ -5,7 +5,6 @@ import net.rubygrapefruit.platform.SystemInfo;
 public class MutableSystemInfo implements SystemInfo {
     public String osName;
     public String osVersion;
-    public String characterEncoding;
     public String machineArchitecture;
 
     public String getKernelName() {

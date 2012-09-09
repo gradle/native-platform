@@ -5,19 +5,11 @@ import net.rubygrapefruit.platform.PosixFile;
 import net.rubygrapefruit.platform.internal.jni.PosixFileFunctions;
 
 import java.io.File;
-import java.io.UnsupportedEncodingException;
 
 public class DefaultPosixFile implements PosixFile {
-    private final String characterEncoding;
-
-    public DefaultPosixFile() {
-        DefaultSystemInfo systemInfo = new DefaultSystemInfo();
-        this.characterEncoding = systemInfo.getCharacterEncoding();
-    }
-
     public void setMode(File file, int perms) {
         FunctionResult result = new FunctionResult();
-        PosixFileFunctions.chmod(encode(file), perms, result);
+        PosixFileFunctions.chmod(file.getPath(), perms, result);
         if (result.isFailed()) {
             throw new NativeException(String.format("Could not set UNIX mode on %s: %s", file, result.getMessage()));
         }
@@ -26,7 +18,7 @@ public class DefaultPosixFile implements PosixFile {
     public int getMode(File file) {
         FunctionResult result = new FunctionResult();
         FileStat stat = new FileStat();
-        PosixFileFunctions.stat(encode(file), stat, result);
+        PosixFileFunctions.stat(file.getPath(), stat, result);
         if (result.isFailed()) {
             throw new NativeException(String.format("Could not get UNIX mode on %s: %s", file, result.getMessage()));
         }
@@ -36,7 +28,7 @@ public class DefaultPosixFile implements PosixFile {
     @Override
     public String readLink(File link) throws NativeException {
         FunctionResult result = new FunctionResult();
-        String contents = PosixFileFunctions.readlink(encode(link), result);
+        String contents = PosixFileFunctions.readlink(link.getPath(), result);
         if (result.isFailed()) {
             throw new NativeException(String.format("Could not read symlink %s: %s", link, result.getMessage()));
         }
@@ -46,26 +38,9 @@ public class DefaultPosixFile implements PosixFile {
     @Override
     public void symlink(File link, String contents) throws NativeException {
         FunctionResult result = new FunctionResult();
-        PosixFileFunctions.symlink(encode(link), encode(contents), result);
+        PosixFileFunctions.symlink(link.getPath(), contents, result);
         if (result.isFailed()) {
             throw new NativeException(String.format("Could not create symlink %s: %s", link, result.getMessage()));
         }
-    }
-
-    private byte[] encode(File file) {
-        return encode(file.getPath());
-    }
-
-    private byte[] encode(String path) {
-        byte[] encodedName;
-        try {
-            encodedName = path.getBytes(characterEncoding);
-        } catch (UnsupportedEncodingException e) {
-            throw new NativeException(String.format("Could not encode path '%s' using encoding %s.", path, characterEncoding), e);
-        }
-        byte[] buffer = new byte[encodedName.length + 1];
-        System.arraycopy(encodedName, 0, buffer, 0, encodedName.length);
-        buffer[buffer.length - 1] = 0;
-        return buffer;
     }
 }

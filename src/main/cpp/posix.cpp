@@ -25,6 +25,7 @@ void mark_failed_with_errno(JNIEnv *env, const char* message, jobject result) {
 
 char* java_to_char(JNIEnv *env, jstring string, jobject result) {
     // TODO - share this code with nnn_getSystemInfo() below
+    // Empty string means load locale from environment.
     locale_t locale = newlocale(LC_CTYPE_MASK, "", NULL);
     if (locale == NULL) {
         mark_failed_with_message(env, "could not create locale", result);
@@ -47,6 +48,7 @@ char* java_to_char(JNIEnv *env, jstring string, jobject result) {
 
 jstring char_to_java(JNIEnv* env, const char* chars, jobject result) {
     // TODO - share this code with nnn_getSystemInfo() below
+    // Empty string means load locale from environment.
     locale_t locale = newlocale(LC_CTYPE_MASK, "", NULL);
     if (locale == NULL) {
         mark_failed_with_message(env, "could not create locale", result);
@@ -69,17 +71,6 @@ JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getSystemInfo(JNIEnv *env, jclass target, jobject info, jobject result) {
     jclass infoClass = env->GetObjectClass(info);
 
-    // Empty string means load locale from environment.
-    locale_t locale = newlocale(LC_CTYPE_MASK, "", NULL);
-    if (locale == NULL) {
-        mark_failed_with_message(env, "could not create locale", result);
-        return;
-    }
-
-    jfieldID characterEncodingField = env->GetFieldID(infoClass, "characterEncoding", "Ljava/lang/String;");
-    env->SetObjectField(info, characterEncodingField, env->NewStringUTF(nl_langinfo_l(CODESET, locale)));
-    freelocale(locale);
-
     struct utsname machine_info;
     if (uname(&machine_info) != 0) {
         mark_failed_with_errno(env, "could not query machine details", result);
@@ -99,21 +90,27 @@ Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getSystemIn
  */
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_chmod(JNIEnv *env, jclass target, jbyteArray path, jint mode, jobject result) {
-    jbyte* pathUtf8 = env->GetByteArrayElements(path, NULL);
-    int retval = chmod((const char*)pathUtf8, mode);
-    env->ReleaseByteArrayElements(path, pathUtf8, JNI_ABORT);
+Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_chmod(JNIEnv *env, jclass target, jstring path, jint mode, jobject result) {
+    char* pathStr = java_to_char(env, path, result);
+    if (pathStr == NULL) {
+        return;
+    }
+    int retval = chmod(pathStr, mode);
+    free(pathStr);
     if (retval != 0) {
         mark_failed_with_errno(env, "could not chmod file", result);
     }
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *env, jclass target, jbyteArray path, jobject dest, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *env, jclass target, jstring path, jobject dest, jobject result) {
     struct stat fileInfo;
-    jbyte* pathUtf8 = env->GetByteArrayElements(path, NULL);
-    int retval = stat((const char*)pathUtf8, &fileInfo);
-    env->ReleaseByteArrayElements(path, pathUtf8, JNI_ABORT);
+    char* pathStr = java_to_char(env, path, result);
+    if (pathStr == NULL) {
+        return;
+    }
+    int retval = stat(pathStr, &fileInfo);
+    free(pathStr);
     if (retval != 0) {
         mark_failed_with_errno(env, "could not stat file", result);
         return;
@@ -124,37 +121,47 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *en
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_symlink(JNIEnv *env, jclass target, jbyteArray path, jbyteArray contents, jobject result) {
-    jbyte* pathUtf8 = env->GetByteArrayElements(path, NULL);
-    jbyte* contentsUtf8 = env->GetByteArrayElements(contents, NULL);
-    int retval = symlink((const char*)contentsUtf8, (const char*)pathUtf8);
-    env->ReleaseByteArrayElements(path, pathUtf8, JNI_ABORT);
-    env->ReleaseByteArrayElements(contents, contentsUtf8, JNI_ABORT);
+Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_symlink(JNIEnv *env, jclass target, jstring path, jstring contents, jobject result) {
+    char* pathStr = java_to_char(env, path, result);
+    if (pathStr == NULL) {
+        return;
+    }
+    char* contentStr = java_to_char(env, contents, result);
+    if (contentStr == NULL) {
+        free(pathStr);
+        return;
+    }
+    int retval = symlink(contentStr, pathStr);
+    free(contentStr);
+    free(pathStr);
     if (retval != 0) {
         mark_failed_with_errno(env, "could not symlink", result);
     }
 }
 
 JNIEXPORT jstring JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_readlink(JNIEnv *env, jclass target, jbyteArray path, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_readlink(JNIEnv *env, jclass target, jstring path, jobject result) {
     struct stat link_info;
-    jbyte* pathUtf8 = env->GetByteArrayElements(path, NULL);
-    int retval = lstat((const char*)pathUtf8, &link_info);
+    char* pathStr = java_to_char(env, path, result);
+    if (pathStr == NULL) {
+        return NULL;
+    }
+    int retval = lstat(pathStr, &link_info);
     if (retval != 0) {
-        env->ReleaseByteArrayElements(path, pathUtf8, JNI_ABORT);
+        free(pathStr);
         mark_failed_with_errno(env, "could not lstat file", result);
         return NULL;
     }
 
     char* contents = (char*)malloc(link_info.st_size + 1);
     if (contents == NULL) {
-        env->ReleaseByteArrayElements(path, pathUtf8, JNI_ABORT);
+        free(pathStr);
         mark_failed_with_message(env, "could not create array", result);
         return NULL;
     }
 
-    retval = readlink((const char*)pathUtf8, contents, link_info.st_size);
-    env->ReleaseByteArrayElements(path, pathUtf8, JNI_ABORT);
+    retval = readlink(pathStr, contents, link_info.st_size);
+    free(pathStr);
     if (retval < 0) {
         free(contents);
         mark_failed_with_errno(env, "could not readlink", result);
