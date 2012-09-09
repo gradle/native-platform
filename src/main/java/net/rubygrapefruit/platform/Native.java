@@ -20,6 +20,14 @@ public class Native {
     }
 
     /**
+     * Returns the version of the native library implementations used by this class.
+     */
+    @ThreadSafe
+    static public String getNativeVersion() {
+        return String.valueOf(NativeLibraryFunctions.VERSION);
+    }
+
+    /**
      * Initialises the native integration, if not already initialized.
      *
      * @param extractDir The directory to extract native resources into. May be null, in which case a default is
