@@ -1,5 +1,5 @@
 /*
- * Generic functions
+ * Generic cross-platform functions.
  */
 #include "native.h"
 #include "generic.h"

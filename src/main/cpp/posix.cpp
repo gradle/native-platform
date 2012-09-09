@@ -14,12 +14,31 @@
 #include <sys/utsname.h>
 #include <xlocale.h>
 #include <locale.h>
+#include <string.h>
 
 /*
  * Marks the given result as failed, using the current value of errno
  */
 void mark_failed_with_errno(JNIEnv *env, const char* message, jobject result) {
     mark_failed_with_code(env, message, errno, result);
+}
+
+char_str* java_to_char_str(JNIEnv *env, jstring string, jobject result) {
+    return NULL;
+}
+
+void char_str_free(char_str* str) {
+}
+
+jstring char_to_java(JNIEnv* env, const char* chars, jobject result) {
+    size_t len = strlen(chars);
+    jbyteArray byteArray = env->NewByteArray(len);
+    jbyte* bytes = env->GetByteArrayElements(byteArray, NULL);
+    memcpy(bytes, chars, len);
+    env->ReleaseByteArrayElements(byteArray, bytes, JNI_COMMIT);
+    jclass strClass = env->FindClass("java/lang/String");
+    jmethodID method = env->GetMethodID(strClass, "<init>", "([B)V");
+    return (jstring)env->NewObject(strClass, method, byteArray);
 }
 
 JNIEXPORT void JNICALL
@@ -44,11 +63,11 @@ Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getSystemIn
     }
 
     jfieldID osNameField = env->GetFieldID(infoClass, "osName", "Ljava/lang/String;");
-    env->SetObjectField(info, osNameField, env->NewStringUTF(machine_info.sysname));
+    env->SetObjectField(info, osNameField, char_to_java(env, machine_info.sysname, result));
     jfieldID osVersionField = env->GetFieldID(infoClass, "osVersion", "Ljava/lang/String;");
-    env->SetObjectField(info, osVersionField, env->NewStringUTF(machine_info.release));
+    env->SetObjectField(info, osVersionField, char_to_java(env, machine_info.release, result));
     jfieldID machineArchitectureField = env->GetFieldID(infoClass, "machineArchitecture", "Ljava/lang/String;");
-    env->SetObjectField(info, machineArchitectureField, env->NewStringUTF(machine_info.machine));
+    env->SetObjectField(info, machineArchitectureField, char_to_java(env, machine_info.machine, result));
 }
 
 /*
@@ -247,7 +266,7 @@ Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_initTerminal(JNI
 
         jclass destClass = env->GetObjectClass(capabilities);
         jfieldID field = env->GetFieldID(destClass, "terminalName", "Ljava/lang/String;");
-        jstring jtermType = env->NewStringUTF(termType);
+        jstring jtermType = char_to_java(env, termType, result);
         env->SetObjectField(capabilities, field, jtermType);
 
         // Text attributes

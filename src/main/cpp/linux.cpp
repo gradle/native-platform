@@ -22,9 +22,9 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
     jmethodID method = env->GetMethodID(info_class, "add", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V");
 
     while (getmntent_r(fp, &mount_info, buf, sizeof(buf)) != NULL) {
-        jstring mount_point = env->NewStringUTF(mount_info.mnt_dir);
-        jstring file_system_type = env->NewStringUTF(mount_info.mnt_type);
-        jstring device_name = env->NewStringUTF(mount_info.mnt_fsname);
+        jstring mount_point = char_to_java(env, mount_info.mnt_dir, result);
+        jstring file_system_type = char_to_java(env, mount_info.mnt_type, result);
+        jstring device_name = char_to_java(env, mount_info.mnt_fsname, result);
         env->CallVoidMethod(info, method, mount_point, file_system_type, device_name, JNI_FALSE);
     }
 

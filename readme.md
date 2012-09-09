@@ -122,9 +122,11 @@ You can run `$INSTALL_DIR/bin/native-platform` to run the test application.
 * Freebsd: finish port.
 * Freebsd: fail for unsupported architecture.
 * Freebsd: build 32 bit and 64 bit libraries.
+* Unix: char_to_java() should use libc charset instead of java file.encoding
 
 ### Improvements
 
+* Implement java_to_char_str()
 * Support for cygwin terminal
 * Use TERM=xtermc instead of TERM=xterm on Solaris.
 * Add diagnostics for terminal.
