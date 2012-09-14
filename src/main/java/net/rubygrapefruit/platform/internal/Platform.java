@@ -55,7 +55,7 @@ public abstract class Platform {
 
         @Override
         public <T extends NativeIntegration> T get(Class<T> type) {
-            if (type.equals(net.rubygrapefruit.platform.Process.class)) {
+            if (type.equals(Process.class)) {
                 return type.cast(new DefaultProcess());
             }
             if (type.equals(Terminals.class)) {
@@ -63,6 +63,9 @@ public abstract class Platform {
             }
             if (type.equals(SystemInfo.class)) {
                 return type.cast(new DefaultSystemInfo());
+            }
+            if (type.equals(FileSystems.class)) {
+                return type.cast(new PosixFileSystems());
             }
             return super.get(type);
         }

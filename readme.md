@@ -125,10 +125,14 @@ You can run `$INSTALL_DIR/bin/native-platform` to run the test application.
 
 ### Improvements
 
+* Use wchar_to_java() for windows system and file system info
+* Test network file systems on Mac, Linux, Windows
+* Test mount points on Windows
 * Cache class, method and field lookups (in particular for String conversions).
 * Determine C charset once at startup
 * Change readLink() implementation so that it does not need to NULL terminate the encoded content
 * Don't use NewStringUTF() anywhere
+* Don't use NewString() anywhere
 * Use iconv() to convert from C char string to UTF-16 when converting from C char string to Java String.
 * Support for cygwin terminal
 * Use TERM=xtermc instead of TERM=xterm on Solaris.

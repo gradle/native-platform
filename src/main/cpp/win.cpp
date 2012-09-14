@@ -51,6 +51,57 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_getPid(JNIEn
 }
 
 /*
+ * File system functions
+ */
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileSystems(JNIEnv *env, jclass target, jobject info, jobject result) {
+    // TODO - don't use the stack
+    wchar_t volumeName[MAX_PATH+1];
+    wchar_t deviceName[MAX_PATH+1];
+    wchar_t pathNames[MAX_PATH+1];
+    wchar_t fsName[MAX_PATH+1];
+
+    jclass info_class = env->GetObjectClass(info);
+    jmethodID method = env->GetMethodID(info_class, "add", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V");
+
+    HANDLE handle = FindFirstVolumeW(volumeName, MAX_PATH+1);
+    if (handle == INVALID_HANDLE_VALUE) {
+        printf("no volumes\r\n");
+        return;
+    }
+    while(true) {
+        // Chop off the trailing '\'
+        size_t len = wcslen(volumeName);
+        volumeName[len-1] = L'\0';
+
+        QueryDosDeviceW(&volumeName[4], deviceName, MAX_PATH+1);
+        // TODO - error
+        volumeName[len-1] = L'\\';
+
+        DWORD used;
+        GetVolumePathNamesForVolumeNameW(volumeName, pathNames, MAX_PATH+1, &used);
+        // TODO - error
+        wchar_t* cur = pathNames;
+        if (cur[0] != L'\0') {
+            GetVolumeInformationW(cur, NULL, 0, NULL, NULL, NULL, fsName, MAX_PATH+1);
+            // TODO - error
+            for (;cur[0] != L'\0'; cur += wcslen(cur) + 1) {
+                env->CallVoidMethod(info, method, env->NewString((jchar*)deviceName, wcslen(deviceName)),
+                                    env->NewString((jchar*)fsName, wcslen(fsName)), env->NewString((jchar*)cur, wcslen(cur)), JNI_FALSE);
+            }
+        }
+
+        if (FindNextVolumeW(handle, volumeName, MAX_PATH) == 0) {
+            if (GetLastError() != ERROR_NO_MORE_FILES) {
+                // TODO - fail
+            }
+            break;
+        }
+    }
+    FindVolumeClose(handle);
+}
+
+/*
  * Console functions
  */
 
