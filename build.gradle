@@ -1,28 +1,41 @@
-apply plugin: 'java'
 apply plugin: 'groovy'
 apply plugin: 'cpp'
-apply plugin: 'idea'
-apply plugin: 'application'
-apply plugin: 'maven'
 
-repositories {
-    mavenCentral()
+allprojects {
+    apply plugin: 'java'
+    apply plugin: 'idea'
+    apply plugin: 'maven'
+
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        testCompile 'org.spockframework:spock-core:0.6-groovy-1.8'
+    }
+
+    group = 'net.rubygrapefruit'
+    version = '0.1'
+
+    sourceCompatibility = 1.5
+    targetCompatibility = 1.5
+
+    configurations.compile.extendsFrom = []
+
+    uploadArchives {
+        repositories {
+            mavenDeployer {
+                repository(url: uri("$rootProject.buildDir/repo"))
+            }
+        }
+    }
 }
 
 dependencies {
     groovy 'org.codehaus.groovy:groovy:1.8.7'
-    testCompile 'org.spockframework:spock-core:0.6-groovy-1.8'
 }
 
-group = 'net.rubygrapefruit'
-version = '0.1'
-
-mainClassName = 'net.rubygrapefruit.platform.Main'
 def nativeHeadersDir = file("$buildDir/nativeHeaders")
-sourceCompatibility = 1.5
-targetCompatibility = 1.5
-
-configurations.compile.extendsFrom = []
 
 cpp {
     sourceSets {
@@ -101,28 +114,18 @@ task nativeHeaders {
     }
 }
 
-def deployer = null
-uploadArchives {
-    repositories {
-        deployer = mavenDeployer {
-            repository(url: uri("$buildDir/repo"))
-        }
-    }
-}
+def deployer = uploadArchives.repositories.mavenDeployer
 
 libraries.all { lib ->
     def nativeJar = task("nativeJar${lib.name.capitalize()}", type: Jar) {
         from lib.spec.task
         baseName = lib.spec.baseName
     }
-    startScripts.classpath += nativeJar.outputs.files
-    applicationDistribution.from(nativeJar) {
-        into 'lib'
-    }
     lib.spec.task.dependsOn nativeHeaders
     test.dependsOn lib.spec.task
     artifacts {
         archives nativeJar
+        runtime nativeJar
     }
     def jniPom = deployer.addFilter(lib.name) { artifact, file ->
         return file == nativeJar.archivePath
@@ -137,16 +140,8 @@ javadoc {
     exclude '**/internal/**'
 }
 
-applicationDistribution.from(javadoc) {
-    into 'javadoc'
-}
-
-artifacts {
-    archives distZip
-}
-
 def mainPom = deployer.addFilter('main') { artifact, file ->
-    return file == distZip.archivePath || file == jar.archivePath
+    return file == jar.archivePath
 }
 mainPom.groupId = project.group
 mainPom.artifactId = jar.baseName

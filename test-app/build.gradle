@@ -1,0 +1,14 @@
+apply plugin: 'application'
+
+mainClassName = 'net.rubygrapefruit.platform.Main'
+applicationName = 'native-platform-test'
+archivesBaseName = 'native-platform-test'
+
+dependencies {
+    compile project(':')
+}
+
+configurations.archives.artifacts.clear()
+artifacts {
+    archives distZip
+}
