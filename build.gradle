@@ -150,10 +150,12 @@ mainPom.scopeMappings.mappings.clear()
 mainPom.withXml { provider ->
     def node = provider.asNode()
     def deps = node.appendNode('dependencies')
-    def dep = deps.appendNode('dependency')
-    dep.appendNode('groupId', project.group)
-    dep.appendNode('artifactId', 'native-platform-osx-universal')
-    dep.appendNode('version', project.version)
+    ['osx-universal', 'linux-amd64', 'linux-i386', 'windows-amd64', 'windows-i386'].each { platform ->
+        def dep = deps.appendNode('dependency')
+        dep.appendNode('groupId', project.group)
+        dep.appendNode('artifactId', "native-platform-${platform}")
+        dep.appendNode('version', project.version)
+    }
 }
 
 task wrapper(type: Wrapper) {
