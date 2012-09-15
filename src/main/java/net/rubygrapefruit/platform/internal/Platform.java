@@ -49,6 +49,9 @@ public abstract class Platform {
             if (getArchitecture().equals("x86")) {
                 return "native-platform-windows-i386.dll";
             }
+            if (getArchitecture().equals("amd64")) {
+                return "native-platform-windows-amd64.dll";
+            }
             throw new NativeIntegrationUnavailableException(String.format(
                     "Native integration is not available for this architecture (%s) on Windows.", getArchitecture()));
         }

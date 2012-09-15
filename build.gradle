@@ -51,12 +51,33 @@ libraries {
             args("-lcurses", "-arch", "x86_64", "-arch", "i386", "-o", outputFile)
         }
     } else if (org.gradle.internal.os.OperatingSystem.current().windows) {
-        i386.spec {
-            baseName = 'native-platform-windows-i386'
-            includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
-            includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"])
-            args("/DWIN32")
+        all {
+            spec {
+                includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
+                includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"])
+                args("/DWIN32")
+            }
         }
+
+        def out = new ByteArrayOutputStream()
+        exec {
+            commandLine "cl.exe", "/?"
+            errorOutput = out
+            standardOutput = new ByteArrayOutputStream()
+        }
+        def header = out.toString().readLines().head()
+        if (header.endsWith("for 80x86") || header.endsWith("for x86")) {
+            i386.spec {
+                baseName = 'native-platform-windows-i386'
+            }
+        } else if (header.endsWith("for x64")) {
+            amd64.spec {
+                baseName = 'native-platform-windows-amd64'
+            }
+        } else {
+            throw new RuntimeException("Cannot determine compiler's target architecture")
+        }
+
     } else if (org.gradle.internal.os.OperatingSystem.current().linux) {
         all {
             spec {
