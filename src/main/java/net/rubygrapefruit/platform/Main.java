@@ -72,9 +72,10 @@ public class Main {
                 System.out.print("[3]");
                 terminal.cursorDown(1);
                 terminal.cursorStartOfLine();
-                terminal.clearToEndOfLine();
                 terminal.foreground(Terminal.Color.Blue).bold();
-                System.out.println("done!");
+                System.out.print("done");
+                terminal.clearToEndOfLine();
+                System.out.println("!");
                 System.out.println();
             }
         }

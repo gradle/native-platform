@@ -3,6 +3,7 @@
 #include "native.h"
 #include "generic.h"
 #include <windows.h>
+#include <wchar.h>
 
 /*
  * Marks the given result as failed, using the current value of GetLastError()
@@ -55,36 +56,53 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_getPid(JNIEn
  */
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileSystems(JNIEnv *env, jclass target, jobject info, jobject result) {
-    // TODO - don't use the stack
-    wchar_t volumeName[MAX_PATH+1];
-    wchar_t deviceName[MAX_PATH+1];
-    wchar_t pathNames[MAX_PATH+1];
-    wchar_t fsName[MAX_PATH+1];
+    wchar_t* volumeName = (wchar_t*)malloc(sizeof(wchar_t) * (MAX_PATH+1));
 
     jclass info_class = env->GetObjectClass(info);
     jmethodID method = env->GetMethodID(info_class, "add", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V");
 
     HANDLE handle = FindFirstVolumeW(volumeName, MAX_PATH+1);
     if (handle == INVALID_HANDLE_VALUE) {
-        printf("no volumes\r\n");
+        free(volumeName);
+        mark_failed_with_errno(env, "could not find first volume", result);
         return;
     }
+
+    wchar_t* deviceName = (wchar_t*)malloc(sizeof(wchar_t) * (MAX_PATH+1));
+    wchar_t* pathNames = (wchar_t*)malloc(sizeof(wchar_t) * (MAX_PATH+1));
+    wchar_t* fsName = (wchar_t*)malloc(sizeof(wchar_t) * (MAX_PATH+1));
+
     while(true) {
         // Chop off the trailing '\'
         size_t len = wcslen(volumeName);
+        if (len < 5) {
+            mark_failed_with_message(env, "volume name is too short", result);
+            break;
+        }
         volumeName[len-1] = L'\0';
 
-        QueryDosDeviceW(&volumeName[4], deviceName, MAX_PATH+1);
-        // TODO - error
+        if (QueryDosDeviceW(&volumeName[4], deviceName, MAX_PATH+1) == 0) {
+            mark_failed_with_errno(env, "could not query dos device", result);
+            break;
+        }
         volumeName[len-1] = L'\\';
 
         DWORD used;
-        GetVolumePathNamesForVolumeNameW(volumeName, pathNames, MAX_PATH+1, &used);
-        // TODO - error
+        if (GetVolumePathNamesForVolumeNameW(volumeName, pathNames, MAX_PATH+1, &used) == 0) {
+            // TODO - try again if the buffer is too small
+            mark_failed_with_errno(env, "could not query volume paths", result);
+            break;
+        }
+
         wchar_t* cur = pathNames;
         if (cur[0] != L'\0') {
-            GetVolumeInformationW(cur, NULL, 0, NULL, NULL, NULL, fsName, MAX_PATH+1);
-            // TODO - error
+            if(GetVolumeInformationW(cur, NULL, 0, NULL, NULL, NULL, fsName, MAX_PATH+1) == 0) {
+                if (GetLastError() != ERROR_NOT_READY) {
+                    mark_failed_with_errno(env, "could not query volume information", result);
+                    break;
+                }
+                wcscpy(fsName, L"unknown");
+            }
             for (;cur[0] != L'\0'; cur += wcslen(cur) + 1) {
                 env->CallVoidMethod(info, method, env->NewString((jchar*)deviceName, wcslen(deviceName)),
                                     env->NewString((jchar*)fsName, wcslen(fsName)), env->NewString((jchar*)cur, wcslen(cur)), JNI_FALSE);
@@ -93,11 +111,15 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
 
         if (FindNextVolumeW(handle, volumeName, MAX_PATH) == 0) {
             if (GetLastError() != ERROR_NO_MORE_FILES) {
-                // TODO - fail
+                mark_failed_with_errno(env, "could find next volume", result);
             }
             break;
         }
     }
+    free(volumeName);
+    free(deviceName);
+    free(pathNames);
+    free(fsName);
     FindVolumeClose(handle);
 }
 
@@ -196,8 +218,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_normal(JNI
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_reset(JNIEnv *env, jclass target, jobject result) {
-    SetConsoleTextAttribute(current_console, original_attributes);
-    if (!SetConsoleTextAttribute(current_console, current_attributes)) {
+    if (!SetConsoleTextAttribute(current_console, original_attributes)) {
         mark_failed_with_errno(env, "could not set text attributes", result);
     }
 }
@@ -309,8 +330,9 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_clearToEnd
         mark_failed_with_errno(env, "could not get console buffer", result);
         return;
     }
-    for (int i = console_info.dwCursorPosition.X; i < console_info.dwSize.X; i++) {
-        WriteConsole(current_console, " ", 1, NULL, NULL);
+    DWORD count;
+    if (!FillConsoleOutputCharacterW(current_console, L' ', console_info.dwSize.X - console_info.dwCursorPosition.X, console_info.dwCursorPosition, &count)) {
+        mark_failed_with_errno(env, "could not clear console", result);
     }
 }
 
