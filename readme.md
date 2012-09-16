@@ -130,8 +130,11 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
     * Linux amd64, using Ubunutu 8.04
     * Windows x86, using VC++ 2010
     * Windows x64
-3. Build Java library and test app `./gradlew clean test :uploadArchives testApp:uploadArchives -Prelease`
-4. Increment version number.
+3. Build Java library and test app:
+    1. Checkout tag.
+    2. `./gradlew clean test :uploadArchives testApp:uploadArchives -Prelease`
+4. Checkout master
+5. Increment version number.
 
 ## Testing
 
