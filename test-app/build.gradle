@@ -4,7 +4,7 @@ mainClassName = 'net.rubygrapefruit.platform.test.Main'
 applicationName = 'native-platform-test'
 archivesBaseName = 'native-platform-test'
 
-if (project.hasProperty('remote-artifacts')) {
+if (project.hasProperty('release')) {
     repositories {
         maven { url "$rootProject.buildDir/repo" }
     }

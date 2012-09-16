@@ -107,12 +107,12 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
 1. Create a tag.
 2. Build each variant:
-    * OS X universal
+    * OS X universal: `./gradlew clean :uploadJni -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`
     * Linux i386
     * Linux amd64
     * Windows x86
     * Windows x64
-3. Build Java library and test app.
+3. Build Java library and test app `./gradlew clean :uploadArchives testApp:uploadArchives -Prelease`
 
 ## Testing
 

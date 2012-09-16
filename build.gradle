@@ -8,6 +8,7 @@ allprojects {
 
     repositories {
         mavenCentral()
+        maven { url "https://gradle.artifactoryonline.com/gradle/libs-releases-local" }
     }
 
     dependencies {
@@ -22,10 +23,16 @@ allprojects {
 
     configurations.compile.extendsFrom = []
 
-    uploadArchives {
+    tasks.withType(Upload) {
         repositories {
             mavenDeployer {
-                repository(url: uri("$rootProject.buildDir/repo"))
+                if (project.hasProperty('release')) {
+                    repository(url: uri("https://gradle.artifactoryonline.com/gradle/libs-releases-local")) {
+                        authentication(userName: artifactoryUserName, password: artifactoryPassword)
+                    }
+                } else {
+                    repository(url: uri("$rootProject.buildDir/repo"))
+                }
             }
         }
     }
@@ -135,7 +142,11 @@ task nativeHeaders {
     }
 }
 
-def deployer = uploadArchives.repositories.mavenDeployer
+configurations {
+    jni
+}
+
+def deployer = uploadJni.repositories.mavenDeployer
 
 libraries.all { lib ->
     def nativeJar = task("nativeJar${lib.name.capitalize()}", type: Jar) {
@@ -145,7 +156,7 @@ libraries.all { lib ->
     lib.spec.task.dependsOn nativeHeaders
     test.dependsOn lib.spec.task
     artifacts {
-        archives nativeJar
+        jni nativeJar
         runtime nativeJar
     }
     def jniPom = deployer.addFilter(lib.name) { artifact, file ->
@@ -161,9 +172,7 @@ javadoc {
     exclude '**/internal/**'
 }
 
-def mainPom = deployer.addFilter('main') { artifact, file ->
-    return file == jar.archivePath
-}
+def mainPom = uploadArchives.repositories.mavenDeployer.pom
 mainPom.groupId = project.group
 mainPom.artifactId = jar.baseName
 mainPom.version = project.version
