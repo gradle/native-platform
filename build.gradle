@@ -16,7 +16,7 @@ allprojects {
     }
 
     group = 'net.rubygrapefruit'
-    version = '0.1'
+    version = '0.2'
 
     sourceCompatibility = 1.5
     targetCompatibility = 1.5
@@ -170,6 +170,21 @@ libraries.all { lib ->
 
 javadoc {
     exclude '**/internal/**'
+}
+
+task sourceZip(type: Zip) {
+    from sourceSets.main.allSource
+    classifier = 'source'
+}
+
+task javadocZip(type: Zip) {
+    from javadoc
+    classifier = 'javadoc'
+}
+
+artifacts {
+    archives sourceZip
+    archives javadocZip
 }
 
 def mainPom = uploadArchives.repositories.mavenDeployer.pom
