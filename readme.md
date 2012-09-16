@@ -36,12 +36,12 @@ These bindings work for both the UNIX terminal and the Windows console:
 
 ## Supported platforms
 
-Currently ported to OS X, Linux, Solaris and Windows. Tested on:
+Currently ported to OS X, Linux and Windows, with some support for Solaris and FreeBSD. Tested on:
 
 * OS X 10.7.4, 10.8 (x86_64), 10.6.7 (i386)
 * Ubunutu 12.04 (amd64), 8.04.4 (i386, amd64)
 * Solaris 11 (x86)
-* Windows 7 (amd64)
+* Windows 7 (x64), XP (x86)
 
 ## Using
 
@@ -98,10 +98,21 @@ For Solaris 11, you need to install the `development/gcc-45` and `system/header`
 
 ## Running
 
-Run `gradle install` to install into `build/install/native-platform`. Or `gradle distZip` to create an application distribtion
-in `build/distributions/native-platform.zip`.
+Run `gradle installApp` to install the test application into `test-app/build/install/native-platform-test`. Or
+`gradle distZip` to create an application distribtion in `test-app/build/distributions/native-platform-test-$version.zip`.
 
-You can run `$INSTALL_DIR/bin/native-platform` to run the test application.
+You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
+
+# Releasing
+
+1. Create a tag.
+2. Build each variant:
+    * OS X universal
+    * Linux i386
+    * Linux amd64
+    * Windows x86
+    * Windows x64
+3. Build Java library and test app.
 
 ## Testing
 
@@ -113,8 +124,7 @@ You can run `$INSTALL_DIR/bin/native-platform` to run the test application.
 
 ### Fixes
 
-* Windows: build 32 bit and 64 bit libraries.
-* Windows: fail for unsupported architecture.
+* Windows: fix detection of shared drive under VMWare fusion and Windows XP
 * Linux: detect remote filesystems.
 * Solaris: fix unicode file name handling.
 * Solaris: fail for unsupported architecture.
@@ -125,7 +135,7 @@ You can run `$INSTALL_DIR/bin/native-platform` to run the test application.
 
 ### Improvements
 
-* Use wchar_to_java() for windows system and file system info
+* Use wchar_to_java() for windows system and file system info.
 * Test network file systems on Mac, Linux, Windows
 * Test mount points on Windows
 * Cache class, method and field lookups (in particular for String conversions).
@@ -145,6 +155,7 @@ You can run `$INSTALL_DIR/bin/native-platform` to run the test application.
 * Make native library extraction multi-process safe.
 * Initial release.
 * Use fully decomposed form for unicode file names on hfs+ filesystems.
+* Extend FileSystem to deal with removable media.
 
 ### Ideas
 
