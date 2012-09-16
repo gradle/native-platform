@@ -45,7 +45,18 @@ Currently ported to OS X, Linux and Windows, with some support for Solaris and F
 
 ## Using
 
-Include `native-platform.jar` and `native-platform-jni.jar` in your classpath.
+Include `native-platform.jar` and `native-platform-${os}-${arch}.jar` in your classpath. From Gradle, you can do
+this:
+
+    repositories {
+        maven { url "https://gradle.artifactoryonline.com/gradle/libs-releases-local" }
+    }
+
+    dependencies {
+        compile "net.rubygrapefruit:native-platform:0.1"
+    }
+
+Some sample code to use the terminal:
 
     import net.rubygrapefruit.platform.Native;
     import net.rubygrapefruit.platform.Terminals;
@@ -62,6 +73,11 @@ Include `native-platform.jar` and `native-platform-jni.jar` in your classpath.
     stdout.bold();
     System.out.println("bold text");
 
+## Changes
+
+### 0.1
+
+Initial release
 
 ## Building
 
@@ -105,14 +121,17 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
 # Releasing
 
-1. Create a tag.
+1. Create a tag and push.
 2. Build each variant:
-    * OS X universal: `./gradlew clean :uploadJni -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`
-    * Linux i386
-    * Linux amd64
-    * Windows x86
+    1. Checkout tag.
+    2. `./gradlew clean test :uploadJni -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`
+    * OS X universal
+    * Linux i386, using Ubunutu 8.04
+    * Linux amd64, using Ubunutu 8.04
+    * Windows x86, using VC++ 2010
     * Windows x64
-3. Build Java library and test app `./gradlew clean :uploadArchives testApp:uploadArchives -Prelease`
+3. Build Java library and test app `./gradlew clean test :uploadArchives testApp:uploadArchives -Prelease`
+4. Increment version number.
 
 ## Testing
 
@@ -153,7 +172,6 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 * Split into multiple projects.
 * Convert to c.
 * Make native library extraction multi-process safe.
-* Initial release.
 * Use fully decomposed form for unicode file names on hfs+ filesystems.
 * Extend FileSystem to deal with removable media.
 
