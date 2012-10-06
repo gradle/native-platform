@@ -25,6 +25,7 @@ public interface Terminals extends NativeIntegration {
     /**
      * Returns the terminal attached to the given output.
      *
+     * @return The terminal. Never returns null.
      * @throws NativeException When the output is not attached to a terminal.
      */
     @ThreadSafe

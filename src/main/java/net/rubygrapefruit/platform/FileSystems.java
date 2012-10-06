@@ -10,6 +10,7 @@ public interface FileSystems extends NativeIntegration {
     /**
      * Returns the set of all file systems for the current machine.
      *
+     * @return The set of file systems. Never returns null.
      * @throws NativeException On failure.
      */
     @ThreadSafe

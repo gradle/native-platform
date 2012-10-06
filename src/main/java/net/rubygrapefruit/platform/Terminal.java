@@ -37,6 +37,7 @@ public interface Terminal {
     /**
      * Returns the size of the terminal. Supported by all terminals.
      *
+     * @return The current terminal size. Never returns null.
      * @throws NativeException On failure.
      */
     @ThreadSafe

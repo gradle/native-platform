@@ -56,7 +56,7 @@ public class Native {
     /**
      * Locates a native integration of the given type.
      *
-     * @return The native integration.
+     * @return The native integration. Never returns null.
      * @throws NativeIntegrationUnavailableException When the given native integration is not available on the current
      * machine.
      * @throws NativeException On failure to load the native integration.
