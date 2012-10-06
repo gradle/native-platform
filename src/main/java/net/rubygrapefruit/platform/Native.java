@@ -20,21 +20,16 @@ public class Native {
     }
 
     /**
-     * Returns the version of the native library implementations used by this class.
-     */
-    @ThreadSafe
-    static public String getNativeVersion() {
-        return String.valueOf(NativeLibraryFunctions.VERSION);
-    }
-
-    /**
      * Initialises the native integration, if not already initialized.
      *
      * @param extractDir The directory to extract native resources into. May be null, in which case a default is
      * selected.
+     *
+     * @throws NativeIntegrationUnavailableException When native integration is not available on the current machine.
+     * @throws NativeException On failure to load the native integration.
      */
     @ThreadSafe
-    static public void init(File extractDir) {
+    static public void init(File extractDir) throws NativeIntegrationUnavailableException, NativeException {
         synchronized (Native.class) {
             if (!loaded) {
                 Platform platform = Platform.current();

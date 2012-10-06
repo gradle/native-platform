@@ -75,9 +75,15 @@ Some sample code to use the terminal:
 
 ## Changes
 
+### 0.2
+
+Fixes to make native library extraction multi-process safe.
+
 ### 0.1
 
 Initial release
+
+# Development
 
 ## Building
 
@@ -174,7 +180,6 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 * String names for errno values.
 * Split into multiple projects.
 * Convert to c.
-* Make native library extraction multi-process safe.
 * Use fully decomposed form for unicode file names on hfs+ filesystems.
 * Extend FileSystem to deal with removable media.
 

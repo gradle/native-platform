@@ -17,6 +17,10 @@ if (project.hasProperty('release')) {
     }
 }
 
+dependencies {
+    compile 'net.sf.jopt-simple:jopt-simple:4.2'
+}
+
 configurations.archives.artifacts.clear()
 artifacts {
     archives distZip

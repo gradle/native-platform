@@ -1,10 +1,33 @@
 package net.rubygrapefruit.platform.test;
 
+import joptsimple.OptionException;
+import joptsimple.OptionParser;
+import joptsimple.OptionSet;
 import net.rubygrapefruit.platform.*;
 import net.rubygrapefruit.platform.Process;
 
+import java.io.File;
+import java.io.IOException;
+
 public class Main {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
+        OptionParser optionParser = new OptionParser();
+        optionParser.accepts("cache-dir", "The directory to cache native libraries in").withRequiredArg();
+
+        OptionSet result = null;
+        try {
+            result = optionParser.parse(args);
+        } catch (OptionException e) {
+            System.err.println(e.getMessage());
+            System.err.println();
+            optionParser.printHelpOn(System.err);
+            System.exit(1);
+        }
+
+        if (result.has("cache-dir")) {
+            Native.init(new File(result.valueOf("cache-dir").toString()));
+        }
+
         System.out.println();
         System.out.println("* OS: " + System.getProperty("os.name") + ' ' + System.getProperty("os.version") + ' ' + System.getProperty("os.arch"));
         System.out.println("* JVM: " + System.getProperty("java.vm.vendor") + ' ' + System.getProperty("java.version"));
