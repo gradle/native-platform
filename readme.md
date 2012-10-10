@@ -56,10 +56,10 @@ this:
     }
 
     dependencies {
-        compile "net.rubygrapefruit:native-platform:0.1"
+        compile "net.rubygrapefruit:native-platform:0.2"
     }
 
-You can also download [here](http://repo.gradle.org/gradle/libs-releases-local/net/rubygrapefruit/native-platform/0.1)
+You can also download [here](http://repo.gradle.org/gradle/libs-releases-local/net/rubygrapefruit/native-platform/0.2)
 
 Some sample code to use the terminal:
 
@@ -87,7 +87,7 @@ Some sample code to use the terminal:
 
 ### 0.1
 
-Initial release.
+* Initial release.
 
 # Development
 
@@ -144,7 +144,7 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
     * Windows x64
 3. Build Java library and test app:
     1. Checkout tag.
-    2. `./gradlew clean test :uploadArchives testApp:uploadArchives -Prelease`
+    2. `./gradlew clean :test :uploadArchives testApp:uploadArchives -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`
 4. Checkout master
 5. Increment version number in `build.gradle` and this readme.
 
