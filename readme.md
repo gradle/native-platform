@@ -146,7 +146,7 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
     1. Checkout tag.
     2. `./gradlew clean test :uploadArchives testApp:uploadArchives -Prelease`
 4. Checkout master
-5. Increment version number.
+5. Increment version number in `build.gradle` and this readme.
 
 ## Testing
 
