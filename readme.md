@@ -82,7 +82,8 @@ Some sample code to use the terminal:
 
 ### 0.2
 
-Fixes to make native library extraction multi-process safe.
+* Fixes to make native library extraction multi-process safe.
+* Fixes to windows terminal detection and reset.
 
 ### 0.1
 
