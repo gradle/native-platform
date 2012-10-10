@@ -218,7 +218,8 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_normal(JNI
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_reset(JNIEnv *env, jclass target, jobject result) {
-    if (!SetConsoleTextAttribute(current_console, original_attributes)) {
+    current_attributes = original_attributes;
+    if (!SetConsoleTextAttribute(current_console, current_attributes)) {
         mark_failed_with_errno(env, "could not set text attributes", result);
     }
 }
