@@ -136,7 +136,7 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 1. Create a tag and push.
 2. Build each variant:
     1. Checkout tag.
-    2. `./gradlew clean test :uploadJni -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`
+    2. `./gradlew clean :test :uploadJni -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`
     * OS X universal
     * Linux i386, using Ubunutu 8.04
     * Linux amd64, using Ubunutu 8.04
