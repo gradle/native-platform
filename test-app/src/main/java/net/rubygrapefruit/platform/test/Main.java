@@ -104,6 +104,17 @@ public class Main {
                 System.out.println("!");
                 System.out.println();
             }
+        } else if (stderrIsTerminal) {
+            Terminal terminal = terminals.getTerminal(Terminals.Output.Stderr);
+            System.err.print("* this is ");
+            terminal.bold().foreground(Terminal.Color.Red);
+            System.err.print("red");
+            terminal.reset();
+            System.err.print(" text on ");
+            terminal.bold();
+            System.err.print("stderr");
+            terminal.reset();
+            System.err.println(".");
         }
     }
 }
