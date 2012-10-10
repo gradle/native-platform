@@ -128,7 +128,7 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
  */
 
 HANDLE getHandle(JNIEnv *env, int output, jobject result) {
-    HANDLE handle = output == 1 ? GetStdHandle(STD_OUTPUT_HANDLE) : GetStdHandle(STD_ERROR_HANDLE);
+    HANDLE handle = output == 0 ? GetStdHandle(STD_OUTPUT_HANDLE) : GetStdHandle(STD_ERROR_HANDLE);
     if (handle == INVALID_HANDLE_VALUE) {
         mark_failed_with_errno(env, "could not get console handle", result);
         return NULL;
