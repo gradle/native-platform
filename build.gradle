@@ -8,7 +8,7 @@ allprojects {
 
     repositories {
         mavenCentral()
-        maven { url "https://gradle.artifactoryonline.com/gradle/libs-releases-local" }
+        maven { url "http://repo.gradle.org/gradle/libs-releases-local" }
     }
 
     dependencies {

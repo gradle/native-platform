@@ -7,11 +7,14 @@ These APIs support Java 5 and later. Some of these APIs overlap with APIs availa
 
 ## Available bindings
 
-### Generic
+### System information
 
-* Get PID of current process.
 * Get kernel name and version.
 * Get machine architecture.
+
+### Processes
+
+* Get the PID of the current process.
 
 ### Terminal and console
 
@@ -36,7 +39,7 @@ These bindings work for both the UNIX terminal and the Windows console:
 
 ## Supported platforms
 
-Currently ported to OS X, Linux and Windows, with some support for Solaris and FreeBSD. Tested on:
+Currently ported to OS X, Linux and Windows. Support for Solaris and FreeBSD is a work in progress. Tested on:
 
 * OS X 10.7.4, 10.8 (x86_64), 10.6.7 (i386)
 * Ubunutu 12.04 (amd64), 8.04.4 (i386, amd64)
@@ -49,12 +52,14 @@ Include `native-platform.jar` and `native-platform-${os}-${arch}.jar` in your cl
 this:
 
     repositories {
-        maven { url "https://gradle.artifactoryonline.com/gradle/libs-releases-local" }
+        maven { url "http://repo.gradle.org/gradle/libs-releases-local" }
     }
 
     dependencies {
         compile "net.rubygrapefruit:native-platform:0.1"
     }
+
+You can also download [here](http://repo.gradle.org/gradle/libs-releases-local/net/rubygrapefruit/native-platform/0.1)
 
 Some sample code to use the terminal:
 
@@ -81,7 +86,7 @@ Fixes to make native library extraction multi-process safe.
 
 ### 0.1
 
-Initial release
+Initial release.
 
 # Development
 
@@ -186,3 +191,9 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 ### Ideas
 
 * Expose platform-specific HTTP proxy configuration. Query registry on windows to determine IE settings.
+* Expose native named semaphores, mutexes and condition variables (CreateMutex, CreateSemaphore, CreateEvent, semget, sem_open, etc).
+* Expose infromation about network interfaces.
+* Fire events when filesystems or network interfaces change in some way.
+* Fire events when terminal size changes.
+* Fire events when files change.
+* Expose system keystores and authentication services.
