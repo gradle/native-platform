@@ -188,6 +188,12 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 * Convert to c.
 * Use fully decomposed form for unicode file names on hfs+ filesystems.
 * Extend FileSystem to deal with removable media.
+* Add a method to Terminal that returns a PrintStream that can be used to write to the terminal, regardless of what
+  System.out/System.err point to.
+* Add a Terminal implementation that uses ANSI control codes. Use this on UNIX platforms when TERM != 'dumb' and
+  libncurses cannot be loaded.
+* Add a method to Terminal that indicates whether the cursor wraps to the next line when a character is written to the
+  rightmost character position.
 
 ### Ideas
 
