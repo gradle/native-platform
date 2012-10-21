@@ -96,6 +96,7 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
 
         wchar_t* cur = pathNames;
         if (cur[0] != L'\0') {
+            // TODO - use GetDriveTypeW() to determine if removable, remote, etc
             if(GetVolumeInformationW(cur, NULL, 0, NULL, NULL, NULL, fsName, MAX_PATH+1) == 0) {
                 if (GetLastError() != ERROR_NOT_READY) {
                     mark_failed_with_errno(env, "could not query volume information", result);
