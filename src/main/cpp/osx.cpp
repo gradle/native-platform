@@ -1,3 +1,6 @@
+/*
+ * OS X specific functions.
+ */
 #ifdef __APPLE__
 
 #include "native.h"

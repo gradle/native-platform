@@ -1,3 +1,6 @@
+/*
+ * Linux specific functions.
+ */
 #ifdef __linux__
 
 #include "native.h"
