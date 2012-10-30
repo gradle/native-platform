@@ -15,7 +15,7 @@ public abstract class Platform {
                     platform = new Windows();
                 } else if (osName.contains("linux")) {
                     platform = new Linux();
-                } else if (osName.contains("os x") && (arch.equals("i386") || arch.equals("x86_64"))) {
+                } else if (osName.contains("os x") && (arch.equals("i386") || arch.equals("x86_64") || arch.equals("amd64"))) {
                     platform = new OsX();
                 } else if (osName.contains("sunos")) {
                     platform = new Solaris();
