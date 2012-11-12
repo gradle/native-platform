@@ -2,6 +2,8 @@ package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.*;
 import net.rubygrapefruit.platform.Process;
+import net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions;
+import net.rubygrapefruit.platform.internal.jni.TerminfoFunctions;
 
 public abstract class Platform {
     private static Platform platform;
@@ -10,12 +12,25 @@ public abstract class Platform {
         synchronized (Platform.class) {
             if (platform == null) {
                 String osName = getOperatingSystem().toLowerCase();
+                String arch = getArchitecture();
                 if (osName.contains("windows")) {
-                    platform = new Windows();
+                    if (arch.equals("x86")) {
+                        platform = new Window32Bit();
+                    }
+                    else if (arch.equals("amd64")) {
+                        platform = new Window64Bit();
+                    }
                 } else if (osName.contains("linux")) {
-                    platform = new Linux();
+                    if (arch.equals("amd64")) {
+                        platform = new Linux64Bit();
+                    }
+                    else if (arch.equals("i386") || arch.equals("x86")) {
+                        platform = new Linux32Bit();
+                    }
                 } else if (osName.contains("os x")) {
-                    platform = new OsX();
+                    if (arch.equals("i386") || arch.equals("x86_64") || arch.equals("amd64")) {
+                        platform = new OsX();
+                    }
                 } else if (osName.contains("sunos")) {
                     platform = new Solaris();
                 } else {
@@ -53,21 +68,10 @@ public abstract class Platform {
         return System.getProperty("os.arch");
     }
 
-    private static class Windows extends Platform {
+    private abstract static class Windows extends Platform {
         @Override
         public boolean isWindows() {
             return true;
-        }
-
-        @Override
-        public String getLibraryName() {
-            if (getArchitecture().equals("x86")) {
-                return "native-platform-windows-i386.dll";
-            }
-            if (getArchitecture().equals("amd64")) {
-                return "native-platform-windows-amd64.dll";
-            }
-            return super.getLibraryName();
         }
 
         @Override
@@ -88,7 +92,23 @@ public abstract class Platform {
         }
     }
 
+    private static class Window32Bit extends Windows {
+        @Override
+        public String getLibraryName() {
+            return "native-platform-windows-i386.dll";
+        }
+    }
+
+    private static class Window64Bit extends Windows {
+        @Override
+        public String getLibraryName() {
+            return "native-platform-windows-amd64.dll";
+        }
+    }
+
     private static abstract class Posix extends Platform {
+        abstract String getCursesLibraryName();
+
         @Override
         public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
             if (type.equals(PosixFile.class)) {
@@ -98,6 +118,11 @@ public abstract class Platform {
                 return type.cast(new DefaultProcess());
             }
             if (type.equals(Terminals.class)) {
+                nativeLibraryLoader.load(getCursesLibraryName());
+                int nativeVersion = TerminfoFunctions.getVersion();
+                if (nativeVersion != NativeLibraryFunctions.VERSION) {
+                    throw new NativeException(String.format("Unexpected native library version loaded. Expected %s, was %s.", nativeVersion, NativeLibraryFunctions.VERSION));
+                }
                 return type.cast(new TerminfoTerminals());
             }
             if (type.equals(SystemInfo.class)) {
@@ -110,7 +135,7 @@ public abstract class Platform {
     private abstract static class Unix extends Posix {
     }
 
-    private static class Linux extends Unix {
+    private abstract static class Linux extends Unix {
         @Override
         public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
             if (type.equals(FileSystems.class)) {
@@ -118,24 +143,41 @@ public abstract class Platform {
             }
             return super.get(type, nativeLibraryLoader);
         }
+    }
 
+    private static class Linux32Bit extends Linux {
         @Override
         public String getLibraryName() {
-            if (getArchitecture().equals("amd64")) {
-                return "libnative-platform-linux-amd64.so";
-            }
-            if (getArchitecture().equals("i386") || getArchitecture().equals("x86")) {
-                return "libnative-platform-linux-i386.so";
-            }
-            return super.getLibraryName();
+            return "libnative-platform-linux-i386.so";
+        }
+
+        @Override
+        String getCursesLibraryName() {
+            return "libnative-platform-curses-linux-i386.so";
         }
     }
 
+    private static class Linux64Bit extends Linux {
+        @Override
+        public String getLibraryName() {
+            return "libnative-platform-linux-amd64.so";
+        }
+
+        @Override
+        String getCursesLibraryName() {
+            return "libnative-platform-curses-linux-amd64.so";
+        }
+    }
 
     private static class Solaris extends Unix {
         @Override
         public String getLibraryName() {
             return "libnative-platform-solaris.so";
+        }
+
+        @Override
+        String getCursesLibraryName() {
+            return "libnative-platform-curses-solaris.so";
         }
     }
 
@@ -150,11 +192,12 @@ public abstract class Platform {
 
         @Override
         public String getLibraryName() {
-            String arch = getArchitecture();
-            if (arch.equals("i386") || arch.equals("x86_64") || arch.equals("amd64")) {
-                return "libnative-platform-osx-universal.dylib";
-            }
-            return super.getLibraryName();
+            return "libnative-platform-osx-universal.dylib";
+        }
+
+        @Override
+        String getCursesLibraryName() {
+            return "libnative-platform-curses-osx-universal.dylib";
         }
     }
 

@@ -46,16 +46,40 @@ def nativeHeadersDir = file("$buildDir/nativeHeaders")
 
 cpp {
     sourceSets {
-        main
+        main {
+            source.exclude 'curses.cpp'
+        }
+        curses {
+            source.srcDirs = ['src/main/cpp']
+            source.include 'curses.cpp'
+            source.include 'generic.cpp'
+            source.include 'generic_posix.cpp'
+        }
     }
 }
 
 libraries {
     if (org.gradle.internal.os.OperatingSystem.current().macOsX) {
-        universal.spec {
-            baseName = 'native-platform-osx-universal'
-            includes(['/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers/'])
-            args("-lcurses", "-arch", "x86_64", "-arch", "i386", "-o", outputFile)
+        all {
+            spec {
+                includes(['/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers/'])
+                args("-arch", "x86_64", "-arch", "i386")
+            }
+        }
+        universal {
+            sourceSets << cpp.sourceSets.main
+            spec {
+                baseName = 'native-platform-osx-universal'
+                args("-o", outputFile)
+            }
+        }
+        cursesUniversal {
+            sourceSets << cpp.sourceSets.curses
+            spec {
+                baseName = 'native-platform-curses-osx-universal'
+                args("-lcurses")
+                args("-o", outputFile)
+            }
         }
     } else if (org.gradle.internal.os.OperatingSystem.current().windows) {
         all {
@@ -115,9 +139,8 @@ libraries {
     }
     all {
         spec {
-            includes([nativeHeadersDir])
+            includes([nativeHeadersDir, 'src/main/headers'])
         }
-        sourceSets << cpp.sourceSets.main
     }
 }
 

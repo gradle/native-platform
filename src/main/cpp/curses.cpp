@@ -66,6 +66,11 @@ void write_param_capability(JNIEnv *env, const char* capability, int count, jobj
     }
 }
 
+JNIEXPORT jint JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_getVersion(JNIEnv *env, jclass target) {
+    return NATIVE_VERSION;
+}
+
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_initTerminal(JNIEnv *env, jclass target, jint output, jobject capabilities, jobject result) {
     if (!isatty(output+1)) {

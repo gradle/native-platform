@@ -4,6 +4,8 @@ import net.rubygrapefruit.platform.internal.FunctionResult;
 import net.rubygrapefruit.platform.internal.TerminalCapabilities;
 
 public class TerminfoFunctions {
+    public static native int getVersion();
+
     /**
      * Sets up terminal info and switches output to normal mode.
      */

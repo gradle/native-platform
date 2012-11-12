@@ -162,6 +162,7 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
 ### Fixes
 
+* Posix: allow terminal to be detected when ncurses cannot be loaded
 * Windows: fix detection of shared drive under VMWare fusion and Windows XP
 * Linux: detect remote filesystems.
 * Solaris: fix unicode file name handling.

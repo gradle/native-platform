@@ -7,6 +7,8 @@
 extern "C" {
 #endif
 
+#define NATIVE_VERSION 11
+
 /*
  * Marks the given result as failed, using the given error message
  */
