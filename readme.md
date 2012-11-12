@@ -80,6 +80,10 @@ Some sample code to use the terminal:
 
 ## Changes
 
+### 0.3
+
+* Fixes to work with 64-bit OpenJDK 7 on Mac OS X. Thanks to Rene Gršschke.
+
 ### 0.2
 
 * Fixes to make native library extraction multi-process safe.
@@ -204,3 +208,4 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 * Fire events when terminal size changes.
 * Fire events when files change.
 * Expose system keystores and authentication services.
+* Expose a mechanism for generating a temporary directory.
