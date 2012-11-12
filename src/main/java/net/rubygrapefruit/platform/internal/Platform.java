@@ -10,12 +10,11 @@ public abstract class Platform {
         synchronized (Platform.class) {
             if (platform == null) {
                 String osName = getOperatingSystem().toLowerCase();
-                String arch = getArchitecture();
                 if (osName.contains("windows")) {
                     platform = new Windows();
                 } else if (osName.contains("linux")) {
                     platform = new Linux();
-                } else if (osName.contains("os x") && (arch.equals("i386") || arch.equals("x86_64") || arch.equals("amd64"))) {
+                } else if (osName.contains("os x")) {
                     platform = new OsX();
                 } else if (osName.contains("sunos")) {
                     platform = new Solaris();
@@ -31,12 +30,28 @@ public abstract class Platform {
         return false;
     }
 
-    public <T extends NativeIntegration> T get(Class<T> type) {
-        throw new NativeIntegrationUnavailableException(String.format("Native integration %s is not supported on this operating system (%s %s)",
-                type.getSimpleName(), getOperatingSystem(), getArchitecture()));
+    @Override
+    public String toString() {
+        return String.format("%s %s", getOperatingSystem(), getArchitecture());
     }
 
-    public abstract String getLibraryName() throws NativeIntegrationUnavailableException;
+    public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
+        throw new NativeIntegrationUnavailableException(String.format("Native integration %s is not supported for the current operating system (%s)",
+                type.getSimpleName(), toString()));
+    }
+
+    public String getLibraryName() {
+        throw new NativeIntegrationUnavailableException(String.format(
+                "Native integration is not available for the current operating system (%s)", toString()));
+    }
+
+    private static String getOperatingSystem() {
+        return System.getProperty("os.name");
+    }
+
+    private static String getArchitecture() {
+        return System.getProperty("os.arch");
+    }
 
     private static class Windows extends Platform {
         @Override
@@ -52,12 +67,11 @@ public abstract class Platform {
             if (getArchitecture().equals("amd64")) {
                 return "native-platform-windows-amd64.dll";
             }
-            throw new NativeIntegrationUnavailableException(String.format(
-                    "Native integration is not available for this architecture (%s) on Windows.", getArchitecture()));
+            return super.getLibraryName();
         }
 
         @Override
-        public <T extends NativeIntegration> T get(Class<T> type) {
+        public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
             if (type.equals(Process.class)) {
                 return type.cast(new DefaultProcess());
             }
@@ -70,13 +84,13 @@ public abstract class Platform {
             if (type.equals(FileSystems.class)) {
                 return type.cast(new PosixFileSystems());
             }
-            return super.get(type);
+            return super.get(type, nativeLibraryLoader);
         }
     }
 
     private static abstract class Posix extends Platform {
         @Override
-        public <T extends NativeIntegration> T get(Class<T> type) {
+        public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
             if (type.equals(PosixFile.class)) {
                 return type.cast(new DefaultPosixFile());
             }
@@ -89,7 +103,7 @@ public abstract class Platform {
             if (type.equals(SystemInfo.class)) {
                 return type.cast(new DefaultSystemInfo());
             }
-            return super.get(type);
+            return super.get(type, nativeLibraryLoader);
         }
     }
 
@@ -98,11 +112,11 @@ public abstract class Platform {
 
     private static class Linux extends Unix {
         @Override
-        public <T extends NativeIntegration> T get(Class<T> type) {
+        public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
             if (type.equals(FileSystems.class)) {
                 return type.cast(new PosixFileSystems());
             }
-            return super.get(type);
+            return super.get(type, nativeLibraryLoader);
         }
 
         @Override
@@ -113,14 +127,10 @@ public abstract class Platform {
             if (getArchitecture().equals("i386") || getArchitecture().equals("x86")) {
                 return "libnative-platform-linux-i386.so";
             }
-            throw new NativeIntegrationUnavailableException(String.format(
-                    "Native integration is not available for this architecture (%s) on Linux.", getArchitecture()));
+            return super.getLibraryName();
         }
     }
 
-    private static String getArchitecture() {
-        return System.getProperty("os.arch");
-    }
 
     private static class Solaris extends Unix {
         @Override
@@ -131,28 +141,24 @@ public abstract class Platform {
 
     private static class OsX extends Posix {
         @Override
-        public <T extends NativeIntegration> T get(Class<T> type) {
+        public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
             if (type.equals(FileSystems.class)) {
                 return type.cast(new PosixFileSystems());
             }
-            return super.get(type);
+            return super.get(type, nativeLibraryLoader);
         }
 
         @Override
         public String getLibraryName() {
-            return "libnative-platform-osx-universal.dylib";
+            String arch = getArchitecture();
+            if (arch.equals("i386") || arch.equals("x86_64") || arch.equals("amd64")) {
+                return "libnative-platform-osx-universal.dylib";
+            }
+            return super.getLibraryName();
         }
     }
 
     private static class Unsupported extends Platform {
-        public String getLibraryName() {
-            throw new NativeIntegrationUnavailableException(String.format(
-                    "Native integration is not available for this operating system (%s %s)", getOperatingSystem(),
-                    getArchitecture()));
-        }
     }
 
-    private static String getOperatingSystem() {
-        return System.getProperty("os.name");
-    }
 }

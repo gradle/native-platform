@@ -1,5 +1,6 @@
 package net.rubygrapefruit.platform;
 
+import net.rubygrapefruit.platform.internal.NativeLibraryLoader;
 import net.rubygrapefruit.platform.internal.NativeLibraryLocator;
 import net.rubygrapefruit.platform.internal.Platform;
 import net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions;
@@ -13,7 +14,7 @@ import java.util.Map;
  */
 @ThreadSafe
 public class Native {
-    private static boolean loaded;
+    private static NativeLibraryLoader loader;
     private static final Map<Class<?>, Object> integrations = new HashMap<Class<?>, Object>();
 
     private Native() {
@@ -31,19 +32,15 @@ public class Native {
     @ThreadSafe
     static public void init(File extractDir) throws NativeIntegrationUnavailableException, NativeException {
         synchronized (Native.class) {
-            if (!loaded) {
+            if (loader == null) {
                 Platform platform = Platform.current();
                 try {
-                    File libFile = new NativeLibraryLocator(extractDir).find(platform.getLibraryName());
-                    if (libFile == null) {
-                        throw new NativeIntegrationUnavailableException(String.format("Native library is not available for this operating system and architecture."));
-                    }
-                    System.load(libFile.getCanonicalPath());
+                    loader = new NativeLibraryLoader(new NativeLibraryLocator(extractDir));
+                    loader.load(platform.getLibraryName());
                     int nativeVersion = NativeLibraryFunctions.getVersion();
                     if (nativeVersion != NativeLibraryFunctions.VERSION) {
                         throw new NativeException(String.format("Unexpected native library version loaded. Expected %s, was %s.", nativeVersion, NativeLibraryFunctions.VERSION));
                     }
-                    loaded = true;
                 } catch (NativeException e) {
                     throw e;
                 } catch (Throwable t) {
@@ -69,7 +66,7 @@ public class Native {
             Object instance = integrations.get(type);
             if (instance == null) {
                 try {
-                    instance = Platform.current().get(type);
+                    instance = Platform.current().get(type, loader);
                 } catch (NativeException e) {
                     throw e;
                 } catch (Throwable t) {
