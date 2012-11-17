@@ -44,6 +44,27 @@ dependencies {
 
 def nativeHeadersDir = file("$buildDir/nativeHeaders")
 
+task nativeHeaders {
+    def outputFile = file("$nativeHeadersDir/native.h")
+    inputs.files sourceSets.main.output
+    outputs.file outputFile
+    doLast {
+        outputFile.parentFile.mkdirs()
+        exec {
+            executable org.gradle.internal.jvm.Jvm.current().getExecutable('javah')
+            args '-o', outputFile
+            args '-classpath', sourceSets.main.output.classesDir
+            args 'net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions'
+            args 'net.rubygrapefruit.platform.internal.jni.PosixFileFunctions'
+            args 'net.rubygrapefruit.platform.internal.jni.PosixFileSystemFunctions'
+            args 'net.rubygrapefruit.platform.internal.jni.PosixProcessFunctions'
+            args 'net.rubygrapefruit.platform.internal.jni.PosixTerminalFunctions'
+            args 'net.rubygrapefruit.platform.internal.jni.TerminfoFunctions'
+            args 'net.rubygrapefruit.platform.internal.jni.WindowsConsoleFunctions'
+        }
+    }
+}
+
 cpp {
     sourceSets {
         main {
@@ -57,6 +78,8 @@ cpp {
         }
     }
 }
+
+def variants = [:]
 
 libraries {
     if (org.gradle.internal.os.OperatingSystem.current().macOsX) {
@@ -81,6 +104,7 @@ libraries {
                 args("-o", outputFile)
             }
         }
+        variants['osx-universal'] = [universal, cursesUniversal]
     } else if (org.gradle.internal.os.OperatingSystem.current().windows) {
         all {
             spec {
@@ -98,13 +122,21 @@ libraries {
         }
         def header = out.toString().readLines().head()
         if (header.endsWith("for 80x86") || header.endsWith("for x86")) {
-            i386.spec {
-                baseName = 'native-platform-windows-i386'
+            i386 {
+                sourceSets << cpp.sourceSets.main
+                spec {
+                    baseName = 'native-platform-windows-i386'
+                }
             }
+            variants['windows-i386'] = [i386]
         } else if (header.endsWith("for x64")) {
-            amd64.spec {
-                baseName = 'native-platform-windows-amd64'
+            amd64 {
+                sourceSets << cpp.sourceSets.main
+                spec {
+                    baseName = 'native-platform-windows-amd64'
+                }
             }
+            variants['windows-amd64'] = [amd64]
         } else {
             throw new RuntimeException("Cannot determine compiler's target architecture")
         }
@@ -114,54 +146,61 @@ libraries {
             spec {
                 includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
                 includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/linux"])
-                args("-lcurses")
             }
         }
         if (System.getProperty('os.arch') == 'i386' || project.hasProperty('multiarch')) {
-            i386.spec {
-                baseName = 'native-platform-linux-i386'
-                args("-m32")
+            i386 {
+                sourceSets << cpp.sourceSets.main
+                spec {
+                    baseName = 'native-platform-linux-i386'
+                    args("-m32")
+                }
             }
+            cursesI386 {
+                sourceSets << cpp.sourceSets.curses
+                spec {
+                    baseName = 'native-platform-curses-linux-i386'
+                    args("-m32", "-lcurses")
+                }
+            }
+            variants['linux-i386'] = [i386, cursesI386]
         }
         if (System.getProperty('os.arch') == 'amd64' || project.hasProperty('multiarch')) {
-            amd64.spec {
-                baseName = 'native-platform-linux-amd64'
-                args("-m64")
+            amd64 {
+                sourceSets << cpp.sourceSets.main
+                spec {
+                    baseName = 'native-platform-linux-amd64'
+                    args("-m64")
+                }
             }
+            cursesAmd64 {
+                sourceSets << cpp.sourceSets.curses
+                spec {
+                    baseName = 'native-platform-linux-amd64'
+                    args("-m64", "-lcurses")
+                }
+            }
+            variants['linux-amd64'] = [amd64, cursesAmd64]
         }
     } else {
         baseName = "native-platform-solaris"
-        main.spec {
-            includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
-            includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/solaris"])
-            args("-DSOLARIS", "-lcurses")
+        main {
+            sourceSets << cpp.sourceSets.main
+            sourceSets << cpp.sourceSets.curses
+            spec {
+                includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
+                includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/solaris"])
+                args("-DSOLARIS", "-lcurses")
+            }
         }
+        variants['solaris'] = [main]
     }
     all {
         spec {
             includes([nativeHeadersDir, 'src/main/headers'])
         }
-    }
-}
-
-task nativeHeaders {
-    def outputFile = file("$nativeHeadersDir/native.h")
-    inputs.files sourceSets.main.output
-    outputs.file outputFile
-    doLast {
-        outputFile.parentFile.mkdirs()
-        exec {
-            executable org.gradle.internal.jvm.Jvm.current().getExecutable('javah')
-            args '-o', outputFile
-            args '-classpath', sourceSets.main.output.classesDir
-            args 'net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions'
-            args 'net.rubygrapefruit.platform.internal.jni.PosixFileFunctions'
-            args 'net.rubygrapefruit.platform.internal.jni.PosixFileSystemFunctions'
-            args 'net.rubygrapefruit.platform.internal.jni.PosixProcessFunctions'
-            args 'net.rubygrapefruit.platform.internal.jni.PosixTerminalFunctions'
-            args 'net.rubygrapefruit.platform.internal.jni.TerminfoFunctions'
-            args 'net.rubygrapefruit.platform.internal.jni.WindowsConsoleFunctions'
-        }
+        spec.task.dependsOn nativeHeaders
+        test.dependsOn spec.task
     }
 }
 
@@ -171,22 +210,21 @@ configurations {
 
 def deployer = uploadJni.repositories.mavenDeployer
 
-libraries.all { lib ->
-    def nativeJar = task("nativeJar${lib.name.capitalize()}", type: Jar) {
-        from lib.spec.task
-        baseName = lib.spec.baseName
+variants.each { variant, libs ->
+    def variantName = GUtil.toCamelCase(variant)
+    def nativeJar = task("nativeJar${variantName}", type: Jar) {
+        from libs.collect { it.spec.task }
+        baseName = "native-platform-$variant"
     }
-    lib.spec.task.dependsOn nativeHeaders
-    test.dependsOn lib.spec.task
     artifacts {
         jni nativeJar
         runtime nativeJar
     }
-    def jniPom = deployer.addFilter(lib.name) { artifact, file ->
+    def jniPom = deployer.addFilter(variant) { artifact, file ->
         return file == nativeJar.archivePath
     }
     jniPom.groupId = project.group
-    jniPom.artifactId = lib.spec.baseName
+    jniPom.artifactId = nativeJar.baseName
     jniPom.version = project.version
     jniPom.scopeMappings.mappings.clear()
 }
