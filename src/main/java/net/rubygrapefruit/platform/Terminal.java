@@ -10,9 +10,10 @@ package net.rubygrapefruit.platform;
 @ThreadSafe
 public interface Terminal {
     /**
-     * Colors supported by a terminal.
+     * Basic colors supported by a terminal.
      */
     enum Color {
+        // Don't change the order of these. They are in ANSI order
         Black, Red, Green, Yellow, Blue, Magenta, Cyan, White
     }
 

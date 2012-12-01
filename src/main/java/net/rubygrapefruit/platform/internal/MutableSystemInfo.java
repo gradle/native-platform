@@ -3,6 +3,7 @@ package net.rubygrapefruit.platform.internal;
 import net.rubygrapefruit.platform.SystemInfo;
 
 public class MutableSystemInfo implements SystemInfo {
+    // Fields set from native code
     public String osName;
     public String osVersion;
     public String machineArchitecture;
@@ -19,6 +20,7 @@ public class MutableSystemInfo implements SystemInfo {
         return machineArchitecture;
     }
 
+    // Called from native code
     void windows(int major, int minor, int build, boolean workstation, String arch) {
         osName = toWindowsVersionName(major, minor, workstation);
         osVersion = String.format("%s.%s (build %s)", major, minor, build);
