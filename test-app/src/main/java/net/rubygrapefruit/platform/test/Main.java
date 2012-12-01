@@ -31,6 +31,7 @@ public class Main {
         System.out.println();
         System.out.println("* OS: " + System.getProperty("os.name") + ' ' + System.getProperty("os.version") + ' ' + System.getProperty("os.arch"));
         System.out.println("* JVM: " + System.getProperty("java.vm.vendor") + ' ' + System.getProperty("java.version"));
+        System.out.println("* Encoding: " + System.getProperty("file.encoding"));
 
         SystemInfo systemInfo = Native.get(SystemInfo.class);
         System.out.println("* Kernel: " + systemInfo.getKernelName() + ' ' + systemInfo.getKernelVersion() + ' ' + systemInfo.getMachineArchitecture());
@@ -47,15 +48,16 @@ public class Main {
         Terminals terminals = Native.get(Terminals.class);
         boolean stdoutIsTerminal = terminals.isTerminal(Terminals.Output.Stdout);
         boolean stderrIsTerminal = terminals.isTerminal(Terminals.Output.Stderr);
-        System.out.println("* stdout: " + (stdoutIsTerminal ? "terminal" : "not a terminal"));
-        System.out.println("* stderr: " + (stderrIsTerminal ? "terminal" : "not a terminal"));
+        System.out.println("* Stdout: " + (stdoutIsTerminal ? "terminal" : "not a terminal"));
+        System.out.println("* Stderr: " + (stderrIsTerminal ? "terminal" : "not a terminal"));
         if (stdoutIsTerminal) {
             Terminal terminal = terminals.getTerminal(Terminals.Output.Stdout);
             TerminalSize terminalSize = terminal.getTerminalSize();
-            System.out.println("* terminal size: " + terminalSize.getCols() + " cols x " + terminalSize.getRows() + " rows");
-            System.out.println("* text attributes: " + (terminal.supportsTextAttributes() ? "yes" : "no"));
-            System.out.println("* color: " + (terminal.supportsColor() ? "yes" : "no"));
-            System.out.println("* cursor motion: " + (terminal.supportsCursorMotion() ? "yes" : "no"));
+            System.out.println("* Terminal implementation: " + terminal);
+            System.out.println("* Terminal size: " + terminalSize.getCols() + " cols x " + terminalSize.getRows() + " rows");
+            System.out.println("* Text attributes: " + (terminal.supportsTextAttributes() ? "yes" : "no"));
+            System.out.println("* Color: " + (terminal.supportsColor() ? "yes" : "no"));
+            System.out.println("* Cursor motion: " + (terminal.supportsCursorMotion() ? "yes" : "no"));
             System.out.println();
             System.out.println("TEXT ATTRIBUTES");
             System.out.print("[normal] ");
@@ -68,10 +70,10 @@ public class Main {
             System.out.println("COLORS");
             for (Terminal.Color color : Terminal.Color.values()) {
                 terminal.foreground(color);
-                System.out.print(String.format("[%s] ", color.toString().toLowerCase()));
                 terminal.bold();
-                System.out.print(String.format("[%s]", color.toString().toLowerCase()));
+                System.out.print(String.format("[%s] ", color.toString().toLowerCase()));
                 terminal.normal();
+                System.out.print(String.format("[%s]", color.toString().toLowerCase()));
                 System.out.println();
             }
             System.out.println();
