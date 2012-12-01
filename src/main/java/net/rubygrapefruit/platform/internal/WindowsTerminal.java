@@ -15,6 +15,10 @@ public class WindowsTerminal extends AbstractTerminal {
 
     @Override
     public String toString() {
+        return String.format("Windows console on %s", getOutputDisplay());
+    }
+
+    private String getOutputDisplay() {
         return output.toString().toLowerCase();
     }
 
@@ -23,7 +27,7 @@ public class WindowsTerminal extends AbstractTerminal {
         FunctionResult result = new FunctionResult();
         WindowsConsoleFunctions.initConsole(output.ordinal(), result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not open console for %s: %s", this, result.getMessage()));
+            throw new NativeException(String.format("Could not open console for %s: %s", getOutputDisplay(), result.getMessage()));
         }
     }
 
@@ -44,7 +48,7 @@ public class WindowsTerminal extends AbstractTerminal {
         MutableTerminalSize size = new MutableTerminalSize();
         WindowsConsoleFunctions.getConsoleSize(output.ordinal(), size, result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not determine console size for %s: %s", this, result.getMessage()));
+            throw new NativeException(String.format("Could not determine console size for %s: %s", getOutputDisplay(), result.getMessage()));
         }
         return size;
     }
@@ -53,7 +57,7 @@ public class WindowsTerminal extends AbstractTerminal {
         FunctionResult result = new FunctionResult();
         WindowsConsoleFunctions.bold(result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not switch console to bold mode for %s: %s", this, result.getMessage()));
+            throw new NativeException(String.format("Could not switch console to bold mode for %s: %s", getOutputDisplay(), result.getMessage()));
         }
         return this;
     }
@@ -62,7 +66,7 @@ public class WindowsTerminal extends AbstractTerminal {
         FunctionResult result = new FunctionResult();
         WindowsConsoleFunctions.foreground(color.ordinal(), result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not change console foreground color for %s: %s", this, result.getMessage()));
+            throw new NativeException(String.format("Could not change console foreground color for %s: %s", getOutputDisplay(), result.getMessage()));
         }
         return this;
     }
@@ -71,7 +75,7 @@ public class WindowsTerminal extends AbstractTerminal {
         FunctionResult result = new FunctionResult();
         WindowsConsoleFunctions.normal(result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not switch console to normal mode for %s: %s", this, result.getMessage()));
+            throw new NativeException(String.format("Could not switch console to normal mode for %s: %s", getOutputDisplay(), result.getMessage()));
         }
         return this;
     }
@@ -80,7 +84,7 @@ public class WindowsTerminal extends AbstractTerminal {
         FunctionResult result = new FunctionResult();
         WindowsConsoleFunctions.reset(result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not reset console for %s: %s", this, result.getMessage()));
+            throw new NativeException(String.format("Could not reset console for %s: %s", getOutputDisplay(), result.getMessage()));
         }
         return this;
     }
@@ -89,7 +93,7 @@ public class WindowsTerminal extends AbstractTerminal {
         FunctionResult result = new FunctionResult();
         WindowsConsoleFunctions.down(count, result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not move cursor down for %s: %s", this, result.getMessage()));
+            throw new NativeException(String.format("Could not move cursor down for %s: %s", getOutputDisplay(), result.getMessage()));
         }
         return this;
     }
@@ -98,7 +102,7 @@ public class WindowsTerminal extends AbstractTerminal {
         FunctionResult result = new FunctionResult();
         WindowsConsoleFunctions.up(count, result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not move cursor up for %s: %s", this, result.getMessage()));
+            throw new NativeException(String.format("Could not move cursor up for %s: %s", getOutputDisplay(), result.getMessage()));
         }
         return this;
     }
@@ -107,7 +111,7 @@ public class WindowsTerminal extends AbstractTerminal {
         FunctionResult result = new FunctionResult();
         WindowsConsoleFunctions.left(count, result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not move cursor left for %s: %s", this, result.getMessage()));
+            throw new NativeException(String.format("Could not move cursor left for %s: %s", getOutputDisplay(), result.getMessage()));
         }
         return this;
     }
@@ -116,7 +120,7 @@ public class WindowsTerminal extends AbstractTerminal {
         FunctionResult result = new FunctionResult();
         WindowsConsoleFunctions.right(count, result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not move cursor right for %s: %s", this, result.getMessage()));
+            throw new NativeException(String.format("Could not move cursor right for %s: %s", getOutputDisplay(), result.getMessage()));
         }
         return this;
     }
@@ -125,7 +129,7 @@ public class WindowsTerminal extends AbstractTerminal {
         FunctionResult result = new FunctionResult();
         WindowsConsoleFunctions.startLine(result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not move cursor to start of line for %s: %s", this, result.getMessage()));
+            throw new NativeException(String.format("Could not move cursor to start of line for %s: %s", getOutputDisplay(), result.getMessage()));
         }
         return this;
     }
@@ -134,7 +138,7 @@ public class WindowsTerminal extends AbstractTerminal {
         FunctionResult result = new FunctionResult();
         WindowsConsoleFunctions.clearToEndOfLine(result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could clear to end of line for %s: %s", this, result.getMessage()));
+            throw new NativeException(String.format("Could clear to end of line for %s: %s", getOutputDisplay(), result.getMessage()));
         }
         return this;
     }

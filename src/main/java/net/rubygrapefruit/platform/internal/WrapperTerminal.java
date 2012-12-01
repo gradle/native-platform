@@ -26,26 +26,26 @@ public class WrapperTerminal extends AbstractTerminal {
     }
 
     @Override
+    public String toString() {
+        return terminal.toString();
+    }
+
     public TerminalSize getTerminalSize() throws NativeException {
         return terminal.getTerminalSize();
     }
 
-    @Override
     public boolean supportsColor() {
         return terminal.supportsColor();
     }
 
-    @Override
     public boolean supportsCursorMotion() {
         return terminal.supportsCursorMotion();
     }
 
-    @Override
     public boolean supportsTextAttributes() {
         return terminal.supportsTextAttributes();
     }
 
-    @Override
     public Terminal normal() throws NativeException {
         stream.flush();
         synchronized (lock) {
@@ -54,7 +54,6 @@ public class WrapperTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal bold() throws NativeException {
         stream.flush();
         synchronized (lock) {
@@ -63,7 +62,6 @@ public class WrapperTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal reset() throws NativeException {
         stream.flush();
         synchronized (lock) {
@@ -72,7 +70,6 @@ public class WrapperTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal foreground(Color color) throws NativeException {
         stream.flush();
         synchronized (lock) {
@@ -81,7 +78,6 @@ public class WrapperTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal cursorLeft(int count) throws NativeException {
         stream.flush();
         synchronized (lock) {
@@ -90,7 +86,6 @@ public class WrapperTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal cursorRight(int count) throws NativeException {
         stream.flush();
         synchronized (lock) {
@@ -99,7 +94,6 @@ public class WrapperTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal cursorUp(int count) throws NativeException {
         stream.flush();
         synchronized (lock) {
@@ -108,7 +102,6 @@ public class WrapperTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal cursorDown(int count) throws NativeException {
         stream.flush();
         synchronized (lock) {
@@ -117,7 +110,6 @@ public class WrapperTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal cursorStartOfLine() throws NativeException {
         stream.flush();
         synchronized (lock) {
@@ -126,7 +118,6 @@ public class WrapperTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
     public Terminal clearToEndOfLine() throws NativeException {
         stream.flush();
         synchronized (lock) {
