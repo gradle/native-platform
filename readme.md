@@ -59,7 +59,7 @@ this:
         compile "net.rubygrapefruit:native-platform:0.2"
     }
 
-You can also download [here](http://repo.gradle.org/gradle/libs-releases-local/net/rubygrapefruit/native-platform/0.2)
+You can also download [here](http://repo.gradle.org/gradle/libs-releases-local/net/rubygrapefruit/)
 
 Some sample code to use the terminal:
 
