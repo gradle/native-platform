@@ -85,7 +85,7 @@ libraries {
     if (org.gradle.internal.os.OperatingSystem.current().macOsX) {
         all {
             spec {
-                includes(['/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers/'])
+                includes(files('/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers/'))
                 args("-arch", "x86_64", "-arch", "i386")
             }
         }
@@ -108,8 +108,8 @@ libraries {
     } else if (org.gradle.internal.os.OperatingSystem.current().windows) {
         all {
             spec {
-                includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
-                includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"])
+                includes(files("${org.gradle.internal.jvm.Jvm.current().javaHome}/include"))
+                includes(files("${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"))
                 args("/DWIN32")
             }
         }
@@ -144,8 +144,8 @@ libraries {
     } else if (org.gradle.internal.os.OperatingSystem.current().linux) {
         all {
             spec {
-                includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
-                includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/linux"])
+                includes(files("${org.gradle.internal.jvm.Jvm.current().javaHome}/include"))
+                includes(files("${org.gradle.internal.jvm.Jvm.current().javaHome}/include/linux"))
             }
         }
         if (System.getProperty('os.arch') == 'i386' || project.hasProperty('multiarch')) {
@@ -188,8 +188,8 @@ libraries {
             sourceSets << cpp.sourceSets.main
             sourceSets << cpp.sourceSets.curses
             spec {
-                includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include"])
-                includes(["${org.gradle.internal.jvm.Jvm.current().javaHome}/include/solaris"])
+                includes(files("${org.gradle.internal.jvm.Jvm.current().javaHome}/include"))
+                includes(files("${org.gradle.internal.jvm.Jvm.current().javaHome}/include/solaris"))
                 args("-DSOLARIS", "-lcurses")
             }
         }
@@ -197,10 +197,11 @@ libraries {
     }
     all {
         spec {
-            includes([nativeHeadersDir, 'src/main/headers'])
+            includes(files(nativeHeadersDir, 'src/main/headers'))
         }
-        spec.task.dependsOn nativeHeaders
-        test.dependsOn spec.task
+        def task = tasks["compile${spec.binary.name.capitalize()}"]
+        task.dependsOn nativeHeaders
+        test.dependsOn spec
     }
 }
 
@@ -213,7 +214,7 @@ def deployer = uploadJni.repositories.mavenDeployer
 variants.each { variant, libs ->
     def variantName = GUtil.toCamelCase(variant)
     def nativeJar = task("nativeJar${variantName}", type: Jar) {
-        from libs.collect { it.spec.task }
+        from libs.collect { tasks["compile${it.name.capitalize()}"] }
         baseName = "native-platform-$variant"
     }
     artifacts {
