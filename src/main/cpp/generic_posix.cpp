@@ -23,6 +23,7 @@
 #include "generic.h"
 #include <stdlib.h>
 #include <errno.h>
+#include <locale.h>
 #include <xlocale.h>
 #include <langinfo.h>
 #include <string.h>

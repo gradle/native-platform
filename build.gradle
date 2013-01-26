@@ -21,8 +21,6 @@ allprojects {
     sourceCompatibility = 1.5
     targetCompatibility = 1.5
 
-    configurations.compile.extendsFrom = []
-
     tasks.withType(Upload) {
         repositories {
             mavenDeployer {
@@ -39,7 +37,7 @@ allprojects {
 }
 
 dependencies {
-    groovy 'org.codehaus.groovy:groovy:1.8.7'
+    testCompile 'org.codehaus.groovy:groovy:1.8.7'
 }
 
 def nativeHeadersDir = file("$buildDir/nativeHeaders")
@@ -176,7 +174,7 @@ libraries {
             cursesAmd64 {
                 sourceSets << cpp.sourceSets.curses
                 spec {
-                    baseName = 'native-platform-linux-amd64'
+                    baseName = 'native-platform-curses-linux-amd64'
                     args("-m64", "-lcurses")
                 }
             }
