@@ -15,6 +15,7 @@ These APIs support Java 5 and later. Some of these APIs overlap with APIs availa
 ### Processes
 
 * Get the PID of the current process.
+* Get and set the process working directory.
 
 ### Terminal and console
 

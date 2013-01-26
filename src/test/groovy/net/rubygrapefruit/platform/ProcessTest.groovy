@@ -33,4 +33,26 @@ class ProcessTest extends Specification {
         expect:
         process.getProcessId() != 0
     }
+
+    def "can change working directory"() {
+        def newDir = tmpDir.newFolder("dir").canonicalFile
+
+        when:
+        def original = process.workingDirectory
+
+        then:
+        original == new File(".").canonicalFile
+        original == new File(System.getProperty("user.dir"))
+
+        when:
+        process.workingDirectory = newDir
+
+        then:
+        process.workingDirectory == newDir
+        new File(".").canonicalFile == newDir
+        new File(System.getProperty("user.dir")) == newDir
+
+        cleanup:
+        process.workingDirectory = original
+    }
 }

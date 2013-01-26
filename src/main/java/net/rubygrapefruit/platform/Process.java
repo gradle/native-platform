@@ -16,6 +16,8 @@
 
 package net.rubygrapefruit.platform;
 
+import java.io.File;
+
 /**
  * Functions to query and modify a process' state.
  */
@@ -28,4 +30,20 @@ public interface Process extends NativeIntegration {
      */
     @ThreadSafe
     int getProcessId() throws NativeException;
+
+    /**
+     * Returns the process' current working directory.
+     *
+     * @throws NativeException On failure.
+     */
+    @ThreadSafe
+    File getWorkingDirectory() throws NativeException;
+
+    /**
+     * Sets the process' working directory.
+     *
+     * @throws NativeException On failure.
+     */
+    @ThreadSafe
+    void setWorkingDirectory(File directory) throws NativeException;
 }

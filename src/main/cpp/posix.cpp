@@ -144,6 +144,30 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_getPid(JNIEn
     return getpid();
 }
 
+JNIEXPORT jstring JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_getWorkingDirectory(JNIEnv *env, jclass target, jobject result) {
+    char* path = getcwd(NULL, 0);
+    if (path == NULL) {
+        mark_failed_with_errno(env, "could not getcwd()", result);
+        return NULL;
+    }
+    jstring dir = char_to_java(env, path, result);
+    free(path);
+    return dir;
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_setWorkingDirectory(JNIEnv *env, jclass target, jstring dir, jobject result) {
+    char* path = java_to_char(env, dir, result);
+    if (path == NULL) {
+        return;
+    }
+    if (chdir(path) != 0) {
+        mark_failed_with_errno(env, "could not setcwd()", result);
+    }
+    free(path);
+}
+
 /*
  * Terminal functions
  */

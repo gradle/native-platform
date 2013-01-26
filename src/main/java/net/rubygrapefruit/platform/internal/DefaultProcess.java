@@ -19,8 +19,28 @@ package net.rubygrapefruit.platform.internal;
 import net.rubygrapefruit.platform.*;
 import net.rubygrapefruit.platform.internal.jni.PosixProcessFunctions;
 
+import java.io.File;
+
 public class DefaultProcess implements net.rubygrapefruit.platform.Process {
     public int getProcessId() throws NativeException {
         return PosixProcessFunctions.getPid();
+    }
+
+    public File getWorkingDirectory() throws NativeException {
+        FunctionResult result = new FunctionResult();
+        String dir = PosixProcessFunctions.getWorkingDirectory(result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not get process working directory: %s", result.getMessage()));
+        }
+        return new File(dir);
+    }
+
+    public void setWorkingDirectory(File directory) throws NativeException {
+        FunctionResult result = new FunctionResult();
+        PosixProcessFunctions.setWorkingDirectory(directory.getAbsolutePath(), result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not set process working directory: %s", result.getMessage()));
+        }
+        System.setProperty("user.dir", directory.getAbsolutePath());
     }
 }

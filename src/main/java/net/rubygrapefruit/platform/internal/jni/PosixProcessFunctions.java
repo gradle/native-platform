@@ -16,6 +16,12 @@
 
 package net.rubygrapefruit.platform.internal.jni;
 
+import net.rubygrapefruit.platform.internal.FunctionResult;
+
 public class PosixProcessFunctions {
     public static native int getPid();
+
+    public static native String getWorkingDirectory(FunctionResult result);
+
+    public static native void setWorkingDirectory(String dir, FunctionResult result);
 }
