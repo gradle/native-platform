@@ -57,7 +57,7 @@ this:
     }
 
     dependencies {
-        compile "net.rubygrapefruit:native-platform:0.2"
+        compile "net.rubygrapefruit:native-platform:0.3"
     }
 
 You can also download [here](http://repo.gradle.org/gradle/libs-releases-local/net/rubygrapefruit/)
@@ -83,7 +83,7 @@ Some sample code to use the terminal:
 
 ### 0.3
 
-* Fixes to work with 64-bit OpenJDK 7 on Mac OS X. Thanks to Rene Gršschke.
+* Fixes to work with 64-bit OpenJDK 7 on Mac OS X. Thanks to Rene Grï¿½schke.
 
 ### 0.2
 
