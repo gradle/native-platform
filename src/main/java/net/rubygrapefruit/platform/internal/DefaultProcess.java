@@ -32,26 +32,25 @@ public class DefaultProcess implements Process {
 
     public File getWorkingDirectory() throws NativeException {
         FunctionResult result = new FunctionResult();
-        String dir;
         synchronized (workingDirectoryLock) {
-            dir = PosixProcessFunctions.getWorkingDirectory(result);
+            String dir = PosixProcessFunctions.getWorkingDirectory(result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not get process working directory: %s",
+                        result.getMessage()));
+            }
+            return new File(dir);
         }
-        if (result.isFailed()) {
-            throw new NativeException(String.format("Could not get process working directory: %s",
-                    result.getMessage()));
-        }
-        return new File(dir);
     }
 
     public void setWorkingDirectory(File directory) throws NativeException {
         FunctionResult result = new FunctionResult();
         synchronized (workingDirectoryLock) {
             PosixProcessFunctions.setWorkingDirectory(directory.getAbsolutePath(), result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not set process working directory: %s",
+                        result.getMessage()));
+            }
             System.setProperty("user.dir", directory.getAbsolutePath());
-        }
-        if (result.isFailed()) {
-            throw new NativeException(String.format("Could not set process working directory: %s",
-                    result.getMessage()));
         }
     }
 
