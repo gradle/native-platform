@@ -199,6 +199,7 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
   libncurses cannot be loaded.
 * Add a method to Terminal that indicates whether the cursor wraps to the next line when a character is written to the
   rightmost character position.
+* Check for null parameters.
 
 ### Ideas
 

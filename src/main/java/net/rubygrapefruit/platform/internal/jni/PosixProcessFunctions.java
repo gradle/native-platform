@@ -24,4 +24,8 @@ public class PosixProcessFunctions {
     public static native String getWorkingDirectory(FunctionResult result);
 
     public static native void setWorkingDirectory(String dir, FunctionResult result);
+
+    public static native String getEnvironmentVariable(String var, FunctionResult result);
+
+    public static native void setEnvironmentVariable(String var, String value, FunctionResult result);
 }

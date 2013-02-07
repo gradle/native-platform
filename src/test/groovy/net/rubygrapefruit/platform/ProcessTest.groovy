@@ -58,4 +58,79 @@ class ProcessTest extends Specification {
         where:
         dir << ['dir', 'dir\u03b1']
     }
+
+    def "cannot set working directory to a directory that does not exist"() {
+        def newDir = new File(tmpDir.root, "does not exist");
+
+        when:
+        process.workingDirectory = newDir
+
+        then:
+        NativeException e = thrown()
+        e.message.startsWith("Could not set process working directory:")
+    }
+
+    def "can get and set and remove environment variable"() {
+        when:
+        def value = process.getEnvironmentVariable(varName)
+
+        then:
+        value == null
+        System.getenv(varName) == null
+        System.getenv()[varName] == null
+
+        when:
+        process.setEnvironmentVariable(varName, varValue)
+
+        then:
+        process.getEnvironmentVariable(varName) == varValue
+        System.getenv(varName) == varValue
+        System.getenv()[varName] == varValue
+
+        when:
+        process.setEnvironmentVariable(varName, null)
+
+        then:
+        process.getEnvironmentVariable(varName) == null
+        System.getenv(varName) == null
+        System.getenv()[varName] == null
+
+        where:
+        varName              | varValue
+        'TEST_ENV_VAR'       | 'test value'
+        'TEST_ENV_VAR\u03b1' | 'value\u03b2'
+    }
+
+    def "setting environment variable to null or empty string remove the environment variable"() {
+        when:
+        def value = process.getEnvironmentVariable(varName)
+
+        then:
+        value == null
+        System.getenv(varName) == null
+        System.getenv()[varName] == null
+
+        when:
+        process.setEnvironmentVariable(varName, varValue)
+
+        then:
+        process.getEnvironmentVariable(varName) == null
+        System.getenv(varName) == null
+        System.getenv()[varName] == null
+
+        where:
+        varName              | varValue
+        'TEST_ENV_VAR_EMPTY' | ''
+        'TEST_ENV_VAR_NULL'  | null
+    }
+
+    def "can remove environment variable that does not exist"() {
+        assert process.getEnvironmentVariable("TEST_ENV_UNKNOWN") == null
+
+        when:
+        process.setEnvironmentVariable("TEST_ENV_UNKNOWN", null)
+
+        then:
+        notThrown(NativeException)
+    }
 }

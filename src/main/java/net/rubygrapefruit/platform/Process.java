@@ -46,4 +46,23 @@ public interface Process extends NativeIntegration {
      */
     @ThreadSafe
     void setWorkingDirectory(File directory) throws NativeException;
+
+    /**
+     * Get the value of an environment variable.
+     *
+     * @return The value or null if no such environment variable.
+     * @throws NativeException On failure.
+     */
+    @ThreadSafe
+    String getEnvironmentVariable(String name) throws NativeException;
+
+    /**
+     * Sets the value of an environment variable.
+     *
+     * @param value the new value. Use null to remove the environment variable. Note that on some platforms it is not
+     * possible to remove the environment variable. On such platforms, the value is set to an empty string instead.
+     * @throws NativeException On failure.
+     */
+    @ThreadSafe
+    void setEnvironmentVariable(String name, String value) throws NativeException;
 }

@@ -109,13 +109,55 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_setWorkingDi
     if (dirPath == NULL) {
         return;
     }
-    if (!SetCurrentDirectoryW(dirPath)) {
+    BOOL ok = SetCurrentDirectoryW(dirPath);
+    free(dirPath);
+    if (!ok) {
         mark_failed_with_errno(env, "could not set current directory", result);
-        free(dirPath);
         return;
     }
+}
 
-    free(dirPath);
+JNIEXPORT jstring JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_getEnvironmentVariable(JNIEnv *env, jclass target, jstring var, jobject result) {
+    wchar_t* varStr = java_to_wchar(env, var, result);
+    DWORD len = GetEnvironmentVariableW(varStr, NULL, 0);
+    if (len == 0) {
+        if (GetLastError() != ERROR_ENVVAR_NOT_FOUND) {
+            mark_failed_with_errno(env, "could not determine length of environment variable", result);
+        }
+        free(varStr);
+        return NULL;
+    }
+    wchar_t* valueStr = (wchar_t*)malloc(sizeof(wchar_t) * len);
+    DWORD copied = GetEnvironmentVariableW(varStr, valueStr, len);
+    if (copied == 0) {
+        if (len > 1) {
+            // If the value is empty, then copied will be 0
+            mark_failed_with_errno(env, "could not get environment variable", result);
+        }
+        free(varStr);
+        free(valueStr);
+        return NULL;
+    }
+    free(varStr);
+    jstring value = wchar_to_java(env, valueStr, copied, result);
+    free(valueStr);
+    return value;
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_setEnvironmentVariable(JNIEnv *env, jclass target, jstring var, jstring value, jobject result) {
+    wchar_t* varStr = java_to_wchar(env, var, result);
+    wchar_t* valueStr = value == NULL ? NULL : java_to_wchar(env, value, result);
+    BOOL ok = SetEnvironmentVariableW(varStr, valueStr);
+    free(varStr);
+    if (valueStr != NULL) {
+        free(valueStr);
+    }
+    if (!ok && GetLastError() != ERROR_ENVVAR_NOT_FOUND) {
+        mark_failed_with_errno(env, "could not set environment var", result);
+        return;
+    }
 }
 
 /*
