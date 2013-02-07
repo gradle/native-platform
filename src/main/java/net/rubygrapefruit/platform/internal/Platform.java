@@ -67,13 +67,11 @@ public abstract class Platform {
     }
 
     public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
-        throw new NativeIntegrationUnavailableException(String.format("Native integration %s is not supported for the current operating system (%s)",
-                type.getSimpleName(), toString()));
+        throw new NativeIntegrationUnavailableException(String.format("Native integration %s is not supported for %s.", type.getSimpleName(), toString()));
     }
 
     public String getLibraryName() {
-        throw new NativeIntegrationUnavailableException(String.format(
-                "Native integration is not available for the current operating system (%s)", toString()));
+        throw new NativeIntegrationUnavailableException(String.format("Native integration is not available for %s.", toString()));
     }
 
     private static String getOperatingSystem() {

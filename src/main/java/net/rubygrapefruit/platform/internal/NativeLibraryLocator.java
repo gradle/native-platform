@@ -30,9 +30,9 @@ public class NativeLibraryLocator {
         this.extractDir = extractDir;
     }
 
-    public File find(String libraryName) throws IOException {
+    public File find(String libraryFileName) throws IOException {
         if (extractDir != null) {
-            File libFile = new File(extractDir, String.format("%s/%s", NativeLibraryFunctions.VERSION, libraryName));
+            File libFile = new File(extractDir, String.format("%s/%s", NativeLibraryFunctions.VERSION, libraryFileName));
             File lockFile = new File(libFile.getParentFile(), libFile.getName() + ".lock");
             lockFile.getParentFile().mkdirs();
             lockFile.createNewFile();
@@ -44,7 +44,7 @@ public class NativeLibraryLocator {
                     // Library has been extracted
                     return libFile;
                 }
-                URL resource = getClass().getClassLoader().getResource(libraryName);
+                URL resource = getClass().getClassLoader().getResource(libraryFileName);
                 if (resource != null) {
                     // Extract library and write marker to lock file
                     libFile.getParentFile().mkdirs();
@@ -58,20 +58,20 @@ public class NativeLibraryLocator {
                 lockFileAccess.close();
             }
         } else {
-            URL resource = getClass().getClassLoader().getResource(libraryName);
+            URL resource = getClass().getClassLoader().getResource(libraryFileName);
             if (resource != null) {
                 File libFile;
                 File libDir = File.createTempFile("native-platform", "dir");
                 libDir.delete();
                 libDir.mkdirs();
-                libFile = new File(libDir, libraryName);
+                libFile = new File(libDir, libraryFileName);
                 libFile.deleteOnExit();
                 copy(resource, libFile);
                 return libFile;
             }
         }
 
-        File libFile = new File("build/binaries/" + libraryName);
+        File libFile = new File("build/binaries/" + libraryFileName);
         if (libFile.isFile()) {
             return libFile;
         }

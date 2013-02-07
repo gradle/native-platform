@@ -25,28 +25,29 @@ import java.util.Set;
 
 public class NativeLibraryLoader {
     private final Set<String> loaded = new HashSet<String>();
-    private final NativeLibraryLocator locator;
+    private final Platform platform;
+    private final NativeLibraryLocator nativeLibraryLocator;
 
-    public NativeLibraryLoader(NativeLibraryLocator locator) {
-        this.locator = locator;
+    public NativeLibraryLoader(Platform platform, NativeLibraryLocator nativeLibraryLocator) {
+        this.platform = platform;
+        this.nativeLibraryLocator = nativeLibraryLocator;
     }
 
-    public void load(String name) {
-        if (loaded.contains(name)) {
+    public void load(String libraryFileName) {
+        if (loaded.contains(libraryFileName)) {
             return;
         }
         try {
-            File libFile = locator.find(name);
+            File libFile = nativeLibraryLocator.find(libraryFileName);
             if (libFile == null) {
-                throw new NativeIntegrationUnavailableException(String.format(
-                        "Native library is not available for this operating system and architecture."));
+                throw new NativeIntegrationUnavailableException(String.format("Native library is not available for %s.", platform));
             }
             System.load(libFile.getCanonicalPath());
         } catch (NativeException e) {
             throw e;
         } catch (Throwable t) {
-            throw new NativeException(String.format("Failed to load native library '%s'.", name), t);
+            throw new NativeException(String.format("Failed to load native library '%s' for %s.", libraryFileName, platform), t);
         }
-        loaded.add(name);
+        loaded.add(libraryFileName);
     }
 }
