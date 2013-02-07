@@ -33,23 +33,16 @@ class PosixFileTest extends Specification {
     }
 
     def "can set mode on a file"() {
-        def testFile = tmpDir.newFile("test.txt")
+        def testFile = tmpDir.newFile(fileName)
 
         when:
         file.setMode(testFile, 0740)
 
         then:
         file.getMode(testFile) == 0740
-    }
 
-    def "can set mode on a file with unicode in its name"() {
-        def testFile = tmpDir.newFile("test\u03b1.txt")
-
-        when:
-        file.setMode(testFile, 0740)
-
-        then:
-        file.getMode(testFile) == 0740
+        where:
+        fileName << ["test.txt", "test\u03b1.txt"]
     }
 
     def "cannot set mode on file that does not exist"() {

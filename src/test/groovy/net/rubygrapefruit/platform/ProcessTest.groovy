@@ -34,8 +34,8 @@ class ProcessTest extends Specification {
         process.getProcessId() != 0
     }
 
-    def "can change working directory"() {
-        def newDir = tmpDir.newFolder("dir").canonicalFile
+    def "can get and change working directory"() {
+        def newDir = tmpDir.newFolder(dir).canonicalFile
 
         when:
         def original = process.workingDirectory
@@ -54,5 +54,8 @@ class ProcessTest extends Specification {
 
         cleanup:
         process.workingDirectory = original
+
+        where:
+        dir << ['dir', 'dir\u03b1']
     }
 }

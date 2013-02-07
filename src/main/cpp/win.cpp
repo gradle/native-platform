@@ -28,6 +28,22 @@ void mark_failed_with_errno(JNIEnv *env, const char* message, jobject result) {
     mark_failed_with_code(env, message, GetLastError(), result);
 }
 
+jstring wchar_to_java(JNIEnv* env, const wchar_t* chars, size_t len, jobject result) {
+    if (sizeof(wchar_t) != 2) {
+        mark_failed_with_message(env, "unexpected size of wchar_t", result);
+        return NULL;
+    }
+    return env->NewString((jchar*)chars, len);
+}
+
+wchar_t* java_to_wchar(JNIEnv *env, jstring string, jobject result) {
+    jsize len = env->GetStringLength(string);
+    wchar_t* str = (wchar_t*)malloc(sizeof(wchar_t) * (len+1));
+    env->GetStringRegion(string, 0, len, (jchar*)str);
+    str[len] = L'\0';
+    return str;
+}
+
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getSystemInfo(JNIEnv *env, jclass target, jobject info, jobject result) {
     jclass infoClass = env->GetObjectClass(info);
@@ -65,6 +81,41 @@ Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getSystemIn
 JNIEXPORT jint JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_getPid(JNIEnv *env, jclass target) {
     return GetCurrentProcessId();
+}
+
+JNIEXPORT jstring JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_getWorkingDirectory(JNIEnv *env, jclass target, jobject result) {
+    DWORD size = GetCurrentDirectoryW(0, NULL);
+    if (size == 0) {
+        mark_failed_with_errno(env, "could not determine length of working directory path", result);
+        return NULL;
+    }
+    size = size+1; // Needs to include null character
+    wchar_t* path = (wchar_t*)malloc(sizeof(wchar_t) * size);
+    DWORD copied = GetCurrentDirectoryW(size, path);
+    if (copied == 0) {
+        free(path);
+        mark_failed_with_errno(env, "could get working directory path", result);
+        return NULL;
+    }
+    jstring dirName = wchar_to_java(env, path, copied, result);
+    free(path);
+    return dirName;
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_setWorkingDirectory(JNIEnv *env, jclass target, jstring dir, jobject result) {
+    wchar_t* dirPath = java_to_wchar(env, dir, result);
+    if (dirPath == NULL) {
+        return;
+    }
+    if (!SetCurrentDirectoryW(dirPath)) {
+        mark_failed_with_errno(env, "could not set current directory", result);
+        free(dirPath);
+        return;
+    }
+
+    free(dirPath);
 }
 
 /*
@@ -121,8 +172,11 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
                 wcscpy(fsName, L"unknown");
             }
             for (;cur[0] != L'\0'; cur += wcslen(cur) + 1) {
-                env->CallVoidMethod(info, method, env->NewString((jchar*)deviceName, wcslen(deviceName)),
-                                    env->NewString((jchar*)fsName, wcslen(fsName)), env->NewString((jchar*)cur, wcslen(cur)), JNI_FALSE);
+                env->CallVoidMethod(info, method,
+                                    wchar_to_java(env, cur, wcslen(cur), result),
+                                    wchar_to_java(env, fsName, wcslen(fsName), result),
+                                    wchar_to_java(env, deviceName, wcslen(deviceName), result),
+                                    JNI_FALSE);
             }
         }
 

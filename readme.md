@@ -182,7 +182,6 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 * Determine C charset once at startup
 * Change readLink() implementation so that it does not need to NULL terminate the encoded content
 * Don't use NewStringUTF() anywhere
-* Don't use NewString() anywhere
 * Use iconv() to convert from C char string to UTF-16 when converting from C char string to Java String.
 * Support for cygwin terminal
 * Use TERM=xtermc instead of TERM=xterm on Solaris.
