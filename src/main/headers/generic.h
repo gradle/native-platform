@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-#define NATIVE_VERSION 13
+#define NATIVE_VERSION 14
 
 /*
  * Marks the given result as failed, using the given error message
@@ -38,7 +38,7 @@ extern void mark_failed_with_errno(JNIEnv *env, const char* message, jobject res
 /*
  * Marks the given result as failed, using the given error message and error code
  */
-extern void mark_failed_with_code(JNIEnv *env, const char* message, int error_code, jobject result);
+extern void mark_failed_with_code(JNIEnv *env, const char* message, int error_code, const char* error_code_message, jobject result);
 
 /*
  * Converts the given Java string to a NULL terminated wchar_str. Should call free() when finished.

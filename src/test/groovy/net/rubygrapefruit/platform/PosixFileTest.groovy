@@ -53,7 +53,7 @@ class PosixFileTest extends Specification {
 
         then:
         NativeException e = thrown()
-        e.message == "Could not set UNIX mode on $testFile: could not chmod file (errno 2)"
+        e.message == "Could not set UNIX mode on $testFile: could not chmod file (ENOENT errno 2)"
     }
 
     def "cannot get mode on file that does not exist"() {
@@ -64,7 +64,7 @@ class PosixFileTest extends Specification {
 
         then:
         NativeException e = thrown()
-        e.message == "Could not get UNIX mode on $testFile: could not stat file (errno 2)"
+        e.message == "Could not get UNIX mode on $testFile: could not stat file (ENOENT errno 2)"
     }
 
     def "can create symbolic link"() {
@@ -99,7 +99,7 @@ class PosixFileTest extends Specification {
 
         then:
         NativeException e = thrown()
-        e.message == "Could not read symlink $symlinkFile: could not lstat file (errno 2)"
+        e.message == "Could not read symlink $symlinkFile: could not lstat file (ENOENT errno 2)"
     }
 
     def "cannot read a symlink that is not a symlink"() {

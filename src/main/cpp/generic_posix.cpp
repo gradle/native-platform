@@ -29,7 +29,14 @@
 #include <string.h>
 
 void mark_failed_with_errno(JNIEnv *env, const char* message, jobject result) {
-    mark_failed_with_code(env, message, errno, result);
+    const char * errno_message = NULL;
+    switch(errno) {
+        case ENOENT:
+            errno_message = "ENOENT";
+            break;
+    }
+
+    mark_failed_with_code(env, message, errno, errno_message, result);
 }
 
 char* java_to_char(JNIEnv *env, jstring string, jobject result) {

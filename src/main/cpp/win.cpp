@@ -25,7 +25,7 @@
  * Marks the given result as failed, using the current value of GetLastError()
  */
 void mark_failed_with_errno(JNIEnv *env, const char* message, jobject result) {
-    mark_failed_with_code(env, message, GetLastError(), result);
+    mark_failed_with_code(env, message, GetLastError(), NULL, result);
 }
 
 jstring wchar_to_java(JNIEnv* env, const wchar_t* chars, size_t len, jobject result) {

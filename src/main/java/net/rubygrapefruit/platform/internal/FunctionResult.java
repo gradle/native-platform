@@ -19,10 +19,12 @@ package net.rubygrapefruit.platform.internal;
 public class FunctionResult {
     String message;
     int errno;
+    private String errorCodeDescription;
 
-    void failed(String message, int errno) {
+    void failed(String message, int errno, String errorCodeDescription) {
         this.message = message;
         this.errno = errno;
+        this.errorCodeDescription = errorCodeDescription;
     }
 
     void failed(String message) {
@@ -34,6 +36,9 @@ public class FunctionResult {
     }
 
     public String getMessage() {
+        if (errorCodeDescription != null) {
+            return String.format("%s (%s errno %d)", message, errorCodeDescription, errno);
+        }
         if (errno != 0) {
             return String.format("%s (errno %d)", message, errno);
         }
