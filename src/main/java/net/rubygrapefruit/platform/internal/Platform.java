@@ -91,7 +91,7 @@ public abstract class Platform {
         @Override
         public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
             if (type.equals(Process.class)) {
-                return type.cast(new DefaultProcess());
+                return type.cast(new WrapperProcess(new DefaultProcess()));
             }
             if (type.equals(Terminals.class)) {
                 return type.cast(new WindowsTerminals());
@@ -129,7 +129,7 @@ public abstract class Platform {
                 return type.cast(new DefaultPosixFile());
             }
             if (type.equals(Process.class)) {
-                return type.cast(new DefaultProcess());
+                return type.cast(new WrapperProcess(new DefaultProcess()));
             }
             if (type.equals(Terminals.class)) {
                 nativeLibraryLoader.load(getCursesLibraryName());

@@ -23,56 +23,45 @@ import net.rubygrapefruit.platform.internal.jni.PosixProcessFunctions;
 import java.io.File;
 
 public class DefaultProcess implements Process {
-    private final Object workingDirectoryLock = new Object();
-    private final Object environmentLock = new Object();
-
     public int getProcessId() throws NativeException {
         return PosixProcessFunctions.getPid();
     }
 
     public File getWorkingDirectory() throws NativeException {
         FunctionResult result = new FunctionResult();
-        synchronized (workingDirectoryLock) {
-            String dir = PosixProcessFunctions.getWorkingDirectory(result);
-            if (result.isFailed()) {
-                throw new NativeException(String.format("Could not get process working directory: %s",
-                        result.getMessage()));
-            }
-            return new File(dir);
+        String dir = PosixProcessFunctions.getWorkingDirectory(result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not get process working directory: %s",
+                    result.getMessage()));
         }
+        return new File(dir);
     }
 
     public void setWorkingDirectory(File directory) throws NativeException {
         FunctionResult result = new FunctionResult();
-        synchronized (workingDirectoryLock) {
-            PosixProcessFunctions.setWorkingDirectory(directory.getAbsolutePath(), result);
-            if (result.isFailed()) {
-                throw new NativeException(String.format("Could not set process working directory: %s",
-                        result.getMessage()));
-            }
-            System.setProperty("user.dir", directory.getAbsolutePath());
+        PosixProcessFunctions.setWorkingDirectory(directory.getAbsolutePath(), result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not set process working directory to '%s': %s",
+                    directory.getAbsoluteFile(), result.getMessage()));
         }
     }
 
     public String getEnvironmentVariable(String name) throws NativeException {
         FunctionResult result = new FunctionResult();
-        String value;
-        synchronized (environmentLock) {
-            value = PosixProcessFunctions.getEnvironmentVariable(name, result);
-        }
+        String value = PosixProcessFunctions.getEnvironmentVariable(name, result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not get the value of environment variable '%s': %s", name, result.getMessage()));
+            throw new NativeException(String.format("Could not get the value of environment variable '%s': %s", name,
+                    result.getMessage()));
         }
         return value;
     }
 
     public void setEnvironmentVariable(String name, String value) throws NativeException {
         FunctionResult result = new FunctionResult();
-        synchronized (environmentLock) {
-            PosixProcessFunctions.setEnvironmentVariable(name, value, result);
-        }
+        PosixProcessFunctions.setEnvironmentVariable(name, value, result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not set the value of environment variable '%s': %s", name, result.getMessage()));
+            throw new NativeException(String.format("Could not set the value of environment variable '%s': %s", name,
+                    result.getMessage()));
         }
     }
 }

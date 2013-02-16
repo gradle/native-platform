@@ -19,6 +19,7 @@ package net.rubygrapefruit.platform
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import spock.lang.Specification
+import spock.lang.Unroll
 
 class ProcessTest extends Specification {
     @Rule TemporaryFolder tmpDir
@@ -36,6 +37,7 @@ class ProcessTest extends Specification {
 
     def "can get and change working directory"() {
         def newDir = tmpDir.newFolder(dir).canonicalFile
+        assert newDir.directory
 
         when:
         def original = process.workingDirectory
@@ -67,7 +69,7 @@ class ProcessTest extends Specification {
 
         then:
         NativeException e = thrown()
-        e.message.startsWith("Could not set process working directory:")
+        e.message.startsWith("Could not set process working directory")
     }
 
     def "can get and set and remove environment variable"() {

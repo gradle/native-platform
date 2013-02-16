@@ -50,7 +50,8 @@ public interface Process extends NativeIntegration {
     /**
      * Get the value of an environment variable.
      *
-     * @return The value or null if no such environment variable.
+     * @return The value or null if no such environment variable. Also returns null for an environment variable whose
+     *         value is an empty string.
      * @throws NativeException On failure.
      */
     @ThreadSafe
@@ -59,8 +60,9 @@ public interface Process extends NativeIntegration {
     /**
      * Sets the value of an environment variable.
      *
-     * @param value the new value. Use null to remove the environment variable. Note that on some platforms it is not
-     * possible to remove the environment variable. On such platforms, the value is set to an empty string instead.
+     * @param value the new value. Use null or an empty string to remove the environment variable. Note that on some
+     * platforms it is not possible to remove the environment variable safely. On such platforms, the value is set to an
+     * empty string instead.
      * @throws NativeException On failure.
      */
     @ThreadSafe
