@@ -131,6 +131,9 @@ public abstract class Platform {
             if (type.equals(Process.class)) {
                 return type.cast(new WrapperProcess(new DefaultProcess()));
             }
+            if (type.equals(ProcessLauncher.class)) {
+                return type.cast(new DefaultProcessLauncher());
+            }
             if (type.equals(Terminals.class)) {
                 nativeLibraryLoader.load(getCursesLibraryName());
                 int nativeVersion = TerminfoFunctions.getVersion();
