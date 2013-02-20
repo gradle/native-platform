@@ -45,8 +45,8 @@ Currently ported to OS X, Linux and Windows. Support for Solaris and FreeBSD is 
 
 * OS X 10.7.4, 10.8 (x86_64), 10.6.7 (i386)
 * Ubunutu 12.04 (amd64), 8.04.4 (i386, amd64)
-* Solaris 11 (x86)
 * Windows 7 (x64), XP (x86)
+* Solaris 11 (x86)
 
 ## Using
 
@@ -58,7 +58,7 @@ this:
     }
 
     dependencies {
-        compile "net.rubygrapefruit:native-platform:0.3"
+        compile "net.rubygrapefruit:native-platform:0.4"
     }
 
 You can also download [here](http://repo.gradle.org/gradle/libs-releases-local/net/rubygrapefruit/)
@@ -81,6 +81,12 @@ Some sample code to use the terminal:
     System.out.println("bold text");
 
 ## Changes
+
+### 0.4
+
+* Get and set process working directory.
+* Get and set process environment variables.
+* Launch processes.
 
 ### 0.3
 
@@ -166,6 +172,7 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
 * Posix: allow terminal to be detected when ncurses cannot be loaded
 * Windows: fix detection of shared drive under VMWare fusion and Windows XP
+* Windows: restore std handles after launching child process
 * Linux: detect remote filesystems.
 * Solaris: fix unicode file name handling.
 * Solaris: fail for unsupported architecture.
@@ -187,7 +194,6 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 * Support for cygwin terminal
 * Use TERM=xtermc instead of TERM=xterm on Solaris.
 * Add diagnostics for terminal.
-* Split out separate native library for terminal handling.
 * Version each native interface separately.
 * String names for errno values.
 * Split into multiple projects.
@@ -206,7 +212,7 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
 * Expose platform-specific HTTP proxy configuration. Query registry on windows to determine IE settings.
 * Expose native named semaphores, mutexes and condition variables (CreateMutex, CreateSemaphore, CreateEvent, semget, sem_open, etc).
-* Expose infromation about network interfaces.
+* Expose information about network interfaces.
 * Fire events when filesystems or network interfaces change in some way.
 * Fire events when terminal size changes.
 * Fire events when files change.
