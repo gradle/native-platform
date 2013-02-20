@@ -142,8 +142,9 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
 # Releasing
 
-1. Create a tag and push.
-2. Build each variant:
+1. Check the version number in `build.gradle`.
+2. Create a tag and push.
+3. Build each variant:
     1. Checkout tag.
     2. `./gradlew clean :test :uploadJni -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`
     * OS X universal
@@ -151,11 +152,11 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
     * Linux amd64, using Ubunutu 8.04
     * Windows x86, using VC++ 2010
     * Windows x64
-3. Build Java library and test app:
+4. Build Java library and test app:
     1. Checkout tag.
     2. `./gradlew clean :test :uploadArchives testApp:uploadArchives -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`
-4. Checkout master
-5. Increment version number in `build.gradle` and this readme.
+5. Checkout master
+6. Increment version number in `build.gradle` and this readme.
 
 ## Testing
 
