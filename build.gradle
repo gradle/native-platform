@@ -59,6 +59,7 @@ task nativeHeaders {
             args 'net.rubygrapefruit.platform.internal.jni.PosixTerminalFunctions'
             args 'net.rubygrapefruit.platform.internal.jni.TerminfoFunctions'
             args 'net.rubygrapefruit.platform.internal.jni.WindowsConsoleFunctions'
+            args 'net.rubygrapefruit.platform.internal.jni.WindowsHandleFunctions'
         }
     }
 }

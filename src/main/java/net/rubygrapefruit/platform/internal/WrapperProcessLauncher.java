@@ -18,13 +18,22 @@ package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.ProcessLauncher;
+import net.rubygrapefruit.platform.ThreadSafe;
 
-public class DefaultProcessLauncher implements ProcessLauncher {
+@ThreadSafe
+public class WrapperProcessLauncher implements ProcessLauncher {
+    private final Object startLock = new Object();
+    private final ProcessLauncher launcher;
+
+    public WrapperProcessLauncher(ProcessLauncher launcher) {
+        this.launcher = launcher;
+    }
+
     public Process start(ProcessBuilder processBuilder) throws NativeException {
-        try {
-            return processBuilder.start();
-        } catch (Exception e) {
-            throw new NativeException(String.format("Could not start '%s'", processBuilder.command().get(0)), e);
+        synchronized (startLock) {
+            // Start a single process at a time, to avoid streams to child process being inherited by other
+            // children before the parent can close them
+            return launcher.start(processBuilder);
         }
     }
 }

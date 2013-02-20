@@ -31,11 +31,15 @@ import java.util.Map;
 @ThreadSafe
 public class WrapperProcess implements Process {
     private final Process process;
+    private final boolean windows;
     private final Object workingDirectoryLock = new Object();
     private final Object environmentLock = new Object();
+    private Map<String, String> environment;
+    private Map<String, String> windowsEnvironment;
 
-    public WrapperProcess(Process process) {
+    public WrapperProcess(Process process, boolean windows) {
         this.process = process;
+        this.windows = windows;
     }
 
     @Override
@@ -81,22 +85,44 @@ public class WrapperProcess implements Process {
 
     private void removeEnvInternal(String name) {
         getEnv().remove(name);
+        if (windows) {
+            getWindowsEnv().remove(name);
+        }
     }
 
     private void setEnvInternal(String name, String value) {
         getEnv().put(name, value);
-    }
-
-    private Map<String, String> getEnv() {
-        try {
-            Map<String, String> theUnmodifiableEnvironment = System.getenv();
-            Class<?> cu = theUnmodifiableEnvironment.getClass();
-            Field m = cu.getDeclaredField("m");
-            m.setAccessible(true);
-            return (Map<String, String>)m.get(theUnmodifiableEnvironment);
-        } catch (Exception e) {
-            throw new NativeException("Unable to get mutable environment map.", e);
+        if (windows) {
+            getWindowsEnv().put(name, value);
         }
     }
 
+    private Map<String, String> getEnv() {
+        if (environment == null) {
+            try {
+                Map<String, String> theUnmodifiableEnvironment = System.getenv();
+                Class<?> cu = theUnmodifiableEnvironment.getClass();
+                Field m = cu.getDeclaredField("m");
+                m.setAccessible(true);
+                environment = (Map<String, String>) m.get(theUnmodifiableEnvironment);
+            } catch (Exception e) {
+                throw new NativeException("Unable to get mutable environment variable map.", e);
+            }
+        }
+        return environment;
+    }
+
+    private Map<String, String> getWindowsEnv() {
+        if (windowsEnvironment == null) {
+            try {
+                Class<?> sc = Class.forName("java.lang.ProcessEnvironment");
+                Field caseinsensitive = sc.getDeclaredField("theCaseInsensitiveEnvironment");
+                caseinsensitive.setAccessible(true);
+                windowsEnvironment = (Map<String, String>) caseinsensitive.get(null);
+            } catch (Exception e) {
+                throw new NativeException("Unable to get mutable Windows environment variable map", e);
+            }
+        }
+        return windowsEnvironment;
+    }
 }
