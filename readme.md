@@ -58,7 +58,7 @@ this:
     }
 
     dependencies {
-        compile "net.rubygrapefruit:native-platform:0.4"
+        compile "net.rubygrapefruit:native-platform:0.3"
     }
 
 You can also download [here](http://repo.gradle.org/gradle/libs-releases-local/net/rubygrapefruit/)
@@ -82,14 +82,11 @@ Some sample code to use the terminal:
 
 ## Changes
 
-### 0.4
+### 0.3
 
 * Get and set process working directory.
 * Get and set process environment variables.
 * Launch processes.
-
-### 0.3
-
 * Fixes to work with 64-bit OpenJDK 7 on Mac OS X. Thanks to Rene Gr�schke.
 
 ### 0.2
