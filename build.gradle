@@ -236,11 +236,13 @@ javadoc {
 task sourceZip(type: Zip) {
     from sourceSets.main.allSource
     classifier = 'sources'
+    extension = 'jar'
 }
 
 task javadocZip(type: Zip) {
     from javadoc
     classifier = 'javadoc'
+    extension = 'jar'
 }
 
 artifacts {
