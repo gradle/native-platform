@@ -87,6 +87,7 @@ Some sample code to use the terminal:
 * Get and set process working directory.
 * Get and set process environment variables.
 * Launch processes.
+* Fixed character set issue on Linux and Mac OS X.
 * Fixes to work with 64-bit OpenJDK 7 on Mac OS X. Thanks to Rene Gr�schke.
 
 ### 0.2
@@ -184,8 +185,7 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 * Use wchar_to_java() for windows system and file system info.
 * Test network file systems on Mac, Linux, Windows
 * Test mount points on Windows
-* Cache class, method and field lookups (in particular for String conversions).
-* Determine C charset once at startup
+* Cache class, method and field lookups
 * Change readLink() implementation so that it does not need to NULL terminate the encoded content
 * Don't use NewStringUTF() anywhere
 * Use iconv() to convert from C char string to UTF-16 when converting from C char string to Java String.
