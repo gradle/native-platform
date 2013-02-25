@@ -169,6 +169,9 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
 ### Fixes
 
+* All: Process.getPid() should return a long
+* All: fall back to WrapperProcessLauncher + DefaultProcessLauncher for all platforms, regardless of whether a
+  native integration is available or not.
 * Posix: allow terminal to be detected when ncurses cannot be loaded
 * Windows: fix detection of shared drive under VMWare fusion and Windows XP
 * Windows: restore std handles after launching child process
