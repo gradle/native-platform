@@ -19,7 +19,6 @@ package net.rubygrapefruit.platform
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import spock.lang.Specification
-import spock.lang.Unroll
 
 class ProcessTest extends Specification {
     @Rule TemporaryFolder tmpDir
@@ -58,7 +57,7 @@ class ProcessTest extends Specification {
         process.workingDirectory = original
 
         where:
-        dir << ['dir', 'dir\u03b1']
+        dir << ['dir', 'dir\u03b1\u2295']
     }
 
     def "cannot set working directory to a directory that does not exist"() {
@@ -98,9 +97,9 @@ class ProcessTest extends Specification {
         System.getenv()[varName] == null
 
         where:
-        varName              | varValue
-        'TEST_ENV_VAR'       | 'test value'
-        'TEST_ENV_VAR\u03b1' | 'value\u03b2'
+        varName                    | varValue
+        'TEST_ENV_VAR'             | 'test value'
+        'TEST_ENV_VAR\u2295\u03b1' | 'value\u03b2\u2296'
     }
 
     def "setting environment variable to null or empty string remove the environment variable"() {

@@ -42,7 +42,7 @@ class PosixFileTest extends Specification {
         file.getMode(testFile) == 0740
 
         where:
-        fileName << ["test.txt", "test\u03b1.txt"]
+        fileName << ["test.txt", "test\u03b1\u2295.txt"]
     }
 
     def "cannot set mode on file that does not exist"() {
@@ -114,9 +114,9 @@ class PosixFileTest extends Specification {
     }
 
     def "can create and read symlink with unicode in its name"() {
-        def testFile = new File(tmpDir.root, "target\u03b2")
+        def testFile = new File(tmpDir.root, "target\u03b2\u2295")
         testFile.text = 'hi'
-        def symlinkFile = new File(tmpDir.root, "symlink\u03b2")
+        def symlinkFile = new File(tmpDir.root, "symlink\u03b2\u2296")
 
         when:
         file.symlink(symlinkFile, testFile.name)
