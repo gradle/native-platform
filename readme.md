@@ -170,8 +170,6 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 ### Fixes
 
 * All: Process.getPid() should return a long
-* All: fall back to WrapperProcessLauncher + DefaultProcessLauncher for all platforms, regardless of whether a
-  native integration is available or not.
 * Posix: allow terminal to be detected when ncurses cannot be loaded
 * Windows: fix detection of shared drive under VMWare fusion and Windows XP
 * Windows: restore std handles after launching child process
@@ -185,29 +183,35 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
 ### Improvements
 
-* Use wchar_to_java() for windows system and file system info.
-* Test network file systems on Mac, Linux, Windows
-* Test mount points on Windows
-* Cache class, method and field lookups
-* Change readLink() implementation so that it does not need to NULL terminate the encoded content
-* Don't use NewStringUTF() anywhere
-* Use iconv() to convert from C char string to UTF-16 when converting from C char string to Java String.
-* Support for cygwin terminal
-* Use TERM=xtermc instead of TERM=xterm on Solaris.
-* Add diagnostics for terminal.
-* Version each native interface separately.
-* String names for errno values.
-* Split into multiple projects.
-* Convert to c.
-* Use fully decomposed form for unicode file names on hfs+ filesystems.
-* Extend FileSystem to deal with removable media.
-* Add a method to Terminal that returns a PrintStream that can be used to write to the terminal, regardless of what
+* All: fall back to WrapperProcessLauncher + DefaultProcessLauncher for all platforms, regardless of whether a
+  native integration is available or not.
+* All: change the terminal API to handle the fact that stdout/stderr/stdin can all be attached to the same or to
+  different terminals.
+* All: have Terminal extend Appendable and Flushable
+* All: add a method to Terminal that returns a PrintStream that can be used to write to the terminal, regardless of what
   System.out/System.err point to.
-* Add a Terminal implementation that uses ANSI control codes. Use this on UNIX platforms when TERM != 'dumb' and
+* Windows: use wchar_to_java() for system and file system info.
+* All: test network file systems
+* Windows: test mount points
+* All: cache class, method and field lookups
+* Unix: change readLink() implementation so that it does not need to NULL terminate the encoded content
+* All: don't use NewStringUTF() anywhere
+* Mac: change java_to_char() to convert java string directly to utf-8 char string.
+* Mac: change char_to_java() to assume utf-8 encoding and convert directly to java string.
+* Linux: change char_to_java() to use iconv() to convert from C char string to UTF-16 then to java string.
+* Windows: support for cygwin terminal
+* Solaris: use TERM=xtermc instead of TERM=xterm.
+* All: add diagnostics for terminal.
+* All: version each native interface separately.
+* All: string names for errno values.
+* All: split into multiple projects.
+* Mac: use fully decomposed form for unicode file names on hfs+ filesystems.
+* All: extend FileSystem to deal with removable media.
+* Unix: add a Terminal implementation that uses ANSI control codes. Use this when TERM != 'dumb' and
   libncurses cannot be loaded.
-* Add a method to Terminal that indicates whether the cursor wraps to the next line when a character is written to the
-  rightmost character position.
-* Check for null parameters.
+* All: add a method to Terminal that indicates whether the cursor wraps to the next line when a character is written
+  to the rightmost character position.
+* All: check for null parameters.
 
 ### Ideas
 
