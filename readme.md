@@ -169,7 +169,8 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
 ### Fixes
 
-* All: Process.getPid() should return a long
+* All: `Process.getPid()` should return a long
+* All: fail subsequent calls to `Native.get()` when `Native.initialize()` fails.
 * Posix: allow terminal to be detected when ncurses cannot be loaded
 * Windows: fix detection of shared drive under VMWare fusion and Windows XP
 * Windows: restore std handles after launching child process
@@ -190,17 +191,17 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 * All: have Terminal extend Appendable and Flushable
 * All: add a method to Terminal that returns a PrintStream that can be used to write to the terminal, regardless of what
   System.out/System.err point to.
-* Windows: use wchar_to_java() for system and file system info.
+* Windows: use `wchar_to_java()` for system and file system info.
 * All: test network file systems
 * Windows: test mount points
 * All: cache class, method and field lookups
-* Unix: change readLink() implementation so that it does not need to NULL terminate the encoded content
-* All: don't use NewStringUTF() anywhere
-* Mac: change java_to_char() to convert java string directly to utf-8 char string.
-* Mac: change char_to_java() to assume utf-8 encoding and convert directly to java string.
-* Linux: change char_to_java() to use iconv() to convert from C char string to UTF-16 then to java string.
+* Unix: change `readLink()` implementation so that it does not need to NULL terminate the encoded content
+* All: don't use `NewStringUTF()` anywhere
+* Mac: change `java_to_char()` to convert java string directly to utf-8 char string.
+* Mac: change `char_to_java()` to assume utf-8 encoding and convert directly to java string.
+* Linux: change `char_to_java()` to use `iconv()` to convert from C char string to UTF-16 then to java string.
 * Windows: support for cygwin terminal
-* Solaris: use TERM=xtermc instead of TERM=xterm.
+* Solaris: use `TERM=xtermc` instead of `TERM=xterm`.
 * All: add diagnostics for terminal.
 * All: version each native interface separately.
 * All: string names for errno values.
