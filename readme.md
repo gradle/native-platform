@@ -171,6 +171,7 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
 * All: `Process.getPid()` should return a long
 * All: fail subsequent calls to `Native.get()` when `Native.initialize()` fails.
+* Windows: fix 64 bit library on old versions of Windows.
 * Posix: allow terminal to be detected when ncurses cannot be loaded
 * Windows: fix detection of shared drive under VMWare fusion and Windows XP
 * Windows: restore std handles after launching child process
