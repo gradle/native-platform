@@ -72,7 +72,13 @@ public class NativeLibraryLocator {
             }
         }
 
-        File libFile = new File(String.format("build/binaries/%s/%s", libraryDef.platform, libraryDef.name));
+        String componentName = libraryDef.name.replaceFirst("^lib", "").replaceFirst("\\.\\w+$", "");
+        int pos = componentName.indexOf("-");
+        while (pos >= 0) {
+            componentName = componentName.substring(0, pos) + Character.toUpperCase(componentName.charAt(pos + 1)) + componentName.substring(pos + 2);
+            pos = componentName.indexOf("-", pos);
+        }
+        File libFile = new File(String.format("build/binaries/%sSharedLibrary/%s/%s", componentName, libraryDef.platform.replace("-", "_"), libraryDef.name));
         if (libFile.isFile()) {
             return libFile;
         }
