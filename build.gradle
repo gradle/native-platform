@@ -179,6 +179,7 @@ binaries.withType(SharedLibraryBinary) { binary ->
     def builderTask = binary.tasks.builder
     nativeJar.into("net/rubygrapefruit/platform/$variantName") { from builderTask.outputFile }
     nativeJar.dependsOn builderTask
+    test.dependsOn nativeJar
 }
 
 javadoc {
