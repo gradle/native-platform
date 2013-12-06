@@ -33,7 +33,8 @@ These bindings work for both the UNIX terminal and the Windows console:
 
 * Get and set UNIX file mode.
 * Create and read symbolic links.
-* List the available file systems on the machine
+* Determine file type.
+* List the available file systems on the machine.
 * Query file system mount point.
 * Query file system type.
 * Query file system device name.
@@ -43,9 +44,9 @@ These bindings work for both the UNIX terminal and the Windows console:
 
 Currently ported to OS X, Linux and Windows. Support for Solaris and FreeBSD is a work in progress. Tested on:
 
-* OS X 10.7.4, 10.8 (x86_64), 10.6.7 (i386)
+* OS X 10.9, 10.7.4, 10.8 (x86_64), 10.6.7 (i386)
 * Ubunutu 12.04 (amd64), 8.04.4 (i386, amd64)
-* Windows 7 (x64), XP (x86)
+* Windows 7 (x64), XP (x86, x64)
 * Solaris 11 (x86)
 
 ## Using
@@ -58,7 +59,7 @@ this:
     }
 
     dependencies {
-        compile "net.rubygrapefruit:native-platform:0.3"
+        compile "net.rubygrapefruit:native-platform:0.4"
     }
 
 You can also download [here](http://repo.gradle.org/gradle/libs-releases-local/net/rubygrapefruit/)
@@ -81,6 +82,11 @@ Some sample code to use the terminal:
     System.out.println("bold text");
 
 ## Changes
+
+### 0.4
+
+* Get file type.
+* Fixes to work on 64-bit Windows XP.
 
 ### 0.3
 
