@@ -17,12 +17,12 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
-import net.rubygrapefruit.platform.PosixFile;
+import net.rubygrapefruit.platform.PosixFiles;
 import net.rubygrapefruit.platform.internal.jni.PosixFileFunctions;
 
 import java.io.File;
 
-public class DefaultPosixFile implements PosixFile {
+public class DefaultPosixFiles implements PosixFiles {
     public void setMode(File file, int perms) {
         FunctionResult result = new FunctionResult();
         PosixFileFunctions.chmod(file.getPath(), perms, result);
@@ -41,7 +41,6 @@ public class DefaultPosixFile implements PosixFile {
         return stat.mode;
     }
 
-    @Override
     public String readLink(File link) throws NativeException {
         FunctionResult result = new FunctionResult();
         String contents = PosixFileFunctions.readlink(link.getPath(), result);
@@ -51,7 +50,6 @@ public class DefaultPosixFile implements PosixFile {
         return contents;
     }
 
-    @Override
     public void symlink(File link, String contents) throws NativeException {
         FunctionResult result = new FunctionResult();
         PosixFileFunctions.symlink(link.getPath(), contents, result);

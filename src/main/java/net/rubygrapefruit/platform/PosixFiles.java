@@ -22,7 +22,7 @@ import java.io.File;
  * Functions to query and modify a file's POSIX meta-data.
  */
 @ThreadSafe
-public interface PosixFile extends NativeIntegration {
+public interface PosixFiles extends NativeIntegration {
     /**
      * Sets the mode for the given file.
      *

@@ -137,8 +137,8 @@ public abstract class Platform {
 
         @Override
         public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
-            if (type.equals(PosixFile.class)) {
-                return type.cast(new DefaultPosixFile());
+            if (type.equals(PosixFiles.class)) {
+                return type.cast(new DefaultPosixFiles());
             }
             if (type.equals(Process.class)) {
                 return type.cast(new WrapperProcess(new DefaultProcess(), false));

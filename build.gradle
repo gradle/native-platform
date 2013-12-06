@@ -152,7 +152,7 @@ configurations {
 def deployer = uploadJni.repositories.mavenDeployer
 
 binaries.withType(SharedLibraryBinary) { binary ->
-    if (!buildable) {
+    if (!buildable || targetPlatform.operatingSystem.name == 'linux' && targetPlatform.architecture.name != System.properties['os.arch']) {
         return
     }
 
