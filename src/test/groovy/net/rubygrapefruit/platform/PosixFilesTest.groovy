@@ -32,6 +32,48 @@ class PosixFilesTest extends Specification {
         Native.get(PosixFiles.class) == file
     }
 
+    def "can get details of a file"() {
+        def testFile = tmpDir.newFile(fileName)
+
+        when:
+        def stat = file.stat(testFile)
+
+        then:
+        stat.type == PosixFile.Type.File
+        stat.mode != 0
+
+        where:
+        fileName << ["test.txt", "test\u03b1\u2295.txt"]
+    }
+
+    def "can get details of a directory"() {
+        def testFile = tmpDir.newFolder(fileName)
+
+        when:
+        def stat = file.stat(testFile)
+
+        then:
+        stat.type == PosixFile.Type.Directory
+        stat.mode != 0
+
+        where:
+        fileName << ["test-dir", "test\u03b1\u2295-dir"]
+    }
+
+    def "can get details of a missing file"() {
+        def testFile = new File(tmpDir.root, fileName)
+
+        when:
+        def stat = file.stat(testFile)
+
+        then:
+        stat.type == PosixFile.Type.Missing
+        stat.mode == 0
+
+        where:
+        fileName << ["test-dir", "test\u03b1\u2295-dir"]
+    }
+
     def "can set mode on a file"() {
         def testFile = tmpDir.newFile(fileName)
 
@@ -40,9 +82,24 @@ class PosixFilesTest extends Specification {
 
         then:
         file.getMode(testFile) == 0740
+        file.stat(testFile).mode == 0740
 
         where:
         fileName << ["test.txt", "test\u03b1\u2295.txt"]
+    }
+
+    def "can set mode on a directory"() {
+        def testFile = tmpDir.newFolder(fileName)
+
+        when:
+        file.setMode(testFile, 0740)
+
+        then:
+        file.getMode(testFile) == 0740
+        file.stat(testFile).mode == 0740
+
+        where:
+        fileName << ["test-dir", "test\u03b1\u2295-dir"]
     }
 
     def "cannot set mode on file that does not exist"() {
@@ -64,7 +121,7 @@ class PosixFilesTest extends Specification {
 
         then:
         NativeException e = thrown()
-        e.message == "Could not get UNIX mode on $testFile: could not stat file (ENOENT errno 2)"
+        e.message == "Could not get UNIX mode on $testFile: file does not exist."
     }
 
     def "can create symbolic link"() {
@@ -125,5 +182,22 @@ class PosixFilesTest extends Specification {
         file.readLink(symlinkFile) == testFile.name
         symlinkFile.file
         symlinkFile.canonicalFile == testFile.canonicalFile
+    }
+
+    def "can get details of a symlink"() {
+        def testFile = new File(tmpDir.newFolder("parent"), fileName)
+
+        given:
+        file.symlink(testFile, "target")
+
+        when:
+        def stat = file.stat(testFile)
+
+        then:
+        stat.type == PosixFile.Type.Symlink
+        stat.mode != 0
+
+        where:
+        fileName << ["test.txt", "test\u03b1\u2295.txt"]
     }
 }

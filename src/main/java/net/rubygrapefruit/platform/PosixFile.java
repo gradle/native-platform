@@ -14,19 +14,22 @@
  *    limitations under the License.
  */
 
-package net.rubygrapefruit.platform.internal;
+package net.rubygrapefruit.platform;
 
-import net.rubygrapefruit.platform.PosixFile;
+/**
+ * Provides some information about a file. This is a snapshot and does not change.
+ */
+@ThreadSafe
+public interface PosixFile {
+    enum Type {File, Directory, Symlink, Other, Missing}
 
-public class FileStat implements PosixFile {
-    public int mode;
-    public int type;
+    /**
+     * Returns the type of this file.
+     */
+    Type getType();
 
-    public int getMode() {
-        return mode;
-    }
-
-    public Type getType() {
-        return Type.values()[type];
-    }
+    /**
+     * Returns the mode of this file.
+     */
+    int getMode();
 }

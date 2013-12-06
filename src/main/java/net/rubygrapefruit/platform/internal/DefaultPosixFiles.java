@@ -17,12 +17,23 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
+import net.rubygrapefruit.platform.PosixFile;
 import net.rubygrapefruit.platform.PosixFiles;
 import net.rubygrapefruit.platform.internal.jni.PosixFileFunctions;
 
 import java.io.File;
 
 public class DefaultPosixFiles implements PosixFiles {
+    public PosixFile stat(File file) throws NativeException {
+        FunctionResult result = new FunctionResult();
+        FileStat stat = new FileStat();
+        PosixFileFunctions.stat(file.getPath(), stat, result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not get posix file details of %s: %s", file, result.getMessage()));
+        }
+        return stat;
+    }
+
     public void setMode(File file, int perms) {
         FunctionResult result = new FunctionResult();
         PosixFileFunctions.chmod(file.getPath(), perms, result);
@@ -32,13 +43,11 @@ public class DefaultPosixFiles implements PosixFiles {
     }
 
     public int getMode(File file) {
-        FunctionResult result = new FunctionResult();
-        FileStat stat = new FileStat();
-        PosixFileFunctions.stat(file.getPath(), stat, result);
-        if (result.isFailed()) {
-            throw new NativeException(String.format("Could not get UNIX mode on %s: %s", file, result.getMessage()));
+        PosixFile stat = stat(file);
+        if (stat.getType() == PosixFile.Type.Missing) {
+            throw new NativeException(String.format("Could not get UNIX mode on %s: file does not exist.", file));
         }
-        return stat.mode;
+        return stat.getMode();
     }
 
     public String readLink(File link) throws NativeException {

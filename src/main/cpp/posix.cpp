@@ -71,15 +71,37 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *en
     if (pathStr == NULL) {
         return;
     }
-    int retval = stat(pathStr, &fileInfo);
+    int retval = lstat(pathStr, &fileInfo);
     free(pathStr);
-    if (retval != 0) {
+    if (retval != 0 && errno != ENOENT) {
         mark_failed_with_errno(env, "could not stat file", result);
         return;
     }
+
     jclass destClass = env->GetObjectClass(dest);
     jfieldID modeField = env->GetFieldID(destClass, "mode", "I");
-    env->SetIntField(dest, modeField, 0777 & fileInfo.st_mode);
+    jfieldID typeField = env->GetFieldID(destClass, "type", "I");
+
+    if (retval != 0) {
+        env->SetIntField(dest, typeField, 4);
+    } else {
+        env->SetIntField(dest, modeField, 0777 & fileInfo.st_mode);
+        int type;
+        switch (fileInfo.st_mode & S_IFMT) {
+            case S_IFREG:
+                type = 0;
+                break;
+            case S_IFDIR:
+                type = 1;
+                break;
+            case S_IFLNK:
+                type = 2;
+                break;
+            default:
+                type= 3;
+        }
+        env->SetIntField(dest, typeField, type);
+    }
 }
 
 JNIEXPORT void JNICALL

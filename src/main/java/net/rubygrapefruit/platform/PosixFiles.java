@@ -40,7 +40,7 @@ public interface PosixFiles extends NativeIntegration {
     int getMode(File path) throws NativeException;
 
     /**
-     * Creates a symbolic link.
+     * Creates a symbolic link with given contents.
      *
      * @throws NativeException On failure.
      */
@@ -54,4 +54,12 @@ public interface PosixFiles extends NativeIntegration {
      */
     @ThreadSafe
     String readLink(File link) throws NativeException;
+
+    /**
+     * Returns basic information about the given file.
+     *
+     * @throws NativeException On failure.
+     */
+    @ThreadSafe
+    PosixFile stat(File path) throws NativeException;
 }
