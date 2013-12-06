@@ -43,11 +43,11 @@ public abstract class Platform {
                     else if (arch.equals("i386") || arch.equals("x86")) {
                         platform = new Linux32Bit();
                     }
-                } else if (osName.contains("os x")) {
+                } else if (osName.contains("os x") || osName.contains("darwin")) {
                     if (arch.equals("i386")) {
                         platform = new OsX32Bit();
                     }
-                    else if (arch.equals("x86_64") || arch.equals("amd64")) {
+                    else if (arch.equals("x86_64") || arch.equals("amd64") || arch.equals("universal")) {
                         platform = new OsX64Bit();
                     }
                 }
