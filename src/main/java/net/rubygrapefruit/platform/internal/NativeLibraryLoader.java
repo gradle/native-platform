@@ -38,9 +38,9 @@ public class NativeLibraryLoader {
             return;
         }
         try {
-            File libFile = nativeLibraryLocator.find(libraryFileName);
+            File libFile = nativeLibraryLocator.find(new LibraryDef(libraryFileName, platform.getId()));
             if (libFile == null) {
-                throw new NativeIntegrationUnavailableException(String.format("Native library is not available for %s.", platform));
+                throw new NativeIntegrationUnavailableException(String.format("Native library '%s' is not available for %s.", libraryFileName, platform));
             }
             System.load(libFile.getCanonicalPath());
         } catch (NativeException e) {

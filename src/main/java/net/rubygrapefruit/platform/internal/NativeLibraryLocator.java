@@ -30,9 +30,10 @@ public class NativeLibraryLocator {
         this.extractDir = extractDir;
     }
 
-    public File find(String libraryFileName) throws IOException {
+    public File find(LibraryDef libraryDef) throws IOException {
+        String resourceName = String.format("net/rubygrapefruit/platform/%s/%s", libraryDef.platform, libraryDef.name);
         if (extractDir != null) {
-            File libFile = new File(extractDir, String.format("%s/%s", NativeLibraryFunctions.VERSION, libraryFileName));
+            File libFile = new File(extractDir, String.format("%s/%s", NativeLibraryFunctions.VERSION, libraryDef.name));
             File lockFile = new File(libFile.getParentFile(), libFile.getName() + ".lock");
             lockFile.getParentFile().mkdirs();
             lockFile.createNewFile();
@@ -44,7 +45,7 @@ public class NativeLibraryLocator {
                     // Library has been extracted
                     return libFile;
                 }
-                URL resource = getClass().getClassLoader().getResource(libraryFileName);
+                URL resource = getClass().getClassLoader().getResource(resourceName);
                 if (resource != null) {
                     // Extract library and write marker to lock file
                     libFile.getParentFile().mkdirs();
@@ -58,20 +59,20 @@ public class NativeLibraryLocator {
                 lockFileAccess.close();
             }
         } else {
-            URL resource = getClass().getClassLoader().getResource(libraryFileName);
+            URL resource = getClass().getClassLoader().getResource(resourceName);
             if (resource != null) {
                 File libFile;
                 File libDir = File.createTempFile("native-platform", "dir");
                 libDir.delete();
                 libDir.mkdirs();
-                libFile = new File(libDir, libraryFileName);
+                libFile = new File(libDir, libraryDef.name);
                 libFile.deleteOnExit();
                 copy(resource, libFile);
                 return libFile;
             }
         }
 
-        File libFile = new File("build/binaries/" + libraryFileName);
+        File libFile = new File(String.format("build/binaries/%s/%s", libraryDef.platform, libraryDef.name));
         if (libFile.isFile()) {
             return libFile;
         }
