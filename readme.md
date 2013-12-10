@@ -40,12 +40,16 @@ These bindings work for both the UNIX terminal and the Windows console:
 * Query file system device name.
 * Query whether a file system is local or remote.
 
+### Windows
+
+* Query registry values and subkeys.
+
 ## Supported platforms
 
 Currently ported to OS X, Linux and Windows. Support for Solaris and FreeBSD is a work in progress. Tested on:
 
 * OS X 10.9, 10.7.4, 10.8 (x86_64), 10.6.7 (i386)
-* Ubunutu 12.04 (amd64), 8.04.4 (i386, amd64)
+* Ubunutu 12.10 (amd64), 8.04.4 (i386, amd64)
 * Windows 7 (x64), XP (x86, x64)
 
 ## Using
@@ -85,6 +89,7 @@ Some sample code to use the terminal:
 ### 0.4
 
 * Get file type.
+* Query Windows registry value and subkeys.
 * Fixes to work on 64-bit Windows XP.
 
 ### 0.3
