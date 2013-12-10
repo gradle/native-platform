@@ -32,18 +32,19 @@ public class DefaultSystemInfo implements SystemInfo {
         }
     }
 
-    @Override
     public String getKernelName() {
         return systemInfo.getKernelName();
     }
 
-    @Override
     public String getKernelVersion() {
         return systemInfo.getKernelVersion();
     }
 
-    @Override
-    public String getMachineArchitecture() {
-        return systemInfo.getMachineArchitecture();
+    public String getArchitectureName() {
+        return systemInfo.getArchitectureName();
+    }
+
+    public Architecture getArchitecture() {
+        return systemInfo.getArchitecture();
     }
 }

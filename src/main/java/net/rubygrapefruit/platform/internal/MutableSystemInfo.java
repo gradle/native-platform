@@ -16,6 +16,7 @@
 
 package net.rubygrapefruit.platform.internal;
 
+import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.SystemInfo;
 
 public class MutableSystemInfo implements SystemInfo {
@@ -32,8 +33,19 @@ public class MutableSystemInfo implements SystemInfo {
         return osVersion;
     }
 
-    public String getMachineArchitecture() {
+    public String getArchitectureName() {
         return machineArchitecture;
+    }
+
+    public Architecture getArchitecture() {
+        if (machineArchitecture.equals("amd64") || machineArchitecture.equals("x86_64")) {
+            return Architecture.amd64;
+        }
+        if (machineArchitecture.equals("i386") || machineArchitecture.equals("x86")) {
+            return Architecture.i386;
+        }
+        throw new NativeException(String.format("Cannot determine architecture from kernel architecture name '%s'.",
+                machineArchitecture));
     }
 
     // Called from native code

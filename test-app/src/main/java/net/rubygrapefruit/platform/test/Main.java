@@ -50,7 +50,7 @@ public class Main {
         System.out.println("* Encoding: " + System.getProperty("file.encoding"));
 
         SystemInfo systemInfo = Native.get(SystemInfo.class);
-        System.out.println("* Kernel: " + systemInfo.getKernelName() + ' ' + systemInfo.getKernelVersion() + ' ' + systemInfo.getMachineArchitecture());
+        System.out.println("* Kernel: " + systemInfo.getKernelName() + ' ' + systemInfo.getKernelVersion() + ' ' + systemInfo.getArchitectureName() + " (" + systemInfo.getArchitecture() + ")");
 
         Process process = Native.get(Process.class);
         System.out.println("* PID: " + process.getProcessId());

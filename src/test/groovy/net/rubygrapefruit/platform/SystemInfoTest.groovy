@@ -33,6 +33,7 @@ class SystemInfoTest extends Specification {
         expect:
         systemInfo.kernelName
         systemInfo.kernelVersion
-        systemInfo.machineArchitecture
+        systemInfo.architectureName
+        systemInfo.architecture
     }
 }
