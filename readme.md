@@ -1,7 +1,7 @@
 
 # Native-platform: Java bindings for various native APIs
 
-A collection of cross-platform Java APIs for various native APIs. Supports OS X, Linux, Solaris and Windows.
+A collection of cross-platform Java APIs for various native APIs. Currently supports OS X, Linux and Windows.
 
 These APIs support Java 5 and later. Some of these APIs overlap with APIs available in later Java versions.
 
@@ -47,7 +47,6 @@ Currently ported to OS X, Linux and Windows. Support for Solaris and FreeBSD is 
 * OS X 10.9, 10.7.4, 10.8 (x86_64), 10.6.7 (i386)
 * Ubunutu 12.04 (amd64), 8.04.4 (i386, amd64)
 * Windows 7 (x64), XP (x86, x64)
-* Solaris 11 (x86)
 
 ## Using
 
@@ -126,11 +125,9 @@ You need to install the `gcc-multilib` and `g++-multilib` packages to pick up i3
 
 You need to install the `lib32ncurses5-dev` package to pick up the ncurses i386 version.
 
-To build, include `-Pmultiarch` on the command-line.
-
 ### Windows
 
-You need to install Visual studio, and build from a Visual studio command prompt.
+You need to install Visual studio 2010 or later.
 
 ### OS X
 
@@ -143,7 +140,7 @@ For Solaris 11, you need to install the `development/gcc-45` and `system/header`
 ## Running
 
 Run `gradle installApp` to install the test application into `test-app/build/install/native-platform-test`. Or
-`gradle distZip` to create an application distribtion in `test-app/build/distributions/native-platform-test-$version.zip`.
+`gradle distZip` to create an application distribution in `test-app/build/distributions/native-platform-test-$version.zip`.
 
 You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
@@ -223,6 +220,8 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
 ### Ideas
 
+* Windows registry access.
+* Locate various system directories (eg program files on windows).
 * Expose platform-specific HTTP proxy configuration. Query registry on windows to determine IE settings.
 * Expose native named semaphores, mutexes and condition variables (CreateMutex, CreateSemaphore, CreateEvent, semget, sem_open, etc).
 * Expose information about network interfaces.
