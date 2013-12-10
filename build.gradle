@@ -60,6 +60,7 @@ task nativeHeaders {
             args 'net.rubygrapefruit.platform.internal.jni.TerminfoFunctions'
             args 'net.rubygrapefruit.platform.internal.jni.WindowsConsoleFunctions'
             args 'net.rubygrapefruit.platform.internal.jni.WindowsHandleFunctions'
+            args 'net.rubygrapefruit.platform.internal.jni.WindowsRegistryFunctions'
         }
     }
 }
@@ -117,6 +118,7 @@ libraries {
                 cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
                 cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"
                 cppCompiler.define("WIN32")
+                linker.args "Shlwapi.lib", "Advapi32.lib"
             }
             cppCompiler.args "-I${nativeHeadersDir}"
             tasks.withType(CppCompile) { task ->

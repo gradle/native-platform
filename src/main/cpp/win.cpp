@@ -19,6 +19,7 @@
 #include "native.h"
 #include "generic.h"
 #include <windows.h>
+#include <Shlwapi.h>
 #include <wchar.h>
 
 /*
@@ -473,6 +474,83 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsHandleFunctions_markStandar
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsHandleFunctions_restoreStandardHandles(JNIEnv *env, jclass target, jobject result) {
+}
+
+HKEY get_key_from_ordinal(jint keyNum) {
+    return keyNum == 0 ? HKEY_LOCAL_MACHINE : HKEY_CURRENT_USER;
+}
+
+JNIEXPORT jstring JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsRegistryFunctions_getStringValue(JNIEnv *env, jclass target, jint keyNum, jstring subkey, jstring valueName, jobject result) {
+    HKEY key = get_key_from_ordinal(keyNum);
+    wchar_t* subkeyStr = java_to_wchar(env, subkey, result);
+    wchar_t* valueNameStr = java_to_wchar(env, valueName, result);
+    DWORD size = 0;
+
+    LONG retval = SHRegGetValueW(key, subkeyStr, valueNameStr, SRRF_RT_REG_SZ, NULL, NULL, &size);
+    if (retval != ERROR_SUCCESS) {
+        free(subkeyStr);
+        free(valueNameStr);
+        if (retval != ERROR_FILE_NOT_FOUND) {
+            mark_failed_with_code(env, "could not determine size of registry value", retval, NULL, result);
+        }
+        return NULL;
+    }
+
+    wchar_t* value = (wchar_t*)malloc(sizeof(wchar_t) * (size+1));
+    retval = SHRegGetValueW(key, subkeyStr, valueNameStr, SRRF_RT_REG_SZ, NULL, value, &size);
+    free(subkeyStr);
+    free(valueNameStr);
+    if (retval != ERROR_SUCCESS) {
+        free(value);
+        mark_failed_with_code(env, "could not get registry value", retval, NULL, result);
+        return NULL;
+    }
+
+    jstring jvalue = wchar_to_java(env, value, wcslen(value), result);
+    free(value);
+
+    return jvalue;
+}
+
+JNIEXPORT jboolean JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsRegistryFunctions_getSubkeys(JNIEnv *env, jclass target, jint keyNum, jstring subkey, jobject subkeys, jobject result) {
+    wchar_t* subkeyStr = java_to_wchar(env, subkey, result);
+    jclass subkeys_class = env->GetObjectClass(subkeys);
+    jmethodID method = env->GetMethodID(subkeys_class, "add", "(Ljava/lang/Object;)Z");
+
+    HKEY key;
+    LONG retval = RegOpenKeyExW(get_key_from_ordinal(keyNum), subkeyStr, 0, KEY_READ, &key);
+    if (retval != ERROR_SUCCESS) {
+        free(subkeyStr);
+        if (retval != ERROR_FILE_NOT_FOUND) {
+            mark_failed_with_code(env, "could open registry key", retval, NULL, result);
+        }
+        return false;
+    }
+
+    DWORD subkeyCount;
+    DWORD maxSubkeyLen;
+    retval = RegQueryInfoKeyW(key, NULL, NULL, NULL, &subkeyCount, &maxSubkeyLen, NULL, NULL, NULL, NULL, NULL, NULL);
+    if (retval != ERROR_SUCCESS) {
+        mark_failed_with_code(env, "could query registry key", retval, NULL, result);
+    } else {
+        wchar_t* keyNameStr = (wchar_t*)malloc(sizeof(wchar_t) * (maxSubkeyLen+1));
+        for (int i = 0; i < subkeyCount; i++) {
+            DWORD keyNameLen = maxSubkeyLen + 1;
+            retval = RegEnumKeyExW(key, i, keyNameStr, &keyNameLen, NULL, NULL, NULL, NULL);
+            if (retval != ERROR_SUCCESS) {
+                mark_failed_with_code(env, "could enumerate registry subkey", retval, NULL, result);
+                break;
+            }
+            env->CallVoidMethod(subkeys, method, wchar_to_java(env, keyNameStr, wcslen(keyNameStr), result));
+        }
+        free(keyNameStr);
+    }
+
+    RegCloseKey(key);
+    free(subkeyStr);
+    return true;
 }
 
 #endif

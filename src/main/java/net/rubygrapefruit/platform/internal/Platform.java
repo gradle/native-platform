@@ -114,6 +114,9 @@ public abstract class Platform {
             if (type.equals(FileSystems.class)) {
                 return type.cast(new PosixFileSystems());
             }
+            if (type.equals(WindowsRegistry.class)) {
+                return type.cast(new DefaultWindowsRegistry());
+            }
             return super.get(type, nativeLibraryLoader);
         }
     }
