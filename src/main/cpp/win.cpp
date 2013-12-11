@@ -556,8 +556,8 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsRegistryFunctions_getSubkey
 JNIEXPORT jboolean JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsRegistryFunctions_getValueNames(JNIEnv *env, jclass target, jint keyNum, jstring subkey, jobject names, jobject result) {
     wchar_t* subkeyStr = java_to_wchar(env, subkey, result);
-    jclass subkeys_class = env->GetObjectClass(names);
-    jmethodID method = env->GetMethodID(subkeys_class, "add", "(Ljava/lang/Object;)Z");
+    jclass names_class = env->GetObjectClass(names);
+    jmethodID method = env->GetMethodID(names_class, "add", "(Ljava/lang/Object;)Z");
 
     HKEY key;
     LONG retval = RegOpenKeyExW(get_key_from_ordinal(keyNum), subkeyStr, 0, KEY_READ, &key);
