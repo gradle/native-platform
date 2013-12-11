@@ -10,4 +10,7 @@ public class WindowsRegistryFunctions {
 
     // Returns false for unknown key
     public static native boolean getSubkeys(int key, String subkey, List<String> subkeys, FunctionResult result);
+
+    // Returns false for unknown key
+    public static native boolean getValueNames(int key, String subkey, List<String> names, FunctionResult result);
 }
