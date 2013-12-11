@@ -47,4 +47,18 @@ class WindowsRegistryTest extends Specification {
         def e = thrown(MissingRegistryEntryException)
         e.message == /Could not list the subkeys of registry key 'HKEY_LOCAL_MACHINE\SOFTWARE\Unknown' as it does not exist./
     }
+
+    def "can read value names"() {
+        expect:
+        windowsRegistry.getValueNames(WindowsRegistry.Key.HKEY_LOCAL_MACHINE, /SOFTWARE\Microsoft\Windows NT\CurrentVersion/).flatten().contains("CurrentVersion")
+    }
+
+    def "cannot read value names of key that does not exist"() {
+        when:
+        windowsRegistry.getValueNames(WindowsRegistry.Key.HKEY_LOCAL_MACHINE, /SOFTWARE\Unknown/)
+
+        then:
+        def e = thrown(MissingRegistryEntryException)
+        e.message == /Could not list the value names of registry key 'HKEY_LOCAL_MACHINE\SOFTWARE\Unknown' as it does not exist./
+    }
 }

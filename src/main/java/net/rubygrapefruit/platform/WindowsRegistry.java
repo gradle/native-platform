@@ -23,4 +23,13 @@ public interface WindowsRegistry extends NativeIntegration {
      * @throws MissingRegistryEntryException When the requested key does not exist.
      */
     List<String> getSubkeys(Key key, String subkey) throws NativeException;
+
+    /**
+     * Lists the value names of a registry key.
+     *
+     * @throws NativeException On failure.
+     * @throws MissingRegistryEntryException When the requested key does not exist.
+     */
+    List<String> getValueNames(Key key, String subkey) throws NativeException;
+
 }

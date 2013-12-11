@@ -553,4 +553,44 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsRegistryFunctions_getSubkey
     return true;
 }
 
+JNIEXPORT jboolean JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsRegistryFunctions_getValueNames(JNIEnv *env, jclass target, jint keyNum, jstring subkey, jobject names, jobject result) {
+    wchar_t* subkeyStr = java_to_wchar(env, subkey, result);
+    jclass names_class = env->GetObjectClass(names);
+    jmethodID method = env->GetMethodID(names_class, "add", "(Ljava/lang/Object;)Z");
+
+    HKEY key;
+    LONG retval = RegOpenKeyExW(get_key_from_ordinal(keyNum), subkeyStr, 0, KEY_READ, &key);
+    if (retval != ERROR_SUCCESS) {
+        free(subkeyStr);
+        if (retval != ERROR_FILE_NOT_FOUND) {
+            mark_failed_with_code(env, "could open registry key", retval, NULL, result);
+        }
+        return false;
+    }
+
+    DWORD valueCount;
+    DWORD maxValueNameLen;
+    retval = RegQueryInfoKeyW(key, NULL, NULL, NULL, NULL, NULL, NULL, &valueCount, &maxValueNameLen, NULL, NULL, NULL);
+    if (retval != ERROR_SUCCESS) {
+        mark_failed_with_code(env, "could query registry key", retval, NULL, result);
+    } else {
+        wchar_t* valueNameStr = (wchar_t*)malloc(sizeof(wchar_t) * (maxValueNameLen+1));
+        for (int i = 0; i < valueCount; i++) {
+            DWORD valueNameLen = maxValueNameLen + 1;
+            retval = RegEnumValueW(key, i, valueNameStr, &valueNameLen, NULL, NULL, NULL, NULL);
+            if (retval != ERROR_SUCCESS) {
+                mark_failed_with_code(env, "could enumerate registry value name", retval, NULL, result);
+                break;
+            }
+            env->CallVoidMethod(names, method, wchar_to_java(env, valueNameStr, wcslen(valueNameStr), result));
+        }
+        free(valueNameStr);
+    }
+
+    RegCloseKey(key);
+    free(subkeyStr);
+    return true;
+}
+
 #endif

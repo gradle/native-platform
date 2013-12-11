@@ -38,4 +38,20 @@ public class DefaultWindowsRegistry implements WindowsRegistry {
         }
         return subkeys;
     }
+
+    public List<String> getValueNames(Key key, String subkey) throws NativeException {
+        FunctionResult result = new FunctionResult();
+        ArrayList<String> names = new ArrayList<String>();
+        boolean found = WindowsRegistryFunctions.getValueNames(key.ordinal(), subkey, names, result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not get value names of registry key '%s\\%s': %s", key,
+                    subkey, result.getMessage()));
+        }
+        if (!found) {
+            throw new MissingRegistryEntryException(String.format(
+                    "Could not list the value names of registry key '%s\\%s' as it does not exist.", key, subkey));
+        }
+        return names;
+    }
+
 }
