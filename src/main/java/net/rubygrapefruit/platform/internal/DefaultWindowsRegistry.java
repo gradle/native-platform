@@ -29,7 +29,7 @@ public class DefaultWindowsRegistry implements WindowsRegistry {
         ArrayList<String> subkeys = new ArrayList<String>();
         boolean found = WindowsRegistryFunctions.getSubkeys(key.ordinal(), subkey, subkeys, result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not get subkeys of registry key '%s\\%s': %s", key,
+            throw new NativeException(String.format("Could not list the subkeys of registry key '%s\\%s': %s", key,
                     subkey, result.getMessage()));
         }
         if (!found) {
@@ -44,12 +44,12 @@ public class DefaultWindowsRegistry implements WindowsRegistry {
         ArrayList<String> names = new ArrayList<String>();
         boolean found = WindowsRegistryFunctions.getValueNames(key.ordinal(), subkey, names, result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not get value names of registry key '%s\\%s': %s", key,
+            throw new NativeException(String.format("Could not list the values of registry key '%s\\%s': %s", key,
                     subkey, result.getMessage()));
         }
         if (!found) {
             throw new MissingRegistryEntryException(String.format(
-                    "Could not list the value names of registry key '%s\\%s' as it does not exist.", key, subkey));
+                    "Could not list the values of registry key '%s\\%s' as it does not exist.", key, subkey));
         }
         return names;
     }
