@@ -158,20 +158,16 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 # Releasing
 
 1. Check the version number in `build.gradle`.
-2. Create a tag and push.
+2. Create a tag.
 3. Build each variant:
     1. Checkout tag.
     2. `./gradlew clean :test :uploadJni -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`
-    * OS X universal
-    * Linux i386, using Ubunutu 8.04
-    * Linux amd64, using Ubunutu 8.04
-    * Windows x86, using VC++ 2010
-    * Windows x64
 4. Build Java library and test app:
     1. Checkout tag.
     2. `./gradlew clean :test :uploadArchives testApp:uploadArchives -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`
 5. Checkout master
-6. Increment version number in `build.gradle` and this readme.
+7. Increment version number in `build.gradle` and this readme.
+8. Push tag and changes.
 
 ## Testing
 
@@ -230,6 +226,7 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
 ### Ideas
 
+* Publish to bintray.
 * Expose meta-data about an NTFS volume:
     * Does the volume support 8.3 file names: Query [FILE_FS_PERSISTENT_VOLUME_INFORMATION](http://msdn.microsoft.com/en-us/library/windows/hardware/ff540280.aspx)
       using [DeviceIoControl()](http://msdn.microsoft.com/en-us/library/aa363216.aspx)
