@@ -16,7 +16,7 @@ allprojects {
     }
 
     group = 'net.rubygrapefruit'
-    version = '0.4'
+    version = '0.5'
 
     sourceCompatibility = 1.5
     targetCompatibility = 1.5
