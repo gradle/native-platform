@@ -42,7 +42,8 @@ These bindings work for both the UNIX terminal and the Windows console:
 
 ### Windows
 
-* Query registry values and subkeys.
+* Query registry values.
+* List the subkeys and values of a registry key.
 
 ## Supported platforms
 
@@ -62,7 +63,7 @@ this:
     }
 
     dependencies {
-        compile "net.rubygrapefruit:native-platform:0.4"
+        compile "net.rubygrapefruit:native-platform:0.5"
     }
 
 You can also download [here](http://repo.gradle.org/gradle/libs-releases-local/net/rubygrapefruit/)
@@ -86,6 +87,10 @@ Some sample code to use the terminal:
 
 ## Changes
 
+### 0.5
+
+* Query the available values of a Windows registry key. Thanks to (Michael Putters)[https://github.com/mputters].
+
 ### 0.4
 
 * Get file type.
@@ -98,7 +103,7 @@ Some sample code to use the terminal:
 * Get and set process environment variables.
 * Launch processes.
 * Fixed character set issue on Linux and Mac OS X.
-* Fixes to work with 64-bit OpenJDK 7 on Mac OS X. Thanks to Rene Gr�schke.
+* Fixes to work with 64-bit OpenJDK 7 on Mac OS X. Thanks to (Rene Gr�schke)[https://github.com/breskeby].
 
 ### 0.2
 
@@ -132,7 +137,7 @@ You need to install the `lib32ncurses5-dev` package to pick up the ncurses i386 
 
 ### Windows
 
-You need to install Visual studio 2010 or later.
+You need to install Visual studio 2010 or later, plus the Windows SDK to allow you to build both x86 and x64 binaries.
 
 ### OS X
 
@@ -179,7 +184,6 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
 * All: `Process.getPid()` should return a long
 * All: fail subsequent calls to `Native.get()` when `Native.initialize()` fails.
-* Windows: fix 64 bit library on old versions of Windows.
 * Posix: allow terminal to be detected when ncurses cannot be loaded
 * Windows: fix detection of shared drive under VMWare fusion and Windows XP
 * Windows: restore std handles after launching child process
@@ -197,9 +201,9 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
   native integration is available or not.
 * All: change the terminal API to handle the fact that stdout/stderr/stdin can all be attached to the same or to
   different terminals.
-* All: have Terminal extend Appendable and Flushable
-* All: add a method to Terminal that returns a PrintStream that can be used to write to the terminal, regardless of what
-  System.out/System.err point to.
+* All: have `Terminal` extend `Appendable` and `Flushable`
+* All: add a method to `Terminal` that returns a `PrintStream` that can be used to write to the terminal, regardless of what
+  `System.out` or `System.err` point to.
 * Windows: use `wchar_to_java()` for system and file system info.
 * All: test network file systems
 * Windows: test mount points
@@ -225,7 +229,11 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
 ### Ideas
 
-* Windows registry access.
+* Expose native desktop notification services:
+    * OS X message center
+    * Growl
+    * Snarl
+    * dnotify
 * Locate various system directories (eg program files on windows).
 * Expose platform-specific HTTP proxy configuration. Query registry on windows to determine IE settings.
 * Expose native named semaphores, mutexes and condition variables (CreateMutex, CreateSemaphore, CreateEvent, semget, sem_open, etc).
