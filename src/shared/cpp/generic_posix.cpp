@@ -48,7 +48,7 @@ char* java_to_char(JNIEnv *env, jstring string, jobject result) {
     env->ReleaseStringChars(string, javaString);
 
     size_t bytes = wcstombs(NULL, wideString, 0);
-    if (bytes < 0) {
+    if (bytes == (size_t)-1) {
         mark_failed_with_message(env, "could not convert string to current locale", result);
         free(wideString);
         return NULL;
@@ -64,7 +64,7 @@ char* java_to_char(JNIEnv *env, jstring string, jobject result) {
 jstring char_to_java(JNIEnv* env, const char* chars, jobject result) {
     size_t bytes = strlen(chars);
     wchar_t* wideString = (wchar_t*)malloc(sizeof(wchar_t) * (bytes+1));
-    if (mbstowcs(wideString, chars, bytes+1) < 0) {
+    if (mbstowcs(wideString, chars, bytes+1) == (size_t)-1) {
         mark_failed_with_message(env, "could not convert string from current locale", result);
         free(wideString);
         return NULL;

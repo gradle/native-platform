@@ -47,6 +47,7 @@ const char* terminal_capabilities[9];
 
 int write_to_terminal(TERMINAL_CHAR_TYPE ch) {
     write(current_terminal, &ch, 1);
+    return ch;
 }
 
 const char* getcap(const char* capability) {
