@@ -18,6 +18,10 @@ allprojects {
     group = 'net.rubygrapefruit'
     version = '0.5'
 
+    if (!project.hasProperty('release')) {
+        version = "${version}-dev"
+    }
+
     sourceCompatibility = 1.5
     targetCompatibility = 1.5
 
@@ -131,18 +135,14 @@ libraries {
 sources {
     nativePlatform {
         cpp {
-            source.srcDirs = ['src/main/cpp']
-            exportedHeaders.srcDirs = ['src/main/headers']
-            source.exclude 'curses.cpp'
+            source.srcDirs = ['src/shared/cpp', 'src/main/cpp']
+            exportedHeaders.srcDirs = ['src/shared/headers']
         }
     }
     nativePlatformCurses {
         cpp {
-            source.srcDirs = ['src/main/cpp']
-            exportedHeaders.srcDirs = ['src/main/headers']
-            source.include 'curses.cpp'
-            source.include 'generic.cpp'
-            source.include 'generic_posix.cpp'
+            source.srcDirs = ['src/shared/cpp', 'src/curses/cpp']
+            exportedHeaders.srcDirs = ['src/shared/headers']
         }
     }
 }
