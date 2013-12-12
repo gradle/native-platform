@@ -1,7 +1,8 @@
 
 # Native-platform: Java bindings for various native APIs
 
-A collection of cross-platform Java APIs for various native APIs. Currently supports OS X, Linux and Windows.
+A collection of cross-platform Java APIs for various native APIs. Currently supports OS X, Linux and Windows on Intel
+architectures.
 
 These APIs support Java 5 and later. Some of these APIs overlap with APIs available in later Java versions.
 
@@ -42,8 +43,8 @@ These bindings work for both the UNIX terminal and the Windows console:
 
 ### Windows
 
-* Query registry values.
-* List the subkeys and values of a registry key.
+* Query registry value.
+* Query the subkeys and values of a registry key.
 
 ## Supported platforms
 
@@ -89,7 +90,7 @@ Some sample code to use the terminal:
 
 ### 0.5
 
-* Query the available values of a Windows registry key. Thanks to (Michael Putters)[https://github.com/mputters].
+* Query the available values of a Windows registry key. Thanks to [Michael Putters](https://github.com/mputters).
 
 ### 0.4
 
@@ -103,7 +104,7 @@ Some sample code to use the terminal:
 * Get and set process environment variables.
 * Launch processes.
 * Fixed character set issue on Linux and Mac OS X.
-* Fixes to work with 64-bit OpenJDK 7 on Mac OS X. Thanks to (Rene Gr�schke)[https://github.com/breskeby].
+* Fixes to work with 64-bit OpenJDK 7 on Mac OS X. Thanks to [Rene Gr�schke](https://github.com/breskeby).
 
 ### 0.2
 
@@ -229,6 +230,9 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
 ### Ideas
 
+* Expose meta-data about an NTFS volume:
+    * Does the volume support 8.3 file names: Query [FILE_FS_PERSISTENT_VOLUME_INFORMATION](http://msdn.microsoft.com/en-us/library/windows/hardware/ff540280(v=vs.85).aspx)
+      using [DeviceIoControl()](http://msdn.microsoft.com/en-us/library/aa363216(VS.85).aspx)
 * Expose native desktop notification services:
     * OS X message center
     * Growl
