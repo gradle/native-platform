@@ -231,8 +231,8 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 ### Ideas
 
 * Expose meta-data about an NTFS volume:
-    * Does the volume support 8.3 file names: Query [FILE_FS_PERSISTENT_VOLUME_INFORMATION](http://msdn.microsoft.com/en-us/library/windows/hardware/ff540280(v=vs.85).aspx)
-      using [DeviceIoControl()](http://msdn.microsoft.com/en-us/library/aa363216(VS.85).aspx)
+    * Does the volume support 8.3 file names: Query [FILE_FS_PERSISTENT_VOLUME_INFORMATION](http://msdn.microsoft.com/en-us/library/windows/hardware/ff540280.aspx)
+      using [DeviceIoControl()](http://msdn.microsoft.com/en-us/library/aa363216.aspx)
 * Expose native desktop notification services:
     * OS X message center
     * Growl
