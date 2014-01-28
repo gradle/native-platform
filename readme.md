@@ -50,9 +50,9 @@ These bindings work for both the UNIX terminal and the Windows console:
 
 Currently ported to OS X, Linux and Windows. Support for Solaris and FreeBSD is a work in progress. Tested on:
 
-* OS X 10.9, 10.7.4, 10.8 (x86_64), 10.6.7 (i386)
-* Ubunutu 12.10 (amd64), 8.04.4 (i386, amd64)
-* Windows 7 (x64), XP (x86, x64)
+* OS X 10.9.1 (x86_64), 10.6.7 (i386)
+* Ubunutu 13.10 (amd64), 12.10 (amd64), 8.04.4 (i386, amd64)
+* Windows 8.1 (x64), 7 (x64), XP (x86, x64)
 
 ## Using
 
@@ -87,6 +87,10 @@ Some sample code to use the terminal:
     System.out.println("bold text");
 
 ## Changes
+
+### 0.6
+
+* Some fixes for Windows 7 and OS X 10.6
 
 ### 0.5
 
