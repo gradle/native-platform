@@ -461,7 +461,9 @@ void uninheritStream(JNIEnv *env, DWORD stdInputHandle, jobject result) {
     }
     boolean ok = SetHandleInformation(streamHandle, HANDLE_FLAG_INHERIT, 0);
     if (!ok) {
-        mark_failed_with_errno(env, "could not change std handle", result);
+        if (GetLastError() != ERROR_INVALID_PARAMETER && GetLastError() != ERROR_INVALID_HANDLE) {
+            mark_failed_with_errno(env, "could not change std handle", result);
+        }
     }
 }
 
