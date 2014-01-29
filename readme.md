@@ -64,7 +64,7 @@ this:
     }
 
     dependencies {
-        compile "net.rubygrapefruit:native-platform:0.5"
+        compile "net.rubygrapefruit:native-platform:0.6"
     }
 
 You can also download [here](http://repo.gradle.org/gradle/libs-releases-local/net/rubygrapefruit/)
