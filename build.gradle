@@ -16,7 +16,7 @@ allprojects {
     }
 
     group = 'net.rubygrapefruit'
-    version = '0.7'
+    version = '0.8'
 
     if (!project.hasProperty('release')) {
         version = "${version}-dev"
