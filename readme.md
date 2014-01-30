@@ -64,7 +64,7 @@ this:
     }
 
     dependencies {
-        compile "net.rubygrapefruit:native-platform:0.6"
+        compile "net.rubygrapefruit:native-platform:0.7"
     }
 
 You can also download [here](http://repo.gradle.org/gradle/libs-releases-local/net/rubygrapefruit/)
@@ -88,9 +88,15 @@ Some sample code to use the terminal:
 
 ## Changes
 
+### 0.7
+
+* Some fixes for a broken 0.6 release.
+
 ### 0.6
 
-* Some fixes for Windows 7 and OS X 10.6
+* Some fixes for Windows 7 and OS X 10.6.
+
+You should avoid using this release, and use 0.7 or later instead.
 
 ### 0.5
 
