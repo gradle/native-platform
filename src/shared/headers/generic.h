@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-#define NATIVE_VERSION 17
+#define NATIVE_VERSION 18
 
 /*
  * Marks the given result as failed, using the given error message
