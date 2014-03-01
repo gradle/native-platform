@@ -51,6 +51,14 @@ public abstract class Platform {
                         platform = new OsX64Bit();
                     }
                 }
+                else if (osName.contains("freebsd")) {
+                    if (arch.equals("amd64")) {
+                        platform = new FreeBSD64Bit();
+                    }
+                    else if (arch.equals("i386") || arch.equals("x86")) {
+                        platform = new FreeBSD32Bit();
+                    }
+                }
                 if (platform == null) {
                     platform = new Unsupported();
                 }
@@ -197,6 +205,20 @@ public abstract class Platform {
         @Override
         public String getId() {
             return "linux-amd64";
+        }
+    }
+
+    private static class FreeBSD32Bit extends Linux {
+        @Override
+        public String getId() {
+            return "freebsd-i386";
+        }
+    }
+
+    private static class FreeBSD64Bit extends Linux {
+        @Override
+        public String getId() {
+            return "freebsd-amd64";
         }
     }
 

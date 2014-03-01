@@ -95,6 +95,14 @@ model {
             architecture "amd64"
             operatingSystem "windows"
         }
+        create("freebsd_i386") {
+            architecture "i386"
+            operatingSystem "freebsd"
+        }
+        create("freebsd_amd64") {
+            architecture "amd64"
+            operatingSystem "freebsd"
+        }
     }
 }
 
@@ -104,7 +112,7 @@ libraries {
     }
     nativePlatformCurses {
         baseName 'native-platform-curses'
-        targetPlatforms "osx_i386", "osx_amd64", "linux_i386", "linux_amd64"
+        targetPlatforms "osx_i386", "osx_amd64", "linux_i386", "linux_amd64", "freebsd_i386", "freebsd_amd64"
         binaries.all {
             linker.args "-lcurses"
         }
@@ -124,6 +132,9 @@ libraries {
                 cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"
                 cppCompiler.define("WIN32")
                 linker.args "Shlwapi.lib", "Advapi32.lib"
+            } else if (targetPlatform.operatingSystem.name == "freebsd") {
+                cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
+                cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/freebsd"
             }
             cppCompiler.args "-I${nativeHeadersDir}"
             tasks.withType(CppCompile) { task ->
@@ -214,7 +225,8 @@ mainPom.scopeMappings.mappings.clear()
 mainPom.withXml { provider ->
     def node = provider.asNode()
     def deps = node.appendNode('dependencies')
-    ['osx-i386', 'osx-amd64', 'linux-amd64', 'linux-i386', 'windows-amd64', 'windows-i386'].each { platform ->
+    ['osx-i386', 'osx-amd64', 'linux-amd64', 'linux-i386',
+            'windows-amd64', 'windows-i386', 'freebsd_i386', 'freebsd_amd64'].each { platform ->
         def dep = deps.appendNode('dependency')
         dep.appendNode('groupId', project.group)
         dep.appendNode('artifactId', "native-platform-${platform}")
