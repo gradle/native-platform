@@ -71,35 +71,35 @@ task nativeHeaders {
 
 model {
     platforms {
-        create("osx_i386") {
+        osx_i386 {
             architecture "i386"
             operatingSystem "osx"
         }
-        create("osx_amd64") {
+        osx_amd64 {
             architecture "amd64"
             operatingSystem "osx"
         }
-        create("linux_i386") {
+        linux_i386 {
             architecture "i386"
             operatingSystem "linux"
         }
-        create("linux_amd64") {
+        linux_amd64 {
             architecture "amd64"
             operatingSystem "linux"
         }
-        create("windows_i386") {
+        windows_i386 {
             architecture "i386"
             operatingSystem "windows"
         }
-        create("windows_amd64") {
+        windows_amd64 {
             architecture "amd64"
             operatingSystem "windows"
         }
-        create("freebsd_i386") {
+        freebsd_i386 {
             architecture "i386"
             operatingSystem "freebsd"
         }
-        create("freebsd_amd64") {
+        freebsd_amd64 {
             architecture "amd64"
             operatingSystem "freebsd"
         }
@@ -120,19 +120,19 @@ libraries {
 
     all {
         binaries.all {
-            if (targetPlatform.operatingSystem.name == "osx") {
+            if (targetPlatform.operatingSystem.macOsX) {
                 cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
                 cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/darwin"
                 linker.args '-mmacosx-version-min=10.4'
-            } else if (targetPlatform.operatingSystem.name == "linux") {
+            } else if (targetPlatform.operatingSystem.linux) {
                 cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
                 cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/linux"
-            } else if (targetPlatform.operatingSystem.name == "windows") {
+            } else if (targetPlatform.operatingSystem.windows) {
                 cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
                 cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"
                 cppCompiler.define("WIN32")
                 linker.args "Shlwapi.lib", "Advapi32.lib"
-            } else if (targetPlatform.operatingSystem.name == "freebsd") {
+            } else if (targetPlatform.operatingSystem.freeBSD) {
                 cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
                 cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/freebsd"
             }
