@@ -1,8 +1,8 @@
 
 # Native-platform: Java bindings for various native APIs
 
-A collection of cross-platform Java APIs for various native APIs. Currently supports OS X, Linux and Windows on Intel
-architectures.
+A collection of cross-platform Java APIs for various native APIs. Currently supports OS X, Linux, Windows and FreeBSD
+on Intel architectures.
 
 These APIs support Java 5 and later. Some of these APIs overlap with APIs available in later Java versions.
 
@@ -87,6 +87,10 @@ Some sample code to use the terminal:
     System.out.println("bold text");
 
 ## Changes
+
+### 0.8
+
+* Ported to FreeBSD. Thanks to [Zsolt Kúti](https://github.com/tinca).
 
 ### 0.7
 
