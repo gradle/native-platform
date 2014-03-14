@@ -166,7 +166,11 @@ configurations {
 def deployer = uploadJni.repositories.mavenDeployer
 
 binaries.withType(SharedLibraryBinary) { binary ->
-    if (!buildable || targetPlatform.operatingSystem.name == 'linux' && targetPlatform.architecture.name != System.properties['os.arch']) {
+    if (!buildable) {
+        return
+    }
+    if (targetPlatform.operatingSystem.name in ['linux', 'freebsd'] && targetPlatform.architecture.name != System.properties['os.arch']) {
+        // Native plugins don't detect whether multilib support is available or not. Assume not for now
         return
     }
 
