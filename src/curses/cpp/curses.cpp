@@ -17,7 +17,7 @@
 /*
  * Curses functions
  */
-#ifndef WIN32
+#ifndef _WIN32
 
 #include "native.h"
 #include "generic.h"

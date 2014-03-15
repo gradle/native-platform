@@ -130,7 +130,6 @@ libraries {
             } else if (targetPlatform.operatingSystem.windows) {
                 cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
                 cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"
-                cppCompiler.define("WIN32")
                 linker.args "Shlwapi.lib", "Advapi32.lib"
             } else if (targetPlatform.operatingSystem.freeBSD) {
                 cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
