@@ -176,7 +176,8 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 2. Create a tag.
 3. Build each variant:
     1. Checkout tag.
-    2. `./gradlew clean :test :uploadJni -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`
+    2. `./gradlew clean :test :uploadJni -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`. On FreeBSD i386,
+    also need `GRADLE_OPTS=-Dos.arch=hack`.
 4. Build Java library and test app:
     1. Checkout tag.
     2. `./gradlew clean :test :uploadArchives testApp:uploadArchives -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`
@@ -194,6 +195,9 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
 ### Fixes
 
+* FreeBSD: Remove i386 hack from build
+* Linux: Fix detection of multiarch support
+* FreeBSD: Fix detection of multiarch support
 * All: `Process.getPid()` should return a long
 * All: fail subsequent calls to `Native.get()` when `Native.initialize()` fails.
 * Posix: allow terminal to be detected when ncurses cannot be loaded
