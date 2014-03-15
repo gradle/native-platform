@@ -168,6 +168,9 @@ public abstract class Platform {
             if (type.equals(SystemInfo.class)) {
                 return type.cast(new DefaultSystemInfo());
             }
+            if (type.equals(FileSystems.class)) {
+                return type.cast(new PosixFileSystems());
+            }
             return super.get(type, nativeLibraryLoader);
         }
     }
@@ -184,38 +187,28 @@ public abstract class Platform {
         }
     }
 
-    private abstract static class Linux extends Unix {
-        @Override
-        public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
-            if (type.equals(FileSystems.class)) {
-                return type.cast(new PosixFileSystems());
-            }
-            return super.get(type, nativeLibraryLoader);
-        }
-    }
-
-    private static class Linux32Bit extends Linux {
+    private static class Linux32Bit extends Unix {
         @Override
         public String getId() {
             return "linux-i386";
         }
     }
 
-    private static class Linux64Bit extends Linux {
+    private static class Linux64Bit extends Unix {
         @Override
         public String getId() {
             return "linux-amd64";
         }
     }
 
-    private static class FreeBSD32Bit extends Linux {
+    private static class FreeBSD32Bit extends Unix {
         @Override
         public String getId() {
             return "freebsd-i386";
         }
     }
 
-    private static class FreeBSD64Bit extends Linux {
+    private static class FreeBSD64Bit extends Unix {
         @Override
         public String getId() {
             return "freebsd-amd64";
@@ -223,14 +216,6 @@ public abstract class Platform {
     }
 
     private static abstract class OsX extends Posix {
-        @Override
-        public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
-            if (type.equals(FileSystems.class)) {
-                return type.cast(new PosixFileSystems());
-            }
-            return super.get(type, nativeLibraryLoader);
-        }
-
         @Override
         public String getLibraryName() {
             return "libnative-platform.dylib";
