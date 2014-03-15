@@ -48,10 +48,11 @@ These bindings work for both the UNIX terminal and the Windows console:
 
 ## Supported platforms
 
-Currently ported to OS X, Linux and Windows. Support for Solaris and FreeBSD is a work in progress. Tested on:
+Currently ported to OS X, Linux, FreeBSD and Windows. Support for Solaris is a work in progress. Tested on:
 
 * OS X 10.9.1 (x86_64), 10.6.7 (i386)
 * Ubunutu 13.10 (amd64), 12.10 (amd64), 8.04.4 (i386, amd64)
+* FreeBSD 8.3 (amd64, i386), 10.0 (amd64, i386)
 * Windows 8.1 (x64), 7 (x64), XP (x86, x64)
 
 ## Using
@@ -133,7 +134,7 @@ You should avoid using this release, and use 0.7 or later instead.
 
 ## Building
 
-You will need to use the Gradle wrapper. Just run `gradlew` in the root directory.
+You will need to use the Gradle wrapper. Just run `gradlew` in the root of the source repo.
 
 ### Ubuntu
 
@@ -202,9 +203,6 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 * Solaris: fix unicode file name handling.
 * Solaris: fail for unsupported architecture.
 * Solaris: build 32 bit and 64 bit libraries.
-* Freebsd: finish port.
-* Freebsd: fail for unsupported architecture.
-* Freebsd: build 32 bit and 64 bit libraries.
 
 ### Improvements
 
