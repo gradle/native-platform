@@ -17,21 +17,25 @@
 /*
  * POSIX platform functions.
  */
-#ifndef _WIN32
+#ifdef __APPLE__
 
 #include "native.h"
 #include "generic.h"
-#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
+#include <wchar.h>
 
-void mark_failed_with_errno(JNIEnv *env, const char* message, jobject result) {
-    const char * errno_message = NULL;
-    switch(errno) {
-        case ENOENT:
-            errno_message = "ENOENT";
-            break;
-    }
+char* java_to_char(JNIEnv *env, jstring string, jobject result) {
+    size_t len = env->GetStringLength(string);
+    size_t bytes = env->GetStringUTFLength(string);
+    char* chars = (char*)malloc(bytes + 1);
+    env->GetStringUTFRegion(string, 0, len, chars);
+    chars[bytes] = 0;
+    return chars;
+}
 
-    mark_failed_with_code(env, message, errno, errno_message, result);
+jstring char_to_java(JNIEnv* env, const char* chars, jobject result) {
+    return env->NewStringUTF(chars);
 }
 
 #endif
