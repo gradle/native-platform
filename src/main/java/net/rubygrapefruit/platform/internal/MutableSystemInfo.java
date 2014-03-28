@@ -64,7 +64,7 @@ public class MutableSystemInfo implements SystemInfo {
                     case 1:
                         return "Windows XP";
                     case 2:
-                        return "Windows Server 2003";
+                        return workstation ? "Windows XP Professional" : "Windows Server 2003";
                 }
                 break;
             case 6:
@@ -75,6 +75,8 @@ public class MutableSystemInfo implements SystemInfo {
                         return workstation ? "Windows 7" : "Windows Server 2008 R2";
                     case 2:
                         return workstation ? "Windows 8" : "Windows Server 2012";
+                    case 3:
+                        return workstation ? "Windows 8.1" : "Windows Server 2012 R2";
                 }
                 break;
         }
