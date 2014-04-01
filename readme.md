@@ -199,7 +199,6 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
 ### Fixes
 
-* FreeBSD: Remove i386 hack from build
 * Linux: Fix detection of multiarch support
 * FreeBSD: Fix detection of multiarch support
 * All: `Process.getPid()` should return a long

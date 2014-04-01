@@ -169,7 +169,6 @@ binaries.withType(SharedLibraryBinary) { binary ->
         return
     }
     def arch = System.properties['os.arch']
-    if (arch == 'hack') { arch = 'i386' }
     if (targetPlatform.operatingSystem.name in ['linux', 'freebsd'] && targetPlatform.architecture.name != arch) {
         // Native plugins don't detect whether multilib support is available or not. Assume not for now
         return
