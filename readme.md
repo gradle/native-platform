@@ -89,6 +89,10 @@ Some sample code to use the terminal:
 
 ## Changes
 
+### 0.9
+
+* Fixes for non-ascii file names on OS X when running under the Apple JVM.
+
 ### 0.8
 
 * Ported to FreeBSD. Thanks to [Zsolt Kúti](https://github.com/tinca).
