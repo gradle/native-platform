@@ -97,6 +97,8 @@ Some sample code to use the terminal:
 
 * Fixes for non-ascii file names on OS X when running under the Apple JVM.
 
+You should avoid using this release, and use 0.10 or later instead.
+
 ### 0.8
 
 * Ported to FreeBSD. Thanks to [Zsolt Kúti](https://github.com/tinca).
