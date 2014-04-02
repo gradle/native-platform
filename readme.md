@@ -89,6 +89,10 @@ Some sample code to use the terminal:
 
 ## Changes
 
+### 0.10
+
+* Fixes for broken 0.9 release.
+
 ### 0.9
 
 * Fixes for non-ascii file names on OS X when running under the Apple JVM.
@@ -177,15 +181,15 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 # Releasing
 
 1. Check the version number in `build.gradle`.
-2. Create a tag.
-3. Build each variant:
+2. Check that the native interface version has been incremented since last release, when changes have been made to native code.
+3. Create a tag.
+4. Build each variant:
     1. Checkout tag.
-    2. `./gradlew clean :test :uploadJni -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`. On FreeBSD i386,
-    also need `GRADLE_OPTS=-Dos.arch=hack`.
-4. Build Java library and test app:
+    2. `./gradlew clean :test :uploadJni -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`.
+5. Build Java library and test app:
     1. Checkout tag.
     2. `./gradlew clean :test :uploadArchives testApp:uploadArchives -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`
-5. Checkout master
+6. Checkout master
 7. Increment version number in `build.gradle` and this readme.
 8. Push tag and changes.
 
