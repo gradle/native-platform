@@ -37,7 +37,7 @@ public abstract class Platform {
                         platform = new Window64Bit();
                     }
                 } else if (osName.contains("linux")) {
-                    if (arch.equals("amd64")) {
+                    if (arch.equals("amd64") || arch.equals("x86_64")) {
                         platform = new Linux64Bit();
                     }
                     else if (arch.equals("i386") || arch.equals("x86")) {
