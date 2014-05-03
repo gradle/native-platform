@@ -164,78 +164,107 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_setEnvironme
 /*
  * File system functions
  */
+
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileSystems(JNIEnv *env, jclass target, jobject info, jobject result) {
-    wchar_t* volumeName = (wchar_t*)malloc(sizeof(wchar_t) * (MAX_PATH+1));
-
     jclass info_class = env->GetObjectClass(info);
     jmethodID method = env->GetMethodID(info_class, "add", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V");
 
-    HANDLE handle = FindFirstVolumeW(volumeName, MAX_PATH+1);
-    if (handle == INVALID_HANDLE_VALUE) {
-        free(volumeName);
-        mark_failed_with_errno(env, "could not find first volume", result);
+    wprintf(L"Drives:\n");
+    DWORD required = GetLogicalDriveStringsW(0, NULL);
+    if (required == 0) {
+        mark_failed_with_errno(env, "could not determine logical drive buffer size", result);
         return;
     }
 
-    wchar_t* deviceName = (wchar_t*)malloc(sizeof(wchar_t) * (MAX_PATH+1));
-    wchar_t* pathNames = (wchar_t*)malloc(sizeof(wchar_t) * (MAX_PATH+1));
-    wchar_t* fsName = (wchar_t*)malloc(sizeof(wchar_t) * (MAX_PATH+1));
+    wchar_t* buffer = (wchar_t*)malloc(sizeof(wchar_t) * (required + 1));
+    wchar_t* deviceName = (wchar_t*)malloc(sizeof(wchar_t) * (MAX_PATH + 1));
+    wchar_t* fileSystemName = (wchar_t*)malloc(sizeof(wchar_t) * (MAX_PATH + 1));
 
-    while(true) {
-        // Chop off the trailing '\'
-        size_t len = wcslen(volumeName);
-        if (len < 5) {
-            mark_failed_with_message(env, "volume name is too short", result);
-            break;
-        }
-        volumeName[len-1] = L'\0';
+    if (GetLogicalDriveStringsW(required, buffer) == 0) {
+        mark_failed_with_errno(env, "could not determine logical drives", result);
+    } else {
+        wchar_t* cur = buffer;
+        for (;cur[0] != L'\0'; cur += wcslen(cur) + 1) {
+            wprintf(L"  DRIVE: %s\n", cur);
 
-        if (QueryDosDeviceW(&volumeName[4], deviceName, MAX_PATH+1) == 0) {
-            mark_failed_with_errno(env, "could not query dos device", result);
-            break;
-        }
-        volumeName[len-1] = L'\\';
+            DWORD type = GetDriveTypeW(cur);
+            jboolean remote = type == DRIVE_REMOTE;
+            wprintf(L"    DRIVE TYPE: %d\n", type);
 
-        DWORD used;
-        if (GetVolumePathNamesForVolumeNameW(volumeName, pathNames, MAX_PATH+1, &used) == 0) {
-            // TODO - try again if the buffer is too small
-            mark_failed_with_errno(env, "could not query volume paths", result);
-            break;
-        }
+            // chop off trailing '\'
+            size_t len = wcslen(cur);
+            cur[len-1] = L'\0';
 
-        wchar_t* cur = pathNames;
-        if (cur[0] != L'\0') {
-            // TODO - use GetDriveTypeW() to determine if removable, remote, etc
-            if(GetVolumeInformationW(cur, NULL, 0, NULL, NULL, NULL, fsName, MAX_PATH+1) == 0) {
-                if (GetLastError() != ERROR_NOT_READY) {
-                    mark_failed_with_errno(env, "could not query volume information", result);
+            // create device name \\.\C:
+            wchar_t devPath[7];
+            swprintf(devPath, 7, L"\\\\.\\%s", cur);
+
+            if (QueryDosDeviceW(cur, deviceName, MAX_PATH+1) == 0) {
+                mark_failed_with_errno(env, "could not map device for logical drive", result);
+                break;
+            }
+            wprintf(L"    DEVICE: %s\n", deviceName);
+            cur[len-1] = L'\\';
+
+            DWORD available = 1;
+            if (!remote) {
+                HANDLE hDevice = CreateFileW(devPath,         // like "\\.\E:"
+                                             FILE_READ_ATTRIBUTES, // read access to the attributes
+                                             FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, // share mode
+                                             NULL, OPEN_EXISTING, 0, NULL);
+                if (hDevice != INVALID_HANDLE_VALUE) {
+                    DWORD cbBytesReturned;
+                    DWORD bSuccess = DeviceIoControl (hDevice,                     // device to be queried
+                                                IOCTL_STORAGE_CHECK_VERIFY2,
+                                                NULL, 0,                     // no input buffer
+                                                NULL, 0,                     // no output buffer
+                                                &cbBytesReturned,            // # bytes returned
+                                                (LPOVERLAPPED) NULL);        // synchronous I/O
+                    if (bSuccess) {
+                        wprintf(L"    AVAILABLE: yes\n");
+                    } else if (GetLastError() == ERROR_NOT_READY) {
+                        available = 0;
+                        wprintf(L"    AVAILABLE: no\n");
+                    } else {
+                        available = 0;
+                        wprintf(L"    AVAILABLE: unknown: %d\n", GetLastError());
+                    }
+                    CloseHandle(hDevice);
+                }
+            }
+
+            if (available) {
+                DWORD flags;
+                if (GetVolumeInformationW(cur, NULL, 0, NULL, NULL, &flags, fileSystemName, MAX_PATH+1) == 0) {
+                    mark_failed_with_errno(env, "could not get volume information", result);
                     break;
                 }
-                wcscpy(fsName, L"unknown");
+                wprintf(L"    PRESERVE CASE: %s\n", (flags & FILE_CASE_PRESERVED_NAMES) != 0 ? L"yes" : L"no");
+                wprintf(L"    CASE SENSITIVE: %s\n", (flags & FILE_CASE_SENSITIVE_SEARCH) != 0 ? L"yes" : L"no");
+                wprintf(L"    READ ONLY: %s\n", (flags & FILE_READ_ONLY_VOLUME) != 0 ? L"yes" : L"no");
+                wprintf(L"    FS TYPE: %s\n", fileSystemName);
+            } else {
+                if (type == DRIVE_CDROM) {
+                    swprintf(fileSystemName, MAX_PATH+1, L"cdrom");
+                } else {
+                    swprintf(fileSystemName, MAX_PATH+1, L"unknown");
+                }
             }
-            for (;cur[0] != L'\0'; cur += wcslen(cur) + 1) {
-                env->CallVoidMethod(info, method,
-                                    wchar_to_java(env, cur, wcslen(cur), result),
-                                    wchar_to_java(env, fsName, wcslen(fsName), result),
-                                    wchar_to_java(env, deviceName, wcslen(deviceName), result),
-                                    JNI_FALSE);
-            }
-        }
 
-        if (FindNextVolumeW(handle, volumeName, MAX_PATH) == 0) {
-            if (GetLastError() != ERROR_NO_MORE_FILES) {
-                mark_failed_with_errno(env, "could find next volume", result);
-            }
-            break;
+            env->CallVoidMethod(info, method,
+                                wchar_to_java(env, cur, wcslen(cur), result),
+                                wchar_to_java(env, fileSystemName, wcslen(fileSystemName), result),
+                                wchar_to_java(env, deviceName, wcslen(deviceName), result),
+                                remote);
         }
     }
-    free(volumeName);
+
+    free(buffer);
     free(deviceName);
-    free(pathNames);
-    free(fsName);
-    FindVolumeClose(handle);
+    free(fileSystemName);
 }
+
 
 /*
  * Console functions
