@@ -25,7 +25,7 @@ These bindings work for both the UNIX terminal and the Windows console:
 
 * Determine if stdout/stderr are attached to a terminal.
 * Query the terminal size.
-* Switch between bold and normal mode on the terminal.
+* Switch between bold and normal text mode on the terminal.
 * Change foreground color on the terminal.
 * Move terminal cursor up, down, left, right, start of line.
 * Clear to end of line.
@@ -41,7 +41,7 @@ These bindings work for both the UNIX terminal and the Windows console:
 * Query file system device name.
 * Query whether a file system is local or remote.
 
-### Windows
+### Windows registry
 
 * Query registry value.
 * Query the subkeys and values of a registry key.
@@ -50,8 +50,9 @@ These bindings work for both the UNIX terminal and the Windows console:
 
 Currently ported to OS X, Linux, FreeBSD and Windows. Support for Solaris is a work in progress. Tested on:
 
-* OS X 10.9.1 (x86_64), 10.6.7 (i386)
+* OS X 10.9.1 (x86_64), 10.6.7 (i386, amd64)
 * Ubunutu 13.10 (amd64), 12.10 (amd64), 8.04.4 (i386, amd64)
+* OpenSUSE 13.1 (x86_64)
 * FreeBSD 8.3 (amd64, i386), 10.0 (amd64, i386)
 * Windows 8.1 (x64), 7 (x64), XP (x86, x64)
 
@@ -88,6 +89,10 @@ Some sample code to use the terminal:
     System.out.println("bold text");
 
 ## Changes
+
+### 0.11
+
+* Fixes running under GCJ.
 
 ### 0.10
 
@@ -252,6 +257,7 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 ### Ideas
 
 * Publish to bintray.
+* Normalise a unicode file name for a given file system (eg hfs+ uses fully decomposed form).
 * Expose meta-data about an NTFS volume:
     * Does the volume support 8.3 file names: Query [FILE_FS_PERSISTENT_VOLUME_INFORMATION](http://msdn.microsoft.com/en-us/library/windows/hardware/ff540280.aspx)
       using [DeviceIoControl()](http://msdn.microsoft.com/en-us/library/aa363216.aspx)
@@ -264,6 +270,9 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 * Expose platform-specific HTTP proxy configuration. Query registry on windows to determine IE settings.
 * Expose native named semaphores, mutexes and condition variables (CreateMutex, CreateSemaphore, CreateEvent, semget, sem_open, etc).
 * Expose information about network interfaces.
+    * Windows networking: http://msdn.microsoft.com/en-us/library/windows/desktop/ee663286(v=vs.85).aspx
+    * Windows ip functions: http://msdn.microsoft.com/en-us/library/windows/desktop/aa366071(v=vs.85).aspx
+    * Windows notification on change: http://msdn.microsoft.com/en-us/library/windows/desktop/aa366329(v=vs.85).aspx
 * Fire events when filesystems or network interfaces change in some way.
 * Fire events when terminal size changes.
 * Fire events when files change.
