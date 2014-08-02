@@ -168,9 +168,8 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_setEnvironme
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileSystems(JNIEnv *env, jclass target, jobject info, jobject result) {
     jclass info_class = env->GetObjectClass(info);
-    jmethodID method = env->GetMethodID(info_class, "add", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V");
+    jmethodID method = env->GetMethodID(info_class, "add", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZZ)V");
 
-    wprintf(L"Drives:\n");
     DWORD required = GetLogicalDriveStringsW(0, NULL);
     if (required == 0) {
         mark_failed_with_errno(env, "could not determine logical drive buffer size", result);
@@ -186,11 +185,8 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
     } else {
         wchar_t* cur = buffer;
         for (;cur[0] != L'\0'; cur += wcslen(cur) + 1) {
-            wprintf(L"  DRIVE: %s\n", cur);
-
             DWORD type = GetDriveTypeW(cur);
             jboolean remote = type == DRIVE_REMOTE;
-            wprintf(L"    DRIVE TYPE: %d\n", type);
 
             // chop off trailing '\'
             size_t len = wcslen(cur);
@@ -204,7 +200,6 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
                 mark_failed_with_errno(env, "could not map device for logical drive", result);
                 break;
             }
-            wprintf(L"    DEVICE: %s\n", deviceName);
             cur[len-1] = L'\\';
 
             DWORD available = 1;
@@ -221,29 +216,21 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
                                                 NULL, 0,                     // no output buffer
                                                 &cbBytesReturned,            // # bytes returned
                                                 (LPOVERLAPPED) NULL);        // synchronous I/O
-                    if (bSuccess) {
-                        wprintf(L"    AVAILABLE: yes\n");
-                    } else if (GetLastError() == ERROR_NOT_READY) {
+                    if (!bSuccess) {
                         available = 0;
-                        wprintf(L"    AVAILABLE: no\n");
-                    } else {
-                        available = 0;
-                        wprintf(L"    AVAILABLE: unknown: %d\n", GetLastError());
                     }
                     CloseHandle(hDevice);
                 }
             }
 
+            jboolean casePreserving = JNI_TRUE;
             if (available) {
                 DWORD flags;
                 if (GetVolumeInformationW(cur, NULL, 0, NULL, NULL, &flags, fileSystemName, MAX_PATH+1) == 0) {
                     mark_failed_with_errno(env, "could not get volume information", result);
                     break;
                 }
-                wprintf(L"    PRESERVE CASE: %s\n", (flags & FILE_CASE_PRESERVED_NAMES) != 0 ? L"yes" : L"no");
-                wprintf(L"    CASE SENSITIVE: %s\n", (flags & FILE_CASE_SENSITIVE_SEARCH) != 0 ? L"yes" : L"no");
-                wprintf(L"    READ ONLY: %s\n", (flags & FILE_READ_ONLY_VOLUME) != 0 ? L"yes" : L"no");
-                wprintf(L"    FS TYPE: %s\n", fileSystemName);
+                casePreserving = (flags & FILE_CASE_PRESERVED_NAMES) != 0;
             } else {
                 if (type == DRIVE_CDROM) {
                     swprintf(fileSystemName, MAX_PATH+1, L"cdrom");
@@ -256,7 +243,7 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
                                 wchar_to_java(env, cur, wcslen(cur), result),
                                 wchar_to_java(env, fileSystemName, wcslen(fileSystemName), result),
                                 wchar_to_java(env, deviceName, wcslen(deviceName), result),
-                                remote);
+                                remote, JNI_FALSE, casePreserving);
         }
     }
 

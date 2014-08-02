@@ -42,6 +42,18 @@ public interface FileSystem {
     boolean isRemote();
 
     /**
+     * Returns true if this file system is performance case sensitive searches.
+     */
+    @ThreadSafe
+    boolean isCaseSensitive();
+
+    /**
+     * Returns true if this file system preserves file name case.
+     */
+    @ThreadSafe
+    boolean isCasePreserving();
+
+    /**
      * Returns the operating system specific name for this file system.
      */
     @ThreadSafe

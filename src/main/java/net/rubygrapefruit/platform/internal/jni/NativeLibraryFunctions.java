@@ -20,7 +20,7 @@ import net.rubygrapefruit.platform.internal.FunctionResult;
 import net.rubygrapefruit.platform.internal.MutableSystemInfo;
 
 public class NativeLibraryFunctions {
-    public static final int VERSION = 19;
+    public static final int VERSION = 20;
 
     public static native int getVersion();
 

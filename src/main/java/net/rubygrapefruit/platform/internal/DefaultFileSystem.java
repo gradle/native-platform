@@ -25,12 +25,16 @@ public class DefaultFileSystem implements FileSystem {
     private final String fileSystemType;
     private final String deviceName;
     private final boolean remote;
+    private final boolean caseSensitive;
+    private final boolean casePreserving;
 
-    public DefaultFileSystem(File mountPoint, String fileSystemType, String deviceName, boolean remote) {
+    public DefaultFileSystem(File mountPoint, String fileSystemType, String deviceName, boolean remote, boolean caseSensitive, boolean casePreserving) {
         this.mountPoint = mountPoint;
         this.fileSystemType = fileSystemType;
         this.deviceName = deviceName;
         this.remote = remote;
+        this.caseSensitive = caseSensitive;
+        this.casePreserving = casePreserving;
     }
 
     public String getDeviceName() {
@@ -47,5 +51,13 @@ public class DefaultFileSystem implements FileSystem {
 
     public boolean isRemote() {
         return remote;
+    }
+
+    public boolean isCaseSensitive() {
+        return caseSensitive;
+    }
+
+    public boolean isCasePreserving() {
+        return casePreserving;
     }
 }

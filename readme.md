@@ -245,6 +245,7 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 * All: add diagnostics for terminal.
 * All: version each native interface separately.
 * All: string names for errno values.
+    * Use `strerror()` to map errno to a string
 * All: split into multiple projects.
 * Mac: use fully decomposed form for unicode file names on hfs+ filesystems.
 * All: extend FileSystem to deal with removable media.
@@ -273,6 +274,11 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
     * Windows networking: http://msdn.microsoft.com/en-us/library/windows/desktop/ee663286(v=vs.85).aspx
     * Windows ip functions: http://msdn.microsoft.com/en-us/library/windows/desktop/aa366071(v=vs.85).aspx
     * Windows notification on change: http://msdn.microsoft.com/en-us/library/windows/desktop/aa366329(v=vs.85).aspx
+* Expose information about memory size and usage:
+    * http://nadeausoftware.com/articles/2012/09/c_c_tip_how_get_physical_memory_size_system
+* Expose system monotonic clock, for timing:
+    * clock_gettime(CLOCK_MONOTONIC) on Linux
+    * mach_absolute_time() and mach_timebase_info() on OS X.
 * Fire events when filesystems or network interfaces change in some way.
 * Fire events when terminal size changes.
 * Fire events when files change.

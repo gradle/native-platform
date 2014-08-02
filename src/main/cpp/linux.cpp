@@ -38,13 +38,13 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
     struct mntent mount_info;
 
     jclass info_class = env->GetObjectClass(info);
-    jmethodID method = env->GetMethodID(info_class, "add", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V");
+    jmethodID method = env->GetMethodID(info_class, "add", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZZ)V");
 
     while (getmntent_r(fp, &mount_info, buf, sizeof(buf)) != NULL) {
         jstring mount_point = char_to_java(env, mount_info.mnt_dir, result);
         jstring file_system_type = char_to_java(env, mount_info.mnt_type, result);
         jstring device_name = char_to_java(env, mount_info.mnt_fsname, result);
-        env->CallVoidMethod(info, method, mount_point, file_system_type, device_name, JNI_FALSE);
+        env->CallVoidMethod(info, method, mount_point, file_system_type, device_name, JNI_FALSE, JNI_TRUE, JNI_TRUE);
     }
 
     endmntent(fp);

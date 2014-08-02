@@ -57,7 +57,9 @@ public class Main {
         FileSystems fileSystems = Native.get(FileSystems.class);
         System.out.println("* File systems: ");
         for (FileSystem fileSystem : fileSystems.getFileSystems()) {
-            System.out.println("    * " + fileSystem.getMountPoint() + " -> " + fileSystem.getDeviceName() + " (" + fileSystem.getFileSystemType() + (fileSystem.isRemote() ? " remote" : " local") + ")");
+            System.out.println(String.format("    * %s -> %s (type: %s %s, case sensitive: %s, case preserving: %s)",
+                    fileSystem.getMountPoint(), fileSystem.getDeviceName(), fileSystem.getFileSystemType(),
+                    fileSystem.isRemote() ? "remote" : "local", fileSystem.isCaseSensitive(), fileSystem.isCasePreserving()));
         }
 
         Terminals terminals = Native.get(Terminals.class);
