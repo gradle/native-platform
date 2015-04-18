@@ -29,6 +29,7 @@ public class Main {
     public static void main(String[] args) throws IOException {
         OptionParser optionParser = new OptionParser();
         optionParser.accepts("cache-dir", "The directory to cache native libraries in").withRequiredArg();
+        optionParser.accepts("stat", "Display details about the specified file").withRequiredArg();
 
         OptionSet result = null;
         try {
@@ -42,6 +43,11 @@ public class Main {
 
         if (result.has("cache-dir")) {
             Native.init(new File(result.valueOf("cache-dir").toString()));
+        }
+
+        if (result.has("stat")) {
+            stat((String) result.valueOf("stat"));
+            return;
         }
 
         System.out.println();
@@ -135,5 +141,16 @@ public class Main {
             terminal.reset();
             System.err.println(".");
         }
+    }
+
+    private static void stat(String path) {
+        PosixFiles posixFiles = Native.get(PosixFiles.class);
+        File file = new File(path);
+        PosixFile stat = posixFiles.stat(file);
+        System.out.println();
+        System.out.println("* File: " + file);
+        System.out.println("* Type: " + stat.getType());
+        System.out.println(String.format("* Mode: %03o", stat.getMode()));
+        System.out.println();
     }
 }
