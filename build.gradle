@@ -194,7 +194,7 @@ binaries.withType(SharedLibraryBinary) { binary ->
         jniPom.scopeMappings.mappings.clear()
     }
 
-    def builderTask = binary.tasks.builder
+    def builderTask = binary.tasks.link
     nativeJar.into("net/rubygrapefruit/platform/$variantName") { from builderTask.outputFile }
     nativeJar.dependsOn builderTask
     test.dependsOn nativeJar
