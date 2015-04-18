@@ -28,7 +28,6 @@ public interface FileWatch {
 
     /**
      * Stops watching for changes. Any thread blocked in {@link #nextChange()} will return.
-     * @throws NativeException
      */
     void close() throws NativeException;
 }

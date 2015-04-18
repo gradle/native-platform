@@ -23,6 +23,10 @@
 #include "generic.h"
 #include <stdio.h>
 #include <mntent.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <dirent.h>
+#include <sys/inotify.h>
 
 /*
  * File system functions
@@ -48,6 +52,50 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
     }
 
     endmntent(fp);
+}
+
+typedef struct watch_details {
+    int watch_fd;
+} watch_details_t;
+
+JNIEXPORT jobject JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_createWatch(JNIEnv *env, jclass target, jstring path, jobject result) {
+    int watch_fd = inotify_init1(IN_CLOEXEC);
+    if (watch_fd == -1) {
+        mark_failed_with_errno(env, "could not initialize inotify", result);
+        return NULL;
+    }
+    char* pathStr = java_to_char(env, path, result);
+    int event_fd = inotify_add_watch(watch_fd, pathStr, IN_ATTRIB | IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO);
+    free(pathStr);
+    if (event_fd == -1) {
+        close(watch_fd);
+        mark_failed_with_errno(env, "could not add path to watch", result);
+        return NULL;
+    }
+    watch_details_t* details = (watch_details_t*)malloc(sizeof(watch_details_t));
+    details->watch_fd = watch_fd;
+    return env->NewDirectByteBuffer(details, sizeof(watch_details_t));
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_waitForNextEvent(JNIEnv *env, jclass target, jobject handle, jobject result) {
+    watch_details_t* details = (watch_details_t*)env->GetDirectBufferAddress(handle);
+    size_t len = sizeof(struct inotify_event) + NAME_MAX + 1;
+    void* buffer = malloc(len);
+    size_t read_count = read(details->watch_fd, buffer, len);
+    free(buffer);
+    if (read_count == -1) {
+        mark_failed_with_errno(env, "could not wait for next event", result);
+        return;
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_closeWatch(JNIEnv *env, jclass target, jobject handle, jobject result) {
+    watch_details_t* details = (watch_details_t*)env->GetDirectBufferAddress(handle);
+    close(details->watch_fd);
+    free(details);
 }
 
 #endif

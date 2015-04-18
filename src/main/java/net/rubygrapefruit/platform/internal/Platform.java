@@ -186,14 +186,24 @@ public abstract class Platform {
         }
     }
 
-    private static class Linux32Bit extends Unix {
+    private abstract static class Linux extends Unix {
+        @Override
+        public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
+            if (type.equals(FileEvents.class)) {
+                return type.cast(new DefaultFileEvents());
+            }
+            return super.get(type, nativeLibraryLoader);
+        }
+    }
+
+    private static class Linux32Bit extends Linux {
         @Override
         public String getId() {
             return "linux-i386";
         }
     }
 
-    private static class Linux64Bit extends Unix {
+    private static class Linux64Bit extends Linux {
         @Override
         public String getId() {
             return "linux-amd64";

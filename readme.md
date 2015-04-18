@@ -213,6 +213,11 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
 ### Fixes
 
+* OS X: Watch for changes to files in directory.
+* OS X: Handle deletion and recreation of watched directory.
+* All: `FileWatch` tests: file truncated, last modified changed, content changed, recreated as file/dir
+* All: Thread safety for `FileWatch`.
+* All: Bulk read of multiple file change events, coalesce events.
 * Linux: Fix detection of multiarch support
 * FreeBSD: Fix detection of multiarch support
 * All: `Process.getPid()` should return a long

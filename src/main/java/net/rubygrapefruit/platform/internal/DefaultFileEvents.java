@@ -32,24 +32,34 @@ public class DefaultFileEvents implements FileEvents {
                     result.getMessage()));
         }
 
-        return new FileWatch() {
-            public void nextChange() {
-                FunctionResult result = new FunctionResult();
-                FileEventFunctions.waitForNextEvent(handle, result);
-                if (result.isFailed()) {
-                    throw new NativeException(String.format("Could not receive next change to %s: %s", target,
-                            result.getMessage()));
-                }
-            }
+        return new DefaultFileWatch(handle, target);
+    }
 
-            public void close() {
-                FunctionResult result = new FunctionResult();
-                FileEventFunctions.closeWatch(handle, result);
-                if (result.isFailed()) {
-                    throw new NativeException(String.format("Could cleanup watch handle for %s: %s", target,
-                            result.getMessage()));
-                }
+    private static class DefaultFileWatch implements FileWatch {
+        private final Object handle;
+        private final File target;
+
+        public DefaultFileWatch(Object handle, File target) {
+            this.handle = handle;
+            this.target = target;
+        }
+
+        public void nextChange() {
+            FunctionResult result = new FunctionResult();
+            FileEventFunctions.waitForNextEvent(handle, result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not receive next change to %s: %s", target,
+                        result.getMessage()));
             }
-        };
+        }
+
+        public void close() {
+            FunctionResult result = new FunctionResult();
+            FileEventFunctions.closeWatch(handle, result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could cleanup watch handle for %s: %s", target,
+                        result.getMessage()));
+            }
+        }
     }
 }

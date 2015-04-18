@@ -24,11 +24,13 @@ import java.io.File;
 @ThreadSafe
 public interface FileEvents extends NativeIntegration {
     /**
-     * Starts watching the specified directory. Caller should call {@link FileWatch#close()} when finished watching
-     * to release any resources.
+     * Starts watching the specified directory or file.
+     *
+     * <p>Caller should call {@link FileWatch#close()} when finished watching to release any resources.
      *
      * <p>Note: The current implementation does not notify about changes to files in a directory, only the directory
-     * itself. This means events will be received when files are created or deleted, but not modified.</p>
+     * itself. This means events will be received when files are created or deleted in the directory, but not when files
+     * in the directory are modified.</p>
      */
     FileWatch startWatch(File target) throws NativeException;
 }
