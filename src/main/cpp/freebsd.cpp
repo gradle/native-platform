@@ -64,6 +64,9 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
         alist.volattr = ATTR_VOL_CAPABILITIES | ATTR_VOL_INFO;
         vol_caps_buf_t buffer;
 
+        jboolean caseSensitive = JNI_TRUE;
+        jboolean casePreserving = JNI_TRUE;
+
         // getattrlist requires the path to the actual mount point.
         int err = getattrlist(buf[i].f_mntonname, &alist, &buffer, sizeof(buffer), 0);
         if (err != 0) {
@@ -71,8 +74,6 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
             break;
         }
 
-        jboolean caseSensitive = JNI_TRUE;
-        jboolean casePreserving = JNI_TRUE;
         if (alist.volattr & ATTR_VOL_CAPABILITIES) {
             if ((buffer.caps.valid[VOL_CAPABILITIES_FORMAT] & VOL_CAP_FMT_CASE_SENSITIVE)) {
                 caseSensitive = (buffer.caps.capabilities[VOL_CAPABILITIES_FORMAT] & VOL_CAP_FMT_CASE_SENSITIVE) != 0;
