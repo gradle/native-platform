@@ -48,7 +48,20 @@ def nativeHeadersDir = file("$buildDir/nativeHeaders")
 
 task nativeHeaders {
     def outputFile = file("$nativeHeadersDir/native.h")
+    def classes = [
+            'net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions',
+            'net.rubygrapefruit.platform.internal.jni.PosixFileFunctions',
+            'net.rubygrapefruit.platform.internal.jni.PosixFileSystemFunctions',
+            'net.rubygrapefruit.platform.internal.jni.PosixProcessFunctions',
+            'net.rubygrapefruit.platform.internal.jni.PosixTerminalFunctions',
+            'net.rubygrapefruit.platform.internal.jni.TerminfoFunctions',
+            'net.rubygrapefruit.platform.internal.jni.WindowsConsoleFunctions',
+            'net.rubygrapefruit.platform.internal.jni.WindowsHandleFunctions',
+            'net.rubygrapefruit.platform.internal.jni.WindowsRegistryFunctions',
+            'net.rubygrapefruit.platform.internal.jni.FileEventFunctions'
+    ]
     inputs.files sourceSets.main.output
+    inputs.property('classes', classes)
     outputs.file outputFile
     doLast {
         outputFile.parentFile.mkdirs()
@@ -56,15 +69,7 @@ task nativeHeaders {
             executable org.gradle.internal.jvm.Jvm.current().getExecutable('javah')
             args '-o', outputFile
             args '-classpath', sourceSets.main.output.classesDir
-            args 'net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions'
-            args 'net.rubygrapefruit.platform.internal.jni.PosixFileFunctions'
-            args 'net.rubygrapefruit.platform.internal.jni.PosixFileSystemFunctions'
-            args 'net.rubygrapefruit.platform.internal.jni.PosixProcessFunctions'
-            args 'net.rubygrapefruit.platform.internal.jni.PosixTerminalFunctions'
-            args 'net.rubygrapefruit.platform.internal.jni.TerminfoFunctions'
-            args 'net.rubygrapefruit.platform.internal.jni.WindowsConsoleFunctions'
-            args 'net.rubygrapefruit.platform.internal.jni.WindowsHandleFunctions'
-            args 'net.rubygrapefruit.platform.internal.jni.WindowsRegistryFunctions'
+            args classes
         }
     }
 }

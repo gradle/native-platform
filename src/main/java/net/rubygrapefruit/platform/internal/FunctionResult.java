@@ -21,12 +21,16 @@ public class FunctionResult {
     int errno;
     private String errorCodeDescription;
 
+    // Called from native code
+    @SuppressWarnings("UnusedDeclaration")
     void failed(String message, int errno, String errorCodeDescription) {
         this.message = message;
         this.errno = errno;
         this.errorCodeDescription = errorCodeDescription;
     }
 
+    // Called from native code
+    @SuppressWarnings("UnusedDeclaration")
     void failed(String message) {
         this.message = message;
     }

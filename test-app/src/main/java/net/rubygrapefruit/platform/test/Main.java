@@ -30,6 +30,7 @@ public class Main {
         OptionParser optionParser = new OptionParser();
         optionParser.accepts("cache-dir", "The directory to cache native libraries in").withRequiredArg();
         optionParser.accepts("stat", "Display details about the specified file").withRequiredArg();
+        optionParser.accepts("watch", "Watches for changes to the specified file or directory").withRequiredArg();
 
         OptionSet result = null;
         try {
@@ -47,6 +48,11 @@ public class Main {
 
         if (result.has("stat")) {
             stat((String) result.valueOf("stat"));
+            return;
+        }
+
+        if (result.has("watch")) {
+            watch((String) result.valueOf("watch"));
             return;
         }
 
@@ -143,10 +149,24 @@ public class Main {
         }
     }
 
-    private static void stat(String path) {
-        PosixFiles posixFiles = Native.get(PosixFiles.class);
+    private static void watch(String path) {
         File file = new File(path);
-        PosixFile stat = posixFiles.stat(file);
+        FileWatch watch = Native.get(FileEvents.class).startWatch(file);
+        try {
+            System.out.println("Waiting ...");
+            for (int i = 0; i < 10; i++) {
+                watch.nextChange();
+                System.out.println("Change detected.");
+            }
+        } finally {
+            watch.close();
+        }
+        System.out.println("Done");
+    }
+
+    private static void stat(String path) {
+        File file = new File(path);
+        PosixFile stat = Native.get(PosixFiles.class).stat(file);
         System.out.println();
         System.out.println("* File: " + file);
         System.out.println("* Type: " + stat.getType());

@@ -32,30 +32,25 @@ public abstract class Platform {
                 if (osName.contains("windows")) {
                     if (arch.equals("x86")) {
                         platform = new Window32Bit();
-                    }
-                    else if (arch.equals("amd64")) {
+                    } else if (arch.equals("amd64")) {
                         platform = new Window64Bit();
                     }
                 } else if (osName.contains("linux")) {
                     if (arch.equals("amd64") || arch.equals("x86_64")) {
                         platform = new Linux64Bit();
-                    }
-                    else if (arch.equals("i386") || arch.equals("x86")) {
+                    } else if (arch.equals("i386") || arch.equals("x86")) {
                         platform = new Linux32Bit();
                     }
                 } else if (osName.contains("os x") || osName.contains("darwin")) {
                     if (arch.equals("i386")) {
                         platform = new OsX32Bit();
-                    }
-                    else if (arch.equals("x86_64") || arch.equals("amd64") || arch.equals("universal")) {
+                    } else if (arch.equals("x86_64") || arch.equals("amd64") || arch.equals("universal")) {
                         platform = new OsX64Bit();
                     }
-                }
-                else if (osName.contains("freebsd")) {
+                } else if (osName.contains("freebsd")) {
                     if (arch.equals("amd64")) {
                         platform = new FreeBSD64Bit();
-                    }
-                    else if (arch.equals("i386") || arch.equals("x86")) {
+                    } else if (arch.equals("i386") || arch.equals("x86")) {
                         platform = new FreeBSD32Bit();
                     }
                 }
@@ -77,11 +72,13 @@ public abstract class Platform {
     }
 
     public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
-        throw new NativeIntegrationUnavailableException(String.format("Native integration %s is not supported for %s.", type.getSimpleName(), toString()));
+        throw new NativeIntegrationUnavailableException(String.format("Native integration %s is not supported for %s.",
+                type.getSimpleName(), toString()));
     }
 
     public String getLibraryName() {
-        throw new NativeIntegrationUnavailableException(String.format("Native integration is not available for %s.", toString()));
+        throw new NativeIntegrationUnavailableException(String.format("Native integration is not available for %s.",
+                toString()));
     }
 
     public abstract String getId();
@@ -161,7 +158,9 @@ public abstract class Platform {
                 nativeLibraryLoader.load(getCursesLibraryName());
                 int nativeVersion = TerminfoFunctions.getVersion();
                 if (nativeVersion != NativeLibraryFunctions.VERSION) {
-                    throw new NativeException(String.format("Unexpected native library version loaded. Expected %s, was %s.", nativeVersion, NativeLibraryFunctions.VERSION));
+                    throw new NativeException(String.format(
+                            "Unexpected native library version loaded. Expected %s, was %s.", nativeVersion,
+                            NativeLibraryFunctions.VERSION));
                 }
                 return type.cast(new TerminfoTerminals());
             }
@@ -225,6 +224,14 @@ public abstract class Platform {
         String getCursesLibraryName() {
             return "libnative-platform-curses.dylib";
         }
+
+        @Override
+        public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
+            if (type.equals(FileEvents.class)) {
+                return type.cast(new DefaultFileEvents());
+            }
+            return super.get(type, nativeLibraryLoader);
+        }
     }
 
     private static class OsX32Bit extends OsX {
@@ -247,5 +254,4 @@ public abstract class Platform {
             throw new UnsupportedOperationException();
         }
     }
-
 }
