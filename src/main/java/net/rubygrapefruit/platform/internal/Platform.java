@@ -122,6 +122,9 @@ public abstract class Platform {
             if (type.equals(WindowsRegistry.class)) {
                 return type.cast(new DefaultWindowsRegistry());
             }
+            if (type.equals(FileEvents.class)) {
+                return type.cast(new DefaultFileEvents());
+            }
             return super.get(type, nativeLibraryLoader);
         }
     }

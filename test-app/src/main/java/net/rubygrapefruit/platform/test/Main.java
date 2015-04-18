@@ -32,6 +32,7 @@ public class Main {
         optionParser.accepts("stat", "Display details about the specified file or directory").withRequiredArg();
         optionParser.accepts("watch", "Watches for changes to the specified file or directory").withRequiredArg();
         optionParser.accepts("machine", "Display details about the current machine");
+        optionParser.accepts("terminal", "Display details about the terminal");
 
         OptionSet result = null;
         try {
