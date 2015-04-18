@@ -173,6 +173,9 @@ public abstract class Platform {
             if (type.equals(FileSystems.class)) {
                 return type.cast(new PosixFileSystems());
             }
+            if (type.equals(FileEvents.class)) {
+                return type.cast(new DefaultFileEvents());
+            }
             return super.get(type, nativeLibraryLoader);
         }
     }
@@ -192,9 +195,6 @@ public abstract class Platform {
     private abstract static class Linux extends Unix {
         @Override
         public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
-            if (type.equals(FileEvents.class)) {
-                return type.cast(new DefaultFileEvents());
-            }
             return super.get(type, nativeLibraryLoader);
         }
     }
@@ -236,14 +236,6 @@ public abstract class Platform {
         @Override
         String getCursesLibraryName() {
             return "libnative-platform-curses.dylib";
-        }
-
-        @Override
-        public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
-            if (type.equals(FileEvents.class)) {
-                return type.cast(new DefaultFileEvents());
-            }
-            return super.get(type, nativeLibraryLoader);
         }
     }
 

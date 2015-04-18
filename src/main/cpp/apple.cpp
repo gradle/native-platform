@@ -27,11 +27,7 @@
 #include <sys/ucred.h>
 #include <sys/mount.h>
 #include <unistd.h>
-#include <errno.h>
-#include <fcntl.h>
 #include <sys/attr.h>
-#include <sys/event.h>
-#include <sys/time.h>
 
 typedef struct vol_caps_buf {
     u_int32_t size;
@@ -93,52 +89,6 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
         env->CallVoidMethod(info, method, mount_point, file_system_type, device_name, remote, caseSensitive, casePreserving);
     }
     free(buf);
-}
-
-typedef struct watch_details {
-    int watch_fd;
-    int target_fd;
-} watch_details_t;
-
-JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_createWatch(JNIEnv *env, jclass target, jstring path, jobject result) {
-    int watch_fd = kqueue();
-    if (watch_fd == -1) {
-        mark_failed_with_errno(env, "could not create kqueue", result);
-        return NULL;
-    }
-    char* pathStr = java_to_char(env, path, result);
-    int event_fd = open(pathStr, O_EVTONLY);
-    free(pathStr);
-    if (event_fd == -1) {
-        close(watch_fd);
-        mark_failed_with_errno(env, "could not open path to watch for events", result);
-        return NULL;
-    }
-    watch_details_t* details = (watch_details_t*)malloc(sizeof(watch_details_t));
-    details->watch_fd = watch_fd;
-    details->target_fd = event_fd;
-    return env->NewDirectByteBuffer(details, sizeof(watch_details_t));
-}
-
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_waitForNextEvent(JNIEnv *env, jclass target, jobject handle, jobject result) {
-    watch_details_t* details = (watch_details_t*)env->GetDirectBufferAddress(handle);
-    struct kevent event_spec;
-    EV_SET( &event_spec, details->target_fd, EVFILT_VNODE, EV_ADD | EV_CLEAR, NOTE_DELETE |  NOTE_WRITE | NOTE_EXTEND | NOTE_ATTRIB | NOTE_LINK | NOTE_RENAME | NOTE_REVOKE, 0, NULL);
-    struct kevent event;
-    int event_count = kevent(details->watch_fd, &event_spec, 1, &event, 1, NULL);
-    if ((event_count < 0) || (event.flags == EV_ERROR)) {
-        mark_failed_with_errno(env, "could not receive next change event", result);
-    }
-}
-
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_closeWatch(JNIEnv *env, jclass target, jobject handle, jobject result) {
-    watch_details_t* details = (watch_details_t*)env->GetDirectBufferAddress(handle);
-    close(details->target_fd);
-    close(details->watch_fd);
-    free(details);
 }
 
 #endif
