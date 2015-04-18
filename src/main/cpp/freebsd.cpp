@@ -26,16 +26,18 @@
 #include <sys/param.h>
 #include <sys/ucred.h>
 #include <sys/mount.h>
-#if defined(__APPLE__)
-#include <sys/attr.h>
-#endif
 #include <unistd.h>
 #include <errno.h>
+
+#if defined(__APPLE__)
+#include <sys/attr.h>
 
 typedef struct vol_caps_buf {
     u_int32_t size;
     vol_capabilities_attr_t caps;
 } vol_caps_buf_t;
+
+#endif
 
 /*
  * File system functions
