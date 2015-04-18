@@ -26,7 +26,9 @@
 #include <sys/param.h>
 #include <sys/ucred.h>
 #include <sys/mount.h>
+#if defined(__APPLE__)
 #include <sys/attr.h>
+#endif
 #include <unistd.h>
 #include <errno.h>
 
@@ -58,14 +60,15 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
     jmethodID method = env->GetMethodID(info_class, "add", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZZ)V");
 
     for (int i = 0; i < fs_count; i++) {
+        jboolean caseSensitive = JNI_TRUE;
+        jboolean casePreserving = JNI_TRUE;
+
+#if defined(__APPLE__)
         struct attrlist alist;
         memset(&alist, 0, sizeof(alist));
         alist.bitmapcount = ATTR_BIT_MAP_COUNT;
         alist.volattr = ATTR_VOL_CAPABILITIES | ATTR_VOL_INFO;
         vol_caps_buf_t buffer;
-
-        jboolean caseSensitive = JNI_TRUE;
-        jboolean casePreserving = JNI_TRUE;
 
         // getattrlist requires the path to the actual mount point.
         int err = getattrlist(buf[i].f_mntonname, &alist, &buffer, sizeof(buffer), 0);
@@ -82,6 +85,7 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
                 casePreserving = (buffer.caps.capabilities[VOL_CAPABILITIES_FORMAT] & VOL_CAP_FMT_CASE_PRESERVING) != 0;
             }
         }
+#endif
 
         jstring mount_point = char_to_java(env, buf[i].f_mntonname, result);
         jstring file_system_type = char_to_java(env, buf[i].f_fstypename, result);
