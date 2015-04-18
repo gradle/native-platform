@@ -40,6 +40,7 @@ These bindings work for both the UNIX terminal and the Windows console:
 * Query file system type.
 * Query file system device name.
 * Query whether a file system is local or remote.
+* Query whether a file system is case sensitive and case preserving.
 
 ### Windows registry
 
@@ -66,7 +67,7 @@ this:
     }
 
     dependencies {
-        compile "net.rubygrapefruit:native-platform:0.9"
+        compile "net.rubygrapefruit:native-platform:0.10"
     }
 
 You can also download [here](http://repo.gradle.org/gradle/libs-releases-local/net/rubygrapefruit/)
@@ -92,6 +93,7 @@ Some sample code to use the terminal:
 
 ### 0.11
 
+* Added `FileSystem.isCaseSensitive()` and `FileSystem.isCasePreserving()`.
 * Fixes running under GCJ.
 
 ### 0.10
@@ -149,11 +151,12 @@ You should avoid using this release, and use 0.7 or later instead.
 
 ## Building
 
-You will need to use the Gradle wrapper. Just run `gradlew` in the root of the source repo.
+This project uses (Gradle)[http://www.gradle.org] to build. Just run `gradlew` in the root of the source repo.
 
 ### Ubuntu
 
 The g++ compiler is required to build the native library. You will need to install the `g++` package for this.
+Alternatively, you can use the Clang C++ compiler.
 
 You need to install the `libncurses5-dev` package to pick up the ncurses header files. Also worth installing the `ncurses-doc` package too.
 
