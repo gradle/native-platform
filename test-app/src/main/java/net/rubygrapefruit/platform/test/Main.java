@@ -29,8 +29,9 @@ public class Main {
     public static void main(String[] args) throws IOException {
         OptionParser optionParser = new OptionParser();
         optionParser.accepts("cache-dir", "The directory to cache native libraries in").withRequiredArg();
-        optionParser.accepts("stat", "Display details about the specified file").withRequiredArg();
+        optionParser.accepts("stat", "Display details about the specified file or directory").withRequiredArg();
         optionParser.accepts("watch", "Watches for changes to the specified file or directory").withRequiredArg();
+        optionParser.accepts("machine", "Display details about the current machine");
 
         OptionSet result = null;
         try {
@@ -56,24 +57,16 @@ public class Main {
             return;
         }
 
-        System.out.println();
-        System.out.println("* JVM: " + System.getProperty("java.vm.vendor") + ' ' + System.getProperty("java.version"));
-        System.out.println("* OS (JVM): " + System.getProperty("os.name") + ' ' + System.getProperty("os.version") + ' ' + System.getProperty("os.arch"));
-
-        SystemInfo systemInfo = Native.get(SystemInfo.class);
-        System.out.println("* OS (Kernel): " + systemInfo.getKernelName() + ' ' + systemInfo.getKernelVersion() + ' ' + systemInfo.getArchitectureName() + " (" + systemInfo.getArchitecture() + ")");
-
-        Process process = Native.get(Process.class);
-        System.out.println("* PID: " + process.getProcessId());
-
-        FileSystems fileSystems = Native.get(FileSystems.class);
-        System.out.println("* File systems: ");
-        for (FileSystem fileSystem : fileSystems.getFileSystems()) {
-            System.out.println(String.format("    * %s -> %s (type: %s %s, case sensitive: %s, case preserving: %s)",
-                    fileSystem.getMountPoint(), fileSystem.getDeviceName(), fileSystem.getFileSystemType(),
-                    fileSystem.isRemote() ? "remote" : "local", fileSystem.isCaseSensitive(), fileSystem.isCasePreserving()));
+        if (result.has("machine")) {
+            machine();
+            return;
         }
 
+        terminal();
+    }
+
+    private static void terminal() {
+        System.out.println();
         Terminals terminals = Native.get(Terminals.class);
         boolean stdoutIsTerminal = terminals.isTerminal(Terminals.Output.Stdout);
         boolean stderrIsTerminal = terminals.isTerminal(Terminals.Output.Stderr);
@@ -147,6 +140,27 @@ public class Main {
             terminal.reset();
             System.err.println(".");
         }
+    }
+
+    private static void machine() {
+        System.out.println();
+        System.out.println("* JVM: " + System.getProperty("java.vm.vendor") + ' ' + System.getProperty("java.version"));
+        System.out.println("* OS (JVM): " + System.getProperty("os.name") + ' ' + System.getProperty("os.version") + ' ' + System.getProperty("os.arch"));
+
+        SystemInfo systemInfo = Native.get(SystemInfo.class);
+        System.out.println("* OS (Kernel): " + systemInfo.getKernelName() + ' ' + systemInfo.getKernelVersion() + ' ' + systemInfo.getArchitectureName() + " (" + systemInfo.getArchitecture() + ")");
+
+        Process process = Native.get(Process.class);
+        System.out.println("* PID: " + process.getProcessId());
+
+        FileSystems fileSystems = Native.get(FileSystems.class);
+        System.out.println("* File systems: ");
+        for (FileSystem fileSystem : fileSystems.getFileSystems()) {
+            System.out.println(String.format("    * %s -> %s (type: %s %s, case sensitive: %s, case preserving: %s)",
+                    fileSystem.getMountPoint(), fileSystem.getDeviceName(), fileSystem.getFileSystemType(),
+                    fileSystem.isRemote() ? "remote" : "local", fileSystem.isCaseSensitive(), fileSystem.isCasePreserving()));
+        }
+        System.out.println();
     }
 
     private static void watch(String path) {
