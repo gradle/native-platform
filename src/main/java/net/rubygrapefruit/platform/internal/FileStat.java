@@ -19,8 +19,16 @@ package net.rubygrapefruit.platform.internal;
 import net.rubygrapefruit.platform.PosixFile;
 
 public class FileStat implements PosixFile {
+    // Fields set by native code
     public int mode;
     public int type;
+    public int uid;
+    public int gid;
+    public long size;
+    public long accessTime;
+    public long modificationTime;
+    public long statusChangeTime;
+    public long blockSize;
 
     public int getMode() {
         return mode;
@@ -28,5 +36,33 @@ public class FileStat implements PosixFile {
 
     public Type getType() {
         return Type.values()[type];
+    }
+
+    public int getUid() {
+        return uid;
+    }
+
+    public int getGid() {
+        return gid;
+    }
+
+    public long getSize() {
+        return size;
+    }
+
+    public long getBlockSize() {
+        return blockSize;
+    }
+
+    public long getLastAccessTime() {
+        return accessTime;
+    }
+
+    public long getLastModifiedTime() {
+        return modificationTime;
+    }
+
+    public long getLastStatusChangeTime() {
+        return statusChangeTime;
     }
 }

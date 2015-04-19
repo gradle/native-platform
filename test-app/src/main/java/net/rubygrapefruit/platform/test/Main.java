@@ -24,6 +24,8 @@ import net.rubygrapefruit.platform.Process;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 public class Main {
     public static void main(String[] args) throws IOException {
@@ -201,11 +203,29 @@ public class Main {
 
     private static void stat(String path) {
         File file = new File(path);
-        PosixFile stat = Native.get(PosixFiles.class).stat(file);
+
+        PosixFiles posixFiles = Native.get(PosixFiles.class);
+        PosixFile stat = posixFiles.stat(file);
         System.out.println();
         System.out.println("* File: " + file);
         System.out.println("* Type: " + stat.getType());
+        if (stat.getType() == PosixFile.Type.Symlink) {
+            System.out.println("* Symlink to: " + posixFiles.readLink(file));
+        }
+        System.out.println("* UID: " + stat.getUid());
+        System.out.println("* GID: " + stat.getGid());
         System.out.println(String.format("* Mode: %03o", stat.getMode()));
+        System.out.println("* Size: " + stat.getSize());
+        System.out.println("* Access time: " + date(stat.getLastAccessTime()));
+        System.out.println("* Status change time: " + date(stat.getLastStatusChangeTime()));
+        System.out.println("* Modification time: " + date(stat.getLastModifiedTime()) );
+        System.out.println("* Modification time (JVM): " + date(file.lastModified()) );
+        System.out.println("* Block size: " + stat.getBlockSize());
+
         System.out.println();
+    }
+
+    private static String date(long timestamp) {
+        return new SimpleDateFormat("yyyyMMdd HHmmss.SSS").format(new Date(timestamp));
     }
 }

@@ -41,6 +41,13 @@ class PosixFilesTest extends Specification {
         then:
         stat.type == PosixFile.Type.File
         stat.mode != 0
+        stat.uid != 0
+        stat.gid != 0
+        stat.size == testFile.size()
+        stat.lastAccessTime
+        stat.lastStatusChangeTime
+        stat.lastModifiedTime == testFile.lastModified()
+        stat.blockSize
 
         where:
         fileName << ["test.txt", "test\u03b1\u2295.txt"]
@@ -55,6 +62,11 @@ class PosixFilesTest extends Specification {
         then:
         stat.type == PosixFile.Type.Directory
         stat.mode != 0
+        stat.uid != 0
+        stat.gid != 0
+        stat.lastAccessTime
+        stat.lastStatusChangeTime
+        stat.lastModifiedTime == testFile.lastModified()
 
         where:
         fileName << ["test-dir", "test\u03b1\u2295-dir"]
@@ -69,6 +81,9 @@ class PosixFilesTest extends Specification {
         then:
         stat.type == PosixFile.Type.Missing
         stat.mode == 0
+        stat.uid == 0
+        stat.gid == 0
+        stat.size == 0
 
         where:
         fileName << ["test-dir", "test\u03b1\u2295-dir"]
@@ -196,6 +211,12 @@ class PosixFilesTest extends Specification {
         then:
         stat.type == PosixFile.Type.Symlink
         stat.mode != 0
+        stat.mode != 0
+        stat.uid != 0
+        stat.gid != 0
+        stat.lastAccessTime
+        stat.lastStatusChangeTime
+        stat.lastModifiedTime
 
         where:
         fileName << ["test.txt", "test\u03b1\u2295.txt"]

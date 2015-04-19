@@ -21,6 +21,7 @@ package net.rubygrapefruit.platform;
  */
 @ThreadSafe
 public interface PosixFile {
+    // Order is significant here
     enum Type {File, Directory, Symlink, Other, Missing}
 
     /**
@@ -32,4 +33,39 @@ public interface PosixFile {
      * Returns the mode of this file.
      */
     int getMode();
+
+    /**
+     * Returns the size of this file, in bytes.
+     */
+    long getSize();
+
+    /**
+     * Returns the UID of this file.
+     */
+    int getUid();
+
+    /**
+     * Returns the GID of this file.
+     */
+    int getGid();
+
+    /**
+     * Returns the optimal block size for reading or writing to this file, in bytes.
+     */
+    long getBlockSize();
+
+    /**
+     * Returns the last access time of this file, in ms since epoch.
+     */
+    long getLastAccessTime();
+
+    /**
+     * Returns the last modification time of this file, in ms since epoch.
+     */
+    long getLastModifiedTime();
+
+    /**
+     * Returns the last status change time of this file, in ms since epoch.
+     */
+    long getLastStatusChangeTime();
 }

@@ -75,6 +75,10 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_chmod(JNIEnv *e
     }
 }
 
+jlong timestamp(struct timespec t) {
+    return t.tv_sec * 1000 + t.tv_nsec / 1000;
+}
+
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *env, jclass target, jstring path, jobject dest, jobject result) {
     struct stat fileInfo;
@@ -92,6 +96,13 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *en
     jclass destClass = env->GetObjectClass(dest);
     jfieldID modeField = env->GetFieldID(destClass, "mode", "I");
     jfieldID typeField = env->GetFieldID(destClass, "type", "I");
+    jfieldID sizeField = env->GetFieldID(destClass, "size", "J");
+    jfieldID uidField = env->GetFieldID(destClass, "uid", "I");
+    jfieldID gidField = env->GetFieldID(destClass, "gid", "I");
+    jfieldID blockSizeField = env->GetFieldID(destClass, "blockSize", "J");
+    jfieldID accessTimeField = env->GetFieldID(destClass, "accessTime", "J");
+    jfieldID modificationTimeField = env->GetFieldID(destClass, "modificationTime", "J");
+    jfieldID statusChangeTime = env->GetFieldID(destClass, "statusChangeTime", "J");
 
     if (retval != 0) {
         env->SetIntField(dest, typeField, 4);
@@ -112,6 +123,19 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *en
                 type= 3;
         }
         env->SetIntField(dest, typeField, type);
+        env->SetIntField(dest, uidField, fileInfo.st_uid);
+        env->SetIntField(dest, gidField, fileInfo.st_gid);
+        env->SetLongField(dest, sizeField, fileInfo.st_size);
+        env->SetLongField(dest, blockSizeField, fileInfo.st_blksize);
+#ifdef __linux__
+        env->SetLongField(dest, accessTimeField, fileInfo.st_atime * 1000);
+        env->SetLongField(dest, modificationTimeField, fileInfo.st_mtime * 1000);
+        env->SetLongField(dest, statusChangeTime, fileInfo.st_ctime * 1000);
+#else
+        env->SetLongField(dest, accessTimeField, timestamp(fileInfo.st_atimespec));
+        env->SetLongField(dest, modificationTimeField, timestamp(fileInfo.st_mtimespec));
+        env->SetLongField(dest, statusChangeTime, timestamp(fileInfo.st_ctimespec));
+#endif
     }
 }
 

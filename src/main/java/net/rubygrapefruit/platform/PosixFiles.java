@@ -56,7 +56,8 @@ public interface PosixFiles extends NativeIntegration {
     String readLink(File link) throws NativeException;
 
     /**
-     * Returns basic information about the given file.
+     * Returns basic information about the given file. If the file references a symlink, details about the symlink
+     * is returned, not the file that the symlink references.
      *
      * @throws NativeException On failure.
      */

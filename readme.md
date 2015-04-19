@@ -35,7 +35,8 @@ These bindings work for both the UNIX terminal and the Windows console:
 * Watch for changes to a directory. Implementation is currently limited to watching on a single directory.
 * Get and set UNIX file mode.
 * Create and read symbolic links.
-* Determine file type.
+* Query UNIX file uid and gid.
+* Query file type, size and timestamps.
 * List the available file systems on the machine.
 * Query file system mount point.
 * Query file system type.
@@ -95,6 +96,7 @@ Some sample code to use the terminal:
 ### 0.11
 
 * Added initial implementation of `FileEvents`, which allows an application to listen for changes to a file system directory.
+* Added more properties to `PosixFile`.
 * Added `FileSystem.isCaseSensitive()` and `FileSystem.isCasePreserving()`.
 * Fixes running under GCJ.
 
@@ -232,6 +234,7 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 * Windows: fix detection of shared drive under VMWare fusion and Windows XP
 * Windows: restore std handles after launching child process
 * Linux: detect remote filesystems.
+* All: cache reflective lookup in native functions.
 * Solaris: fix unicode file name handling.
 * Solaris: fail for unsupported architecture.
 * Solaris: build 32 bit and 64 bit libraries.
