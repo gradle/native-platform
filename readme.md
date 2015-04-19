@@ -32,6 +32,7 @@ These bindings work for both the UNIX terminal and the Windows console:
 
 ### File systems
 
+* Watch for changes to a directory.
 * Get and set UNIX file mode.
 * Create and read symbolic links.
 * Determine file type.

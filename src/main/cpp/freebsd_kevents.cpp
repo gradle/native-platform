@@ -41,7 +41,11 @@ Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_createWatch(JNI
         return NULL;
     }
     char* pathStr = java_to_char(env, path, result);
+#if defined(O_EVTONLY)
     int event_fd = open(pathStr, O_EVTONLY);
+#else
+    int event_fd = open(pathStr, O_RDONLY);
+#endif
     free(pathStr);
     if (event_fd == -1) {
         close(watch_fd);
