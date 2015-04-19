@@ -40,8 +40,8 @@ public class FunctionResult {
     }
 
     public String getMessage() {
-        if (errorCodeDescription != null) {
-            return String.format("%s (%s errno %d)", message, errorCodeDescription, errno);
+        if (errorCodeDescription != null && errorCodeDescription.length() > 0) {
+            return String.format("%s (errno %d: %s)", message, errno, errorCodeDescription);
         }
         if (errno != 0) {
             return String.format("%s (errno %d)", message, errno);

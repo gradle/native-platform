@@ -110,7 +110,7 @@ class PosixFilesTest extends Specification {
 
         then:
         NativeException e = thrown()
-        e.message == "Could not set UNIX mode on $testFile: could not chmod file (ENOENT errno 2)"
+        e.message == "Could not set UNIX mode on $testFile: could not chmod file (errno 2: No such file or directory)"
     }
 
     def "cannot get mode on file that does not exist"() {
@@ -156,7 +156,7 @@ class PosixFilesTest extends Specification {
 
         then:
         NativeException e = thrown()
-        e.message == "Could not read symlink $symlinkFile: could not lstat file (ENOENT errno 2)"
+        e.message == "Could not read symlink $symlinkFile: could not lstat file (errno 2: No such file or directory)"
     }
 
     def "cannot read a symlink that is not a symlink"() {
@@ -167,7 +167,7 @@ class PosixFilesTest extends Specification {
 
         then:
         NativeException e = thrown()
-        e.message == "Could not read symlink $symlinkFile: could not readlink (errno 22)"
+        e.message == "Could not read symlink $symlinkFile: could not readlink (errno 22: Invalid argument)"
     }
 
     def "can create and read symlink with unicode in its name"() {

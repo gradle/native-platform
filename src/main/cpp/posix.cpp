@@ -250,5 +250,4 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixTerminalFunctions_getTerminal
     env->SetIntField(dimension, heightField, screen_size.ws_row);
 }
 
-
 #endif

@@ -22,16 +22,20 @@
 #include "native.h"
 #include "generic.h"
 #include <errno.h>
+#include <stdlib.h>
+#include <string.h>
 
 void mark_failed_with_errno(JNIEnv *env, const char* message, jobject result) {
-    const char * errno_message = NULL;
-    switch(errno) {
-        case ENOENT:
-            errno_message = "ENOENT";
-            break;
-    }
-
+    char* buffer = (char*)malloc(1024);
+#if defined(__linux__) && _GNU_SOURCE
+    // GNU semantics
+    char* errno_message = strerror_r(errno, buffer, 1024);
+#else
+    strerror_r(errno, buffer, 1024);
+    char* errno_message = buffer;
+#endif
     mark_failed_with_code(env, message, errno, errno_message, result);
+    free(buffer);
 }
 
 #endif
