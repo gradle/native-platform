@@ -32,7 +32,7 @@ These bindings work for both the UNIX terminal and the Windows console:
 
 ### File systems
 
-* Watch for changes to a directory.
+* Watch for changes to a directory. Implementation is currently limited to watching on a single directory.
 * Get and set UNIX file mode.
 * Create and read symbolic links.
 * Determine file type.
@@ -215,11 +215,12 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 ### Fixes
 
 * OS X: Watch for changes to files in directory.
+* FreeBSD: Watch for changes to files in directory.
 * All: Handle deletion and recreation of watched file/directory.
 * All: Watch for creation and changes to missing file/directory.
-* Windows: Watch for changes to a file.
-* All: `FileWatch` tests: file truncated, last modified changed, content changed, recreated as file/dir
-* All: Thread safety for `FileWatch`.
+* Windows: Watch for changes to a file (directory currently works).
+* All: `FileWatch` tests: file truncated, last modified changed, content changed, recreated as file/dir, file renamed
+* All: Thread safety for `FileWatch`, waiting thread receives specified exception on close.
 * All: Bulk read of multiple file change events, coalesce events, use background thread to drain queue.
 * Linux: Fix detection of multiarch support
 * FreeBSD: Fix detection of multiarch support

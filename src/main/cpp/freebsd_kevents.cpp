@@ -52,6 +52,17 @@ Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_createWatch(JNI
         mark_failed_with_errno(env, "could not open path to watch for events", result);
         return NULL;
     }
+
+    struct kevent event_spec;
+    EV_SET( &event_spec, event_fd, EVFILT_VNODE, EV_ADD | EV_CLEAR, NOTE_DELETE |  NOTE_WRITE | NOTE_EXTEND | NOTE_ATTRIB | NOTE_LINK | NOTE_RENAME | NOTE_REVOKE, 0, NULL);
+    int event_count = kevent(watch_fd, &event_spec, 1, NULL, 0, NULL);
+    if (event_count < 0) {
+        mark_failed_with_errno(env, "could not watch for changes", result);
+        close(event_fd);
+        close(watch_fd);
+        return NULL;
+    }
+
     watch_details_t* details = (watch_details_t*)malloc(sizeof(watch_details_t));
     details->watch_fd = watch_fd;
     details->target_fd = event_fd;
@@ -61,10 +72,8 @@ Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_createWatch(JNI
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_waitForNextEvent(JNIEnv *env, jclass target, jobject handle, jobject result) {
     watch_details_t* details = (watch_details_t*)env->GetDirectBufferAddress(handle);
-    struct kevent event_spec;
-    EV_SET( &event_spec, details->target_fd, EVFILT_VNODE, EV_ADD | EV_CLEAR, NOTE_DELETE |  NOTE_WRITE | NOTE_EXTEND | NOTE_ATTRIB | NOTE_LINK | NOTE_RENAME | NOTE_REVOKE, 0, NULL);
     struct kevent event;
-    int event_count = kevent(details->watch_fd, &event_spec, 1, &event, 1, NULL);
+    int event_count = kevent(details->watch_fd, NULL, 0, &event, 1, NULL);
     if ((event_count < 0) || (event.flags == EV_ERROR)) {
         mark_failed_with_errno(env, "could not receive next change event", result);
     }
