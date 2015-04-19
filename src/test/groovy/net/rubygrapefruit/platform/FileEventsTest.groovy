@@ -70,6 +70,18 @@ class FileEventsTest extends Specification {
         e.message == 'This file watch has been closed.'
     }
 
+    def "thread blocked waiting for event receives closed exception on close"() {
+        given:
+        def dir = tmpDir.newFolder()
+        def watch = watcher(dir)
+
+        when:
+        watch.close()
+
+        then:
+        watch.watchThreadReceivedCloseException()
+    }
+
     def "can watch for creation and removal of files in directory"() {
         given:
         def dir = tmpDir.newFolder()
@@ -150,7 +162,7 @@ class FileEventsTest extends Specification {
                             queue.add(true)
                         }
                     } catch (Throwable t) {
-                        t.printStackTrace()
+                        queue.add(t)
                     }
                 }
             }
@@ -164,9 +176,21 @@ class FileEventsTest extends Specification {
             }
         }
 
+        void watchThreadReceivedCloseException() {
+            assert queue.size() == 1
+            assert queue.first() instanceof ResourceClosedException
+        }
+
         void close() {
             watch.close()
             watcher.join()
+            assert queue.size() > 0
+            assert queue.last() instanceof ResourceClosedException
+            for (Object o : queue) {
+                if ((o instanceof Throwable) && !(o instanceof ResourceClosedException)) {
+                    throw o
+                }
+            }
         }
     }
 }
