@@ -94,6 +94,7 @@ Some sample code to use the terminal:
 
 ### 0.11
 
+* Added initial implementation of `FileEvents`, which allows an application to listen for changes to a file system directory.
 * Added `FileSystem.isCaseSensitive()` and `FileSystem.isCasePreserving()`.
 * Fixes running under GCJ.
 
@@ -221,7 +222,7 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 * All: Watch for creation and changes to missing file/directory.
 * Windows: Watch for changes to a file (directory works, file does not).
 * All: `FileWatch` tests: file truncated, last modified changed, content changed, recreated as file/dir, file renamed
-* All: Thread safety for `FileWatch`, waiting thread receives specified exception on close.
+* All: Thread safety for `FileWatch`.
 * All: Bulk read of multiple file change events, coalesce events, use background thread to drain queue.
 * Linux: Fix detection of multiarch support
 * FreeBSD: Fix detection of multiarch support
@@ -257,8 +258,7 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 * Solaris: use `TERM=xtermc` instead of `TERM=xterm`.
 * All: add diagnostics for terminal.
 * All: version each native interface separately.
-* All: string names for errno values.
-    * Use `strerror()` to map errno to a string
+* Windows: string names for errno values.
 * All: split into multiple projects.
 * Mac: use fully decomposed form for unicode file names on hfs+ filesystems.
 * All: extend FileSystem to deal with removable media.
