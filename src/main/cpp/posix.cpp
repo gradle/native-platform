@@ -47,6 +47,17 @@ Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getSystemIn
     env->SetObjectField(info, machineArchitectureField, char_to_java(env, machine_info.machine, result));
 }
 
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixTypeFunctions_getNativeTypeInfo(JNIEnv *env, jclass target, jobject info) {
+    jclass infoClass = env->GetObjectClass(info);
+    env->SetIntField(info, env->GetFieldID(infoClass, "int_bytes", "I"), sizeof(int));
+    env->SetIntField(info, env->GetFieldID(infoClass, "u_long_bytes", "I"), sizeof(u_long));
+    env->SetIntField(info, env->GetFieldID(infoClass, "size_t_bytes", "I"), sizeof(size_t));
+    env->SetIntField(info, env->GetFieldID(infoClass, "uid_t_bytes", "I"), sizeof(uid_t));
+    env->SetIntField(info, env->GetFieldID(infoClass, "gid_t_bytes", "I"), sizeof(gid_t));
+    env->SetIntField(info, env->GetFieldID(infoClass, "off_t_bytes", "I"), sizeof(off_t));
+}
+
 /*
  * File functions
  */

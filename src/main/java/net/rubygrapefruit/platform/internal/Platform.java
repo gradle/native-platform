@@ -19,6 +19,7 @@ package net.rubygrapefruit.platform.internal;
 import net.rubygrapefruit.platform.*;
 import net.rubygrapefruit.platform.Process;
 import net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions;
+import net.rubygrapefruit.platform.internal.jni.PosixTypeFunctions;
 import net.rubygrapefruit.platform.internal.jni.TerminfoFunctions;
 
 public abstract class Platform {
@@ -175,6 +176,11 @@ public abstract class Platform {
             }
             if (type.equals(FileEvents.class)) {
                 return type.cast(new DefaultFileEvents());
+            }
+            if (type.equals(MutableTypeInfo.class)) {
+                MutableTypeInfo typeInfo = new MutableTypeInfo();
+                PosixTypeFunctions.getNativeTypeInfo(typeInfo);
+                return type.cast(typeInfo);
             }
             return super.get(type, nativeLibraryLoader);
         }
