@@ -166,13 +166,33 @@ public class Main {
 
     private static void watch(String path) {
         File file = new File(path);
-        FileWatch watch = Native.get(FileEvents.class).startWatch(file);
+        final FileWatch watch = Native.get(FileEvents.class).startWatch(file);
         try {
-            System.out.println("Waiting ...");
-            for (int i = 0; i < 10; i++) {
-                watch.nextChange();
-                System.out.println("Change detected.");
+            System.out.println("Waiting - type ctrl-d to exit ...");
+            Thread watcher = new Thread() {
+                @Override
+                public void run() {
+                    try {
+                        while (true) {
+                            watch.nextChange();
+                            System.out.println("Change detected.");
+                        }
+                    } catch (ResourceClosedException e) {
+                        // Expected
+                    }
+                }
+            };
+            watcher.start();
+            while (true) {
+                int ch = System.in.read();
+                if (ch < 0) {
+                    break;
+                }
             }
+            watch.close();
+            watcher.join();
+        } catch(Exception e) {
+            throw new RuntimeException(e);
         } finally {
             watch.close();
         }

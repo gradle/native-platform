@@ -45,6 +45,31 @@ class FileEventsTest extends Specification {
         watch.close()
     }
 
+    def "can close watch multiple times"() {
+        given:
+        def dir = tmpDir.newFolder()
+
+        expect:
+        def watch = fileEvents.startWatch(dir)
+        watch.close()
+        watch.close()
+        watch.close()
+    }
+
+    def "cannot receive events after close"() {
+        given:
+        def dir = tmpDir.newFolder()
+        def watch = fileEvents.startWatch(dir)
+        watch.close()
+
+        when:
+        watch.nextChange()
+
+        then:
+        ResourceClosedException e = thrown()
+        e.message == 'This file watch has been closed.'
+    }
+
     def "can watch for creation and removal of files in directory"() {
         given:
         def dir = tmpDir.newFolder()

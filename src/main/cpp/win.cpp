@@ -270,17 +270,22 @@ Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_createWatch(JNI
     return env->NewDirectByteBuffer(details, sizeof(watch_details_t));
 }
 
-JNIEXPORT void JNICALL
+JNIEXPORT jboolean JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_waitForNextEvent(JNIEnv *env, jclass target, jobject handle, jobject result) {
     watch_details_t* details = (watch_details_t*)env->GetDirectBufferAddress(handle);
     if (WaitForSingleObject(details->watch_handle, INFINITE) == WAIT_FAILED) {
         mark_failed_with_errno(env, "could not wait for change notification", result);
-        return;
+        return JNI_FALSE;
     }
     if (!FindNextChangeNotification(details->watch_handle)) {
-        mark_failed_with_errno(env, "could not wait for next change notification", result);
-        return;
+        if (GetLastError() == ERROR_INVALID_HANDLE) {
+            // Assumed closed
+            return JNI_FALSE;
+        }
+        mark_failed_with_errno(env, "could not schedule next change notification", result);
+        return JNI_FALSE;
     }
+    return JNI_TRUE;
 }
 
 JNIEXPORT void JNICALL

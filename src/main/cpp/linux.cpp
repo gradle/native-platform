@@ -56,6 +56,7 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
 
 typedef struct watch_details {
     int watch_fd;
+    int target_fd;
 } watch_details_t;
 
 JNIEXPORT jobject JNICALL
@@ -75,10 +76,11 @@ Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_createWatch(JNI
     }
     watch_details_t* details = (watch_details_t*)malloc(sizeof(watch_details_t));
     details->watch_fd = watch_fd;
+    details->target_fd = event_fd;
     return env->NewDirectByteBuffer(details, sizeof(watch_details_t));
 }
 
-JNIEXPORT void JNICALL
+JNIEXPORT jboolean JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_waitForNextEvent(JNIEnv *env, jclass target, jobject handle, jobject result) {
     watch_details_t* details = (watch_details_t*)env->GetDirectBufferAddress(handle);
     size_t len = sizeof(struct inotify_event) + NAME_MAX + 1;
@@ -87,13 +89,15 @@ Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_waitForNextEven
     free(buffer);
     if (read_count == -1) {
         mark_failed_with_errno(env, "could not wait for next event", result);
-        return;
+        return JNI_FALSE;
     }
+    return JNI_TRUE;
 }
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_closeWatch(JNIEnv *env, jclass target, jobject handle, jobject result) {
     watch_details_t* details = (watch_details_t*)env->GetDirectBufferAddress(handle);
+    inotify_rm_watch(details->watch_fd, details->target_fd);
     close(details->watch_fd);
     free(details);
 }

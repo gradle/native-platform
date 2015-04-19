@@ -21,7 +21,7 @@ import net.rubygrapefruit.platform.internal.FunctionResult;
 public class FileEventFunctions {
     public static native Object createWatch(String path, FunctionResult result);
 
-    public static native void waitForNextEvent(Object watch, FunctionResult result);
+    public static native boolean waitForNextEvent(Object watch, FunctionResult result);
 
     public static native void closeWatch(Object watch, FunctionResult result);
 }

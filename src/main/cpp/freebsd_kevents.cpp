@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/event.h>
 #include <sys/time.h>
@@ -69,14 +70,19 @@ Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_createWatch(JNI
     return env->NewDirectByteBuffer(details, sizeof(watch_details_t));
 }
 
-JNIEXPORT void JNICALL
+JNIEXPORT jboolean JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_waitForNextEvent(JNIEnv *env, jclass target, jobject handle, jobject result) {
     watch_details_t* details = (watch_details_t*)env->GetDirectBufferAddress(handle);
     struct kevent event;
     int event_count = kevent(details->watch_fd, NULL, 0, &event, 1, NULL);
+    if (event_count < 0 && errno == EINTR) {
+        return JNI_FALSE;
+    }
     if ((event_count < 0) || (event.flags == EV_ERROR)) {
         mark_failed_with_errno(env, "could not receive next change event", result);
+        return JNI_FALSE;
     }
+    return JNI_TRUE;
 }
 
 JNIEXPORT void JNICALL

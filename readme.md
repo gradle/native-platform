@@ -216,9 +216,10 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
 * OS X: Watch for changes to files in directory.
 * FreeBSD: Watch for changes to files in directory.
+* Linux: Fix spurious change event on close.
 * All: Handle deletion and recreation of watched file/directory.
 * All: Watch for creation and changes to missing file/directory.
-* Windows: Watch for changes to a file (directory currently works).
+* Windows: Watch for changes to a file (directory works, file does not).
 * All: `FileWatch` tests: file truncated, last modified changed, content changed, recreated as file/dir, file renamed
 * All: Thread safety for `FileWatch`, waiting thread receives specified exception on close.
 * All: Bulk read of multiple file change events, coalesce events, use background thread to drain queue.

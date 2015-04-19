@@ -17,20 +17,10 @@
 package net.rubygrapefruit.platform;
 
 /**
- * A source for file change events.
+ * Thrown when attempting to use some resource has been closed.
  */
-@ThreadSafe
-public interface FileWatch {
-    /**
-     * Blocks until the next change occurs, or this watch is closed.
-     *
-     * @throws NativeException On some failure.
-     * @throws ResourceClosedException When this file watch is closed.
-     */
-    void nextChange() throws NativeException;
-
-    /**
-     * Stops watching for changes. Any thread blocked in {@link #nextChange()} will receive a {@link ResourceClosedException}.
-     */
-    void close() throws NativeException;
+public class ResourceClosedException extends NativeException {
+    public ResourceClosedException(String message) {
+        super(message);
+    }
 }

@@ -19,6 +19,7 @@ package net.rubygrapefruit.platform.internal;
 import net.rubygrapefruit.platform.FileEvents;
 import net.rubygrapefruit.platform.FileWatch;
 import net.rubygrapefruit.platform.NativeException;
+import net.rubygrapefruit.platform.ResourceClosedException;
 import net.rubygrapefruit.platform.internal.jni.FileEventFunctions;
 
 import java.io.File;
@@ -36,8 +37,13 @@ public class DefaultFileEvents implements FileEvents {
     }
 
     private static class DefaultFileWatch implements FileWatch {
-        private final Object handle;
+        private enum State {Watching, Closing, Closed}
+
         private final File target;
+        // Protected by lock
+        private final Object lock = new Object();
+        private Object handle;
+        private State state = State.Watching;
 
         public DefaultFileWatch(Object handle, File target) {
             this.handle = handle;
@@ -45,20 +51,50 @@ public class DefaultFileEvents implements FileEvents {
         }
 
         public void nextChange() {
+            synchronized (lock) {
+                if (state != State.Watching) {
+                    throw new ResourceClosedException("This file watch has been closed.");
+                }
+            }
             FunctionResult result = new FunctionResult();
-            FileEventFunctions.waitForNextEvent(handle, result);
+            boolean hasEvent = FileEventFunctions.waitForNextEvent(handle, result);
             if (result.isFailed()) {
                 throw new NativeException(String.format("Could not receive next change to %s: %s", target,
                         result.getMessage()));
             }
+            if (!hasEvent) {
+                throw new ResourceClosedException(String.format("This file watch has been closed."));
+            }
         }
 
         public void close() {
-            FunctionResult result = new FunctionResult();
-            FileEventFunctions.closeWatch(handle, result);
-            if (result.isFailed()) {
-                throw new NativeException(String.format("Could cleanup watch handle for %s: %s", target,
-                        result.getMessage()));
+            synchronized (lock) {
+                if (state != State.Watching) {
+                    while (state != State.Closed) {
+                        try {
+                            lock.wait();
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                    return;
+                }
+                state = State.Closing;
+            }
+
+            try {
+                FunctionResult result = new FunctionResult();
+                FileEventFunctions.closeWatch(handle, result);
+                if (result.isFailed()) {
+                    throw new NativeException(String.format("Could cleanup watch handle for %s: %s", target,
+                            result.getMessage()));
+                }
+            } finally {
+                synchronized (lock) {
+                    handle = null;
+                    state = State.Closed;
+                    lock.notifyAll();
+                }
             }
         }
     }
