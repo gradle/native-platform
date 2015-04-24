@@ -10,20 +10,20 @@ These APIs support Java 5 and later. Some of these APIs overlap with APIs availa
 
 ### System information
 
-* Get kernel name and version.
-* Get machine architecture.
+* Query kernel name and version.
+* Query machine architecture.
 
 ### Processes
 
-* Get the PID of the current process.
-* Get and set the process working directory.
-* Get and set the process environment variables.
+* Query the PID of the current process.
+* Query and set the process working directory.
+* Query and set the process environment variables.
 
 ### Terminal and console
 
 These bindings work for both the UNIX terminal and the Windows console:
 
-* Determine if stdout/stderr are attached to a terminal.
+* Determine whether stdout/stderr are attached to a terminal.
 * Query the terminal size.
 * Switch between bold and normal text mode on the terminal.
 * Change foreground color on the terminal.
@@ -33,11 +33,11 @@ These bindings work for both the UNIX terminal and the Windows console:
 ### File systems
 
 * Watch for changes to a directory. Implementation is currently limited to watching on a single directory.
-* Get and set UNIX file mode.
+* Query and set UNIX file mode.
 * Create and read symbolic links.
 * Query UNIX file uid and gid.
 * Query file type, size and timestamps.
-* List the available file systems on the machine.
+* List the available file systems on the machine and details of each file system.
 * Query file system mount point.
 * Query file system type.
 * Query file system device name.
@@ -56,7 +56,7 @@ Currently ported to OS X, Linux, FreeBSD and Windows. Support for Solaris is a w
 * OS X 10.9.1 (x86_64), 10.6.7 (i386, amd64)
 * Ubunutu 13.10 (amd64), 12.10 (amd64), 8.04.4 (i386, amd64)
 * OpenSUSE 13.1 (x86_64)
-* FreeBSD 8.3 (amd64, i386), 10.0 (amd64, i386)
+* FreeBSD 10.0 (amd64, i386), 8.3 (amd64, i386)
 * Windows 8.1 (x64), 7 (x64), XP (x86, x64)
 
 ## Using
