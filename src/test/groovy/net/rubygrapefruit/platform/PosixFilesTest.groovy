@@ -39,7 +39,7 @@ class PosixFilesTest extends Specification {
         def stat = file.stat(testFile)
 
         then:
-        stat.type == PosixFile.Type.File
+        stat.type == PosixFileInfo.Type.File
         stat.mode != 0
         stat.uid != 0
         stat.gid != 0
@@ -60,7 +60,7 @@ class PosixFilesTest extends Specification {
         def stat = file.stat(testFile)
 
         then:
-        stat.type == PosixFile.Type.Directory
+        stat.type == PosixFileInfo.Type.Directory
         stat.mode != 0
         stat.uid != 0
         stat.gid != 0
@@ -79,7 +79,7 @@ class PosixFilesTest extends Specification {
         def stat = file.stat(testFile)
 
         then:
-        stat.type == PosixFile.Type.Missing
+        stat.type == PosixFileInfo.Type.Missing
         stat.mode == 0
         stat.uid == 0
         stat.gid == 0
@@ -209,7 +209,7 @@ class PosixFilesTest extends Specification {
         def stat = file.stat(testFile)
 
         then:
-        stat.type == PosixFile.Type.Symlink
+        stat.type == PosixFileInfo.Type.Symlink
         stat.mode != 0
         stat.mode != 0
         stat.uid != 0

@@ -16,9 +16,9 @@
 
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.PosixFile;
+import net.rubygrapefruit.platform.PosixFileInfo;
 
-public class FileStat implements PosixFile {
+public class FileStat implements PosixFileInfo {
     // Fields set by native code
     public int mode;
     public int type;

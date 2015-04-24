@@ -30,5 +30,5 @@ public interface FileSystems extends NativeIntegration {
      * @throws NativeException On failure.
      */
     @ThreadSafe
-    List<FileSystem> getFileSystems() throws NativeException;
+    List<FileSystemInfo> getFileSystems() throws NativeException;
 }

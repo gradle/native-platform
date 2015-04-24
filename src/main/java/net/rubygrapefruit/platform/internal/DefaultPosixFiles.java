@@ -17,14 +17,14 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
-import net.rubygrapefruit.platform.PosixFile;
+import net.rubygrapefruit.platform.PosixFileInfo;
 import net.rubygrapefruit.platform.PosixFiles;
 import net.rubygrapefruit.platform.internal.jni.PosixFileFunctions;
 
 import java.io.File;
 
 public class DefaultPosixFiles implements PosixFiles {
-    public PosixFile stat(File file) throws NativeException {
+    public PosixFileInfo stat(File file) throws NativeException {
         FunctionResult result = new FunctionResult();
         FileStat stat = new FileStat();
         PosixFileFunctions.stat(file.getPath(), stat, result);
@@ -43,8 +43,8 @@ public class DefaultPosixFiles implements PosixFiles {
     }
 
     public int getMode(File file) {
-        PosixFile stat = stat(file);
-        if (stat.getType() == PosixFile.Type.Missing) {
+        PosixFileInfo stat = stat(file);
+        if (stat.getType() == PosixFileInfo.Type.Missing) {
             throw new NativeException(String.format("Could not get UNIX mode on %s: file does not exist.", file));
         }
         return stat.getMode();

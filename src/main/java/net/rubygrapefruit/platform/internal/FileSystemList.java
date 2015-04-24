@@ -16,16 +16,16 @@
 
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.FileSystem;
+import net.rubygrapefruit.platform.FileSystemInfo;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
 public class FileSystemList {
-    public final List<FileSystem> fileSystems = new ArrayList<FileSystem>();
+    public final List<FileSystemInfo> fileSystems = new ArrayList<FileSystemInfo>();
 
     public void add(String mountPoint, String fileSystemName, String deviceName, boolean remote, boolean caseSensitive, boolean casePreserving) {
-        fileSystems.add(new DefaultFileSystem(new File(mountPoint), fileSystemName, deviceName, remote, caseSensitive, casePreserving));
+        fileSystems.add(new DefaultFileSystemInfo(new File(mountPoint), fileSystemName, deviceName, remote, caseSensitive, casePreserving));
     }
 }

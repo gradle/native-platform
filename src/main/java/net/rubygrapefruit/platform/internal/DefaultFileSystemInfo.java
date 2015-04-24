@@ -16,11 +16,11 @@
 
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.FileSystem;
+import net.rubygrapefruit.platform.FileSystemInfo;
 
 import java.io.File;
 
-public class DefaultFileSystem implements FileSystem {
+public class DefaultFileSystemInfo implements FileSystemInfo {
     private final File mountPoint;
     private final String fileSystemType;
     private final String deviceName;
@@ -28,7 +28,8 @@ public class DefaultFileSystem implements FileSystem {
     private final boolean caseSensitive;
     private final boolean casePreserving;
 
-    public DefaultFileSystem(File mountPoint, String fileSystemType, String deviceName, boolean remote, boolean caseSensitive, boolean casePreserving) {
+    public DefaultFileSystemInfo(File mountPoint, String fileSystemType, String deviceName, boolean remote,
+                                 boolean caseSensitive, boolean casePreserving) {
         this.mountPoint = mountPoint;
         this.fileSystemType = fileSystemType;
         this.deviceName = deviceName;

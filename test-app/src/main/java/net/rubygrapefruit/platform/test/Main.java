@@ -158,7 +158,7 @@ public class Main {
 
         FileSystems fileSystems = Native.get(FileSystems.class);
         System.out.println("* File systems: ");
-        for (FileSystem fileSystem : fileSystems.getFileSystems()) {
+        for (FileSystemInfo fileSystem : fileSystems.getFileSystems()) {
             System.out.println(String.format("    * %s -> %s (type: %s %s, case sensitive: %s, case preserving: %s)",
                     fileSystem.getMountPoint(), fileSystem.getDeviceName(), fileSystem.getFileSystemType(),
                     fileSystem.isRemote() ? "remote" : "local", fileSystem.isCaseSensitive(), fileSystem.isCasePreserving()));
@@ -205,11 +205,11 @@ public class Main {
         File file = new File(path);
 
         PosixFiles posixFiles = Native.get(PosixFiles.class);
-        PosixFile stat = posixFiles.stat(file);
+        PosixFileInfo stat = posixFiles.stat(file);
         System.out.println();
         System.out.println("* File: " + file);
         System.out.println("* Type: " + stat.getType());
-        if (stat.getType() == PosixFile.Type.Symlink) {
+        if (stat.getType() == PosixFileInfo.Type.Symlink) {
             System.out.println("* Symlink to: " + posixFiles.readLink(file));
         }
         System.out.println("* UID: " + stat.getUid());

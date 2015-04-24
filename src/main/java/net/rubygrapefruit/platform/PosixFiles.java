@@ -59,10 +59,10 @@ public interface PosixFiles extends NativeIntegration {
      * Returns basic information about the given file. If the file references a symlink, details about the symlink is
      * returned, not the file that the symlink references.
      *
-     * @return Details of the file. Returns details with type {@link PosixFile.Type#Missing} for a file that does not
+     * @return Details of the file. Returns details with type {@link PosixFileInfo.Type#Missing} for a file that does not
      * exist.
      * @throws NativeException On failure.
      */
     @ThreadSafe
-    PosixFile stat(File path) throws NativeException;
+    PosixFileInfo stat(File path) throws NativeException;
 }

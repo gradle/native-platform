@@ -20,7 +20,7 @@ package net.rubygrapefruit.platform;
  * Provides some information about a file. This is a snapshot and does not change.
  */
 @ThreadSafe
-public interface PosixFile {
+public interface PosixFileInfo {
     // Order is significant here
     enum Type {File, Directory, Symlink, Other, Missing}
 

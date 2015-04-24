@@ -22,7 +22,7 @@ import java.io.File;
  * Information about a file system. This is a snapshot view and does not change.
  */
 @ThreadSafe
-public interface FileSystem {
+public interface FileSystemInfo {
     /**
      * Returns the root directory of this file system.
      */
