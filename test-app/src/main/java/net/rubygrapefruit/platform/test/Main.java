@@ -193,7 +193,7 @@ public class Main {
             }
             watch.close();
             watcher.join();
-        } catch(Exception e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         } finally {
             watch.close();
@@ -204,13 +204,21 @@ public class Main {
     private static void stat(String path) {
         File file = new File(path);
 
-        PosixFiles posixFiles = Native.get(PosixFiles.class);
-        PosixFileInfo stat = posixFiles.stat(file);
+        Files files = Native.get(Files.class);
+        FileInfo stat = files.stat(file);
         System.out.println();
         System.out.println("* File: " + file);
         System.out.println("* Type: " + stat.getType());
+        if (stat.getType() != FileInfo.Type.Missing && stat instanceof PosixFileInfo) {
+            stat(file, (PosixFileInfo) stat);
+        }
+
+        System.out.println();
+    }
+
+    private static void stat(File file, PosixFileInfo stat) {
         if (stat.getType() == PosixFileInfo.Type.Symlink) {
-            System.out.println("* Symlink to: " + posixFiles.readLink(file));
+            System.out.println("* Symlink to: " + Native.get(PosixFiles.class).readLink(file));
         }
         System.out.println("* UID: " + stat.getUid());
         System.out.println("* GID: " + stat.getGid());
@@ -218,11 +226,9 @@ public class Main {
         System.out.println("* Size: " + stat.getSize());
         System.out.println("* Access time: " + date(stat.getLastAccessTime()));
         System.out.println("* Status change time: " + date(stat.getLastStatusChangeTime()));
-        System.out.println("* Modification time: " + date(stat.getLastModifiedTime()) );
-        System.out.println("* Modification time (JVM): " + date(file.lastModified()) );
+        System.out.println("* Modification time: " + date(stat.getLastModifiedTime()));
+        System.out.println("* Modification time (JVM): " + date(file.lastModified()));
         System.out.println("* Block size: " + stat.getBlockSize());
-
-        System.out.println();
     }
 
     private static String date(long timestamp) {

@@ -14,25 +14,30 @@
  *    limitations under the License.
  */
 
-package net.rubygrapefruit.platform;
+package net.rubygrapefruit.platform.internal;
 
-/**
- * Provides some information about a file. This is a snapshot and does not change.
- */
-@ThreadSafe
-public interface FileInfo {
-    // Order is significant here, see generic.h
-    enum Type {
-        File, Directory, Symlink, Other, Missing
+import net.rubygrapefruit.platform.WindowsFileInfo;
+
+public class WindowsFileStat implements WindowsFileInfo {
+    private final String path;
+    // Fields set by native code
+    public int mode;
+    public int type;
+
+    public WindowsFileStat(String path) {
+        this.path = path;
     }
 
-    /**
-     * Returns the type of this file.
-     */
-    Type getType();
+    @Override
+    public String toString() {
+        return path;
+    }
 
-    /**
-     * Returns the size of this file, in bytes.
-     */
-    long getSize();
+    public Type getType() {
+        return Type.values()[type];
+    }
+
+    public long getSize() {
+        return 0;
+    }
 }

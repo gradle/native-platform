@@ -105,22 +105,22 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *en
     jfieldID statusChangeTime = env->GetFieldID(destClass, "statusChangeTime", "J");
 
     if (retval != 0) {
-        env->SetIntField(dest, typeField, 4);
+        env->SetIntField(dest, typeField, FILE_TYPE_MISSING);
     } else {
         env->SetIntField(dest, modeField, 0777 & fileInfo.st_mode);
         int type;
         switch (fileInfo.st_mode & S_IFMT) {
             case S_IFREG:
-                type = 0;
+                type = FILE_TYPE_FILE;
                 break;
             case S_IFDIR:
-                type = 1;
+                type = FILE_TYPE_DIRECTORY;
                 break;
             case S_IFLNK:
-                type = 2;
+                type = FILE_TYPE_SYMLINK;
                 break;
             default:
-                type= 3;
+                type= FILE_TYPE_OTHER;
         }
         env->SetIntField(dest, typeField, type);
         env->SetIntField(dest, uidField, fileInfo.st_uid);

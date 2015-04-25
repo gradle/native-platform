@@ -24,7 +24,8 @@ import java.io.File;
  */
 public interface Files extends NativeIntegration {
     /**
-     * Returns basic information about the given file.
+     * Returns basic information about the given file. Returns whatever file details can be efficiently calculated
+     * in a single system call, which can be more efficient that querying these details separately.
      *
      * <p>When the file references a symlink, details about the symlink is returned, not the target of the symlink.
      *
@@ -33,5 +34,5 @@ public interface Files extends NativeIntegration {
      * @throws NativeException On failure.
      */
     @ThreadSafe
-    FileInfo stat(File path) throws NativeException;
+    FileInfo stat(File file) throws NativeException;
 }

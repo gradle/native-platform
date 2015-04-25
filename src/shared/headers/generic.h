@@ -25,6 +25,12 @@ extern "C" {
 
 #define NATIVE_VERSION 21
 
+#define FILE_TYPE_FILE 0
+#define FILE_TYPE_DIRECTORY 1
+#define FILE_TYPE_SYMLINK 2
+#define FILE_TYPE_OTHER 3
+#define FILE_TYPE_MISSING 4
+
 /*
  * Marks the given result as failed, using the given error message
  */

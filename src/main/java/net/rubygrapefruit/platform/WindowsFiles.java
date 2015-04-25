@@ -16,23 +16,14 @@
 
 package net.rubygrapefruit.platform;
 
+import java.io.File;
+
 /**
- * Provides some information about a file. This is a snapshot and does not change.
+ * Functions to query files on a Windows file system.
  */
-@ThreadSafe
-public interface FileInfo {
-    // Order is significant here, see generic.h
-    enum Type {
-        File, Directory, Symlink, Other, Missing
-    }
-
+public interface WindowsFiles extends Files {
     /**
-     * Returns the type of this file.
+     * {@inheritDoc}
      */
-    Type getType();
-
-    /**
-     * Returns the size of this file, in bytes.
-     */
-    long getSize();
+    WindowsFileInfo stat(File file) throws NativeException;
 }

@@ -79,21 +79,18 @@ public class Native {
             throws NativeIntegrationUnavailableException, NativeException {
         init(null);
         synchronized (Native.class) {
-            Object instance = integrations.get(type);
+            Platform platform = Platform.current();
+            Class<? extends T> canonicalType = platform.canonicalise(type);
+            Object instance = integrations.get(canonicalType);
             if (instance == null) {
                 try {
-                    instance = Platform.current().get(type, loader);
+                    instance = platform.get(canonicalType, loader);
                 } catch (NativeException e) {
                     throw e;
                 } catch (Throwable t) {
                     throw new NativeException(String.format("Failed to load native integration %s.", type.getSimpleName()), t);
                 }
-                integrations.put(type, instance);
-                for (Class<?> supertype : type.getInterfaces()) {
-                    if (supertype != NativeIntegration.class && NativeIntegration.class.isAssignableFrom(supertype)) {
-                        integrations.put(supertype, instance);
-                    }
-                }
+                integrations.put(canonicalType, instance);
             }
             return type.cast(instance);
         }

@@ -295,6 +295,30 @@ Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_closeWatch(JNIE
     free(details);
 }
 
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_stat(JNIEnv *env, jclass target, jstring path, jobject dest, jobject result) {
+    jclass destClass = env->GetObjectClass(dest);
+    jfieldID typeField = env->GetFieldID(destClass, "type", "I");
+
+    WIN32_FILE_ATTRIBUTE_DATA attr;
+    wchar_t* pathStr = java_to_wchar(env, path, result);
+    BOOL ok = GetFileAttributesExW(pathStr, GetFileExInfoStandard, &attr);
+    free(pathStr);
+    if (!ok) {
+        if (GetLastError() == ERROR_FILE_NOT_FOUND) {
+            env->SetIntField(dest, typeField, FILE_TYPE_MISSING);
+            return;
+        }
+        mark_failed_with_errno(env, "could not file attributes", result);
+        return;
+    }
+    if (attr.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+        env->SetIntField(dest, typeField, FILE_TYPE_DIRECTORY);
+    } else {
+        env->SetIntField(dest, typeField, FILE_TYPE_FILE);
+    }
+}
+
 /*
  * Console functions
  */

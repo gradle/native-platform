@@ -17,22 +17,8 @@
 package net.rubygrapefruit.platform;
 
 /**
- * Provides some information about a file. This is a snapshot and does not change.
+ * Provides some information about a file on a Windows file system. This is a snapshot and does not change.
  */
 @ThreadSafe
-public interface FileInfo {
-    // Order is significant here, see generic.h
-    enum Type {
-        File, Directory, Symlink, Other, Missing
-    }
-
-    /**
-     * Returns the type of this file.
-     */
-    Type getType();
-
-    /**
-     * Returns the size of this file, in bytes.
-     */
-    long getSize();
+public interface WindowsFileInfo extends FileInfo {
 }

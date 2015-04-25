@@ -72,6 +72,10 @@ public abstract class Platform {
         return String.format("%s %s", getOperatingSystem(), getArchitecture());
     }
 
+    public <T extends NativeIntegration> Class<? extends T> canonicalise(Class<T> type) {
+        return type;
+    }
+
     public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
         throw new NativeIntegrationUnavailableException(String.format("Native integration %s is not supported for %s.",
                 type.getSimpleName(), toString()));
@@ -104,7 +108,18 @@ public abstract class Platform {
         }
 
         @Override
+        public <T extends NativeIntegration> Class<? extends T> canonicalise(Class<T> type) {
+            if (type.equals(Files.class)) {
+                return WindowsFiles.class.asSubclass(type);
+            }
+            return super.canonicalise(type);
+        }
+
+        @Override
         public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
+            if (type.equals(WindowsFiles.class)) {
+                return type.cast(new DefaultWindowsFiles());
+            }
             if (type.equals(Process.class)) {
                 return type.cast(new WrapperProcess(new DefaultProcess(), true));
             }
@@ -148,8 +163,16 @@ public abstract class Platform {
         abstract String getCursesLibraryName();
 
         @Override
+        public <T extends NativeIntegration> Class<? extends T> canonicalise(Class<T> type) {
+            if (type.equals(Files.class)) {
+                return PosixFiles.class.asSubclass(type);
+            }
+            return super.canonicalise(type);
+        }
+
+        @Override
         public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
-            if (type.equals(PosixFiles.class) || type.equals(Files.class)) {
+            if (type.equals(PosixFiles.class)) {
                 return type.cast(new DefaultPosixFiles());
             }
             if (type.equals(Process.class)) {
