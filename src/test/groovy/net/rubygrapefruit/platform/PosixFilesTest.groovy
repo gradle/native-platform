@@ -25,21 +25,22 @@ import net.rubygrapefruit.platform.internal.Platform
 @IgnoreIf({Platform.current().windows})
 class PosixFilesTest extends Specification {
     @Rule TemporaryFolder tmpDir
-    final PosixFiles file = Native.get(PosixFiles.class)
+    final PosixFiles files = Native.get(PosixFiles.class)
 
     def "caches file instance"() {
         expect:
-        Native.get(PosixFiles.class) == file
+        Native.get(PosixFiles.class) == files
+        Native.get(Files.class) == files
     }
 
     def "can get details of a file"() {
         def testFile = tmpDir.newFile(fileName)
 
         when:
-        def stat = file.stat(testFile)
+        def stat = files.stat(testFile)
 
         then:
-        stat.type == PosixFileInfo.Type.File
+        stat.type == FileInfo.Type.File
         stat.mode != 0
         stat.uid != 0
         stat.gid != 0
@@ -57,10 +58,10 @@ class PosixFilesTest extends Specification {
         def testFile = tmpDir.newFolder(fileName)
 
         when:
-        def stat = file.stat(testFile)
+        def stat = files.stat(testFile)
 
         then:
-        stat.type == PosixFileInfo.Type.Directory
+        stat.type == FileInfo.Type.Directory
         stat.mode != 0
         stat.uid != 0
         stat.gid != 0
@@ -76,10 +77,10 @@ class PosixFilesTest extends Specification {
         def testFile = new File(tmpDir.root, fileName)
 
         when:
-        def stat = file.stat(testFile)
+        def stat = files.stat(testFile)
 
         then:
-        stat.type == PosixFileInfo.Type.Missing
+        stat.type == FileInfo.Type.Missing
         stat.mode == 0
         stat.uid == 0
         stat.gid == 0
@@ -93,11 +94,11 @@ class PosixFilesTest extends Specification {
         def testFile = tmpDir.newFile(fileName)
 
         when:
-        file.setMode(testFile, 0740)
+        files.setMode(testFile, 0740)
 
         then:
-        file.getMode(testFile) == 0740
-        file.stat(testFile).mode == 0740
+        files.getMode(testFile) == 0740
+        files.stat(testFile).mode == 0740
 
         where:
         fileName << ["test.txt", "test\u03b1\u2295.txt"]
@@ -107,11 +108,11 @@ class PosixFilesTest extends Specification {
         def testFile = tmpDir.newFolder(fileName)
 
         when:
-        file.setMode(testFile, 0740)
+        files.setMode(testFile, 0740)
 
         then:
-        file.getMode(testFile) == 0740
-        file.stat(testFile).mode == 0740
+        files.getMode(testFile) == 0740
+        files.stat(testFile).mode == 0740
 
         where:
         fileName << ["test-dir", "test\u03b1\u2295-dir"]
@@ -121,7 +122,7 @@ class PosixFilesTest extends Specification {
         def testFile = new File(tmpDir.root, "unknown")
 
         when:
-        file.setMode(testFile, 0660)
+        files.setMode(testFile, 0660)
 
         then:
         NativeException e = thrown()
@@ -132,7 +133,7 @@ class PosixFilesTest extends Specification {
         def testFile = new File(tmpDir.root, "unknown")
 
         when:
-        file.getMode(testFile)
+        files.getMode(testFile)
 
         then:
         NativeException e = thrown()
@@ -145,7 +146,7 @@ class PosixFilesTest extends Specification {
         def symlinkFile = new File(tmpDir.root, "symlink")
 
         when:
-        file.symlink(symlinkFile, testFile.name)
+        files.symlink(symlinkFile, testFile.name)
 
         then:
         symlinkFile.file
@@ -157,17 +158,17 @@ class PosixFilesTest extends Specification {
         def symlinkFile = new File(tmpDir.root, "symlink")
 
         when:
-        file.symlink(symlinkFile, "target")
+        files.symlink(symlinkFile, "target")
 
         then:
-        file.readLink(symlinkFile) == "target"
+        files.readLink(symlinkFile) == "target"
     }
 
     def "cannot read a symlink that does not exist"() {
         def symlinkFile = new File(tmpDir.root, "symlink")
 
         when:
-        file.readLink(symlinkFile)
+        files.readLink(symlinkFile)
 
         then:
         NativeException e = thrown()
@@ -178,7 +179,7 @@ class PosixFilesTest extends Specification {
         def symlinkFile = tmpDir.newFile("not-a-symlink.txt")
 
         when:
-        file.readLink(symlinkFile)
+        files.readLink(symlinkFile)
 
         then:
         NativeException e = thrown()
@@ -191,10 +192,10 @@ class PosixFilesTest extends Specification {
         def symlinkFile = new File(tmpDir.root, "symlink\u03b2\u2296")
 
         when:
-        file.symlink(symlinkFile, testFile.name)
+        files.symlink(symlinkFile, testFile.name)
 
         then:
-        file.readLink(symlinkFile) == testFile.name
+        files.readLink(symlinkFile) == testFile.name
         symlinkFile.file
         symlinkFile.canonicalFile == testFile.canonicalFile
     }
@@ -203,13 +204,13 @@ class PosixFilesTest extends Specification {
         def testFile = new File(tmpDir.newFolder("parent"), fileName)
 
         given:
-        file.symlink(testFile, "target")
+        files.symlink(testFile, "target")
 
         when:
-        def stat = file.stat(testFile)
+        def stat = files.stat(testFile)
 
         then:
-        stat.type == PosixFileInfo.Type.Symlink
+        stat.type == FileInfo.Type.Symlink
         stat.mode != 0
         stat.mode != 0
         stat.uid != 0

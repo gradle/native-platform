@@ -19,6 +19,7 @@ package net.rubygrapefruit.platform.internal;
 import net.rubygrapefruit.platform.PosixFileInfo;
 
 public class FileStat implements PosixFileInfo {
+    private final String path;
     // Fields set by native code
     public int mode;
     public int type;
@@ -29,6 +30,15 @@ public class FileStat implements PosixFileInfo {
     public long modificationTime;
     public long statusChangeTime;
     public long blockSize;
+
+    public FileStat(String path) {
+        this.path = path;
+    }
+
+    @Override
+    public String toString() {
+        return path;
+    }
 
     public int getMode() {
         return mode;

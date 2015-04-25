@@ -89,6 +89,11 @@ public class Native {
                     throw new NativeException(String.format("Failed to load native integration %s.", type.getSimpleName()), t);
                 }
                 integrations.put(type, instance);
+                for (Class<?> supertype : type.getInterfaces()) {
+                    if (supertype != NativeIntegration.class && NativeIntegration.class.isAssignableFrom(supertype)) {
+                        integrations.put(supertype, instance);
+                    }
+                }
             }
             return type.cast(instance);
         }

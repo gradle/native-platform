@@ -17,27 +17,15 @@
 package net.rubygrapefruit.platform;
 
 /**
- * Provides some information about a file. This is a snapshot and does not change.
+ * Provides some information about a file on a Posix file system. This is a snapshot and does not change.
  */
 @ThreadSafe
-public interface PosixFileInfo {
-    // Order is significant here
-    enum Type {File, Directory, Symlink, Other, Missing}
+public interface PosixFileInfo extends FileInfo {
 
     /**
-     * Returns the type of this file.
-     */
-    Type getType();
-
-    /**
-     * Returns the mode of this file.
+     * Returns the mode, or permissions, of this file.
      */
     int getMode();
-
-    /**
-     * Returns the size of this file, in bytes.
-     */
-    long getSize();
 
     /**
      * Returns the UID of this file.

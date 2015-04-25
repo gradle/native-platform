@@ -26,7 +26,7 @@ import java.io.File;
 public class DefaultPosixFiles implements PosixFiles {
     public PosixFileInfo stat(File file) throws NativeException {
         FunctionResult result = new FunctionResult();
-        FileStat stat = new FileStat();
+        FileStat stat = new FileStat(file.getPath());
         PosixFileFunctions.stat(file.getPath(), stat, result);
         if (result.isFailed()) {
             throw new NativeException(String.format("Could not get posix file details of %s: %s", file, result.getMessage()));

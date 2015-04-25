@@ -19,10 +19,10 @@ package net.rubygrapefruit.platform;
 import java.io.File;
 
 /**
- * Functions to query and modify a file's POSIX meta-data.
+ * Functions to query and modify files on a Posix file system.
  */
 @ThreadSafe
-public interface PosixFiles extends NativeIntegration {
+public interface PosixFiles extends Files {
     /**
      * Sets the mode for the given file.
      *
@@ -56,12 +56,7 @@ public interface PosixFiles extends NativeIntegration {
     String readLink(File link) throws NativeException;
 
     /**
-     * Returns basic information about the given file. If the file references a symlink, details about the symlink is
-     * returned, not the file that the symlink references.
-     *
-     * @return Details of the file. Returns details with type {@link PosixFileInfo.Type#Missing} for a file that does not
-     * exist.
-     * @throws NativeException On failure.
+     * {@inheritDoc}
      */
     @ThreadSafe
     PosixFileInfo stat(File path) throws NativeException;
