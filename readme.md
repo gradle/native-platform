@@ -1,5 +1,5 @@
 
-# Native-platform: Java bindings for various native APIs
+# Native-platform: Java bindings for native APIs
 
 A collection of cross-platform Java APIs for various native APIs. Currently supports OS X, Linux, Windows and FreeBSD
 on Intel architectures.
@@ -13,11 +13,15 @@ These APIs support Java 5 and later. Some of these APIs overlap with APIs availa
 * Query kernel name and version.
 * Query machine architecture.
 
+See [SystemInfo](src/main/java/net/rubygrapefruit/platform/SystemInfo.java)
+
 ### Processes
 
 * Query the PID of the current process.
 * Query and set the process working directory.
 * Query and set the process environment variables.
+
+See [Process](src/main/java/net/rubygrapefruit/platform/Process.java)
 
 ### Terminal and console
 
@@ -30,13 +34,21 @@ These bindings work for both the UNIX terminal and the Windows console:
 * Move terminal cursor up, down, left, right, start of line.
 * Clear to end of line.
 
+See [Terminals](src/main/java/net/rubygrapefruit/platform/Terminals.java)
+
 ### File systems
 
 * Watch for changes to a directory. Implementation is currently limited to watching on a single directory.
+
+See [FileEvents](src/main/java/net/rubygrapefruit/platform/FileEvents.java)
+
 * Query and set UNIX file mode.
 * Create and read symbolic links.
 * Query UNIX file uid and gid.
 * Query file type, size and timestamps.
+
+See [Files](src/main/java/net/rubygrapefruit/platform/Files.java)
+
 * List the available file systems on the machine and details of each file system.
 * Query file system mount point.
 * Query file system type.
@@ -44,10 +56,14 @@ These bindings work for both the UNIX terminal and the Windows console:
 * Query whether a file system is local or remote.
 * Query whether a file system is case sensitive and case preserving.
 
+See [FileSystems](src/main/java/net/rubygrapefruit/platform/FileSystems.java)
+
 ### Windows registry
 
 * Query registry value.
 * Query the subkeys and values of a registry key.
+
+See [WindowsRegistry](src/main/java/net/rubygrapefruit/platform/WindowsRegistry.java)
 
 ## Supported platforms
 
@@ -97,6 +113,7 @@ Some sample code to use the terminal:
 
 * Added initial implementation of `FileEvents`, which allows an application to listen for changes to a file system directory.
 * Added more properties to `PosixFile`.
+* Added `Files` and `WindowsFiles`.
 * Added `FileSystem.isCaseSensitive()` and `FileSystem.isCasePreserving()`.
 * Fixes running under GCJ.
 
@@ -297,6 +314,5 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
     * mach_absolute_time() and mach_timebase_info() on OS X.
 * Fire events when filesystems or network interfaces change in some way.
 * Fire events when terminal size changes.
-* Fire events when files change.
 * Expose system keystores and authentication services.
 * Expose a mechanism for generating a temporary directory.
