@@ -299,13 +299,15 @@ JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_stat(JNIEnv *env, jclass target, jstring path, jobject dest, jobject result) {
     jclass destClass = env->GetObjectClass(dest);
     jfieldID typeField = env->GetFieldID(destClass, "type", "I");
+    jfieldID sizeField = env->GetFieldID(destClass, "size", "J");
 
     WIN32_FILE_ATTRIBUTE_DATA attr;
     wchar_t* pathStr = java_to_wchar(env, path, result);
     BOOL ok = GetFileAttributesExW(pathStr, GetFileExInfoStandard, &attr);
     free(pathStr);
     if (!ok) {
-        if (GetLastError() == ERROR_FILE_NOT_FOUND) {
+        DWORD error = GetLastError();
+        if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND) {
             env->SetIntField(dest, typeField, FILE_TYPE_MISSING);
             return;
         }
@@ -316,6 +318,8 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_stat(JNIEnv *
         env->SetIntField(dest, typeField, FILE_TYPE_DIRECTORY);
     } else {
         env->SetIntField(dest, typeField, FILE_TYPE_FILE);
+        DWORD64 size = (attr.nFileSizeLow << 32) | attr.nFileSizeLow;
+        env->SetLongField(dest, sizeField, size);
     }
 }
 

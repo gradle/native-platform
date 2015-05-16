@@ -23,6 +23,7 @@ public class WindowsFileStat implements WindowsFileInfo {
     // Fields set by native code
     public int mode;
     public int type;
+    public long size;
 
     public WindowsFileStat(String path) {
         this.path = path;
@@ -38,6 +39,6 @@ public class WindowsFileStat implements WindowsFileInfo {
     }
 
     public long getSize() {
-        return 0;
+        return size;
     }
 }
