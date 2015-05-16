@@ -18,6 +18,8 @@ package net.rubygrapefruit.platform;
 
 /**
  * Provides some information about a file on a Windows file system. This is a snapshot and does not change.
+ *
+ * <p>A snapshot be fetched using {@link WindowsFiles#stat(java.io.File)}</p>
  */
 @ThreadSafe
 public interface WindowsFileInfo extends FileInfo {

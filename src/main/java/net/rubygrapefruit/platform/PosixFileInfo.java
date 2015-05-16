@@ -18,6 +18,8 @@ package net.rubygrapefruit.platform;
 
 /**
  * Provides some information about a file on a Posix file system. This is a snapshot and does not change.
+ *
+ * <p>A snapshot be fetched using {@link PosixFiles#stat(java.io.File)}.</p>
  */
 @ThreadSafe
 public interface PosixFileInfo extends FileInfo {
