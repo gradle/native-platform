@@ -69,7 +69,7 @@ See [WindowsRegistry](src/main/java/net/rubygrapefruit/platform/WindowsRegistry.
 
 Currently ported to OS X, Linux, FreeBSD and Windows. Support for Solaris is a work in progress. Tested on:
 
-* OS X 10.9.1 (x86_64), 10.6.7 (i386, amd64)
+* OS X 10.11.3 (x86_64), 10.6.7 (i386, amd64)
 * Ubunutu 13.10 (amd64), 12.10 (amd64), 8.04.4 (i386, amd64)
 * OpenSUSE 13.1 (x86_64)
 * FreeBSD 10.0 (amd64, i386), 8.3 (amd64, i386)
