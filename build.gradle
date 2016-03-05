@@ -130,6 +130,7 @@ libraries {
             if (targetPlatform.operatingSystem.macOsX) {
                 cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
                 cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/darwin"
+                cppCompiler.args '-mmacosx-version-min=10.4'
                 linker.args '-mmacosx-version-min=10.4'
             } else if (targetPlatform.operatingSystem.linux) {
                 cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
