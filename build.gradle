@@ -76,6 +76,12 @@ task nativeHeaders {
     }
 }
 
+configurations {
+    jni
+}
+
+def deployer = uploadJni.repositories.mavenDeployer
+
 model {
     platforms {
         osx_i386 {
@@ -111,102 +117,99 @@ model {
             operatingSystem "freebsd"
         }
     }
-}
 
-libraries {
-    nativePlatform {
-        baseName 'native-platform'
-    }
-    nativePlatformCurses {
-        baseName 'native-platform-curses'
-        targetPlatforms "osx_i386", "osx_amd64", "linux_i386", "linux_amd64", "freebsd_i386", "freebsd_amd64"
-        binaries.all {
-            linker.args "-lcurses"
-        }
-    }
-
-    all {
-        binaries.all {
-            if (targetPlatform.operatingSystem.macOsX) {
-                cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
-                cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/darwin"
-                cppCompiler.args '-mmacosx-version-min=10.4'
-                linker.args '-mmacosx-version-min=10.4'
-            } else if (targetPlatform.operatingSystem.linux) {
-                cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
-                cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/linux"
-                cppCompiler.args '-D_FILE_OFFSET_BITS=64'
-            } else if (targetPlatform.operatingSystem.windows) {
-                cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
-                cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"
-                linker.args "Shlwapi.lib", "Advapi32.lib"
-            } else if (targetPlatform.operatingSystem.freeBSD) {
-                cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
-                cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/freebsd"
-            }
-            cppCompiler.args "-I${nativeHeadersDir}"
-            tasks.withType(CppCompile) { task ->
-                task.dependsOn nativeHeaders
+    components {
+        nativePlatform(NativeLibrarySpec) {
+            baseName 'native-platform'
+            sources {
+                cpp {
+                    source.srcDirs = ['src/shared/cpp', 'src/main/cpp']
+                    exportedHeaders.srcDirs = ['src/shared/headers']
+                }
             }
         }
-    }
-}
 
-sources {
-    nativePlatform {
-        cpp {
-            source.srcDirs = ['src/shared/cpp', 'src/main/cpp']
-            exportedHeaders.srcDirs = ['src/shared/headers']
+        nativePlatformCurses(NativeLibrarySpec) {
+            baseName 'native-platform-curses'
+            [ "osx_i386", "osx_amd64", "linux_i386", "linux_amd64", "freebsd_i386", "freebsd_amd64" ].each { targetPlatform it }
+            sources {
+                cpp {
+                    source.srcDirs = ['src/shared/cpp', 'src/curses/cpp']
+                    exportedHeaders.srcDirs = ['src/shared/headers']
+                }
+            }
+            binaries.all {
+                linker.args "-lcurses"
+            }
+        }
+
+        all {
+            binaries.all {
+                if (targetPlatform.operatingSystem.macOsX) {
+                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
+                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/darwin"
+                    cppCompiler.args '-mmacosx-version-min=10.4'
+                    linker.args '-mmacosx-version-min=10.4'
+                } else if (targetPlatform.operatingSystem.linux) {
+                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
+                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/linux"
+                    cppCompiler.args '-D_FILE_OFFSET_BITS=64'
+                } else if (targetPlatform.operatingSystem.windows) {
+                    cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
+                    cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"
+                    linker.args "Shlwapi.lib", "Advapi32.lib"
+                } else if (targetPlatform.operatingSystem.freeBSD) {
+                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
+                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/freebsd"
+                }
+                cppCompiler.args "-I${nativeHeadersDir}"
+                tasks.withType(CppCompile) { task ->
+                    task.dependsOn project.tasks.nativeHeaders
+                }
+            }
+
+            binaries.withType(SharedLibraryBinarySpec) { binary ->
+                if (!buildable) {
+                    return
+                }
+
+                def arch = System.properties['os.arch']
+                if (targetPlatform.operatingSystem.name in ['linux', 'freebsd'] && targetPlatform.architecture.name != arch) {
+                    // Native plugins don't detect whether multilib support is available or not. Assume not for now
+                    return
+                }
+
+                def variantName = "${targetPlatform.operatingSystem.name}-${targetPlatform.architecture.name}"
+                def taskName = "jar-${variantName}"
+                def nativeJar = project.tasks.findByName(taskName)
+                if (nativeJar == null) {
+                    nativeJar = project.tasks.create(taskName, Jar) {
+                        baseName = "native-platform-$variantName"
+                    }
+                    artifacts {
+                        jni nativeJar
+                        runtime nativeJar
+                    }
+                    def jniPom = deployer.addFilter(variantName) { artifact, file ->
+                        return file == nativeJar.archivePath
+                    }
+                    jniPom.groupId = project.group
+                    jniPom.artifactId = nativeJar.baseName
+                    jniPom.version = project.version
+                    jniPom.scopeMappings.mappings.clear()
+                }
+
+                binary.tasks.withType(LinkSharedLibrary) { builderTask ->
+                    nativeJar.into("net/rubygrapefruit/platform/$variantName") { from builderTask.outputFile }
+                    nativeJar.dependsOn builderTask
+                }
+                project.tasks.test {
+                    dependsOn nativeJar
+                    classpath.from nativeJar
+                }
+            }
         }
     }
-    nativePlatformCurses {
-        cpp {
-            source.srcDirs = ['src/shared/cpp', 'src/curses/cpp']
-            exportedHeaders.srcDirs = ['src/shared/headers']
-        }
-    }
-}
-
-configurations {
-    jni
-}
-
-def deployer = uploadJni.repositories.mavenDeployer
-
-binaries.withType(SharedLibraryBinary) { binary ->
-    if (!buildable) {
-        return
-    }
-    def arch = System.properties['os.arch']
-    if (targetPlatform.operatingSystem.name in ['linux', 'freebsd'] && targetPlatform.architecture.name != arch) {
-        // Native plugins don't detect whether multilib support is available or not. Assume not for now
-        return
-    }
-
-    def variantName = "${targetPlatform.operatingSystem.name}-${targetPlatform.architecture.name}"
-    def taskName = "jar-${variantName}"
-    def nativeJar = project.tasks.findByName(taskName)
-    if (nativeJar == null) {
-        nativeJar = project.task(taskName, type: Jar) {
-            baseName = "native-platform-$variantName"
-        }
-        artifacts {
-            jni nativeJar
-            runtime nativeJar
-        }
-        def jniPom = deployer.addFilter(variantName) { artifact, file ->
-            return file == nativeJar.archivePath
-        }
-        jniPom.groupId = project.group
-        jniPom.artifactId = nativeJar.baseName
-        jniPom.version = project.version
-        jniPom.scopeMappings.mappings.clear()
-    }
-
-    def builderTask = binary.tasks.link
-    nativeJar.into("net/rubygrapefruit/platform/$variantName") { from builderTask.outputFile }
-    nativeJar.dependsOn builderTask
-    test.dependsOn nativeJar
 }
 
 javadoc {
