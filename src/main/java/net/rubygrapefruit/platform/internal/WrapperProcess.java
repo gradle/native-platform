@@ -51,6 +51,10 @@ public class WrapperProcess implements Process {
         return process.getProcessId();
     }
 
+    public int detach() throws NativeException {
+        return process.detach();
+    }
+
     public File getWorkingDirectory() throws NativeException {
         synchronized (workingDirectoryLock) {
             return process.getWorkingDirectory();

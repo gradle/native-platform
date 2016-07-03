@@ -84,6 +84,11 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_getPid(JNIEn
     return GetCurrentProcessId();
 }
 
+JNIEXPORT jint JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_detach(JNIEnv *env, jclass target) {
+    return FreeConsole();
+}
+
 JNIEXPORT jstring JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_getWorkingDirectory(JNIEnv *env, jclass target, jobject result) {
     DWORD size = GetCurrentDirectoryW(0, NULL);

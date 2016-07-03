@@ -134,4 +134,9 @@ class ProcessTest extends Specification {
         then:
         notThrown(NativeException)
     }
+
+    def "can detach a process from parent"() {
+        expect:
+        process.detach() > 0
+    }
 }

@@ -32,6 +32,14 @@ public interface Process extends NativeIntegration {
     int getProcessId() throws NativeException;
 
     /**
+     * Detaches this process from the parent to ignore ctrl-c.
+     *
+     * @throws NativeException On failure.
+     */
+    @ThreadSafe
+    int detach() throws NativeException;
+
+    /**
      * Returns the process' current working directory.
      *
      * @throws NativeException On failure.
