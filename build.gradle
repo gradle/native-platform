@@ -1,3 +1,5 @@
+import org.gradle.nativeplatform.platform.internal.Architectures
+
 apply plugin: 'groovy'
 apply plugin: 'cpp'
 
@@ -168,13 +170,15 @@ model {
                 }
             }
 
+            // Using internal class here to make this simple
+            def arch = Architectures.forInput(System.properties['os.arch'])
+
             binaries.withType(SharedLibraryBinarySpec) { binary ->
                 if (!buildable) {
                     return
                 }
 
-                def arch = System.properties['os.arch']
-                if (targetPlatform.operatingSystem.name in ['linux', 'freebsd'] && targetPlatform.architecture.name != arch) {
+                if (targetPlatform.operatingSystem.name in ['linux', 'freebsd'] && targetPlatform.architecture != arch) {
                     // Native plugins don't detect whether multilib support is available or not. Assume not for now
                     return
                 }
