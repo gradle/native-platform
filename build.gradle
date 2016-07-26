@@ -135,6 +135,7 @@ libraries {
             } else if (targetPlatform.operatingSystem.linux) {
                 cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
                 cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/linux"
+                cppCompiler.args '-D_FILE_OFFSET_BITS=64'
             } else if (targetPlatform.operatingSystem.windows) {
                 cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
                 cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"
