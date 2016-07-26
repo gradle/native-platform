@@ -59,7 +59,7 @@ class FilesTest extends Specification {
     def "can get details of file system roots reported by JVM"() {
         expect:
         def stat = files.stat(file)
-        stat.type == FileInfo.Type.Directory
+        stat.type == (file.exists() ? FileInfo.Type.Directory : FileInfo.Type.Missing)
 
         where:
         file << File.listRoots()
@@ -68,7 +68,7 @@ class FilesTest extends Specification {
     def "can get details of file system roots reported by OS"() {
         expect:
         def stat = files.stat(fileSystem.mountPoint)
-        stat.type == FileInfo.Type.Directory
+        stat.type == (fileSystem.mountPoint.exists() ? FileInfo.Type.Directory : FileInfo.Type.Missing)
 
         where:
         fileSystem << Native.get(FileSystems.class).fileSystems

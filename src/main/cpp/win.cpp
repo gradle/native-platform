@@ -307,7 +307,8 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_stat(JNIEnv *
     free(pathStr);
     if (!ok) {
         DWORD error = GetLastError();
-        if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND) {
+        if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND || error == ERROR_NOT_READY) {
+            // Treat device with no media as missing
             env->SetIntField(dest, typeField, FILE_TYPE_MISSING);
             return;
         }
