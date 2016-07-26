@@ -125,7 +125,9 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *en
         env->SetIntField(dest, typeField, type);
         env->SetIntField(dest, uidField, fileInfo.st_uid);
         env->SetIntField(dest, gidField, fileInfo.st_gid);
-        env->SetLongField(dest, sizeField, fileInfo.st_size);
+        if (type == FILE_TYPE_FILE) {
+            env->SetLongField(dest, sizeField, fileInfo.st_size);
+        }
         env->SetLongField(dest, blockSizeField, fileInfo.st_blksize);
 #ifdef __linux__
         env->SetLongField(dest, accessTimeField, fileInfo.st_atime * 1000);

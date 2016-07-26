@@ -34,7 +34,7 @@ public interface FileInfo {
     Type getType();
 
     /**
-     * Returns the size of this file, in bytes.
+     * Returns the size of this file, in bytes. Returns 0 when this file is not a regular file.
      */
     long getSize();
 }

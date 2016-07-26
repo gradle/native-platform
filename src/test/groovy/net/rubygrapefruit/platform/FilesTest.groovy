@@ -51,6 +51,7 @@ class FilesTest extends Specification {
 
         then:
         stat.type == FileInfo.Type.Directory
+        stat.size == 0
 
         where:
         fileName << ["test-dir", "test\u03b1\u2295-dir"]
@@ -60,6 +61,7 @@ class FilesTest extends Specification {
         expect:
         def stat = files.stat(file)
         stat.type == (file.exists() ? FileInfo.Type.Directory : FileInfo.Type.Missing)
+        stat.size == 0
 
         where:
         file << File.listRoots()
@@ -69,6 +71,7 @@ class FilesTest extends Specification {
         expect:
         def stat = files.stat(fileSystem.mountPoint)
         stat.type == (fileSystem.mountPoint.exists() ? FileInfo.Type.Directory : FileInfo.Type.Missing)
+        stat.size == 0
 
         where:
         fileSystem << Native.get(FileSystems.class).fileSystems
