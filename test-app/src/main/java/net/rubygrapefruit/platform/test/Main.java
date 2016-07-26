@@ -209,11 +209,19 @@ public class Main {
         System.out.println();
         System.out.println("* File: " + file);
         System.out.println("* Type: " + stat.getType());
-        if (stat.getType() != FileInfo.Type.Missing && stat instanceof PosixFileInfo) {
-            stat(file, (PosixFileInfo) stat);
+        if (stat.getType() != FileInfo.Type.Missing) {
+            if (stat instanceof PosixFileInfo) {
+                stat(file, (PosixFileInfo) stat);
+            } else {
+                stat(file, stat);
+            }
         }
 
         System.out.println();
+    }
+
+    private static void stat(File file, FileInfo stat) {
+        System.out.println("* Size: " + stat.getSize());
     }
 
     private static void stat(File file, PosixFileInfo stat) {
