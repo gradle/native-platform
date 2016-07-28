@@ -111,6 +111,7 @@ Some sample code to use the terminal:
 
 ### 0.11
 
+* Fixes for handling Windows shares from Linux. Thanks to [Thierry Guérin](https://github.com/SchwingSK).
 * Added initial implementation of `FileEvents`, which allows an application to listen for changes to a file system directory.
 * Added more properties to `PosixFile`.
 * Added `Files` and `WindowsFiles`.
