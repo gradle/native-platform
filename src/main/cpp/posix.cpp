@@ -76,7 +76,7 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_chmod(JNIEnv *e
 }
 
 jlong timestamp(struct timespec t) {
-    return t.tv_sec * 1000 + t.tv_nsec / 1000;
+    return (jlong)(t.tv_sec) * 1000 + (jlong)(t.tv_nsec) / 1000;
 }
 
 JNIEXPORT void JNICALL
@@ -130,9 +130,9 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *en
         }
         env->SetLongField(dest, blockSizeField, fileInfo.st_blksize);
 #ifdef __linux__
-        env->SetLongField(dest, accessTimeField, fileInfo.st_atime * 1000);
-        env->SetLongField(dest, modificationTimeField, fileInfo.st_mtime * 1000);
-        env->SetLongField(dest, statusChangeTime, fileInfo.st_ctime * 1000);
+        env->SetLongField(dest, accessTimeField, timestamp(fileInfo.st_atim));
+        env->SetLongField(dest, modificationTimeField, timestamp(fileInfo.st_mtim));
+        env->SetLongField(dest, statusChangeTime, timestamp(fileInfo.st_ctim));
 #else
         env->SetLongField(dest, accessTimeField, timestamp(fileInfo.st_atimespec));
         env->SetLongField(dest, modificationTimeField, timestamp(fileInfo.st_mtimespec));
