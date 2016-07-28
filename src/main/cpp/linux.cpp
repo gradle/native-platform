@@ -61,7 +61,12 @@ typedef struct watch_details {
 
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_createWatch(JNIEnv *env, jclass target, jstring path, jobject result) {
+#ifdef IN_CLOEXEC
     int watch_fd = inotify_init1(IN_CLOEXEC);
+#else
+    // Not available on older versions, fall back to inotify_init()
+    int watch_fd = inotify_init();
+#endif
     if (watch_fd == -1) {
         mark_failed_with_errno(env, "could not initialize inotify", result);
         return NULL;
