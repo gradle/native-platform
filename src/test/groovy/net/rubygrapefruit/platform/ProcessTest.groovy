@@ -135,8 +135,18 @@ class ProcessTest extends Specification {
         notThrown(NativeException)
     }
 
-    def "can detach a process from parent"() {
-        expect:
-        process.detach() > 0
+    def "can detach a process from terminal/console"() {
+        when:
+        process.detach()
+
+        then:
+        noExceptionThrown()
+
+        when:
+        process.detach()
+
+        then:
+        NativeException e = thrown()
+        e.message.startsWith("Could not detach process")
     }
 }

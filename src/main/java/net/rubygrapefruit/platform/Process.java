@@ -37,7 +37,7 @@ public interface Process extends NativeIntegration {
      * @throws NativeException On failure.
      */
     @ThreadSafe
-    int detach() throws NativeException;
+    void detach() throws NativeException;
 
     /**
      * Returns the process' current working directory.

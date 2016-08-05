@@ -21,7 +21,7 @@ import net.rubygrapefruit.platform.internal.FunctionResult;
 public class PosixProcessFunctions {
     public static native int getPid();
 
-    public static native int detach();
+    public static native void detach(FunctionResult result);
 
     public static native String getWorkingDirectory(FunctionResult result);
 

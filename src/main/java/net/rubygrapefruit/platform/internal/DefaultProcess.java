@@ -27,8 +27,12 @@ public class DefaultProcess implements Process {
         return PosixProcessFunctions.getPid();
     }
 
-    public int detach() throws NativeException {
-        return PosixProcessFunctions.detach();
+    public void detach() throws NativeException {
+        FunctionResult result = new FunctionResult();
+        PosixProcessFunctions.detach(result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not detach process: %s", result.getMessage()));
+        }
     }
 
     public File getWorkingDirectory() throws NativeException {

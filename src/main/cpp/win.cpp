@@ -85,8 +85,10 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_getPid(JNIEn
 }
 
 JNIEXPORT jint JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_detach(JNIEnv *env, jclass target) {
-    return FreeConsole();
+Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_detach(JNIEnv *env, jclass target, jobject result) {
+    if (FreeConsole() == 0) {
+        mark_failed_with_errno(env, "could not FreeConsole()", result);
+    }
 }
 
 JNIEXPORT jstring JNICALL
