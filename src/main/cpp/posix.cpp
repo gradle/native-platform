@@ -206,7 +206,10 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_getPid(JNIEn
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_detach(JNIEnv *env, jclass target, jobject result) {
     if (setsid() == -1) {
-        mark_failed_with_errno(env, "could not setsid()", result);
+        // Ignore if the error is that the process is already detached from the terminal
+        if (errno != EPERM) {
+            mark_failed_with_errno(env, "could not setsid()", result);
+        }
     }
 }
 

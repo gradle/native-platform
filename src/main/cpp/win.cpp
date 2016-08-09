@@ -84,10 +84,13 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_getPid(JNIEn
     return GetCurrentProcessId();
 }
 
-JNIEXPORT jint JNICALL
+JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_detach(JNIEnv *env, jclass target, jobject result) {
     if (FreeConsole() == 0) {
-        mark_failed_with_errno(env, "could not FreeConsole()", result);
+        // Ignore if the error is that the process is already detached from the console
+        if (GetLastError() != ERROR_INVALID_PARAMETER) {
+            mark_failed_with_errno(env, "could not FreeConsole()", result);
+        }
     }
 }
 

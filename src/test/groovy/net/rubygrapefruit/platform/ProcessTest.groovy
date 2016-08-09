@@ -146,7 +146,6 @@ class ProcessTest extends Specification {
         process.detach()
 
         then:
-        NativeException e = thrown()
-        e.message.startsWith("Could not detach process")
+        noExceptionThrown()
     }
 }
