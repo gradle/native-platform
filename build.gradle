@@ -123,6 +123,10 @@ model {
     components {
         nativePlatform(NativeLibrarySpec) {
             baseName 'native-platform'
+            // TODO - this should be the default. Figure out why this is not working
+            $.platforms.each { p ->
+                targetPlatform p.name
+            }
             sources {
                 cpp {
                     source.srcDirs = ['src/shared/cpp', 'src/main/cpp']
@@ -133,7 +137,11 @@ model {
 
         nativePlatformCurses(NativeLibrarySpec) {
             baseName 'native-platform-curses'
-            [ "osx_i386", "osx_amd64", "linux_i386", "linux_amd64", "freebsd_i386", "freebsd_amd64" ].each { targetPlatform it }
+            $.platforms.each { p ->
+                if (!p.operatingSystem.windows) {
+                    targetPlatform p.name
+                }
+            }
             sources {
                 cpp {
                     source.srcDirs = ['src/shared/cpp', 'src/curses/cpp']
