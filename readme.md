@@ -20,6 +20,7 @@ See [SystemInfo](src/main/java/net/rubygrapefruit/platform/SystemInfo.java)
 * Query the PID of the current process.
 * Query and set the process working directory.
 * Query and set the process environment variables.
+* Detatch process from its controlling console
 
 See [Process](src/main/java/net/rubygrapefruit/platform/Process.java)
 
@@ -111,6 +112,7 @@ Some sample code to use the terminal:
 
 ### 0.11
 
+* Added support to detatch the current process from its controlling console. Thanks to [Gary Hale](https://github.com/ghale).
 * Fixes for handling Windows shares from Linux. Thanks to [Thierry Guérin](https://github.com/SchwingSK).
 * Added initial implementation of `FileEvents`, which allows an application to listen for changes to a file system directory.
 * Added more properties to `PosixFile`.
