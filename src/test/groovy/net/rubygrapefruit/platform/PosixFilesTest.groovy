@@ -16,11 +16,17 @@
 
 package net.rubygrapefruit.platform
 
-import spock.lang.Specification
+import net.rubygrapefruit.platform.internal.Platform
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import spock.lang.IgnoreIf
-import net.rubygrapefruit.platform.internal.Platform
+import spock.lang.Specification
+
+import java.nio.file.LinkOption
+import java.nio.file.attribute.PosixFileAttributeView
+import java.nio.file.attribute.PosixFileAttributes
+
+import static java.nio.file.attribute.PosixFilePermission.*
 
 @IgnoreIf({Platform.current().windows})
 class PosixFilesTest extends Specification {
@@ -35,18 +41,20 @@ class PosixFilesTest extends Specification {
 
     def "can get details of a file"() {
         def testFile = tmpDir.newFile(fileName)
+        def attributes = attributes(testFile)
 
         when:
         def stat = files.stat(testFile)
 
         then:
         stat.type == FileInfo.Type.File
-        stat.mode != 0
+        stat.mode == mode(attributes)
         stat.uid != 0
         stat.gid != 0
         stat.size == testFile.size()
-        stat.lastAccessTime
+        stat.lastAccessTime == attributes.lastAccessTime().toMillis()
         stat.lastStatusChangeTime
+        stat.lastModifiedTime == attributes.lastAccessTime().toMillis()
         stat.lastModifiedTime == testFile.lastModified()
         stat.blockSize
 
@@ -56,18 +64,21 @@ class PosixFilesTest extends Specification {
 
     def "can get details of a directory"() {
         def testFile = tmpDir.newFolder(fileName)
+        def attributes = attributes(testFile)
 
         when:
         def stat = files.stat(testFile)
 
         then:
         stat.type == FileInfo.Type.Directory
-        stat.mode != 0
+        stat.mode == mode(attributes)
         stat.uid != 0
         stat.gid != 0
-        stat.lastAccessTime
+        stat.lastAccessTime == attributes.lastAccessTime().toMillis()
         stat.lastStatusChangeTime
+        stat.lastModifiedTime == attributes.lastAccessTime().toMillis()
         stat.lastModifiedTime == testFile.lastModified()
+        stat.blockSize
 
         where:
         fileName << ["test-dir", "test\u03b1\u2295-dir"]
@@ -85,6 +96,10 @@ class PosixFilesTest extends Specification {
         stat.uid == 0
         stat.gid == 0
         stat.size == 0
+        stat.lastAccessTime == 0
+        stat.lastStatusChangeTime == 0
+        stat.lastModifiedTime == 0
+        stat.blockSize == 0
 
         where:
         fileName << ["test-dir", "test\u03b1\u2295-dir"]
@@ -94,28 +109,32 @@ class PosixFilesTest extends Specification {
         def testFile = tmpDir.newFile(fileName)
 
         when:
-        files.setMode(testFile, 0740)
+        files.setMode(testFile, fileMode)
 
         then:
-        files.getMode(testFile) == 0740
-        files.stat(testFile).mode == 0740
+        mode(attributes(testFile)) == fileMode
+        files.getMode(testFile) == fileMode
+        files.stat(testFile).mode == fileMode
 
         where:
-        fileName << ["test.txt", "test\u03b1\u2295.txt"]
+        fileName << ["test.txt", "test\u03b1\u2295.txt", "test2.txt"]
+        fileMode << [0777, 0740, 0644]
     }
 
     def "can set mode on a directory"() {
         def testFile = tmpDir.newFolder(fileName)
 
         when:
-        files.setMode(testFile, 0740)
+        files.setMode(testFile, fileMode)
 
         then:
-        files.getMode(testFile) == 0740
-        files.stat(testFile).mode == 0740
+        mode(attributes(testFile)) == fileMode
+        files.getMode(testFile) == fileMode
+        files.stat(testFile).mode == fileMode
 
         where:
-        fileName << ["test-dir", "test\u03b1\u2295-dir"]
+        fileName << ["test-dir", "test\u03b1\u2295-dir", "test2.txt"]
+        fileMode << [0777, 0740, 0644]
     }
 
     def "cannot set mode on file that does not exist"() {
@@ -200,26 +219,68 @@ class PosixFilesTest extends Specification {
         symlinkFile.canonicalFile == testFile.canonicalFile
     }
 
-    def "can get details of a symlink"() {
+    def "can get details of a symlink that references a file"() {
         def testFile = new File(tmpDir.newFolder("parent"), fileName)
+        new File(testFile.parentFile, "target").createNewFile()
 
         given:
         files.symlink(testFile, "target")
+        def attributes = attributes(testFile)
 
         when:
         def stat = files.stat(testFile)
 
         then:
         stat.type == FileInfo.Type.Symlink
-        stat.mode != 0
-        stat.mode != 0
+        stat.mode == mode(attributes)
         stat.uid != 0
         stat.gid != 0
-        stat.lastAccessTime
+        stat.lastAccessTime == attributes.lastAccessTime().toMillis()
         stat.lastStatusChangeTime
-        stat.lastModifiedTime
+        stat.lastModifiedTime == attributes.lastAccessTime().toMillis()
+        stat.lastModifiedTime == testFile.lastModified()
+        stat.blockSize
 
         where:
         fileName << ["test.txt", "test\u03b1\u2295.txt"]
+    }
+
+    def "can get details of a symlink that references missing file"() {
+        def testFile = new File(tmpDir.newFolder("parent"), fileName)
+
+        given:
+        files.symlink(testFile, "target")
+        def attributes = attributes(testFile)
+
+        when:
+        def stat = files.stat(testFile)
+
+        then:
+        stat.type == FileInfo.Type.Symlink
+        stat.mode == mode(attributes)
+        stat.uid != 0
+        stat.gid != 0
+        stat.lastAccessTime == attributes.lastAccessTime().toMillis()
+        stat.lastStatusChangeTime
+        stat.lastModifiedTime == attributes.lastAccessTime().toMillis()
+        stat.blockSize
+
+        where:
+        fileName << ["test.txt", "test\u03b1\u2295.txt"]
+    }
+
+    int mode(PosixFileAttributes attributes) {
+        int mode = 0
+        [OWNER_READ, OWNER_WRITE, OWNER_EXECUTE, GROUP_READ, GROUP_WRITE, GROUP_EXECUTE, OTHERS_READ, OTHERS_WRITE, OTHERS_EXECUTE].each {
+            mode = mode << 1
+            if (attributes.permissions().contains(it)) {
+                mode |= 1
+            }
+        }
+        return mode
+    }
+
+    PosixFileAttributes attributes(File file) {
+        return java.nio.file.Files.getFileAttributeView(file.toPath(), PosixFileAttributeView, LinkOption.NOFOLLOW_LINKS).readAttributes()
     }
 }
