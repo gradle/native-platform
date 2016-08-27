@@ -20,7 +20,6 @@ import net.rubygrapefruit.platform.internal.Platform
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import spock.lang.IgnoreIf
-import spock.lang.Specification
 
 import java.nio.file.LinkOption
 import java.nio.file.attribute.PosixFileAttributeView
@@ -29,7 +28,7 @@ import java.nio.file.attribute.PosixFileAttributes
 import static java.nio.file.attribute.PosixFilePermission.*
 
 @IgnoreIf({Platform.current().windows})
-class PosixFilesTest extends Specification {
+class PosixFilesTest extends AbstractFilesTest {
     @Rule TemporaryFolder tmpDir
     final PosixFiles files = Native.get(PosixFiles.class)
 
@@ -257,13 +256,6 @@ class PosixFilesTest extends Specification {
 
         where:
         fileName << ["test.txt", "test\u03b1\u2295.txt"]
-    }
-
-    long toJavaFileTime(long time) {
-        if (Platform.current().isLinux()) {
-            return (time / 1000).longValue() * 1000 // round to nearest second
-        }
-        return time
     }
 
     int mode(PosixFileAttributes attributes) {

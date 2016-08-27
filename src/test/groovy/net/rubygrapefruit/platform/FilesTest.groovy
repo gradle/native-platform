@@ -17,13 +17,12 @@ package net.rubygrapefruit.platform
 
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
-import spock.lang.Specification
 
 import java.nio.file.LinkOption
 import java.nio.file.attribute.BasicFileAttributeView
 import java.nio.file.attribute.BasicFileAttributes
 
-class FilesTest extends Specification {
+class FilesTest extends AbstractFilesTest {
     @Rule TemporaryFolder tmpDir
     final def files = Native.get(Files.class)
 
@@ -44,7 +43,7 @@ class FilesTest extends Specification {
         stat.type == FileInfo.Type.File
         stat.size == 2
         stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
-        stat.lastModifiedTime == testFile.lastModified()
+        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
 
         where:
         fileName << ["test.txt", "test\u03b1\u2295.txt"]
@@ -61,7 +60,7 @@ class FilesTest extends Specification {
         stat.type == FileInfo.Type.Directory
         stat.size == 0
         stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
-        stat.lastModifiedTime == testFile.lastModified()
+        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
 
         where:
         fileName << ["test-dir", "test\u03b1\u2295-dir"]
