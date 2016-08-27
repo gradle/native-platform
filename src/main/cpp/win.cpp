@@ -322,18 +322,18 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_stat(JNIEnv *
         DWORD error = GetLastError();
         if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND || error == ERROR_NOT_READY) {
             // Treat device with no media as missing
-            env->CallVoidMethod(dest, mid, FILE_TYPE_MISSING, (jlong)0, (jlong)0);
+            env->CallVoidMethod(dest, mid, (jint)FILE_TYPE_MISSING, (jlong)0, (jlong)0);
             return;
         }
         mark_failed_with_errno(env, "could not file attributes", result);
         return;
     }
-    DWORD64 lastModified = ((DWORD64)attr.ftLastWriteTime.dwHighDateTime << 32) | attr.ftLastWriteTime.dwLowDateTime;
+    jlong lastModified = ((jlong)attr.ftLastWriteTime.dwHighDateTime << 32) | attr.ftLastWriteTime.dwLowDateTime;
     if (attr.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-        env->CallVoidMethod(dest, mid, FILE_TYPE_DIRECTORY, (jlong)0, lastModified);
+        env->CallVoidMethod(dest, mid, (jint)FILE_TYPE_DIRECTORY, (jlong)0, lastModified);
     } else {
-        DWORD64 size = ((DWORD64)attr.nFileSizeHigh << 32) | attr.nFileSizeLow;
-        env->CallVoidMethod(dest, mid, FILE_TYPE_FILE, size, lastModified);
+        jlong size = ((jlong)attr.nFileSizeHigh << 32) | attr.nFileSizeLow;
+        env->CallVoidMethod(dest, mid, (jint)FILE_TYPE_FILE, size, lastModified);
     }
 }
 
