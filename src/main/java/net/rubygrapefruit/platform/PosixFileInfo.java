@@ -45,17 +45,7 @@ public interface PosixFileInfo extends FileInfo {
     long getBlockSize();
 
     /**
-     * Returns the last access time of this file, in ms since epoch.
-     */
-    long getLastAccessTime();
-
-    /**
      * Returns the last modification time of this file, in ms since epoch.
      */
     long getLastModifiedTime();
-
-    /**
-     * Returns the last status change time of this file, in ms since epoch.
-     */
-    long getLastStatusChangeTime();
 }

@@ -52,8 +52,6 @@ class PosixFilesTest extends Specification {
         stat.uid != 0
         stat.gid >= 0
         stat.size == testFile.size()
-        stat.lastAccessTime == attributes.lastAccessTime().toMillis()
-        stat.lastStatusChangeTime
         stat.lastModifiedTime == attributes.lastAccessTime().toMillis()
         toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
         stat.blockSize
@@ -74,8 +72,6 @@ class PosixFilesTest extends Specification {
         stat.mode == mode(attributes)
         stat.uid != 0
         stat.gid >= 0
-        stat.lastAccessTime == attributes.lastAccessTime().toMillis()
-        stat.lastStatusChangeTime
         stat.lastModifiedTime == attributes.lastAccessTime().toMillis()
         toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
         stat.blockSize
@@ -96,8 +92,6 @@ class PosixFilesTest extends Specification {
         stat.uid == 0
         stat.gid == 0
         stat.size == 0
-        stat.lastAccessTime == 0
-        stat.lastStatusChangeTime == 0
         stat.lastModifiedTime == 0
         stat.blockSize == 0
 
@@ -235,8 +229,6 @@ class PosixFilesTest extends Specification {
         stat.mode == mode(attributes)
         stat.uid != 0
         stat.gid >= 0
-        stat.lastAccessTime == attributes.lastAccessTime().toMillis()
-        stat.lastStatusChangeTime
         stat.lastModifiedTime == attributes.lastAccessTime().toMillis()
         toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
         stat.blockSize
@@ -260,8 +252,6 @@ class PosixFilesTest extends Specification {
         stat.mode == mode(attributes)
         stat.uid != 0
         stat.gid >= 0
-        stat.lastAccessTime == attributes.lastAccessTime().toMillis()
-        stat.lastStatusChangeTime
         stat.lastModifiedTime == attributes.lastAccessTime().toMillis()
         stat.blockSize
 

@@ -20,19 +20,28 @@ import net.rubygrapefruit.platform.PosixFileInfo;
 
 public class FileStat implements PosixFileInfo {
     private final String path;
-    // Fields set by native code
-    public int mode;
-    public int type;
-    public int uid;
-    public int gid;
-    public long size;
-    public long accessTime;
-    public long modificationTime;
-    public long statusChangeTime;
-    public long blockSize;
+    private int mode;
+    private Type type;
+    private int uid;
+    private int gid;
+    private long size;
+    private long accessTime;
+    private long modificationTime;
+    private long statusChangeTime;
+    private long blockSize;
 
     public FileStat(String path) {
         this.path = path;
+    }
+
+    public void details(int type, int mode, int uid, int gid, long size, long modificationTime, int blockSize) {
+        this.type = Type.values()[type];
+        this.mode = mode;
+        this.uid = uid;
+        this.gid = gid;
+        this.size = size;
+        this.modificationTime = modificationTime;
+        this.blockSize = blockSize;
     }
 
     @Override
@@ -45,7 +54,7 @@ public class FileStat implements PosixFileInfo {
     }
 
     public Type getType() {
-        return Type.values()[type];
+        return type;
     }
 
     public int getUid() {
@@ -64,15 +73,7 @@ public class FileStat implements PosixFileInfo {
         return blockSize;
     }
 
-    public long getLastAccessTime() {
-        return accessTime;
-    }
-
     public long getLastModifiedTime() {
         return modificationTime;
-    }
-
-    public long getLastStatusChangeTime() {
-        return statusChangeTime;
     }
 }

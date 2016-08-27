@@ -233,8 +233,6 @@ public class Main {
         System.out.println("* GID: " + stat.getGid());
         System.out.println(String.format("* Mode: %03o", stat.getMode()));
         System.out.println("* Size: " + stat.getSize());
-        System.out.println("* Access time: " + date(stat.getLastAccessTime()));
-        System.out.println("* Status change time: " + date(stat.getLastStatusChangeTime()));
         System.out.println("* Modification time: " + date(stat.getLastModifiedTime()));
         System.out.println("* Block size: " + stat.getBlockSize());
     }

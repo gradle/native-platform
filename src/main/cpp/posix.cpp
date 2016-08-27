@@ -81,6 +81,13 @@ jlong toMillis(struct timespec t) {
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *env, jclass target, jstring path, jobject dest, jobject result) {
+    jclass destClass = env->GetObjectClass(dest);
+    jmethodID mid = env->GetMethodID(destClass, "details", "(IIIIJJI)V");
+    if (mid == NULL) {
+        mark_failed_with_message(env, "could not find method", result);
+        return;
+    }
+
     struct stat fileInfo;
     char* pathStr = java_to_char(env, path, result);
     if (pathStr == NULL) {
@@ -93,25 +100,15 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *en
         return;
     }
 
-    jclass destClass = env->GetObjectClass(dest);
-    jfieldID modeField = env->GetFieldID(destClass, "mode", "I");
-    jfieldID typeField = env->GetFieldID(destClass, "type", "I");
-    jfieldID sizeField = env->GetFieldID(destClass, "size", "J");
-    jfieldID uidField = env->GetFieldID(destClass, "uid", "I");
-    jfieldID gidField = env->GetFieldID(destClass, "gid", "I");
-    jfieldID blockSizeField = env->GetFieldID(destClass, "blockSize", "J");
-    jfieldID accessTimeField = env->GetFieldID(destClass, "accessTime", "J");
-    jfieldID modificationTimeField = env->GetFieldID(destClass, "modificationTime", "J");
-    jfieldID statusChangeTime = env->GetFieldID(destClass, "statusChangeTime", "J");
-
     if (retval != 0) {
-        env->SetIntField(dest, typeField, FILE_TYPE_MISSING);
+        env->CallVoidMethod(dest, mid, FILE_TYPE_MISSING, (jint)0, (jint)0, (jint)0, (jlong)0, (jlong)0, (jint)0);
     } else {
-        env->SetIntField(dest, modeField, 0777 & fileInfo.st_mode);
-        int type;
+        jint type;
+        jlong size = 0;
         switch (fileInfo.st_mode & S_IFMT) {
             case S_IFREG:
                 type = FILE_TYPE_FILE;
+                size = fileInfo.st_size;
                 break;
             case S_IFDIR:
                 type = FILE_TYPE_DIRECTORY;
@@ -122,22 +119,20 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *en
             default:
                 type= FILE_TYPE_OTHER;
         }
-        env->SetIntField(dest, typeField, type);
-        env->SetIntField(dest, uidField, fileInfo.st_uid);
-        env->SetIntField(dest, gidField, fileInfo.st_gid);
-        if (type == FILE_TYPE_FILE) {
-            env->SetLongField(dest, sizeField, fileInfo.st_size);
-        }
-        env->SetLongField(dest, blockSizeField, fileInfo.st_blksize);
 #ifdef __linux__
-        env->SetLongField(dest, accessTimeField, toMillis(fileInfo.st_atim));
-        env->SetLongField(dest, modificationTimeField, toMillis(fileInfo.st_mtim));
-        env->SetLongField(dest, statusChangeTime, toMillis(fileInfo.st_ctim));
+        jlong lastModified = toMillis(fileInfo.st_mtim);
 #else
-        env->SetLongField(dest, accessTimeField, toMillis(fileInfo.st_atimespec));
-        env->SetLongField(dest, modificationTimeField, toMillis(fileInfo.st_mtimespec));
-        env->SetLongField(dest, statusChangeTime, toMillis(fileInfo.st_ctimespec));
+        jlong lastModified = toMillis(fileInfo.st_mtimespec);
 #endif
+        env->CallVoidMethod(dest,
+                            mid,
+                            type,
+                            (jint)0777 & fileInfo.st_mode,
+                            (jint)fileInfo.st_uid,
+                            (jint)fileInfo.st_gid,
+                            size,
+                            lastModified,
+                            (jint)fileInfo.st_blksize);
     }
 }
 
