@@ -110,9 +110,9 @@ Some sample code to use the terminal:
 
 ## Changes
 
-### 0.11
+### 0.11 (not yet released)
 
-* Added support to detatch the current process from its controlling console. Thanks to [Gary Hale](https://github.com/ghale).
+* Added support to detach the current process from its controlling console. Thanks to [Gary Hale](https://github.com/ghale).
 * Fixes for handling Windows shares from Linux. Thanks to [Thierry Guérin](https://github.com/SchwingSK).
 * Added initial implementation of `FileEvents`, which allows an application to listen for changes to a file system directory.
 * Added more properties to `PosixFile`.
