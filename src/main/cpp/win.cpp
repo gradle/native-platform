@@ -308,9 +308,11 @@ Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_closeWatch(JNIE
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_stat(JNIEnv *env, jclass target, jstring path, jobject dest, jobject result) {
     jclass destClass = env->GetObjectClass(dest);
-    jfieldID typeField = env->GetFieldID(destClass, "type", "I");
-    jfieldID sizeField = env->GetFieldID(destClass, "size", "J");
-    jfieldID lastModifiedField = env->GetFieldID(destClass, "lastModified", "J");
+    jmethodID mid = env->GetMethodID(destClass, "details", "(IJJ)V");
+    if (mid == NULL) {
+        mark_failed_with_message(env, "could not find method", result);
+        return;
+    }
 
     WIN32_FILE_ATTRIBUTE_DATA attr;
     wchar_t* pathStr = java_to_wchar(env, path, result);
@@ -320,21 +322,19 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_stat(JNIEnv *
         DWORD error = GetLastError();
         if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND || error == ERROR_NOT_READY) {
             // Treat device with no media as missing
-            env->SetIntField(dest, typeField, FILE_TYPE_MISSING);
+            env->CallVoidMethod(dest, mid, FILE_TYPE_MISSING, (jlong)0, (jlong)0);
             return;
         }
         mark_failed_with_errno(env, "could not file attributes", result);
         return;
     }
-    if (attr.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-        env->SetIntField(dest, typeField, FILE_TYPE_DIRECTORY);
-    } else {
-        env->SetIntField(dest, typeField, FILE_TYPE_FILE);
-        DWORD64 size = ((DWORD64)attr.nFileSizeHigh << 32) | attr.nFileSizeLow;
-        env->SetLongField(dest, sizeField, size);
-    }
     DWORD64 lastModified = ((DWORD64)attr.ftLastWriteTime.dwHighDateTime << 32) | attr.ftLastWriteTime.dwLowDateTime;
-    env->SetLongField(dest, lastModifiedField, lastModified);
+    if (attr.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+        env->CallVoidMethod(dest, mid, FILE_TYPE_DIRECTORY, (jlong)0, lastModified);
+    } else {
+        DWORD64 size = ((DWORD64)attr.nFileSizeHigh << 32) | attr.nFileSizeLow;
+        env->CallVoidMethod(dest, mid, FILE_TYPE_FILE, size, lastModified);
+    }
 }
 
 /*

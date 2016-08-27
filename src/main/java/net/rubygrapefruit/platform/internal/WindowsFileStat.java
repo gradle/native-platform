@@ -33,14 +33,22 @@ public class WindowsFileStat implements WindowsFileInfo {
     }
 
     private final String path;
-    // Fields set by native code
-    public int mode;
-    public int type;
-    public long size;
-    public long lastModified;
+    private Type type;
+    private long size;
+    private long lastModified;
 
     public WindowsFileStat(String path) {
         this.path = path;
+    }
+
+    public void details(int type, long size, long lastModifiedWinTime) {
+        this.type = Type.values()[type];
+        this.size = size;
+        this.lastModified = this.type == Type.Missing ? 0 : toJavaTime(lastModifiedWinTime);
+    }
+
+    private long toJavaTime(long winFileTime) {
+        return winFileTime / 10000 + EPOCH_OFFSET;
     }
 
     @Override
@@ -49,7 +57,7 @@ public class WindowsFileStat implements WindowsFileInfo {
     }
 
     public Type getType() {
-        return Type.values()[type];
+        return type;
     }
 
     public long getSize() {
@@ -57,6 +65,6 @@ public class WindowsFileStat implements WindowsFileInfo {
     }
 
     public long getLastModifiedTime() {
-        return getType() == Type.Missing ? 0 : lastModified / 10000 + EPOCH_OFFSET;
+        return lastModified;
     }
 }
