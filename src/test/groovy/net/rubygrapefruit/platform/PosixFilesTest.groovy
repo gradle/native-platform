@@ -55,7 +55,7 @@ class PosixFilesTest extends Specification {
         stat.lastAccessTime == attributes.lastAccessTime().toMillis()
         stat.lastStatusChangeTime
         stat.lastModifiedTime == attributes.lastAccessTime().toMillis()
-        stat.lastModifiedTime == testFile.lastModified()
+        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
         stat.blockSize
 
         where:
@@ -77,7 +77,7 @@ class PosixFilesTest extends Specification {
         stat.lastAccessTime == attributes.lastAccessTime().toMillis()
         stat.lastStatusChangeTime
         stat.lastModifiedTime == attributes.lastAccessTime().toMillis()
-        stat.lastModifiedTime == testFile.lastModified()
+        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
         stat.blockSize
 
         where:
@@ -238,7 +238,7 @@ class PosixFilesTest extends Specification {
         stat.lastAccessTime == attributes.lastAccessTime().toMillis()
         stat.lastStatusChangeTime
         stat.lastModifiedTime == attributes.lastAccessTime().toMillis()
-        stat.lastModifiedTime == testFile.lastModified()
+        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
         stat.blockSize
 
         where:
@@ -267,6 +267,13 @@ class PosixFilesTest extends Specification {
 
         where:
         fileName << ["test.txt", "test\u03b1\u2295.txt"]
+    }
+
+    long toJavaFileTime(long time) {
+        if (Platform.current().isLinux()) {
+            return (time / 1000).longValue() * 1000 // round to nearest second
+        }
+        return time
     }
 
     int mode(PosixFileAttributes attributes) {

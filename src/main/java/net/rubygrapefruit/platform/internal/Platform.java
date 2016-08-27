@@ -63,6 +63,10 @@ public abstract class Platform {
         }
     }
 
+    public boolean isLinux() {
+        return false;
+    }
+
     public boolean isWindows() {
         return false;
     }
@@ -225,6 +229,11 @@ public abstract class Platform {
         @Override
         public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
             return super.get(type, nativeLibraryLoader);
+        }
+
+        @Override
+        public boolean isLinux() {
+            return true;
         }
     }
 
