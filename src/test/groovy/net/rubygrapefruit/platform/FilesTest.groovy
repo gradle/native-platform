@@ -19,6 +19,10 @@ import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import spock.lang.Specification
 
+import java.nio.file.LinkOption
+import java.nio.file.attribute.BasicFileAttributeView
+import java.nio.file.attribute.BasicFileAttributes
+
 class FilesTest extends Specification {
     @Rule TemporaryFolder tmpDir
     final def files = Native.get(Files.class)
@@ -31,6 +35,7 @@ class FilesTest extends Specification {
     def "can get details of a file"() {
         def testFile = tmpDir.newFile(fileName)
         testFile.text = 'hi'
+        def attributes = attributes(testFile)
 
         when:
         def stat = files.stat(testFile)
@@ -38,6 +43,8 @@ class FilesTest extends Specification {
         then:
         stat.type == FileInfo.Type.File
         stat.size == 2
+        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
+        stat.lastModifiedTime == testFile.lastModified()
 
         where:
         fileName << ["test.txt", "test\u03b1\u2295.txt"]
@@ -45,6 +52,7 @@ class FilesTest extends Specification {
 
     def "can get details of a directory"() {
         def testFile = tmpDir.newFolder(fileName)
+        def attributes = attributes(testFile)
 
         when:
         def stat = files.stat(testFile)
@@ -52,6 +60,8 @@ class FilesTest extends Specification {
         then:
         stat.type == FileInfo.Type.Directory
         stat.size == 0
+        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
+        stat.lastModifiedTime == testFile.lastModified()
 
         where:
         fileName << ["test-dir", "test\u03b1\u2295-dir"]
@@ -86,8 +96,13 @@ class FilesTest extends Specification {
         then:
         stat.type == FileInfo.Type.Missing
         stat.size == 0
+        stat.lastModifiedTime == 0
 
         where:
         fileName << ["test-dir", "test\u03b1\u2295-dir", "nested/dir"]
+    }
+
+    BasicFileAttributes attributes(File file) {
+        return java.nio.file.Files.getFileAttributeView(file.toPath(), BasicFileAttributeView, LinkOption.NOFOLLOW_LINKS).readAttributes()
     }
 }

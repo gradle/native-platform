@@ -222,6 +222,7 @@ public class Main {
 
     private static void stat(File file, FileInfo stat) {
         System.out.println("* Size: " + stat.getSize());
+        System.out.println("* Modification time: " + date(stat.getLastModifiedTime()));
     }
 
     private static void stat(File file, PosixFileInfo stat) {
@@ -235,7 +236,6 @@ public class Main {
         System.out.println("* Access time: " + date(stat.getLastAccessTime()));
         System.out.println("* Status change time: " + date(stat.getLastStatusChangeTime()));
         System.out.println("* Modification time: " + date(stat.getLastModifiedTime()));
-        System.out.println("* Modification time (JVM): " + date(file.lastModified()));
         System.out.println("* Block size: " + stat.getBlockSize());
     }
 

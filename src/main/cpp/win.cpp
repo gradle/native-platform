@@ -310,6 +310,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_stat(JNIEnv *
     jclass destClass = env->GetObjectClass(dest);
     jfieldID typeField = env->GetFieldID(destClass, "type", "I");
     jfieldID sizeField = env->GetFieldID(destClass, "size", "J");
+    jfieldID lastModifiedField = env->GetFieldID(destClass, "lastModified", "J");
 
     WIN32_FILE_ATTRIBUTE_DATA attr;
     wchar_t* pathStr = java_to_wchar(env, path, result);
@@ -329,9 +330,11 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_stat(JNIEnv *
         env->SetIntField(dest, typeField, FILE_TYPE_DIRECTORY);
     } else {
         env->SetIntField(dest, typeField, FILE_TYPE_FILE);
-        DWORD64 size = (attr.nFileSizeLow << 32) | attr.nFileSizeLow;
+        DWORD64 size = ((DWORD64)attr.nFileSizeHigh << 32) | attr.nFileSizeLow;
         env->SetLongField(dest, sizeField, size);
     }
+    DWORD64 lastModified = ((DWORD64)attr.ftLastWriteTime.dwHighDateTime << 32) | attr.ftLastWriteTime.dwLowDateTime;
+    env->SetLongField(dest, lastModifiedField, lastModified);
 }
 
 /*

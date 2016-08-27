@@ -37,4 +37,9 @@ public interface FileInfo {
      * Returns the size of this file, in bytes. Returns 0 when this file is not a regular file.
      */
     long getSize();
+
+    /**
+     * Returns the last modification time of this file, in ms since epoch. Returns 0 when this file does not exist.
+     */
+    long getLastModifiedTime();
 }
