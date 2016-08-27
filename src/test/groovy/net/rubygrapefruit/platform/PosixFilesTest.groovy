@@ -50,7 +50,7 @@ class PosixFilesTest extends Specification {
         stat.type == FileInfo.Type.File
         stat.mode == mode(attributes)
         stat.uid != 0
-        stat.gid
+        stat.gid >= 0
         stat.size == testFile.size()
         stat.lastAccessTime == attributes.lastAccessTime().toMillis()
         stat.lastStatusChangeTime
@@ -73,7 +73,7 @@ class PosixFilesTest extends Specification {
         stat.type == FileInfo.Type.Directory
         stat.mode == mode(attributes)
         stat.uid != 0
-        stat.gid
+        stat.gid >= 0
         stat.lastAccessTime == attributes.lastAccessTime().toMillis()
         stat.lastStatusChangeTime
         stat.lastModifiedTime == attributes.lastAccessTime().toMillis()
@@ -234,7 +234,7 @@ class PosixFilesTest extends Specification {
         stat.type == FileInfo.Type.Symlink
         stat.mode == mode(attributes)
         stat.uid != 0
-        stat.gid
+        stat.gid >= 0
         stat.lastAccessTime == attributes.lastAccessTime().toMillis()
         stat.lastStatusChangeTime
         stat.lastModifiedTime == attributes.lastAccessTime().toMillis()
@@ -259,7 +259,7 @@ class PosixFilesTest extends Specification {
         stat.type == FileInfo.Type.Symlink
         stat.mode == mode(attributes)
         stat.uid != 0
-        stat.gid
+        stat.gid >= 0
         stat.lastAccessTime == attributes.lastAccessTime().toMillis()
         stat.lastStatusChangeTime
         stat.lastModifiedTime == attributes.lastAccessTime().toMillis()
