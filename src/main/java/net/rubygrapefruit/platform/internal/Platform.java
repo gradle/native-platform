@@ -152,14 +152,14 @@ public abstract class Platform {
     private static class Window32Bit extends Windows {
         @Override
         public String getId() {
-            return "windows-x86";
+            return "windows-i386";
         }
     }
 
     private static class Window64Bit extends Windows {
         @Override
         public String getId() {
-            return "windows-x86-64";
+            return "windows-amd64";
         }
     }
 
@@ -240,28 +240,28 @@ public abstract class Platform {
     private static class Linux32Bit extends Linux {
         @Override
         public String getId() {
-            return "linux-x86";
+            return "linux-i386";
         }
     }
 
     private static class Linux64Bit extends Linux {
         @Override
         public String getId() {
-            return "linux-x86-64";
+            return "linux-amd64";
         }
     }
 
     private static class FreeBSD32Bit extends Unix {
         @Override
         public String getId() {
-            return "freebsd-x86";
+            return "freebsd-i386";
         }
     }
 
     private static class FreeBSD64Bit extends Unix {
         @Override
         public String getId() {
-            return "freebsd-x86-64";
+            return "freebsd-amd64";
         }
     }
 
@@ -280,14 +280,14 @@ public abstract class Platform {
     private static class OsX32Bit extends OsX {
         @Override
         public String getId() {
-            return "osx-x86";
+            return "osx-i386";
         }
     }
 
     private static class OsX64Bit extends OsX {
         @Override
         public String getId() {
-            return "osx-x86-64";
+            return "osx-amd64";
         }
     }
 
