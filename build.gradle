@@ -34,6 +34,10 @@ allprojects {
                     repository(url: uri("https://gradle.artifactoryonline.com/gradle/libs-releases-local")) {
                         authentication(userName: artifactoryUserName, password: artifactoryPassword)
                     }
+                } else if (project.hasProperty('snapshot')) {
+                    repository(url: uri("https://gradle.artifactoryonline.com/gradle/libs-snapshots-local")) {
+                        authentication(userName: artifactoryUserName, password: artifactoryPassword)
+                    }
                 } else {
                     repository(url: uri("$rootProject.buildDir/repo"))
                 }

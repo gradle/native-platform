@@ -228,6 +228,8 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 7. Increment version number in `build.gradle` and this readme.
 8. Push tag and changes.
 
+Use `-Psnapshot` instead of `-Prelease` to publish a dev version.
+
 ## Testing
 
 * Test on IBM JVM.
