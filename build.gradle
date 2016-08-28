@@ -191,7 +191,7 @@ model {
                     return
                 }
 
-                def variantName = "${targetPlatform.operatingSystem.name}-${targetPlatform.architecture.name}"
+                def variantName = targetPlatform.name.replace('_', '-')
                 def taskName = "jar-${variantName}"
                 def nativeJar = project.tasks.findByName(taskName)
                 if (nativeJar == null) {
