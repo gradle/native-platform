@@ -86,7 +86,7 @@ this:
     }
 
     dependencies {
-        compile "net.rubygrapefruit:native-platform:0.10"
+        compile "net.rubygrapefruit:native-platform:0.11"
     }
 
 You can also download [here](http://repo.gradle.org/gradle/libs-releases-local/net/rubygrapefruit/)
@@ -110,7 +110,9 @@ Some sample code to use the terminal:
 
 ## Changes
 
-### 0.11 (not yet released)
+### 0.12 (not yet released)
+
+### 0.11
 
 * Added support to detach the current process from its controlling console. Thanks to [Gary Hale](https://github.com/ghale).
 * Fixes for handling Windows shares from Linux. Thanks to [Thierry Guérin](https://github.com/SchwingSK).

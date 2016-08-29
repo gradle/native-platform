@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-#define NATIVE_VERSION 21
+#define NATIVE_VERSION 22
 
 #define FILE_TYPE_FILE 0
 #define FILE_TYPE_DIRECTORY 1
