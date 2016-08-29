@@ -11,6 +11,7 @@ allprojects {
     repositories {
         mavenCentral()
         maven { url "http://repo.gradle.org/gradle/libs-releases-local" }
+        maven { url "http://repo.gradle.org/gradle/libs-snapshots-local" }
     }
 
     dependencies {

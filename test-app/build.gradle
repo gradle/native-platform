@@ -4,20 +4,16 @@ mainClassName = 'net.rubygrapefruit.platform.test.Main'
 applicationName = 'native-platform-test'
 archivesBaseName = 'native-platform-test'
 
-if (project.hasProperty('release')) {
-    repositories {
-        maven { url "$rootProject.buildDir/repo" }
-    }
-    dependencies {
-        compile "net.rubygrapefruit:native-platform:${version}"
-    }
-} else {
-    dependencies {
-        compile project(':')
+if (project.hasProperty('release') || project.hasProperty('snapshot')) {
+    configurations.all {
+        resolutionStrategy.dependencySubstitution {
+            substitute project(':') with module("net.rubygrapefruit:native-platform:${version}")
+        }
     }
 }
 
 dependencies {
+    compile project(':')
     compile 'net.sf.jopt-simple:jopt-simple:4.2'
 }
 
