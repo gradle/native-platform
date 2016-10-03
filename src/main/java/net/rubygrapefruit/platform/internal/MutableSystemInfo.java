@@ -44,6 +44,12 @@ public class MutableSystemInfo implements SystemInfo {
         if (machineArchitecture.equals("i386") || machineArchitecture.equals("x86") || machineArchitecture.equals("i686")) {
             return Architecture.i386;
         }
+        if (machineArchitecture.equals("s390x")) {
+            return Architecture.s390x;
+        }
+        if (machineArchitecture.equals("s390")) {
+            return Architecture.s390;
+        }
         throw new NativeException(String.format("Cannot determine architecture from kernel architecture name '%s'.",
                 machineArchitecture));
     }
