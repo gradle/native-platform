@@ -23,8 +23,9 @@
 extern "C" {
 #endif
 
-#define NATIVE_VERSION 22
+#define NATIVE_VERSION 23
 
+// Corresponds to values of FileInfo.Type
 #define FILE_TYPE_FILE 0
 #define FILE_TYPE_DIRECTORY 1
 #define FILE_TYPE_SYMLINK 2

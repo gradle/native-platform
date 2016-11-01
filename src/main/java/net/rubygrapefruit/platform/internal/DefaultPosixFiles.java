@@ -16,12 +16,11 @@
 
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.NativeException;
-import net.rubygrapefruit.platform.PosixFileInfo;
-import net.rubygrapefruit.platform.PosixFiles;
+import net.rubygrapefruit.platform.*;
 import net.rubygrapefruit.platform.internal.jni.PosixFileFunctions;
 
 import java.io.File;
+import java.util.List;
 
 public class DefaultPosixFiles implements PosixFiles {
     public PosixFileInfo stat(File file) throws NativeException {
@@ -29,9 +28,19 @@ public class DefaultPosixFiles implements PosixFiles {
         FileStat stat = new FileStat(file.getPath());
         PosixFileFunctions.stat(file.getPath(), stat, result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not get posix file details of %s: %s", file, result.getMessage()));
+            throw new NativeException(String.format("Could not get POSIX file details of %s: %s", file, result.getMessage()));
         }
         return stat;
+    }
+
+    public List<DirEntry> listDir(File file) throws NativeException {
+        FunctionResult result = new FunctionResult();
+        DirList dirList = new DirList();
+        PosixFileFunctions.readdir(file.getPath(), dirList, result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not read directory %s: %s", file, result.getMessage()));
+        }
+        return dirList.files;
     }
 
     public void setMode(File file, int perms) {

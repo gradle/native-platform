@@ -28,6 +28,8 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/utsname.h>
+#include <dirent.h>
+#include <string.h>
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getSystemInfo(JNIEnv *env, jclass target, jobject info, jobject result) {
@@ -134,6 +136,56 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *en
                             lastModified,
                             (jint)fileInfo.st_blksize);
     }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_readdir(JNIEnv *env, jclass target, jstring path, jobject contents, jobject result) {
+    jclass contentsClass = env->GetObjectClass(contents);
+    jmethodID mid = env->GetMethodID(contentsClass, "addFile", "(Ljava/lang/String;I)V");
+    if (mid == NULL) {
+        mark_failed_with_message(env, "could not find method", result);
+        return;
+    }
+
+    char* pathStr = java_to_char(env, path, result);
+    DIR* dir = opendir(pathStr);
+    free(pathStr);
+    if (dir == NULL) {
+        mark_failed_with_errno(env, "could not open directory", result);
+        return;
+    }
+    struct dirent entry;
+    struct dirent* next;
+    while (true) {
+        if (readdir_r(dir, &entry, &next) != 0) {
+            mark_failed_with_errno(env, "could not read directory entry", result);
+            break;
+        }
+        if (next == NULL) {
+            break;
+        }
+        if (strcmp(".", entry.d_name) == 0 || strcmp("..", entry.d_name) == 0) {
+            continue;
+        }
+        jstring childPath = char_to_java(env, entry.d_name, result);
+        jint type;
+        switch(entry.d_type) {
+            case DT_DIR:
+                type = FILE_TYPE_DIRECTORY;
+                break;
+            case DT_REG:
+                type = FILE_TYPE_FILE;
+                break;
+            case DT_LNK:
+                type = FILE_TYPE_SYMLINK;
+                break;
+            default:
+                type = FILE_TYPE_OTHER;
+        }
+        env->CallVoidMethod(contents, mid, childPath, type);
+    }
+
+    closedir(dir);
 }
 
 JNIEXPORT void JNICALL

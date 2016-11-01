@@ -17,6 +17,7 @@
 package net.rubygrapefruit.platform;
 
 import java.io.File;
+import java.util.List;
 
 /**
  * Functions to query and modify files on a Posix file system.
@@ -60,4 +61,12 @@ public interface PosixFiles extends Files {
      */
     @ThreadSafe
     PosixFileInfo stat(File path) throws NativeException;
+
+    /**
+     * Lists the contents of the given directory.
+     *
+     * @throws NativeException On failure.
+     */
+    @ThreadSafe
+    List<? extends DirEntry> listDir(File path) throws NativeException;
 }

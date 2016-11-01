@@ -27,9 +27,10 @@ import java.nio.file.attribute.PosixFileAttributes
 
 import static java.nio.file.attribute.PosixFilePermission.*
 
-@IgnoreIf({Platform.current().windows})
+@IgnoreIf({ Platform.current().windows })
 class PosixFilesTest extends AbstractFilesTest {
-    @Rule TemporaryFolder tmpDir
+    @Rule
+    TemporaryFolder tmpDir
     final PosixFiles files = Native.get(PosixFiles.class)
 
     def "caches file instance"() {
@@ -51,7 +52,7 @@ class PosixFilesTest extends AbstractFilesTest {
         stat.uid != 0
         stat.gid >= 0
         stat.size == testFile.size()
-        stat.lastModifiedTime == attributes.lastAccessTime().toMillis()
+        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
         toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
         stat.blockSize
 
@@ -71,7 +72,8 @@ class PosixFilesTest extends AbstractFilesTest {
         stat.mode == mode(attributes)
         stat.uid != 0
         stat.gid >= 0
-        stat.lastModifiedTime == attributes.lastAccessTime().toMillis()
+        stat.size == 0
+        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
         toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
         stat.blockSize
 
@@ -96,6 +98,74 @@ class PosixFilesTest extends AbstractFilesTest {
 
         where:
         fileName << ["test-dir", "test\u03b1\u2295-dir"]
+    }
+
+    def "can list contents of an empty directory"() {
+        def testFile = tmpDir.newFolder(fileName)
+
+        when:
+        def files = files.listDir(testFile)
+
+        then:
+        files.size() == 0
+
+        where:
+        fileName << ["test-dir", "test\u03b1\u2295-dir"]
+    }
+
+    def "can list contents of a directory"() {
+        def testFile = tmpDir.newFolder(fileName)
+        def childDir = new File(testFile, fileName + ".a")
+        childDir.mkdirs()
+        def childDirAttributes = attributes(childDir)
+        def childFile = new File(testFile, fileName + ".b")
+        childFile.createNewFile()
+        def childFileAttributes = attributes(childFile)
+        def childLink = new File(testFile, fileName + ".c")
+        files.symlink(childLink, childFile.name)
+        def childLinkAttributes = attributes(childFile)
+
+        when:
+        def files = files.listDir(testFile)
+
+        then:
+        files.size() == 3
+
+        def dirEntry = files[0]
+        dirEntry.type == FileInfo.Type.Directory
+        dirEntry.name == childDir.name
+        dirEntry.size == 0L
+        dirEntry.lastModifiedTime == childDirAttributes.lastModifiedTime().toMillis()
+        toJavaFileTime(dirEntry.lastModifiedTime) == childDir.lastModified()
+
+        def fileEntry = files[1]
+        fileEntry.type == FileInfo.Type.File
+        fileEntry.name == childFile.name
+        fileEntry.size == childFile.length()
+        fileEntry.lastModifiedTime == childFileAttributes.lastModifiedTime().toMillis()
+        toJavaFileTime(fileEntry.lastModifiedTime) == childFile.lastModified()
+
+        def linkEntry = files[2]
+        linkEntry.type == FileInfo.Type.Symlink
+        linkEntry.name == childLink.name
+        linkEntry.size == 0
+        linkEntry.lastModifiedTime == childLinkAttributes.lastModifiedTime().toMillis()
+        toJavaFileTime(linkEntry.lastModifiedTime) == childLink.lastModified()
+
+        where:
+        fileName << ["test-dir", "test\u03b1\u2295-dir"]
+    }
+
+    def "cannot list contents of file"() {
+        expect: false
+    }
+
+    def "cannot list contents of symlink"() {
+        expect: false
+    }
+
+    def "cannot list contents of missing file"() {
+        expect: false
     }
 
     def "can set mode on a file"() {
@@ -212,6 +282,30 @@ class PosixFilesTest extends AbstractFilesTest {
         symlinkFile.canonicalFile == testFile.canonicalFile
     }
 
+    def "can get details of a symlink that references a directory"() {
+        def testFile = new File(tmpDir.newFolder("parent"), fileName)
+        new File(testFile.parentFile, "target").mkdirs()
+
+        given:
+        files.symlink(testFile, "target")
+        def attributes = attributes(testFile)
+
+        when:
+        def stat = files.stat(testFile)
+
+        then:
+        stat.type == FileInfo.Type.Symlink
+        stat.mode == mode(attributes)
+        stat.uid != 0
+        stat.gid >= 0
+        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
+        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
+        stat.blockSize
+
+        where:
+        fileName << ["test.txt", "test\u03b1\u2295.txt"]
+    }
+
     def "can get details of a symlink that references a file"() {
         def testFile = new File(tmpDir.newFolder("parent"), fileName)
         new File(testFile.parentFile, "target").createNewFile()
@@ -228,7 +322,7 @@ class PosixFilesTest extends AbstractFilesTest {
         stat.mode == mode(attributes)
         stat.uid != 0
         stat.gid >= 0
-        stat.lastModifiedTime == attributes.lastAccessTime().toMillis()
+        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
         toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
         stat.blockSize
 
@@ -251,7 +345,7 @@ class PosixFilesTest extends AbstractFilesTest {
         stat.mode == mode(attributes)
         stat.uid != 0
         stat.gid >= 0
-        stat.lastModifiedTime == attributes.lastAccessTime().toMillis()
+        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
         stat.blockSize
 
         where:
