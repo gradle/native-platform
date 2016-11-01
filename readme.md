@@ -47,6 +47,7 @@ See [FileEvents](src/main/java/net/rubygrapefruit/platform/FileEvents.java)
 * Create and read symbolic links.
 * Query UNIX file uid and gid.
 * Query file type, size and timestamps.
+* Query directory contents.
 
 See [Files](src/main/java/net/rubygrapefruit/platform/Files.java)
 
@@ -111,6 +112,8 @@ Some sample code to use the terminal:
 ## Changes
 
 ### 0.12 (not yet released)
+
+* Added `PosixFiles.listDir()`.
 
 ### 0.11
 
