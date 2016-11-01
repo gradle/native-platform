@@ -78,7 +78,7 @@ public class NativeLibraryLocator {
             componentName = componentName.substring(0, pos) + Character.toUpperCase(componentName.charAt(pos + 1)) + componentName.substring(pos + 2);
             pos = componentName.indexOf("-", pos);
         }
-        File libFile = new File(String.format("build/binaries/%sSharedLibrary/%s/%s", componentName, libraryDef.platform.replace("-", "_"), libraryDef.name));
+        File libFile = new File(String.format("build/libs/%s/shared/%s/%s", componentName, libraryDef.platform.replace("-", "_"), libraryDef.name));
         if (libFile.isFile()) {
             return libFile;
         }
