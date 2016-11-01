@@ -123,7 +123,7 @@ class PosixFilesTest extends AbstractFilesTest {
         def childFileAttributes = attributes(childFile)
         def childLink = new File(testFile, fileName + ".c")
         files.symlink(childLink, childFile.name)
-        def childLinkAttributes = attributes(childFile)
+        def childLinkAttributes = attributes(childLink)
 
         when:
         def files = files.listDir(testFile)
