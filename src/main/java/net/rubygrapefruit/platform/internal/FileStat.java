@@ -25,9 +25,7 @@ public class FileStat implements PosixFileInfo {
     private int uid;
     private int gid;
     private long size;
-    private long accessTime;
     private long modificationTime;
-    private long statusChangeTime;
     private long blockSize;
 
     public FileStat(String path) {
