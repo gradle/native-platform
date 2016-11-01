@@ -113,7 +113,7 @@ Some sample code to use the terminal:
 
 ### 0.12 (not yet released)
 
-* Added `PosixFiles.listDir()`.
+* Added `Files.listDir()`.
 
 ### 0.11
 

@@ -14,14 +14,11 @@
  *    limitations under the License.
  */
 
-package net.rubygrapefruit.platform.internal.jni;
+package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.internal.DirList;
-import net.rubygrapefruit.platform.internal.FunctionResult;
-import net.rubygrapefruit.platform.internal.WindowsFileStat;
-
-public class WindowsFileFunctions {
-    public static native void stat(String file, WindowsFileStat stat, FunctionResult result);
-
-    public static native void readdir(String path, DirList dirList, FunctionResult result);
+public class WindowsDirList extends DirList {
+    @Override
+    public void addFile(String name, int type, long size, long lastModified) {
+        super.addFile(name, type, size, WindowsFileTime.toJavaTime(lastModified));
+    }
 }

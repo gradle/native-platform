@@ -18,10 +18,6 @@ package net.rubygrapefruit.platform
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 
-import java.nio.file.LinkOption
-import java.nio.file.attribute.BasicFileAttributeView
-import java.nio.file.attribute.BasicFileAttributes
-
 class FilesTest extends AbstractFilesTest {
     @Rule TemporaryFolder tmpDir
     final def files = Native.get(Files.class)
@@ -101,7 +97,76 @@ class FilesTest extends AbstractFilesTest {
         fileName << ["test-dir", "test\u03b1\u2295-dir", "nested/dir"]
     }
 
-    BasicFileAttributes attributes(File file) {
-        return java.nio.file.Files.getFileAttributeView(file.toPath(), BasicFileAttributeView, LinkOption.NOFOLLOW_LINKS).readAttributes()
+    def "can list contents of an empty directory"() {
+        def testFile = tmpDir.newFolder(fileName)
+
+        when:
+        def files = files.listDir(testFile)
+
+        then:
+        files.size() == 0
+
+        where:
+        fileName << ["test-dir", "test\u03b1\u2295-dir"]
     }
+
+    def "can list contents of a directory"() {
+        def testFile = tmpDir.newFolder(fileName)
+        def childDir = new File(testFile, fileName + ".a")
+        childDir.mkdirs()
+        def childDirAttributes = attributes(childDir)
+        def childFile = new File(testFile, fileName + ".b")
+        childFile.text = 'contents'
+        def childFileAttributes = attributes(childFile)
+
+        when:
+        def files = files.listDir(testFile)
+
+        then:
+        files.size() == 2
+        files.sort { it.name }
+
+        def dirEntry = files[0]
+        dirEntry.type == FileInfo.Type.Directory
+        dirEntry.name == childDir.name
+        dirEntry.size == 0L
+        dirEntry.lastModifiedTime == childDirAttributes.lastModifiedTime().toMillis()
+        toJavaFileTime(dirEntry.lastModifiedTime) == childDir.lastModified()
+
+        def fileEntry = files[1]
+        fileEntry.type == FileInfo.Type.File
+        fileEntry.name == childFile.name
+        fileEntry.size == 8
+        fileEntry.lastModifiedTime == childFileAttributes.lastModifiedTime().toMillis()
+        toJavaFileTime(fileEntry.lastModifiedTime) == childFile.lastModified()
+
+        where:
+        fileName << ["test-dir", "test\u03b1\u2295-dir"]
+    }
+
+    def "cannot list contents of file"() {
+        def testFile = tmpDir.newFile()
+
+        when:
+        files.listDir(testFile)
+
+        then:
+        def e = thrown(NativeException)
+        e.message == "Could not read directory $testFile: could not open directory (errno 20: Not a directory)"
+    }
+
+    def "cannot list contents of missing file"() {
+        def testFile = new File(tmpDir.newFolder(), fileName)
+
+        when:
+        files.listDir(testFile)
+
+        then:
+        def e = thrown(NativeException)
+        e.message == "Could not read directory $testFile: could not open directory (errno 2: No such file or directory)"
+
+        where:
+        fileName << ["test-dir", "test\u03b1\u2295-dir", "nested/dir"]
+    }
+
 }

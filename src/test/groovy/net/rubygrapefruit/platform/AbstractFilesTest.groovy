@@ -19,7 +19,15 @@ package net.rubygrapefruit.platform
 import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.Specification
 
+import java.nio.file.LinkOption
+import java.nio.file.attribute.BasicFileAttributeView
+import java.nio.file.attribute.BasicFileAttributes
+
 class AbstractFilesTest extends Specification {
+    BasicFileAttributes attributes(File file) {
+        return java.nio.file.Files.getFileAttributeView(file.toPath(), BasicFileAttributeView, LinkOption.NOFOLLOW_LINKS).readAttributes()
+    }
+
     long toJavaFileTime(long time) {
         if (Platform.current().isLinux()) {
             return (time / 1000).longValue() * 1000 // round to nearest second

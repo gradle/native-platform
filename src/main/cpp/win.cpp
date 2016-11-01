@@ -305,6 +305,10 @@ Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_closeWatch(JNIE
     free(details);
 }
 
+jlong lastModifiedNanos(FILETIME* time) {
+    return ((jlong)time->dwHighDateTime << 32) | time->dwLowDateTime;
+}
+
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_stat(JNIEnv *env, jclass target, jstring path, jobject dest, jobject result) {
     jclass destClass = env->GetObjectClass(dest);
@@ -328,13 +332,50 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_stat(JNIEnv *
         mark_failed_with_errno(env, "could not file attributes", result);
         return;
     }
-    jlong lastModified = ((jlong)attr.ftLastWriteTime.dwHighDateTime << 32) | attr.ftLastWriteTime.dwLowDateTime;
+    jlong lastModified = lastModifiedNanos(&attr.ftLastWriteTime);
     if (attr.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
         env->CallVoidMethod(dest, mid, (jint)FILE_TYPE_DIRECTORY, (jlong)0, lastModified);
     } else {
         jlong size = ((jlong)attr.nFileSizeHigh << 32) | attr.nFileSizeLow;
         env->CallVoidMethod(dest, mid, (jint)FILE_TYPE_FILE, size, lastModified);
     }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_readdir(JNIEnv *env, jclass target, jstring path, jobject contents, jobject result) {
+    jclass contentsClass = env->GetObjectClass(contents);
+    jmethodID mid = env->GetMethodID(contentsClass, "addFile", "(Ljava/lang/String;IJJ)V");
+    if (mid == NULL) {
+        mark_failed_with_message(env, "could not find method", result);
+        return;
+    }
+
+    WIN32_FIND_DATAW entry;
+    wchar_t* pathStr = java_to_wchar(env, path, result);
+    HANDLE dirHandle = FindFirstFileW(pathStr, &entry);
+    free(pathStr);
+    if (dirHandle == INVALID_HANDLE_VALUE) {
+        mark_failed_with_errno(env, "could not open directory", result);
+        return;
+    }
+
+    do {
+        if (wcscmp(L".", entry.cFileName) == 0 || wcscmp(L"..", entry.cFileName) == 0) {
+            continue;
+        }
+        jstring childName = wchar_to_java(env, entry.cFileName, wcslen(entry.cFileName), result);
+        jint type = (entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? FILE_TYPE_DIRECTORY : FILE_TYPE_FILE;
+        jlong lastModified = lastModifiedNanos(&entry.ftLastWriteTime);
+        jlong size = ((jlong)entry.nFileSizeHigh << 32) | entry.nFileSizeLow;
+        env->CallVoidMethod(contents, mid, childName, type, size, lastModified);
+    } while (FindNextFileW(dirHandle, &entry) != 0);
+
+    DWORD error = GetLastError();
+    if (error != ERROR_NO_MORE_FILES ) {
+        mark_failed_with_errno(env, "could not read next directory entry", result);
+    }
+
+    FindClose(dirHandle);
 }
 
 /*

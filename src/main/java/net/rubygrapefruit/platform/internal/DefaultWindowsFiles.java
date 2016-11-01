@@ -16,12 +16,14 @@
 
 package net.rubygrapefruit.platform.internal;
 
+import net.rubygrapefruit.platform.DirEntry;
 import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.WindowsFileInfo;
 import net.rubygrapefruit.platform.WindowsFiles;
 import net.rubygrapefruit.platform.internal.jni.WindowsFileFunctions;
 
 import java.io.File;
+import java.util.List;
 
 public class DefaultWindowsFiles implements WindowsFiles {
     public WindowsFileInfo stat(File file) throws NativeException {
@@ -32,5 +34,15 @@ public class DefaultWindowsFiles implements WindowsFiles {
             throw new NativeException(String.format("Could not get file details of %s: %s", file, result.getMessage()));
         }
         return stat;
+    }
+
+    public List<? extends DirEntry> listDir(File file) throws NativeException {
+        FunctionResult result = new FunctionResult();
+        WindowsDirList dirList = new WindowsDirList();
+        WindowsFileFunctions.readdir(file.getPath() + "\\*", dirList, result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not read directory %s: %s", file, result.getMessage()));
+        }
+        return dirList.files;
     }
 }

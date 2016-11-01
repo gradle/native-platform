@@ -14,14 +14,24 @@
  *    limitations under the License.
  */
 
-package net.rubygrapefruit.platform.internal.jni;
+package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.internal.DirList;
-import net.rubygrapefruit.platform.internal.FunctionResult;
-import net.rubygrapefruit.platform.internal.WindowsFileStat;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
+import java.util.TimeZone;
 
-public class WindowsFileFunctions {
-    public static native void stat(String file, WindowsFileStat stat, FunctionResult result);
+public class WindowsFileTime {
+    private static final long EPOCH_OFFSET = offset();
 
-    public static native void readdir(String path, DirList dirList, FunctionResult result);
+    private static long offset() {
+        Calendar calendar = new GregorianCalendar(TimeZone.getTimeZone("UTC"));
+        calendar.set(1601, Calendar.JANUARY, 1, 0, 0, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
+        return calendar.getTimeInMillis();
+    }
+
+    public static long toJavaTime(long winFileTime) {
+        return winFileTime / 10000 + EPOCH_OFFSET;
+    }
+
 }

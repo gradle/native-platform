@@ -100,20 +100,7 @@ class PosixFilesTest extends AbstractFilesTest {
         fileName << ["test-dir", "test\u03b1\u2295-dir"]
     }
 
-    def "can list contents of an empty directory"() {
-        def testFile = tmpDir.newFolder(fileName)
-
-        when:
-        def files = files.listDir(testFile)
-
-        then:
-        files.size() == 0
-
-        where:
-        fileName << ["test-dir", "test\u03b1\u2295-dir"]
-    }
-
-    def "can list contents of a directory"() {
+    def "can list contents of a directory containing symlinks"() {
         def testFile = tmpDir.newFolder(fileName)
         def childDir = new File(testFile, fileName + ".a")
         childDir.mkdirs()
@@ -155,28 +142,6 @@ class PosixFilesTest extends AbstractFilesTest {
 
         where:
         fileName << ["test-dir", "test\u03b1\u2295-dir"]
-    }
-
-    def "cannot list contents of file"() {
-        def testFile = tmpDir.newFile()
-
-        when:
-        files.listDir(testFile)
-
-        then:
-        def e = thrown(NativeException)
-        e.message == "Could not read directory $testFile: could not open directory (errno 20: Not a directory)"
-    }
-
-    def "cannot list contents of missing file"() {
-        def testFile = new File(tmpDir.newFolder(), "missing")
-
-        when:
-        files.listDir(testFile)
-
-        then:
-        def e = thrown(NativeException)
-        e.message == "Could not read directory $testFile: could not open directory (errno 2: No such file or directory)"
     }
 
     def "cannot list contents of symlink"() {

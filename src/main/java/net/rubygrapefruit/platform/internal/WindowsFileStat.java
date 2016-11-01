@@ -18,20 +18,7 @@ package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.WindowsFileInfo;
 
-import java.util.Calendar;
-import java.util.GregorianCalendar;
-import java.util.TimeZone;
-
 public class WindowsFileStat implements WindowsFileInfo {
-    private static final long EPOCH_OFFSET = offset();
-
-    private static long offset() {
-        Calendar calendar = new GregorianCalendar(TimeZone.getTimeZone("UTC"));
-        calendar.set(1601, Calendar.JANUARY, 1, 0, 0, 0);
-        calendar.set(Calendar.MILLISECOND, 0);
-        return calendar.getTimeInMillis();
-    }
-
     private final String path;
     private Type type;
     private long size;
@@ -44,11 +31,7 @@ public class WindowsFileStat implements WindowsFileInfo {
     public void details(int type, long size, long lastModifiedWinTime) {
         this.type = Type.values()[type];
         this.size = size;
-        this.lastModified = this.type == Type.Missing ? 0 : toJavaTime(lastModifiedWinTime);
-    }
-
-    private long toJavaTime(long winFileTime) {
-        return winFileTime / 10000 + EPOCH_OFFSET;
+        this.lastModified = this.type == Type.Missing ? 0 : WindowsFileTime.toJavaTime(lastModifiedWinTime);
     }
 
     @Override
