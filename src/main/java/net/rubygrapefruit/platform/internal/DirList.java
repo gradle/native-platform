@@ -25,18 +25,30 @@ import java.util.List;
 public class DirList {
     public List<DirEntry> files = new ArrayList<DirEntry>();
 
-    public void addFile(String name, int type) {
-        PosixDirEntry fileStat = new PosixDirEntry(name, FileInfo.Type.values()[type]);
+    /**
+     * Called from native code to add an entry.
+     */
+    public void addFile(String name, int type, long size, long lastModified) {
+        PosixDirEntry fileStat = new PosixDirEntry(name, FileInfo.Type.values()[type], size, lastModified);
         files.add(fileStat);
     }
 
     private class PosixDirEntry implements DirEntry {
         private final String name;
         private final Type type;
+        private final long size;
+        private final long lastModified;
 
-        PosixDirEntry(String name, Type type) {
+        PosixDirEntry(String name, Type type, long size, long lastModified) {
             this.name = name;
             this.type = type;
+            this.size = size;
+            this.lastModified = lastModified;
+        }
+
+        @Override
+        public String toString() {
+            return name;
         }
 
         public String getName() {
@@ -48,11 +60,11 @@ public class DirList {
         }
 
         public long getLastModifiedTime() {
-            return 0;
+            return lastModified;
         }
 
         public long getSize() {
-            return 0;
+            return size;
         }
     }
 }

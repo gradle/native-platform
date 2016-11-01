@@ -130,6 +130,7 @@ class PosixFilesTest extends AbstractFilesTest {
 
         then:
         files.size() == 3
+        files.sort { it.name }
 
         def dirEntry = files[0]
         dirEntry.type == FileInfo.Type.Directory
@@ -157,14 +158,28 @@ class PosixFilesTest extends AbstractFilesTest {
     }
 
     def "cannot list contents of file"() {
-        expect: false
-    }
+        def testFile = tmpDir.newFile()
 
-    def "cannot list contents of symlink"() {
-        expect: false
+        when:
+        files.listDir(testFile)
+
+        then:
+        def e = thrown(NativeException)
+        e.message == "Could not read directory $testFile: could not open directory (errno 20: Not a directory)"
     }
 
     def "cannot list contents of missing file"() {
+        def testFile = new File(tmpDir.newFolder(), "missing")
+
+        when:
+        files.listDir(testFile)
+
+        then:
+        def e = thrown(NativeException)
+        e.message == "Could not read directory $testFile: could not open directory (errno 2: No such file or directory)"
+    }
+
+    def "cannot list contents of symlink"() {
         expect: false
     }
 

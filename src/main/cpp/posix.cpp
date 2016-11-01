@@ -81,6 +81,31 @@ jlong toMillis(struct timespec t) {
     return (jlong)(t.tv_sec) * 1000 + (jlong)(t.tv_nsec) / 1000000;
 }
 
+void unpackStat(struct stat* fileInfo, jint* type, jlong* size, jlong* lastModified) {
+    switch (fileInfo->st_mode & S_IFMT) {
+        case S_IFREG:
+            *type = FILE_TYPE_FILE;
+            *size = fileInfo->st_size;
+            break;
+        case S_IFDIR:
+            *type = FILE_TYPE_DIRECTORY;
+            *size = 0;
+            break;
+        case S_IFLNK:
+            *type = FILE_TYPE_SYMLINK;
+            *size = 0;
+            break;
+        default:
+            *type = FILE_TYPE_OTHER;
+            *size = 0;
+    }
+#ifdef __linux__
+    *lastModified = toMillis(fileInfo->st_mtim);
+#else
+    *lastModified = toMillis(fileInfo->st_mtimespec);
+#endif
+}
+
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *env, jclass target, jstring path, jobject dest, jobject result) {
     jclass destClass = env->GetObjectClass(dest);
@@ -106,26 +131,9 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *en
         env->CallVoidMethod(dest, mid, FILE_TYPE_MISSING, (jint)0, (jint)0, (jint)0, (jlong)0, (jlong)0, (jint)0);
     } else {
         jint type;
-        jlong size = 0;
-        switch (fileInfo.st_mode & S_IFMT) {
-            case S_IFREG:
-                type = FILE_TYPE_FILE;
-                size = fileInfo.st_size;
-                break;
-            case S_IFDIR:
-                type = FILE_TYPE_DIRECTORY;
-                break;
-            case S_IFLNK:
-                type = FILE_TYPE_SYMLINK;
-                break;
-            default:
-                type= FILE_TYPE_OTHER;
-        }
-#ifdef __linux__
-        jlong lastModified = toMillis(fileInfo.st_mtim);
-#else
-        jlong lastModified = toMillis(fileInfo.st_mtimespec);
-#endif
+        jlong size;
+        jlong lastModified;
+        unpackStat(&fileInfo, &type, &size, &lastModified);
         env->CallVoidMethod(dest,
                             mid,
                             type,
@@ -141,17 +149,18 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *en
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_readdir(JNIEnv *env, jclass target, jstring path, jobject contents, jobject result) {
     jclass contentsClass = env->GetObjectClass(contents);
-    jmethodID mid = env->GetMethodID(contentsClass, "addFile", "(Ljava/lang/String;I)V");
+    jmethodID mid = env->GetMethodID(contentsClass, "addFile", "(Ljava/lang/String;IJJ)V");
     if (mid == NULL) {
         mark_failed_with_message(env, "could not find method", result);
         return;
     }
 
     char* pathStr = java_to_char(env, path, result);
+    long pathLen = strlen(pathStr);
     DIR* dir = opendir(pathStr);
-    free(pathStr);
     if (dir == NULL) {
         mark_failed_with_errno(env, "could not open directory", result);
+        free(pathStr);
         return;
     }
     struct dirent entry;
@@ -167,25 +176,32 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_readdir(JNIEnv 
         if (strcmp(".", entry.d_name) == 0 || strcmp("..", entry.d_name) == 0) {
             continue;
         }
-        jstring childPath = char_to_java(env, entry.d_name, result);
-        jint type;
-        switch(entry.d_type) {
-            case DT_DIR:
-                type = FILE_TYPE_DIRECTORY;
-                break;
-            case DT_REG:
-                type = FILE_TYPE_FILE;
-                break;
-            case DT_LNK:
-                type = FILE_TYPE_SYMLINK;
-                break;
-            default:
-                type = FILE_TYPE_OTHER;
+
+        size_t childPathLen = pathLen + strlen(entry.d_name) + 2;
+        char* childPath = (char*)malloc(childPathLen);
+        strncpy(childPath, pathStr, pathLen);
+        childPath[pathLen] = '/';
+        strcpy(childPath+pathLen+1, entry.d_name);
+
+        struct stat fileInfo;
+        int retval = lstat(childPath, &fileInfo);
+        free(childPath);
+        if (retval != 0) {
+            mark_failed_with_errno(env, "could not stat file", result);
+            break;
         }
-        env->CallVoidMethod(contents, mid, childPath, type);
+
+        jint type;
+        jlong size;
+        jlong lastModified;
+        unpackStat(&fileInfo, &type, &size, &lastModified);
+
+        jstring childName = char_to_java(env, entry.d_name, result);
+        env->CallVoidMethod(contents, mid, childName, type, size, lastModified);
     }
 
     closedir(dir);
+    free(pathStr);
 }
 
 JNIEXPORT void JNICALL
