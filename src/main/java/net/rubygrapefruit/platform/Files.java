@@ -30,6 +30,7 @@ public interface Files extends NativeIntegration {
      *
      * <p>When the file references a symlink, details about the symlink is returned, not the target of the symlink.
      *
+     * @param file The path of the file to get details of. Follows symlinks to the parent directory of this file.
      * @return Details of the file. Returns details with type {@link FileInfo.Type#Missing} for a file that does not
      * exist.
      * @throws NativeException On failure to query the file information.
@@ -40,8 +41,11 @@ public interface Files extends NativeIntegration {
     /**
      * Lists the contents of the given directory.
      *
+     * <p>When a directory entry is a symlink, details about the symlink is returned, not the target of the symlink.</p>
+     *
+     * @param dir The path of the directory to list. Follows symlinks to this directory.
      * @throws NativeException On failure.
      */
     @ThreadSafe
-    List<? extends DirEntry> listDir(File path) throws NativeException;
+    List<? extends DirEntry> listDir(File dir) throws NativeException;
 }

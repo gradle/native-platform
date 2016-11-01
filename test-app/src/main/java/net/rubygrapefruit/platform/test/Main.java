@@ -26,12 +26,14 @@ import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 
 public class Main {
     public static void main(String[] args) throws IOException {
         OptionParser optionParser = new OptionParser();
         optionParser.accepts("cache-dir", "The directory to cache native libraries in").withRequiredArg();
         optionParser.accepts("stat", "Display details about the specified file or directory").withRequiredArg();
+        optionParser.accepts("ls", "Display contents of the specified directory").withRequiredArg();
         optionParser.accepts("watch", "Watches for changes to the specified file or directory").withRequiredArg();
         optionParser.accepts("machine", "Display details about the current machine");
         optionParser.accepts("terminal", "Display details about the terminal");
@@ -52,6 +54,11 @@ public class Main {
 
         if (result.has("stat")) {
             stat((String) result.valueOf("stat"));
+            return;
+        }
+
+        if (result.has("ls")) {
+            ls((String) result.valueOf("ls"));
             return;
         }
 
@@ -199,6 +206,19 @@ public class Main {
             watch.close();
         }
         System.out.println("Done");
+    }
+
+    private static void ls(String path) {
+        File dir = new File(path);
+
+        Files files = Native.get(Files.class);
+        List<? extends DirEntry> entries = files.listDir(dir);
+        for (DirEntry entry : entries) {
+            System.out.println();
+            System.out.println("* Name: " + entry.getName());
+            System.out.println("* Type: " + entry.getType());
+            stat(new File(dir, entry.getName()), entry);
+        }
     }
 
     private static void stat(String path) {

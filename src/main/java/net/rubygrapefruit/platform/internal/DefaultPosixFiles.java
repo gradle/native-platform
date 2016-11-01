@@ -33,12 +33,12 @@ public class DefaultPosixFiles implements PosixFiles {
         return stat;
     }
 
-    public List<DirEntry> listDir(File file) throws NativeException {
+    public List<DirEntry> listDir(File dir) throws NativeException {
         FunctionResult result = new FunctionResult();
         DirList dirList = new DirList();
-        PosixFileFunctions.readdir(file.getPath(), dirList, result);
+        PosixFileFunctions.readdir(dir.getPath(), dirList, result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not read directory %s: %s", file, result.getMessage()));
+            throw new NativeException(String.format("Could not read directory %s: %s", dir, result.getMessage()));
         }
         return dirList.files;
     }

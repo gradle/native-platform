@@ -36,12 +36,12 @@ public class DefaultWindowsFiles implements WindowsFiles {
         return stat;
     }
 
-    public List<? extends DirEntry> listDir(File file) throws NativeException {
+    public List<? extends DirEntry> listDir(File dir) throws NativeException {
         FunctionResult result = new FunctionResult();
         WindowsDirList dirList = new WindowsDirList();
-        WindowsFileFunctions.readdir(file.getPath() + "\\*", dirList, result);
+        WindowsFileFunctions.readdir(dir.getPath() + "\\*", dirList, result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not read directory %s: %s", file, result.getMessage()));
+            throw new NativeException(String.format("Could not read directory %s: %s", dir, result.getMessage()));
         }
         return dirList.files;
     }

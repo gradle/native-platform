@@ -106,7 +106,7 @@ class PosixFilesTest extends AbstractFilesTest {
         childDir.mkdirs()
         def childDirAttributes = attributes(childDir)
         def childFile = new File(testFile, fileName + ".b")
-        childFile.createNewFile()
+        childFile.text = 'content'
         def childFileAttributes = attributes(childFile)
         def childLink = new File(testFile, fileName + ".c")
         files.symlink(childLink, childFile.name)
@@ -144,8 +144,20 @@ class PosixFilesTest extends AbstractFilesTest {
         fileName << ["test-dir", "test\u03b1\u2295-dir"]
     }
 
-    def "cannot list contents of symlink"() {
-        expect: false
+    def "directory listing follows symlinks to dir"() {
+        def dir = tmpDir.newFolder()
+        new File(dir, "a").text = 'content'
+        new File(dir, "b").text = 'content'
+        def testDir = tmpDir.newFolder()
+        def link1 = new File(testDir, "some-dir")
+        def link2 = new File(testDir, "link2")
+        files.symlink(link1, "link2")
+        files.symlink(link2, dir.absolutePath)
+
+        expect:
+        def list = files.listDir(link1)
+        list.size() == 2
+        list*.name.sort() == ["a", "b"]
     }
 
     def "can set mode on a file"() {
@@ -326,6 +338,32 @@ class PosixFilesTest extends AbstractFilesTest {
         stat.uid != 0
         stat.gid >= 0
         stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
+        stat.blockSize
+
+        where:
+        fileName << ["test.txt", "test\u03b1\u2295.txt"]
+    }
+
+    def "stat follows symlinks to parent directory"() {
+        def parentDir = tmpDir.newFolder()
+        def testFile = new File(parentDir, fileName)
+        testFile.text = "content"
+        def link = new File(tmpDir.newFolder(), "link")
+
+        given:
+        files.symlink(link, parentDir.absolutePath)
+        def attributes = attributes(testFile)
+
+        when:
+        def stat = files.stat(new File(link, fileName))
+
+        then:
+        stat.type == FileInfo.Type.File
+        stat.mode == mode(attributes)
+        stat.uid != 0
+        stat.gid >= 0
+        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
+        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
         stat.blockSize
 
         where:
