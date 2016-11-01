@@ -31,7 +31,7 @@ public interface Files extends NativeIntegration {
      *
      * @return Details of the file. Returns details with type {@link FileInfo.Type#Missing} for a file that does not
      * exist.
-     * @throws NativeException On failure.
+     * @throws NativeException On failure to query the file information.
      */
     @ThreadSafe
     FileInfo stat(File file) throws NativeException;
