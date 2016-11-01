@@ -26,10 +26,11 @@ void mark_failed_with_message(JNIEnv *env, const char* message, jobject result) 
 
 void mark_failed_with_code(JNIEnv *env, const char* message, int error_code, const char* error_code_message, jobject result) {
     jclass destClass = env->GetObjectClass(result);
-    jmethodID method = env->GetMethodID(destClass, "failed", "(Ljava/lang/String;ILjava/lang/String;)V");
+    jmethodID method = env->GetMethodID(destClass, "failed", "(Ljava/lang/String;IILjava/lang/String;)V");
     jstring message_str = env->NewStringUTF(message);
     jstring error_code_str = error_code_message == NULL ? NULL : env->NewStringUTF(error_code_message);
-    env->CallVoidMethod(result, method, message_str, error_code, error_code_str);
+    jint failure_code = map_error_code(error_code);
+    env->CallVoidMethod(result, method, message_str, failure_code, error_code, error_code_str);
 }
 
 JNIEXPORT jint JNICALL

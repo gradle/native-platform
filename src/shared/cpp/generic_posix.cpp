@@ -38,4 +38,14 @@ void mark_failed_with_errno(JNIEnv *env, const char* message, jobject result) {
     free(buffer);
 }
 
+int map_error_code(int error_code) {
+    if (error_code == ENOENT) {
+        return FAILURE_NO_SUCH_FILE;
+    }
+    if (error_code == ENOTDIR) {
+        return FAILURE_NOT_A_DIRECTORY;
+    }
+    return FAILURE_GENERIC;
+}
+
 #endif

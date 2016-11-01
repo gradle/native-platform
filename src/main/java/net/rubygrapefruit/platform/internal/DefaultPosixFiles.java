@@ -38,7 +38,13 @@ public class DefaultPosixFiles implements PosixFiles {
         DirList dirList = new DirList();
         PosixFileFunctions.readdir(dir.getPath(), dirList, result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not read directory %s: %s", dir, result.getMessage()));
+            if (result.getFailure() == FunctionResult.Failure.NoSuchFile) {
+                throw new NoSuchFileException(String.format("Could not list directory %s as this directory does not exist.", dir));
+            }
+            if (result.getFailure() == FunctionResult.Failure.NotADirectory) {
+                throw new NotADirectoryException(String.format("Could not list directory %s as it is not a directory.", dir));
+            }
+            throw new NativeException(String.format("Could not list directory %s: %s", dir, result.getMessage()));
         }
         return dirList.files;
     }

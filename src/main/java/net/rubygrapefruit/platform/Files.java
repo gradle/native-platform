@@ -39,12 +39,14 @@ public interface Files extends NativeIntegration {
     FileInfo stat(File file) throws NativeException;
 
     /**
-     * Lists the contents of the given directory.
+     * Lists the entries of the given directory.
      *
      * <p>When a directory entry is a symlink, details about the symlink is returned, not the target of the symlink.</p>
      *
      * @param dir The path of the directory to list. Follows symlinks to this directory.
      * @throws NativeException On failure.
+     * @throws NoSuchFileException When the specified directory does not exist.
+     * @throws NotADirectoryException When the specified file is not a directory.
      */
     @ThreadSafe
     List<? extends DirEntry> listDir(File dir) throws NativeException;

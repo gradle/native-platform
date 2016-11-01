@@ -156,6 +156,9 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_readdir(JNIEnv 
     }
 
     char* pathStr = java_to_char(env, path, result);
+    if (pathStr == NULL) {
+        return;
+    }
     long pathLen = strlen(pathStr);
     DIR* dir = opendir(pathStr);
     if (dir == NULL) {

@@ -25,9 +25,8 @@ import java.util.List;
 public class DirList {
     public List<DirEntry> files = new ArrayList<DirEntry>();
 
-    /**
-     * Called from native code to add an entry.
-     */
+    // Called from native code
+    @SuppressWarnings("UnusedDeclaration")
     public void addFile(String name, int type, long size, long lastModified) {
         PosixDirEntry fileStat = new PosixDirEntry(name, FileInfo.Type.values()[type], size, lastModified);
         files.add(fileStat);

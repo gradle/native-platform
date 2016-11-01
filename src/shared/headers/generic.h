@@ -32,6 +32,11 @@ extern "C" {
 #define FILE_TYPE_OTHER 3
 #define FILE_TYPE_MISSING 4
 
+// Corresponds to values of FunctionResult.Failure
+#define FAILURE_GENERIC 0
+#define FAILURE_NO_SUCH_FILE 1
+#define FAILURE_NOT_A_DIRECTORY 2
+
 /*
  * Marks the given result as failed, using the given error message
  */
@@ -46,6 +51,11 @@ extern void mark_failed_with_errno(JNIEnv *env, const char* message, jobject res
  * Marks the given result as failed, using the given error message and error code
  */
 extern void mark_failed_with_code(JNIEnv *env, const char* message, int error_code, const char* error_code_message, jobject result);
+
+/**
+ * Maps system error code to a failure constant above.
+ */
+extern int map_error_code(int error_code);
 
 /*
  * Converts the given Java string to a NULL terminated wchar_str. Should call free() when finished.

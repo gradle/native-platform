@@ -151,8 +151,8 @@ class FilesTest extends AbstractFilesTest {
         files.listDir(testFile)
 
         then:
-        def e = thrown(NativeException)
-        e.message == "Could not read directory $testFile: could not open directory (errno 20: Not a directory)"
+        def e = thrown(NotADirectoryException)
+        e.message == "Could not list directory $testFile as it is not a directory."
     }
 
     def "cannot list contents of missing file"() {
@@ -162,8 +162,8 @@ class FilesTest extends AbstractFilesTest {
         files.listDir(testFile)
 
         then:
-        def e = thrown(NativeException)
-        e.message == "Could not read directory $testFile: could not open directory (errno 2: No such file or directory)"
+        def e = thrown(NoSuchFileException)
+        e.message == "Could not list directory $testFile as this directory does not exist."
 
         where:
         fileName << ["test-dir", "test\u03b1\u2295-dir", "nested/dir"]

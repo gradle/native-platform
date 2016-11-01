@@ -17,14 +17,21 @@
 package net.rubygrapefruit.platform.internal;
 
 public class FunctionResult {
-    String message;
-    int errno;
+    public enum Failure {
+        Generic,
+        NoSuchFile,
+        NotADirectory,
+    }
+    private String message;
+    private int errno;
+    private Failure failure = Failure.Generic;
     private String errorCodeDescription;
 
     // Called from native code
     @SuppressWarnings("UnusedDeclaration")
-    void failed(String message, int errno, String errorCodeDescription) {
+    void failed(String message, int failure, int errno, String errorCodeDescription) {
         this.message = message;
+        this.failure = Failure.values()[failure];
         this.errno = errno;
         this.errorCodeDescription = errorCodeDescription;
     }
@@ -37,6 +44,10 @@ public class FunctionResult {
 
     public boolean isFailed() {
         return message != null;
+    }
+
+    public Failure getFailure() {
+        return failure;
     }
 
     public String getMessage() {

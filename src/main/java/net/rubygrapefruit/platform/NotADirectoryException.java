@@ -14,13 +14,13 @@
  *    limitations under the License.
  */
 
-package net.rubygrapefruit.platform.internal;
+package net.rubygrapefruit.platform;
 
-public class WindowsDirList extends DirList {
-    // Called from native code
-    @SuppressWarnings("UnusedDeclaration")
-    @Override
-    public void addFile(String name, int type, long size, long lastModified) {
-        super.addFile(name, type, size, WindowsFileTime.toJavaTime(lastModified));
+/**
+ * Thrown when attempting to list the elements of a file that is not a directory.
+ */
+public class NotADirectoryException extends NativeException {
+    public NotADirectoryException(String message) {
+        super(message);
     }
 }

@@ -29,6 +29,10 @@ void mark_failed_with_errno(JNIEnv *env, const char* message, jobject result) {
     mark_failed_with_code(env, message, GetLastError(), NULL, result);
 }
 
+int map_error_code(int error_code) {
+    return FAILURE_GENERIC;
+}
+
 jstring wchar_to_java(JNIEnv* env, const wchar_t* chars, size_t len, jobject result) {
     if (sizeof(wchar_t) != 2) {
         mark_failed_with_message(env, "unexpected size of wchar_t", result);
