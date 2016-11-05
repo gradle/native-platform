@@ -107,6 +107,14 @@ model {
             architecture "amd64"
             operatingSystem "linux"
         }
+        linux_s390x {
+            architecture "s390x"
+            operatingSystem "linux"
+        }
+        linux_s390 {
+            architecture "s390"
+            operatingSystem "linux"
+        }
         windows_i386 {
             architecture "i386"
             operatingSystem "windows"
@@ -258,7 +266,7 @@ mainPom.scopeMappings.mappings.clear()
 mainPom.withXml { provider ->
     def node = provider.asNode()
     def deps = node.appendNode('dependencies')
-    ['osx-i386', 'osx-amd64', 'linux-amd64', 'linux-i386',
+    ['osx-i386', 'osx-amd64', 'linux-amd64', 'linux-i386', 'linux-s390x', 'linux-s390',
             'windows-amd64', 'windows-i386', 'freebsd-i386', 'freebsd-amd64'].each { platform ->
         def dep = deps.appendNode('dependency')
         dep.appendNode('groupId', project.group)

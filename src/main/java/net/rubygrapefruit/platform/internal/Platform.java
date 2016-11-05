@@ -41,6 +41,10 @@ public abstract class Platform {
                         platform = new Linux64Bit();
                     } else if (arch.equals("i386") || arch.equals("x86")) {
                         platform = new Linux32Bit();
+                    } else if (arch.equals("s390x")) {
+                        platform = new LinuxZ64Bit();
+                    } else if (arch.equals("s390")) {
+                        platform = new LinuxZ32Bit();
                     }
                 } else if (osName.contains("os x") || osName.contains("darwin")) {
                     if (arch.equals("i386")) {
@@ -248,6 +252,20 @@ public abstract class Platform {
         @Override
         public String getId() {
             return "linux-amd64";
+        }
+    }
+
+    private static class LinuxZ32Bit extends Linux {
+        @Override
+        public String getId() {
+            return "linux-s390";
+        }
+    }
+
+    private static class LinuxZ64Bit extends Linux {
+        @Override
+        public String getId() {
+            return "linux-s390x";
         }
     }
 
