@@ -93,6 +93,10 @@ public abstract class Platform {
                 toString()));
     }
 
+    public List<String> getLibraryVariants() {
+        return Arrays.asList(getId());
+    }
+
     public abstract String getId();
 
     private static String getOperatingSystem() {
@@ -263,14 +267,21 @@ public abstract class Platform {
         }
     }
 
-    private static class FreeBSD32Bit extends Unix {
+    private abstract static class FreeBSD extends Unix {
+        @Override
+        public List<String> getLibraryVariants() {
+            return Arrays.asList(getId() + "-libcpp", getId() + "-libstdcpp");
+        }
+    }
+
+    private static class FreeBSD32Bit extends FreeBSD {
         @Override
         public String getId() {
             return "freebsd-i386";
         }
     }
 
-    private static class FreeBSD64Bit extends Unix {
+    private static class FreeBSD64Bit extends FreeBSD {
         @Override
         public String getId() {
             return "freebsd-amd64";

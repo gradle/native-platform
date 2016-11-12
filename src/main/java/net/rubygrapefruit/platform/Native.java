@@ -22,7 +22,6 @@ import net.rubygrapefruit.platform.internal.Platform;
 import net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions;
 
 import java.io.File;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -53,7 +52,7 @@ public class Native {
                 Platform platform = Platform.current();
                 try {
                     loader = new NativeLibraryLoader(platform, new NativeLibraryLocator(extractDir));
-                    loader.load(platform.getLibraryName(), Arrays.asList(platform.getId()));
+                    loader.load(platform.getLibraryName(), platform.getLibraryVariants());
                     int nativeVersion = NativeLibraryFunctions.getVersion();
                     if (nativeVersion != NativeLibraryFunctions.VERSION) {
                         throw new NativeException(String.format("Unexpected native library version loaded. Expected %s, was %s.", NativeLibraryFunctions.VERSION, nativeVersion));
