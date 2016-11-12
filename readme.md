@@ -114,7 +114,8 @@ Some sample code to use the terminal:
 ### 0.12 (not yet released)
 
 * Added `Files.listDir()`.
-* Fixes for terminal integration for Linux distributions using ncurses 6, such as Fedora 24 and later.
+* Fixes for terminal integration for Linux distributions that use ncurses 6, such as Fedora 24 and later.
+* Fixes for running on FreeBSD 10 and later without requiring GCC to be installed on the machine.
 
 ### 0.11
 
