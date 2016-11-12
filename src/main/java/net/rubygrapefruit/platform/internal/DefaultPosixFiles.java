@@ -16,13 +16,16 @@
 
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.*;
+import net.rubygrapefruit.platform.DirEntry;
+import net.rubygrapefruit.platform.NativeException;
+import net.rubygrapefruit.platform.PosixFileInfo;
+import net.rubygrapefruit.platform.PosixFiles;
 import net.rubygrapefruit.platform.internal.jni.PosixFileFunctions;
 
 import java.io.File;
 import java.util.List;
 
-public class DefaultPosixFiles implements PosixFiles {
+public class DefaultPosixFiles extends AbstractFiles implements PosixFiles {
     public PosixFileInfo stat(File file) throws NativeException {
         FunctionResult result = new FunctionResult();
         FileStat stat = new FileStat(file.getPath());
@@ -38,13 +41,7 @@ public class DefaultPosixFiles implements PosixFiles {
         DirList dirList = new DirList();
         PosixFileFunctions.readdir(dir.getPath(), dirList, result);
         if (result.isFailed()) {
-            if (result.getFailure() == FunctionResult.Failure.NoSuchFile) {
-                throw new NoSuchFileException(String.format("Could not list directory %s as this directory does not exist.", dir));
-            }
-            if (result.getFailure() == FunctionResult.Failure.NotADirectory) {
-                throw new NotADirectoryException(String.format("Could not list directory %s as it is not a directory.", dir));
-            }
-            throw new NativeException(String.format("Could not list directory %s: %s", dir, result.getMessage()));
+            throw listDirFailure(dir, result);
         }
         return dirList.files;
     }

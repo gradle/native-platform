@@ -25,7 +25,7 @@ import net.rubygrapefruit.platform.internal.jni.WindowsFileFunctions;
 import java.io.File;
 import java.util.List;
 
-public class DefaultWindowsFiles implements WindowsFiles {
+public class DefaultWindowsFiles extends AbstractFiles implements WindowsFiles {
     public WindowsFileInfo stat(File file) throws NativeException {
         FunctionResult result = new FunctionResult();
         WindowsFileStat stat = new WindowsFileStat(file.getPath());
@@ -41,7 +41,7 @@ public class DefaultWindowsFiles implements WindowsFiles {
         WindowsDirList dirList = new WindowsDirList();
         WindowsFileFunctions.readdir(dir.getPath() + "\\*", dirList, result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not read directory %s: %s", dir, result.getMessage()));
+            throw listDirFailure(dir, result);
         }
         return dirList.files;
     }

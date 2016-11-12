@@ -30,6 +30,12 @@ void mark_failed_with_errno(JNIEnv *env, const char* message, jobject result) {
 }
 
 int map_error_code(int error_code) {
+    if (error_code == ERROR_PATH_NOT_FOUND) {
+        return FAILURE_NO_SUCH_FILE;
+    }
+    if (error_code == ERROR_DIRECTORY) {
+        return FAILURE_NOT_A_DIRECTORY;
+    }
     return FAILURE_GENERIC;
 }
 
