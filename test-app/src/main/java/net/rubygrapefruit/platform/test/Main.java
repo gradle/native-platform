@@ -136,6 +136,7 @@ public class Main {
                 System.out.print("done");
                 terminal.clearToEndOfLine();
                 System.out.println("!");
+                terminal.reset();
                 System.out.println();
             }
         } else if (stderrIsTerminal) {
