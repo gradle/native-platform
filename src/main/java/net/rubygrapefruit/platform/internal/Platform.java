@@ -22,6 +22,9 @@ import net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions;
 import net.rubygrapefruit.platform.internal.jni.PosixTypeFunctions;
 import net.rubygrapefruit.platform.internal.jni.TerminfoFunctions;
 
+import java.util.Arrays;
+import java.util.List;
+
 public abstract class Platform {
     private static Platform platform;
 
@@ -166,6 +169,10 @@ public abstract class Platform {
     private static abstract class Posix extends Platform {
         abstract String getCursesLibraryName();
 
+        List<String> getCursesVariants() {
+            return Arrays.asList(getId());
+        }
+
         @Override
         public <T extends NativeIntegration> Class<? extends T> canonicalise(Class<T> type) {
             if (type.equals(Files.class)) {
@@ -186,7 +193,7 @@ public abstract class Platform {
                 return type.cast(new WrapperProcessLauncher(new DefaultProcessLauncher()));
             }
             if (type.equals(Terminals.class)) {
-                nativeLibraryLoader.load(getCursesLibraryName());
+                nativeLibraryLoader.load(getCursesLibraryName(), getCursesVariants());
                 int nativeVersion = TerminfoFunctions.getVersion();
                 if (nativeVersion != NativeLibraryFunctions.VERSION) {
                     throw new NativeException(String.format(
@@ -229,6 +236,11 @@ public abstract class Platform {
         @Override
         public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
             return super.get(type, nativeLibraryLoader);
+        }
+
+        @Override
+        List<String> getCursesVariants() {
+            return Arrays.asList(getId() + "-ncurses5", getId() + "-ncurses6");
         }
 
         @Override

@@ -1,3 +1,4 @@
+import org.gradle.internal.os.OperatingSystem
 import org.gradle.nativeplatform.platform.internal.Architectures
 
 apply plugin: 'groovy'
@@ -103,7 +104,23 @@ model {
             architecture "i386"
             operatingSystem "linux"
         }
+        linux_i386_ncurses5 {
+            architecture "i386"
+            operatingSystem "linux"
+        }
+        linux_i386_ncurses6 {
+            architecture "i386"
+            operatingSystem "linux"
+        }
         linux_amd64 {
+            architecture "amd64"
+            operatingSystem "linux"
+        }
+        linux_amd64_ncurses5 {
+            architecture "amd64"
+            operatingSystem "linux"
+        }
+        linux_amd64_ncurses6 {
             architecture "amd64"
             operatingSystem "linux"
         }
@@ -130,6 +147,9 @@ model {
             baseName 'native-platform'
             // TODO - this should be the default. Figure out why this is not working
             $.platforms.each { p ->
+                if (p.name.contains("ncurses")) {
+                    return
+                }
                 targetPlatform p.name
             }
             sources {
@@ -143,9 +163,13 @@ model {
         nativePlatformCurses(NativeLibrarySpec) {
             baseName 'native-platform-curses'
             $.platforms.each { p ->
-                if (!p.operatingSystem.windows) {
-                    targetPlatform p.name
+                if (p.operatingSystem.windows) {
+                    return
                 }
+                if (p.operatingSystem.linux && !p.name.contains("ncurses")) {
+                    return
+                }
+                targetPlatform p.name
             }
             sources {
                 cpp {
@@ -153,7 +177,11 @@ model {
                     exportedHeaders.srcDirs = ['src/shared/headers']
                 }
             }
+            def ncursesVersion = inferNCursesVersion()
             binaries.all {
+                if (targetPlatform.operatingSystem.linux && !targetPlatform.name.contains("curses${ncursesVersion}")) {
+                    buildable = false
+                }
                 linker.args "-lcurses"
             }
         }
@@ -265,4 +293,19 @@ mainPom.withXml { provider ->
         dep.appendNode('artifactId', "native-platform-${platform}")
         dep.appendNode('version', project.version)
     }
+}
+
+String inferNCursesVersion() {
+    if (!OperatingSystem.current().linux) {
+        return "5"
+    }
+    for (def d: ["/lib", "/lib64", "/lib/x86_64-linux-gnu"]) {
+        if (new File("$d/libncurses.so.5").file) {
+            return "5"
+        }
+        if (new File("$d/libncurses.so.6").file) {
+            return "6"
+        }
+    }
+    throw new IllegalArgumentException("Could not determine ncurses version installed on this machine.")
 }

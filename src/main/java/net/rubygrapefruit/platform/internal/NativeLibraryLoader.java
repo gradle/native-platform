@@ -21,6 +21,7 @@ import net.rubygrapefruit.platform.NativeIntegrationUnavailableException;
 
 import java.io.File;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 public class NativeLibraryLoader {
@@ -33,21 +34,36 @@ public class NativeLibraryLoader {
         this.nativeLibraryLocator = nativeLibraryLocator;
     }
 
-    public void load(String libraryFileName) {
+    public void load(String libraryFileName, List<String> platforms) {
         if (loaded.contains(libraryFileName)) {
             return;
         }
         try {
-            File libFile = nativeLibraryLocator.find(new LibraryDef(libraryFileName, platform.getId()));
-            if (libFile == null) {
-                throw new NativeIntegrationUnavailableException(String.format("Native library '%s' is not available for %s.", libraryFileName, platform));
+            Throwable loadFailure = null;
+            for (String platformId : platforms) {
+                File libFile = nativeLibraryLocator.find(new LibraryDef(libraryFileName, platformId));
+                if (libFile == null) {
+                    continue;
+                }
+
+                try {
+                    System.load(libFile.getCanonicalPath());
+                } catch (UnsatisfiedLinkError e) {
+                    loadFailure = e;
+                    continue;
+                }
+
+                loaded.add(libraryFileName);
+                return;
             }
-            System.load(libFile.getCanonicalPath());
+            if (loadFailure != null) {
+                throw loadFailure;
+            }
+            throw new NativeIntegrationUnavailableException(String.format("Native library '%s' is not available for %s.", libraryFileName, platform));
         } catch (NativeException e) {
             throw e;
         } catch (Throwable t) {
             throw new NativeException(String.format("Failed to load native library '%s' for %s.", libraryFileName, platform), t);
         }
-        loaded.add(libraryFileName);
     }
 }
