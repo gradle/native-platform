@@ -168,6 +168,9 @@ model {
                         // Use a dummy so that GCC is not selected
                         cCompiler.executable = 'dummy'
                         cppCompiler.executable = 'dummy'
+                        objcCompiler.executable = 'dummy'
+                        objcppCompiler.executable = 'dummy'
+                        assembler.executable = 'dummy'
                         linker.executable = 'dummy'
                         staticLibArchiver.executable = 'dummy'
                     }
@@ -186,6 +189,9 @@ model {
                         // Use a dummy so that Clang is not selected
                         cCompiler.executable = 'dummy'
                         cppCompiler.executable = 'dummy'
+                        objcCompiler.executable = 'dummy'
+                        objcppCompiler.executable = 'dummy'
+                        assembler.executable = 'dummy'
                         linker.executable = 'dummy'
                         staticLibArchiver.executable = 'dummy'
                     }
