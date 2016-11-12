@@ -1,5 +1,4 @@
-import org.gradle.internal.os.OperatingSystem
-import org.gradle.nativeplatform.platform.internal.Architectures
+import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
 
 apply plugin: 'groovy'
 apply plugin: 'cpp'
@@ -91,6 +90,11 @@ configurations {
 def deployer = uploadJni.repositories.mavenDeployer
 def publications = new LinkedHashSet()
 
+// Using internal classes here to make this simple
+def os = new DefaultNativePlatform("current").operatingSystem
+def arch = new DefaultNativePlatform("current").architecture
+def ncursesVersion = inferNCursesVersion(os)
+
 model {
     platforms {
         osx_i386 {
@@ -133,14 +137,62 @@ model {
             architecture "amd64"
             operatingSystem "windows"
         }
-        freebsd_i386 {
+        freebsd_i386_libcpp {
             architecture "i386"
             operatingSystem "freebsd"
         }
-        freebsd_amd64 {
+        freebsd_i386_libstdcpp {
+            architecture "i386"
+            operatingSystem "freebsd"
+        }
+        freebsd_amd64_libcpp {
             architecture "amd64"
             operatingSystem "freebsd"
         }
+        freebsd_amd64_libstdcpp {
+            architecture "amd64"
+            operatingSystem "freebsd"
+        }
+    }
+
+    toolChains {
+        gcc(Gcc) {
+            eachPlatform {
+                // Use GCC to build for libstdc++ on FreeBSD
+                if (platform.operatingSystem.freeBSD) {
+                    if (platform.name.contains('libstdcpp')) {
+                        cCompiler.executable = 'cc'
+                        cppCompiler.executable = 'c++'
+                        linker.executable = 'c++'
+                    } else {
+                        // Use a dummy so that GCC is not selected
+                        cCompiler.executable = 'dummy'
+                        cppCompiler.executable = 'dummy'
+                        linker.executable = 'dummy'
+                        staticLibArchiver.executable = 'dummy'
+                    }
+                }
+            }
+        }
+        clang(Clang) {
+            eachPlatform {
+                // Use Clang to build for libc++ on FreeBSD
+                if (platform.operatingSystem.freeBSD) {
+                    if (platform.name.contains('libcpp')) {
+                        cCompiler.executable = 'cc'
+                        cppCompiler.executable = 'c++'
+                        linker.executable = 'c++'
+                    } else {
+                        // Use a dummy so that Clang is not selected
+                        cCompiler.executable = 'dummy'
+                        cppCompiler.executable = 'dummy'
+                        linker.executable = 'dummy'
+                        staticLibArchiver.executable = 'dummy'
+                    }
+                }
+            }
+        }
+        visualCpp(VisualCpp)
     }
 
     components {
@@ -178,7 +230,6 @@ model {
                     exportedHeaders.srcDirs = ['src/shared/headers']
                 }
             }
-            def ncursesVersion = inferNCursesVersion()
             binaries.all {
                 if (targetPlatform.operatingSystem.linux && !targetPlatform.name.contains("curses${ncursesVersion}")) {
                     buildable = false
@@ -186,9 +237,6 @@ model {
                 linker.args "-lcurses"
             }
         }
-
-        // Using internal class here to make this simple
-        def arch = Architectures.forInput(System.properties['os.arch'])
 
         all {
             binaries.all {
@@ -297,8 +345,8 @@ mainPom.withXml { provider ->
     }
 }
 
-String inferNCursesVersion() {
-    if (!OperatingSystem.current().linux) {
+String inferNCursesVersion(def os) {
+    if (!os.linux) {
         return "5"
     }
     for (def d: ["/lib", "/lib64", "/lib/x86_64-linux-gnu"]) {
