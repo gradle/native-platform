@@ -114,6 +114,7 @@ Some sample code to use the terminal:
 ### 0.12 (not yet released)
 
 * Added `Files.listDir()`.
+* Fixes for terminal integration for Linux distributions using ncurses 6, such as Fedora 24 and later.
 
 ### 0.11
 
@@ -222,7 +223,7 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
 1. Check the version number in `build.gradle`.
 2. Check that the native interface version has been incremented since last release, when changes have been made to native code.
-3. Create a tag.
+3. Create a tag and push.
 4. Build each variant:
     1. Checkout tag.
     2. `./gradlew clean :test :uploadJni -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`.
@@ -231,7 +232,7 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
     2. `./gradlew clean :test :uploadArchives testApp:uploadArchives -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`
 6. Checkout master
 7. Increment version number in `build.gradle` and this readme.
-8. Push tag and changes.
+8. Push changes.
 
 Use `-Psnapshot` instead of `-Prelease` to publish a dev version.
 
