@@ -174,7 +174,7 @@ public abstract class Platform {
         abstract String getCursesLibraryName();
 
         List<String> getCursesVariants() {
-            return Arrays.asList(getId());
+            return getLibraryVariants();
         }
 
         @Override
