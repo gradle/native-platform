@@ -4,7 +4,12 @@ mainClassName = 'net.rubygrapefruit.platform.test.Main'
 applicationName = 'native-platform-test'
 archivesBaseName = 'native-platform-test'
 
-if (project.hasProperty('release') || project.hasProperty('snapshot')) {
+if (project.hasProperty('use-repo')) {
+    repositories {
+        maven { url "$rootProject.buildDir/repo" }
+    }
+}
+if (project.hasProperty('release') || project.hasProperty('snapshot') || project.hasProperty('use-repo')) {
     configurations.all {
         resolutionStrategy.dependencySubstitution {
             substitute project(':') with module("net.rubygrapefruit:native-platform:${version}")
