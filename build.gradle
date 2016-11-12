@@ -89,6 +89,7 @@ configurations {
 }
 
 def deployer = uploadJni.repositories.mavenDeployer
+def publications = new LinkedHashSet()
 
 model {
     platforms {
@@ -186,8 +187,16 @@ model {
             }
         }
 
+        // Using internal class here to make this simple
+        def arch = Architectures.forInput(System.properties['os.arch'])
+
         all {
             binaries.all {
+                if (targetPlatform.operatingSystem.name in ['linux', 'freebsd'] && targetPlatform.architecture != arch) {
+                    // Native plugins don't detect whether multilib support is available or not. Assume not for now
+                    buildable = false
+                }
+
                 if (targetPlatform.operatingSystem.macOsX) {
                     cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
                     cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/darwin"
@@ -211,20 +220,14 @@ model {
                 }
             }
 
-            // Using internal class here to make this simple
-            def arch = Architectures.forInput(System.properties['os.arch'])
-
             binaries.withType(SharedLibraryBinarySpec) { binary ->
+                def variantName = targetPlatform.name.replace('_', '-')
+                publications << variantName
+
                 if (!buildable) {
                     return
                 }
 
-                if (targetPlatform.operatingSystem.name in ['linux', 'freebsd'] && targetPlatform.architecture != arch) {
-                    // Native plugins don't detect whether multilib support is available or not. Assume not for now
-                    return
-                }
-
-                def variantName = targetPlatform.name.replace('_', '-')
                 def taskName = "jar-${variantName}"
                 def nativeJar = project.tasks.findByName(taskName)
                 if (nativeJar == null) {
@@ -286,11 +289,10 @@ mainPom.scopeMappings.mappings.clear()
 mainPom.withXml { provider ->
     def node = provider.asNode()
     def deps = node.appendNode('dependencies')
-    ['osx-i386', 'osx-amd64', 'linux-amd64', 'linux-i386',
-            'windows-amd64', 'windows-i386', 'freebsd-i386', 'freebsd-amd64'].each { platform ->
+    publications.each { p ->
         def dep = deps.appendNode('dependency')
         dep.appendNode('groupId', project.group)
-        dep.appendNode('artifactId', "native-platform-${platform}")
+        dep.appendNode('artifactId', "native-platform-${p}")
         dep.appendNode('version', project.version)
     }
 }
