@@ -71,11 +71,12 @@ See [WindowsRegistry](src/main/java/net/rubygrapefruit/platform/WindowsRegistry.
 
 Currently ported to OS X, Linux, FreeBSD and Windows. Support for Solaris is a work in progress. Tested on:
 
-* OS X 10.11.3 (x86_64), 10.6.7 (i386, amd64)
-* Ubuntu 13.10 (amd64), 12.10 (amd64), 8.04.4 (i386, amd64)
+* OS X 10.11.6 (x86_64), 10.6.7 (i386, amd64)
+* Fedora 24 (amd64, i386)
+* Ubuntu 16.10 (amd64), 13.10 (amd64), 12.10 (amd64), 8.04.4 (i386, amd64)
 * OpenSUSE 13.1 (x86_64)
-* FreeBSD 10.0 (amd64, i386), 8.3 (amd64, i386)
-* Windows 8.1 (x64), 7 (x64), XP (x86, x64)
+* FreeBSD 11.0 (amd64, i386), 10.0 (amd64, i386), 8.3 (amd64, i386)
+* Windows 10 (x64), 8.1 (x64), 7 (x64), XP (x86, x64)
 
 ## Using
 
@@ -87,7 +88,7 @@ this:
     }
 
     dependencies {
-        compile "net.rubygrapefruit:native-platform:0.11"
+        compile "net.rubygrapefruit:native-platform:0.12"
     }
 
 You can also download [here](http://repo.gradle.org/gradle/libs-releases-local/net/rubygrapefruit/)
@@ -111,7 +112,7 @@ Some sample code to use the terminal:
 
 ## Changes
 
-### 0.12 (not yet released)
+### 0.12
 
 * Added `Files.listDir()`.
 * Fixes for terminal integration for Linux distributions that use ncurses 6, such as Fedora 24 and later.
@@ -228,12 +229,15 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 4. Build each variant:
     1. Checkout tag.
     2. `./gradlew clean :test :uploadJni -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`.
-5. Build Java library and test app:
+5. Build Java library:
     1. Checkout tag.
-    2. `./gradlew clean :test :uploadArchives testApp:uploadArchives -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`
-6. Checkout master
-7. Increment version number in `build.gradle` and this readme.
-8. Push changes.
+    2. `./gradlew clean :test :uploadArchives -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`
+6. Build the test app:
+    1. Checkout tag.
+    2. `./gradlew clean :testApp:uploadArchives -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`
+7. Checkout master
+8. Increment version number in `build.gradle` and this readme.
+9. Push changes.
 
 Use `-Psnapshot` instead of `-Prelease` to publish a dev version.
 
