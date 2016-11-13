@@ -356,11 +356,11 @@ String inferNCursesVersion(def os) {
         return "5"
     }
     for (def d: ["/lib", "/lib64", "/lib/x86_64-linux-gnu"]) {
-        if (new File("$d/libncurses.so.5").file) {
-            return "5"
-        }
         if (new File("$d/libncurses.so.6").file) {
             return "6"
+        }
+        if (new File("$d/libncurses.so.5").file) {
+            return "5"
         }
     }
     throw new IllegalArgumentException("Could not determine ncurses version installed on this machine.")
