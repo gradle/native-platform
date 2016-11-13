@@ -112,6 +112,10 @@ Some sample code to use the terminal:
 
 ## Changes
 
+### 0.13 (not release)
+
+* Fixes for build time detection of ncurses 6. Thanks to [Marcin Zajączkowski](https://github.com/szpak)
+
 ### 0.12
 
 * Added `Files.listDir()`.
