@@ -84,14 +84,14 @@ Include `native-platform.jar` and `native-platform-${os}-${arch}.jar` in your cl
 this:
 
     repositories {
-        maven { url "http://repo.gradle.org/gradle/libs-releases-local" }
+        maven { url "https://repo.gradle.org/gradle/libs-releases-local" }
     }
 
     dependencies {
         compile "net.rubygrapefruit:native-platform:0.12"
     }
 
-You can also download [here](http://repo.gradle.org/gradle/libs-releases-local/net/rubygrapefruit/)
+You can also download [here](https://repo.gradle.org/gradle/libs-releases-local/net/rubygrapefruit/)
 
 Some sample code to use the terminal:
 
@@ -168,7 +168,7 @@ You should avoid using this release, and use 0.7 or later instead.
 * Get and set process environment variables.
 * Launch processes.
 * Fixed character set issue on Linux and Mac OS X.
-* Fixes to work with 64-bit OpenJDK 7 on Mac OS X. Thanks to [Rene Gr�schke](https://github.com/breskeby).
+* Fixes to work with 64-bit OpenJDK 7 on Mac OS X. Thanks to [Rene Groeschke](https://github.com/breskeby).
 
 ### 0.2
 
@@ -183,7 +183,7 @@ You should avoid using this release, and use 0.7 or later instead.
 
 ## Building
 
-This project uses (Gradle)[http://www.gradle.org] to build. Just run `gradlew` in the root of the source repo.
+This project uses (Gradle)[https://www.gradle.org] to build. Just run `gradlew` in the root of the source repo.
 You will need Java 7 or later to run the tests.
 
 ### Ubuntu
@@ -310,8 +310,8 @@ Use `-Psnapshot` instead of `-Prelease` to publish a dev version.
 * Publish to bintray.
 * Normalise a unicode file name for a given file system (eg hfs+ uses fully decomposed form).
 * Expose meta-data about an NTFS volume:
-    * Does the volume support 8.3 file names: Query [FILE_FS_PERSISTENT_VOLUME_INFORMATION](http://msdn.microsoft.com/en-us/library/windows/hardware/ff540280.aspx)
-      using [DeviceIoControl()](http://msdn.microsoft.com/en-us/library/aa363216.aspx)
+    * Does the volume support 8.3 file names: Query [FILE_FS_PERSISTENT_VOLUME_INFORMATION](https://msdn.microsoft.com/en-us/library/windows/hardware/ff540280.aspx)
+      using [DeviceIoControl()](https://msdn.microsoft.com/en-us/library/aa363216.aspx)
 * Expose native desktop notification services:
     * OS X message center
     * Growl
@@ -321,9 +321,9 @@ Use `-Psnapshot` instead of `-Prelease` to publish a dev version.
 * Expose platform-specific HTTP proxy configuration. Query registry on windows to determine IE settings.
 * Expose native named semaphores, mutexes and condition variables (CreateMutex, CreateSemaphore, CreateEvent, semget, sem_open, etc).
 * Expose information about network interfaces.
-    * Windows networking: http://msdn.microsoft.com/en-us/library/windows/desktop/ee663286(v=vs.85).aspx
-    * Windows ip functions: http://msdn.microsoft.com/en-us/library/windows/desktop/aa366071(v=vs.85).aspx
-    * Windows notification on change: http://msdn.microsoft.com/en-us/library/windows/desktop/aa366329(v=vs.85).aspx
+    * Windows networking: https://msdn.microsoft.com/en-us/library/windows/desktop/ee663286(v=vs.85).aspx
+    * Windows ip functions: https://msdn.microsoft.com/en-us/library/windows/desktop/aa366071(v=vs.85).aspx
+    * Windows notification on change: https://msdn.microsoft.com/en-us/library/windows/desktop/aa366329(v=vs.85).aspx
 * Expose information about memory size and usage:
     * http://nadeausoftware.com/articles/2012/09/c_c_tip_how_get_physical_memory_size_system
 * Expose system monotonic clock, for timing:
