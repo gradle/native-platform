@@ -112,7 +112,7 @@ Some sample code to use the terminal:
 
 ## Changes
 
-### 0.13 (not release)
+### 0.13 (not released)
 
 * Fixes for build time detection of ncurses 6. Thanks to [Marcin Zajączkowski](https://github.com/szpak)
 
