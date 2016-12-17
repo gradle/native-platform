@@ -330,6 +330,9 @@ Use `-Psnapshot` instead of `-Prelease` to publish a dev version.
     * Windows notification on change: https://msdn.microsoft.com/en-us/library/windows/desktop/aa366329(v=vs.85).aspx
 * Expose information about memory size and usage:
     * http://nadeausoftware.com/articles/2012/09/c_c_tip_how_get_physical_memory_size_system
+    * GlobalMemoryStatusEx() Windows
+    * sysinfo() Linux
+    * sysctl() CTL_VM VM_TOTAL FreeBSD
 * Expose system monotonic clock, for timing:
     * clock_gettime(CLOCK_MONOTONIC) on Linux
     * mach_absolute_time() and mach_timebase_info() on OS X.
@@ -337,3 +340,5 @@ Use `-Psnapshot` instead of `-Prelease` to publish a dev version.
 * Fire events when terminal size changes.
 * Expose system keystores and authentication services.
 * Expose a mechanism for generating a temporary directory.
+* Expose information about processes
+    * sysctl() CTL_KERN KERN_PROC
