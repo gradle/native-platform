@@ -38,4 +38,56 @@ jstring char_to_java(JNIEnv* env, const char* chars, jobject result) {
     return env->NewStringUTF(chars);
 }
 
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_MemoryFunctions_getMemoryInfo(JNIEnv *env, jclass type, jobject dest, jobject result) {
+    jclass destClass = env->GetObjectClass(dest);
+    jmethodID mid = env->GetMethodID(destClass, "details", "(JJ)V");
+    if (mid == NULL) {
+        mark_failed_with_message(env, "could not find method", result);
+        return;
+    }
+
+    int mib[2];
+    mib[0] = CTL_HW;
+    mib[1] = HW_MEMSIZE;
+    int64_t size = 0;
+    size_t len = sizeof(size);
+    if (sysctl(mib, 2, &size, &len, NULL, 0) != 0) {
+        mark_failed_with_errno(env, "could not query memory size", result);
+        return;
+    }
+
+
+    env->CallVoidMethod(dest, mid, (jlong)size, (jlong)0);
+}
+
+//#include <mach/vm_statistics.h>
+//#include <mach/mach_types.h>
+//#include <mach/mach_init.h>
+#include <mach/mach.h>
+
+void delete_me() {
+    vm_size_t page_size;
+    mach_port_t mach_port;
+    mach_msg_type_number_t count;
+    vm_statistics64_data_t vm_stats;
+
+    mach_port = mach_host_self();
+    count = sizeof(vm_stats) / sizeof(natural_t);
+    if (KERN_SUCCESS == host_page_size(mach_port, &page_size) &&
+        KERN_SUCCESS == host_statistics64(mach_port, HOST_VM_INFO,
+                                        (host_info64_t)&vm_stats, &count))
+    {
+        long long free_memory = (int64_t)vm_stats.free_count * (int64_t)page_size;
+
+        long long used_memory = ((int64_t)vm_stats.active_count +
+                                 (int64_t)vm_stats.inactive_count +
+                                 (int64_t)vm_stats.wire_count) *  (int64_t)page_size;
+        printf("free memory: %lld\nused memory: %lld\n", free_memory, used_memory);
+    }
+}
+
 #endif
