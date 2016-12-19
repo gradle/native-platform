@@ -23,9 +23,9 @@ import net.rubygrapefruit.platform.internal.FunctionResult;
 public class PosixFileFunctions {
     public static native void chmod(String file, int perms, FunctionResult result);
 
-    public static native void stat(String file, FileStat stat, FunctionResult result);
+    public static native void stat(String file, boolean followLink, FileStat stat, FunctionResult result);
 
-    public static native void readdir(String file, DirList stat, FunctionResult result);
+    public static native void readdir(String file, boolean followLink, DirList stat, FunctionResult result);
 
     public static native void symlink(String file, String content, FunctionResult result);
 

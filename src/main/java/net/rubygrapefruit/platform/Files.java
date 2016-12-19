@@ -26,7 +26,7 @@ import java.util.List;
 public interface Files extends NativeIntegration {
     /**
      * Returns basic information about the given file. Returns whatever file details can be efficiently calculated
-     * in a single system call, which can be more efficient that querying these details separately.
+     * in a single system call, which is more efficient that querying these details separately.
      *
      * <p>When the file references a symlink, details about the symlink is returned, not the target of the symlink.
      *
@@ -37,6 +37,19 @@ public interface Files extends NativeIntegration {
      */
     @ThreadSafe
     FileInfo stat(File file) throws NativeException;
+
+    /**
+     * Returns basic information about the given file. Returns whatever file details can be efficiently calculated
+     * in a single system call, which is more efficient that querying these details separately.
+     *
+     * @param file The path of the file to get details of. Follows symlinks to the parent directory of this file.
+     * @param linkTarget When true and the file is a symlink, return details of the target of the symlink instead of details of the symlink itself.
+     * @return Details of the file. Returns details with type {@link FileInfo.Type#Missing} for a file that does not
+     * exist.
+     * @throws NativeException On failure to query the file information.
+     */
+    @ThreadSafe
+    FileInfo stat(File file, boolean linkTarget) throws NativeException;
 
     /**
      * Lists the entries of the given directory.
@@ -50,4 +63,16 @@ public interface Files extends NativeIntegration {
      */
     @ThreadSafe
     List<? extends DirEntry> listDir(File dir) throws NativeException;
+
+    /**
+     * Lists the entries of the given directory.
+     *
+     * @param dir The path of the directory to list. Follows symlinks to this directory.
+     * @param linkTarget When true and a directory entry is a symlink, return details of the target of the symlink instead of details of the symlink itself.
+     * @throws NativeException On failure.
+     * @throws NoSuchFileException When the specified directory does not exist.
+     * @throws NotADirectoryException When the specified file is not a directory.
+     */
+    @ThreadSafe
+    List<? extends DirEntry> listDir(File dir, boolean linkTarget) throws NativeException;
 }

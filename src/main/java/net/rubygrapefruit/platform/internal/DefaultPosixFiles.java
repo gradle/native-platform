@@ -27,9 +27,13 @@ import java.util.List;
 
 public class DefaultPosixFiles extends AbstractFiles implements PosixFiles {
     public PosixFileInfo stat(File file) throws NativeException {
+        return stat(file, false);
+    }
+
+    public PosixFileInfo stat(File file, boolean linkTarget) throws NativeException {
         FunctionResult result = new FunctionResult();
         FileStat stat = new FileStat(file.getPath());
-        PosixFileFunctions.stat(file.getPath(), stat, result);
+        PosixFileFunctions.stat(file.getPath(), linkTarget, stat, result);
         if (result.isFailed()) {
             throw new NativeException(String.format("Could not get POSIX file details of %s: %s", file, result.getMessage()));
         }
@@ -37,9 +41,13 @@ public class DefaultPosixFiles extends AbstractFiles implements PosixFiles {
     }
 
     public List<DirEntry> listDir(File dir) throws NativeException {
+        return listDir(dir, false);
+    }
+
+    public List<DirEntry> listDir(File dir, boolean linkTarget) throws NativeException {
         FunctionResult result = new FunctionResult();
         DirList dirList = new DirList();
-        PosixFileFunctions.readdir(dir.getPath(), dirList, result);
+        PosixFileFunctions.readdir(dir.getPath(), linkTarget, dirList, result);
         if (result.isFailed()) {
             throw listDirFailure(dir, result);
         }

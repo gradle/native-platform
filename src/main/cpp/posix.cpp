@@ -107,7 +107,7 @@ void unpackStat(struct stat* fileInfo, jint* type, jlong* size, jlong* lastModif
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *env, jclass target, jstring path, jobject dest, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *env, jclass target, jstring path, jboolean followLink, jobject dest, jobject result) {
     jclass destClass = env->GetObjectClass(dest);
     jmethodID mid = env->GetMethodID(destClass, "details", "(IIIIJJI)V");
     if (mid == NULL) {
@@ -120,7 +120,12 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *en
     if (pathStr == NULL) {
         return;
     }
-    int retval = lstat(pathStr, &fileInfo);
+    int retval;
+    if (followLink) {
+        retval = stat(pathStr, &fileInfo);
+    } else {
+        retval = lstat(pathStr, &fileInfo);
+    }
     free(pathStr);
     if (retval != 0 && errno != ENOENT) {
         mark_failed_with_errno(env, "could not stat file", result);
@@ -147,7 +152,7 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *en
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_readdir(JNIEnv *env, jclass target, jstring path, jobject contents, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_readdir(JNIEnv *env, jclass target, jstring path, jboolean followLink, jobject contents, jobject result) {
     jclass contentsClass = env->GetObjectClass(contents);
     jmethodID mid = env->GetMethodID(contentsClass, "addFile", "(Ljava/lang/String;IJJ)V");
     if (mid == NULL) {
@@ -187,7 +192,12 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_readdir(JNIEnv 
         strcpy(childPath+pathLen+1, entry.d_name);
 
         struct stat fileInfo;
-        int retval = lstat(childPath, &fileInfo);
+        int retval;
+        if (followLink) {
+            retval = stat(childPath, &fileInfo);
+        } else {
+            retval = lstat(childPath, &fileInfo);
+        }
         free(childPath);
         if (retval != 0) {
             mark_failed_with_errno(env, "could not stat file", result);

@@ -45,6 +45,24 @@ class FilesTest extends AbstractFilesTest {
         fileName << ["test.txt", "test\u03b1\u2295.txt"]
     }
 
+    def "follow links has no effect for stat of a file"() {
+        def testFile = tmpDir.newFile("test.txt")
+        testFile.text = 'hi'
+        def attributes = attributes(testFile)
+
+        when:
+        def stat = files.stat(testFile, followLinks)
+
+        then:
+        stat.type == FileInfo.Type.File
+        stat.size == 2
+        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
+        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
+
+        where:
+        followLinks << [true, false]
+    }
+
     def "can stat a directory"() {
         def testFile = tmpDir.newFolder(fileName)
         def attributes = attributes(testFile)
@@ -60,6 +78,23 @@ class FilesTest extends AbstractFilesTest {
 
         where:
         fileName << ["test-dir", "test\u03b1\u2295-dir"]
+    }
+
+    def "follow links has no effect for stat of a directory"() {
+        def testFile = tmpDir.newFolder("test.txt")
+        def attributes = attributes(testFile)
+
+        when:
+        def stat = files.stat(testFile, followLinks)
+
+        then:
+        stat.type == FileInfo.Type.Directory
+        stat.size == 0
+        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
+        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
+
+        where:
+        followLinks << [true, false]
     }
 
     def "can stat the file system roots reported by JVM"() {
@@ -95,6 +130,21 @@ class FilesTest extends AbstractFilesTest {
 
         where:
         fileName << ["test-dir", "test\u03b1\u2295-dir", "nested/dir"]
+    }
+
+    def "follow links has no effect for stat of a missing file"() {
+        def testFile = new File(tmpDir.root, "nested/missing")
+
+        when:
+        def stat = files.stat(testFile, followLinks)
+
+        then:
+        stat.type == FileInfo.Type.Missing
+        stat.size == 0
+        stat.lastModifiedTime == 0
+
+        where:
+        followLinks << [true, false]
     }
 
     def "can list contents of an empty directory"() {
@@ -142,6 +192,40 @@ class FilesTest extends AbstractFilesTest {
 
         where:
         fileName << ["test-dir", "test\u03b1\u2295-dir"]
+    }
+
+    def "follow links has no effect on list contents of a directory when the directory does not contain links"() {
+        def testFile = tmpDir.newFolder("test.dir")
+        def childDir = new File(testFile, "dir.a")
+        childDir.mkdirs()
+        def childDirAttributes = attributes(childDir)
+        def childFile = new File(testFile, "file.b")
+        childFile.text = 'contents'
+        def childFileAttributes = attributes(childFile)
+
+        when:
+        def files = files.listDir(testFile, followLinks)
+
+        then:
+        files.size() == 2
+        files.sort { it.name }
+
+        def dirEntry = files[0]
+        dirEntry.type == FileInfo.Type.Directory
+        dirEntry.name == childDir.name
+        dirEntry.size == 0L
+        dirEntry.lastModifiedTime == childDirAttributes.lastModifiedTime().toMillis()
+        toJavaFileTime(dirEntry.lastModifiedTime) == childDir.lastModified()
+
+        def fileEntry = files[1]
+        fileEntry.type == FileInfo.Type.File
+        fileEntry.name == childFile.name
+        fileEntry.size == 8
+        fileEntry.lastModifiedTime == childFileAttributes.lastModifiedTime().toMillis()
+        toJavaFileTime(fileEntry.lastModifiedTime) == childFile.lastModified()
+
+        where:
+        followLinks << [true, false]
     }
 
     def "cannot list contents of file"() {

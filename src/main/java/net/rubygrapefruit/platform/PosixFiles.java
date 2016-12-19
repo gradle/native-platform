@@ -60,4 +60,10 @@ public interface PosixFiles extends Files {
      */
     @ThreadSafe
     PosixFileInfo stat(File path) throws NativeException;
+
+    /**
+     * {@inheritDoc}
+     */
+    @ThreadSafe
+    PosixFileInfo stat(File file, boolean linkTarget) throws NativeException;
 }

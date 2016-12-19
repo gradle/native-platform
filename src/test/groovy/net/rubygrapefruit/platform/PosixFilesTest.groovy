@@ -101,23 +101,51 @@ class PosixFilesTest extends AbstractFilesTest {
     }
 
     def "can stat a symlink that references a directory"() {
-        def testFile = new File(tmpDir.newFolder("parent"), fileName)
-        new File(testFile.parentFile, "target").mkdirs()
+        def linkFile = new File(tmpDir.newFolder("parent"), fileName)
+        def dir = new File(linkFile.parentFile, "target")
+        dir.mkdirs()
+        dir.lastModified = dir.lastModified() - 2000
 
         given:
-        files.symlink(testFile, "target")
-        def attributes = attributes(testFile)
+        files.symlink(linkFile, "target")
+        def linkAttributes = attributes(linkFile)
+        def dirAttributes = attributes(dir)
 
         when:
-        def stat = files.stat(testFile)
+        def stat = files.stat(linkFile)
 
         then:
         stat.type == FileInfo.Type.Symlink
-        stat.mode == mode(attributes)
+        stat.mode == mode(linkAttributes)
         stat.uid != 0
         stat.gid >= 0
-        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
-        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
+        stat.size == 0
+        stat.lastModifiedTime == linkAttributes.lastModifiedTime().toMillis()
+        stat.blockSize
+
+        when:
+        stat = files.stat(linkFile, false)
+
+        then:
+        stat.type == FileInfo.Type.Symlink
+        stat.mode == mode(linkAttributes)
+        stat.uid != 0
+        stat.gid >= 0
+        stat.size == 0
+        stat.lastModifiedTime == linkAttributes.lastModifiedTime().toMillis()
+        stat.blockSize
+
+        when:
+        stat = files.stat(linkFile, true)
+
+        then:
+        stat.type == FileInfo.Type.Directory
+        stat.mode == mode(dirAttributes)
+        stat.uid != 0
+        stat.gid >= 0
+        stat.size == 0
+        stat.lastModifiedTime == dirAttributes.lastModifiedTime().toMillis()
+        toJavaFileTime(stat.lastModifiedTime) == dir.lastModified()
         stat.blockSize
 
         where:
@@ -125,23 +153,51 @@ class PosixFilesTest extends AbstractFilesTest {
     }
 
     def "can stat a symlink that references a file"() {
-        def testFile = new File(tmpDir.newFolder("parent"), fileName)
-        new File(testFile.parentFile, "target").createNewFile()
+        def linkFile = new File(tmpDir.newFolder("parent"), fileName)
+        def file = new File(linkFile.parentFile, "target")
+        file.createNewFile()
+        file.lastModified = file.lastModified() - 2000
 
         given:
-        files.symlink(testFile, "target")
-        def attributes = attributes(testFile)
+        files.symlink(linkFile, "target")
+        def linkAttributes = attributes(linkFile)
+        def fileAttributes = attributes(file)
 
         when:
-        def stat = files.stat(testFile)
+        def stat = files.stat(linkFile)
 
         then:
         stat.type == FileInfo.Type.Symlink
-        stat.mode == mode(attributes)
+        stat.mode == mode(linkAttributes)
         stat.uid != 0
         stat.gid >= 0
-        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
-        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
+        stat.size == 0
+        stat.lastModifiedTime == linkAttributes.lastModifiedTime().toMillis()
+        stat.blockSize
+
+        when:
+        stat = files.stat(linkFile, false)
+
+        then:
+        stat.type == FileInfo.Type.Symlink
+        stat.mode == mode(linkAttributes)
+        stat.uid != 0
+        stat.gid >= 0
+        stat.size == 0
+        stat.lastModifiedTime == linkAttributes.lastModifiedTime().toMillis()
+        stat.blockSize
+
+        when:
+        stat = files.stat(linkFile, true)
+
+        then:
+        stat.type == FileInfo.Type.File
+        stat.mode == mode(fileAttributes)
+        stat.uid != 0
+        stat.gid >= 0
+        stat.size == file.length()
+        stat.lastModifiedTime == fileAttributes.lastModifiedTime().toMillis()
+        toJavaFileTime(stat.lastModifiedTime) == file.lastModified()
         stat.blockSize
 
         where:
@@ -149,22 +205,47 @@ class PosixFilesTest extends AbstractFilesTest {
     }
 
     def "can stat a symlink that references a missing file"() {
-        def testFile = new File(tmpDir.newFolder("parent"), fileName)
+        def linkFile = new File(tmpDir.newFolder("parent"), fileName)
 
         given:
-        files.symlink(testFile, "target")
-        def attributes = attributes(testFile)
+        files.symlink(linkFile, "missing/" + fileName)
+        def attributes = attributes(linkFile)
 
         when:
-        def stat = files.stat(testFile)
+        def stat = files.stat(linkFile)
 
         then:
         stat.type == FileInfo.Type.Symlink
         stat.mode == mode(attributes)
         stat.uid != 0
         stat.gid >= 0
+        stat.size == 0
         stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
         stat.blockSize
+
+        when:
+        stat = files.stat(linkFile, false)
+
+        then:
+        stat.type == FileInfo.Type.Symlink
+        stat.mode == mode(attributes)
+        stat.uid != 0
+        stat.gid >= 0
+        stat.size == 0
+        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
+        stat.blockSize
+
+        when:
+        stat = files.stat(linkFile, true)
+
+        then:
+        stat.type == FileInfo.Type.Missing
+        stat.mode == 0
+        stat.uid == 0
+        stat.gid == 0
+        stat.size == 0
+        stat.lastModifiedTime == 0
+        stat.blockSize == 0
 
         where:
         fileName << ["test.txt", "test\u03b1\u2295.txt"]
@@ -203,38 +284,93 @@ class PosixFilesTest extends AbstractFilesTest {
         def childDirAttributes = attributes(childDir)
         def childFile = new File(testFile, fileName + ".b")
         childFile.text = 'content'
+        childFile.lastModified = childFile.lastModified() - 2000
         def childFileAttributes = attributes(childFile)
         def childLink = new File(testFile, fileName + ".c")
         files.symlink(childLink, childFile.name)
         def childLinkAttributes = attributes(childLink)
 
         when:
-        def files = files.listDir(testFile)
+        def entries = files.listDir(testFile)
 
         then:
-        files.size() == 3
-        files.sort { it.name }
+        entries.size() == 3
+        entries.sort { it.name }
 
-        def dirEntry = files[0]
+        def dirEntry = entries[0]
         dirEntry.type == FileInfo.Type.Directory
         dirEntry.name == childDir.name
-        dirEntry.size == 0L
+        dirEntry.size == 0
         dirEntry.lastModifiedTime == childDirAttributes.lastModifiedTime().toMillis()
         toJavaFileTime(dirEntry.lastModifiedTime) == childDir.lastModified()
 
-        def fileEntry = files[1]
+        def fileEntry = entries[1]
         fileEntry.type == FileInfo.Type.File
         fileEntry.name == childFile.name
         fileEntry.size == childFile.length()
         fileEntry.lastModifiedTime == childFileAttributes.lastModifiedTime().toMillis()
         toJavaFileTime(fileEntry.lastModifiedTime) == childFile.lastModified()
 
-        def linkEntry = files[2]
+        def linkEntry = entries[2]
         linkEntry.type == FileInfo.Type.Symlink
         linkEntry.name == childLink.name
         linkEntry.size == 0
         linkEntry.lastModifiedTime == childLinkAttributes.lastModifiedTime().toMillis()
-        toJavaFileTime(linkEntry.lastModifiedTime) == childLink.lastModified()
+
+        when:
+        entries = files.listDir(testFile, false)
+
+        then:
+        entries.size() == 3
+        entries.sort { it.name }
+
+        def dirEntry2 = entries[0]
+        dirEntry2.type == FileInfo.Type.Directory
+        dirEntry2.name == childDir.name
+        dirEntry2.size == 0
+        dirEntry2.lastModifiedTime == childDirAttributes.lastModifiedTime().toMillis()
+        toJavaFileTime(dirEntry2.lastModifiedTime) == childDir.lastModified()
+
+        def fileEntry2 = entries[1]
+        fileEntry2.type == FileInfo.Type.File
+        fileEntry2.name == childFile.name
+        fileEntry2.size == childFile.length()
+        fileEntry2.lastModifiedTime == childFileAttributes.lastModifiedTime().toMillis()
+        toJavaFileTime(fileEntry2.lastModifiedTime) == childFile.lastModified()
+
+        def linkEntry2 = entries[2]
+        linkEntry2.type == FileInfo.Type.Symlink
+        linkEntry2.name == childLink.name
+        linkEntry2.size == 0
+        linkEntry2.lastModifiedTime == childLinkAttributes.lastModifiedTime().toMillis()
+
+        when:
+        entries = files.listDir(testFile, true)
+
+        then:
+        entries.size() == 3
+        entries.sort { it.name }
+
+        def dirEntry3 = entries[0]
+        dirEntry3.type == FileInfo.Type.Directory
+        dirEntry3.name == childDir.name
+        dirEntry3.size == 0
+        dirEntry3.lastModifiedTime == childDirAttributes.lastModifiedTime().toMillis()
+        toJavaFileTime(dirEntry3.lastModifiedTime) == childDir.lastModified()
+
+        def fileEntry3 = entries[1]
+        fileEntry3.type == FileInfo.Type.File
+        fileEntry3.name == childFile.name
+        fileEntry3.size == childFile.length()
+        fileEntry3.lastModifiedTime == childFileAttributes.lastModifiedTime().toMillis()
+        toJavaFileTime(fileEntry3.lastModifiedTime) == childFile.lastModified()
+
+        def linkEntry3 = entries[2]
+        linkEntry3.type == FileInfo.Type.File
+        linkEntry3.name == childLink.name
+        linkEntry3.size == childFile.length()
+        linkEntry3.lastModifiedTime == childFileAttributes.lastModifiedTime().toMillis()
+        toJavaFileTime(linkEntry3.lastModifiedTime) == childFile.lastModified()
 
         where:
         fileName << ["test-dir", "test\u03b1\u2295-dir"]

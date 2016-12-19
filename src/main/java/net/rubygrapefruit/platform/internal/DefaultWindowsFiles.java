@@ -16,10 +16,7 @@
 
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.DirEntry;
-import net.rubygrapefruit.platform.NativeException;
-import net.rubygrapefruit.platform.WindowsFileInfo;
-import net.rubygrapefruit.platform.WindowsFiles;
+import net.rubygrapefruit.platform.*;
 import net.rubygrapefruit.platform.internal.jni.WindowsFileFunctions;
 
 import java.io.File;
@@ -36,6 +33,10 @@ public class DefaultWindowsFiles extends AbstractFiles implements WindowsFiles {
         return stat;
     }
 
+    public FileInfo stat(File file, boolean linkTarget) throws NativeException {
+        throw new UnsupportedOperationException();
+    }
+
     public List<? extends DirEntry> listDir(File dir) throws NativeException {
         FunctionResult result = new FunctionResult();
         WindowsDirList dirList = new WindowsDirList();
@@ -44,5 +45,9 @@ public class DefaultWindowsFiles extends AbstractFiles implements WindowsFiles {
             throw listDirFailure(dir, result);
         }
         return dirList.files;
+    }
+
+    public List<? extends DirEntry> listDir(File dir, boolean linkTarget) throws NativeException {
+        throw new UnsupportedOperationException();
     }
 }
