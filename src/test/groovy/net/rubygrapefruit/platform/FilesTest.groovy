@@ -27,7 +27,7 @@ class FilesTest extends AbstractFilesTest {
         Native.get(Files.class) == files
     }
 
-    def "can get details of a file"() {
+    def "can stat a file"() {
         def testFile = tmpDir.newFile(fileName)
         testFile.text = 'hi'
         def attributes = attributes(testFile)
@@ -45,7 +45,7 @@ class FilesTest extends AbstractFilesTest {
         fileName << ["test.txt", "test\u03b1\u2295.txt"]
     }
 
-    def "can get details of a directory"() {
+    def "can stat a directory"() {
         def testFile = tmpDir.newFolder(fileName)
         def attributes = attributes(testFile)
 
@@ -62,7 +62,7 @@ class FilesTest extends AbstractFilesTest {
         fileName << ["test-dir", "test\u03b1\u2295-dir"]
     }
 
-    def "can get details of file system roots reported by JVM"() {
+    def "can stat the file system roots reported by JVM"() {
         expect:
         def stat = files.stat(file)
         stat.type == (file.exists() ? FileInfo.Type.Directory : FileInfo.Type.Missing)
@@ -72,7 +72,7 @@ class FilesTest extends AbstractFilesTest {
         file << File.listRoots()
     }
 
-    def "can get details of file system roots reported by OS"() {
+    def "can stat the file system roots reported by OS"() {
         expect:
         def stat = files.stat(fileSystem.mountPoint)
         stat.type == (fileSystem.mountPoint.exists() ? FileInfo.Type.Directory : FileInfo.Type.Missing)
@@ -82,7 +82,7 @@ class FilesTest extends AbstractFilesTest {
         fileSystem << Native.get(FileSystems.class).fileSystems
     }
 
-    def "can get details of a missing file"() {
+    def "can stat a missing file"() {
         def testFile = new File(tmpDir.root, fileName)
 
         when:

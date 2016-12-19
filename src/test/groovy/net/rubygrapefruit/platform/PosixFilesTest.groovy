@@ -39,7 +39,7 @@ class PosixFilesTest extends AbstractFilesTest {
         Native.get(Files.class) == files
     }
 
-    def "can get details of a file"() {
+    def "can stat a file"() {
         def testFile = tmpDir.newFile(fileName)
         def attributes = attributes(testFile)
 
@@ -60,7 +60,7 @@ class PosixFilesTest extends AbstractFilesTest {
         fileName << ["test.txt", "test\u03b1\u2295.txt"]
     }
 
-    def "can get details of a directory"() {
+    def "can stat a directory"() {
         def testFile = tmpDir.newFolder(fileName)
         def attributes = attributes(testFile)
 
@@ -81,7 +81,7 @@ class PosixFilesTest extends AbstractFilesTest {
         fileName << ["test-dir", "test\u03b1\u2295-dir"]
     }
 
-    def "can get details of a missing file"() {
+    def "can stat a missing file"() {
         def testFile = new File(tmpDir.root, fileName)
 
         when:
@@ -98,6 +98,102 @@ class PosixFilesTest extends AbstractFilesTest {
 
         where:
         fileName << ["test-dir", "test\u03b1\u2295-dir"]
+    }
+
+    def "can stat a symlink that references a directory"() {
+        def testFile = new File(tmpDir.newFolder("parent"), fileName)
+        new File(testFile.parentFile, "target").mkdirs()
+
+        given:
+        files.symlink(testFile, "target")
+        def attributes = attributes(testFile)
+
+        when:
+        def stat = files.stat(testFile)
+
+        then:
+        stat.type == FileInfo.Type.Symlink
+        stat.mode == mode(attributes)
+        stat.uid != 0
+        stat.gid >= 0
+        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
+        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
+        stat.blockSize
+
+        where:
+        fileName << ["test.txt", "test\u03b1\u2295.txt"]
+    }
+
+    def "can stat a symlink that references a file"() {
+        def testFile = new File(tmpDir.newFolder("parent"), fileName)
+        new File(testFile.parentFile, "target").createNewFile()
+
+        given:
+        files.symlink(testFile, "target")
+        def attributes = attributes(testFile)
+
+        when:
+        def stat = files.stat(testFile)
+
+        then:
+        stat.type == FileInfo.Type.Symlink
+        stat.mode == mode(attributes)
+        stat.uid != 0
+        stat.gid >= 0
+        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
+        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
+        stat.blockSize
+
+        where:
+        fileName << ["test.txt", "test\u03b1\u2295.txt"]
+    }
+
+    def "can stat a symlink that references a missing file"() {
+        def testFile = new File(tmpDir.newFolder("parent"), fileName)
+
+        given:
+        files.symlink(testFile, "target")
+        def attributes = attributes(testFile)
+
+        when:
+        def stat = files.stat(testFile)
+
+        then:
+        stat.type == FileInfo.Type.Symlink
+        stat.mode == mode(attributes)
+        stat.uid != 0
+        stat.gid >= 0
+        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
+        stat.blockSize
+
+        where:
+        fileName << ["test.txt", "test\u03b1\u2295.txt"]
+    }
+
+    def "stat follows symlinks to parent directory"() {
+        def parentDir = tmpDir.newFolder()
+        def testFile = new File(parentDir, fileName)
+        testFile.text = "content"
+        def link = new File(tmpDir.newFolder(), "link")
+
+        given:
+        files.symlink(link, parentDir.absolutePath)
+        def attributes = attributes(testFile)
+
+        when:
+        def stat = files.stat(new File(link, fileName))
+
+        then:
+        stat.type == FileInfo.Type.File
+        stat.mode == mode(attributes)
+        stat.uid != 0
+        stat.gid >= 0
+        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
+        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
+        stat.blockSize
+
+        where:
+        fileName << ["test.txt", "test\u03b1\u2295.txt"]
     }
 
     def "can list contents of a directory containing symlinks"() {
@@ -272,102 +368,6 @@ class PosixFilesTest extends AbstractFilesTest {
         files.readLink(symlinkFile) == testFile.name
         symlinkFile.file
         symlinkFile.canonicalFile == testFile.canonicalFile
-    }
-
-    def "can get details of a symlink that references a directory"() {
-        def testFile = new File(tmpDir.newFolder("parent"), fileName)
-        new File(testFile.parentFile, "target").mkdirs()
-
-        given:
-        files.symlink(testFile, "target")
-        def attributes = attributes(testFile)
-
-        when:
-        def stat = files.stat(testFile)
-
-        then:
-        stat.type == FileInfo.Type.Symlink
-        stat.mode == mode(attributes)
-        stat.uid != 0
-        stat.gid >= 0
-        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
-        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
-        stat.blockSize
-
-        where:
-        fileName << ["test.txt", "test\u03b1\u2295.txt"]
-    }
-
-    def "can get details of a symlink that references a file"() {
-        def testFile = new File(tmpDir.newFolder("parent"), fileName)
-        new File(testFile.parentFile, "target").createNewFile()
-
-        given:
-        files.symlink(testFile, "target")
-        def attributes = attributes(testFile)
-
-        when:
-        def stat = files.stat(testFile)
-
-        then:
-        stat.type == FileInfo.Type.Symlink
-        stat.mode == mode(attributes)
-        stat.uid != 0
-        stat.gid >= 0
-        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
-        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
-        stat.blockSize
-
-        where:
-        fileName << ["test.txt", "test\u03b1\u2295.txt"]
-    }
-
-    def "can get details of a symlink that references missing file"() {
-        def testFile = new File(tmpDir.newFolder("parent"), fileName)
-
-        given:
-        files.symlink(testFile, "target")
-        def attributes = attributes(testFile)
-
-        when:
-        def stat = files.stat(testFile)
-
-        then:
-        stat.type == FileInfo.Type.Symlink
-        stat.mode == mode(attributes)
-        stat.uid != 0
-        stat.gid >= 0
-        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
-        stat.blockSize
-
-        where:
-        fileName << ["test.txt", "test\u03b1\u2295.txt"]
-    }
-
-    def "stat follows symlinks to parent directory"() {
-        def parentDir = tmpDir.newFolder()
-        def testFile = new File(parentDir, fileName)
-        testFile.text = "content"
-        def link = new File(tmpDir.newFolder(), "link")
-
-        given:
-        files.symlink(link, parentDir.absolutePath)
-        def attributes = attributes(testFile)
-
-        when:
-        def stat = files.stat(new File(link, fileName))
-
-        then:
-        stat.type == FileInfo.Type.File
-        stat.mode == mode(attributes)
-        stat.uid != 0
-        stat.gid >= 0
-        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
-        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
-        stat.blockSize
-
-        where:
-        fileName << ["test.txt", "test\u03b1\u2295.txt"]
     }
 
     int mode(PosixFileAttributes attributes) {
