@@ -16,10 +16,7 @@
 
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.DirEntry;
-import net.rubygrapefruit.platform.NativeException;
-import net.rubygrapefruit.platform.PosixFileInfo;
-import net.rubygrapefruit.platform.PosixFiles;
+import net.rubygrapefruit.platform.*;
 import net.rubygrapefruit.platform.internal.jni.PosixFileFunctions;
 
 import java.io.File;
@@ -35,7 +32,10 @@ public class DefaultPosixFiles extends AbstractFiles implements PosixFiles {
         FileStat stat = new FileStat(file.getPath());
         PosixFileFunctions.stat(file.getPath(), linkTarget, stat, result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not get POSIX file details of %s: %s", file, result.getMessage()));
+            if (result.getFailure() == FunctionResult.Failure.Permissions) {
+                throw new FilePermissionException(String.format("Could not get file details of %s: permission denied", file));
+            }
+            throw new NativeException(String.format("Could not get file details of %s: %s", file, result.getMessage()));
         }
         return stat;
     }

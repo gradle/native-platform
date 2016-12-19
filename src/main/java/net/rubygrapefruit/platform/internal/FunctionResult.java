@@ -18,9 +18,11 @@ package net.rubygrapefruit.platform.internal;
 
 public class FunctionResult {
     public enum Failure {
+        // Order is important - see generic.h
         Generic,
         NoSuchFile,
         NotADirectory,
+        Permissions
     }
     private String message;
     private int errno;

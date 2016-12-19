@@ -24,6 +24,7 @@ import spock.lang.IgnoreIf
 import java.nio.file.LinkOption
 import java.nio.file.attribute.PosixFileAttributeView
 import java.nio.file.attribute.PosixFileAttributes
+import java.nio.file.attribute.PosixFilePermission
 
 import static java.nio.file.attribute.PosixFilePermission.*
 
@@ -98,6 +99,42 @@ class PosixFilesTest extends AbstractFilesTest {
 
         where:
         fileName << ["test-dir", "test\u03b1\u2295-dir"]
+    }
+
+    def "can stat a file with no read permissions"() {
+        def testFile = tmpDir.newFile("test.file")
+        chmod(testFile, [OWNER_WRITE])
+
+        when:
+        def stat = files.stat(testFile)
+
+        then:
+        stat.type == FileInfo.Type.File
+
+        cleanup:
+        chmod(testFile, [OWNER_READ, OWNER_WRITE])
+    }
+
+    def "cannot stat a file with no execute permission on parent"() {
+        def testDir = tmpDir.newFolder("test-dir")
+        def testFile = new File(testDir, "test.file")
+        chmod(testDir, permissions)
+
+        when:
+        files.stat(testFile)
+
+        then:
+        def e = thrown(FilePermissionException)
+        e.message == "Could not get file details of $testFile: permission denied"
+
+        cleanup:
+        chmod(testDir, [OWNER_READ, OWNER_WRITE])
+
+        where:
+        permissions     | _
+        []              | _
+        [OWNER_WRITE]   | _
+        [OWNER_READ]    | _
     }
 
     def "can stat a symlink that references a directory"() {
@@ -251,6 +288,52 @@ class PosixFilesTest extends AbstractFilesTest {
         fileName << ["test.txt", "test\u03b1\u2295.txt"]
     }
 
+    def "can stat a symlink with no read permissions on symlink"() {
+        def testDir = tmpDir.newFolder("test-dir")
+        new File(testDir, "test.file").createNewFile()
+        def linkFile = new File(testDir, "link")
+        files.symlink(linkFile, "test.file")
+        chmod(linkFile, [])
+
+        when:
+        def stat = files.stat(linkFile, true)
+
+        then:
+        stat.type == FileInfo.Type.File
+
+        when:
+        stat = files.stat(linkFile, false)
+
+        then:
+        stat.type == FileInfo.Type.Symlink
+
+        cleanup:
+        chmod(linkFile, [OWNER_READ, OWNER_WRITE])
+    }
+
+    def "cannot stat a symlink with no read permissions on parent of target"() {
+        def dir = tmpDir.newFolder()
+        def testDir = new File(dir, "test-dir")
+        testDir.mkdirs()
+        def testFile = new File(testDir, "test.file")
+        testFile.createNewFile()
+        chmod(testDir, [OWNER_WRITE])
+
+        def linkFile = new File(dir, "link")
+        linkFile.delete()
+        files.symlink(linkFile, "test-dir/test.file")
+
+        when:
+        files.stat(linkFile, true)
+
+        then:
+        def e = thrown(FilePermissionException)
+        e.message == "Could not get file details of $linkFile: permission denied"
+
+        cleanup:
+        chmod(testDir, [OWNER_READ, OWNER_WRITE])
+    }
+
     def "stat follows symlinks to parent directory"() {
         def parentDir = tmpDir.newFolder()
         def testFile = new File(parentDir, fileName)
@@ -278,20 +361,24 @@ class PosixFilesTest extends AbstractFilesTest {
     }
 
     def "can list contents of a directory containing symlinks"() {
-        def testFile = tmpDir.newFolder(fileName)
-        def childDir = new File(testFile, fileName + ".a")
+        def dir = tmpDir.newFolder(fileName)
+        def linkTarget = tmpDir.newFile()
+        linkTarget.text = "some content"
+        linkTarget.lastModified = linkTarget.lastModified() - 2000
+        def linkTargetAttributes = attributes(linkTarget)
+
+        def childDir = new File(dir, fileName + ".a")
         childDir.mkdirs()
         def childDirAttributes = attributes(childDir)
-        def childFile = new File(testFile, fileName + ".b")
+        def childFile = new File(dir, fileName + ".b")
         childFile.text = 'content'
-        childFile.lastModified = childFile.lastModified() - 2000
         def childFileAttributes = attributes(childFile)
-        def childLink = new File(testFile, fileName + ".c")
-        files.symlink(childLink, childFile.name)
+        def childLink = new File(dir, fileName + ".c")
+        files.symlink(childLink, "../" + linkTarget.name)
         def childLinkAttributes = attributes(childLink)
 
         when:
-        def entries = files.listDir(testFile)
+        def entries = files.listDir(dir)
 
         then:
         entries.size() == 3
@@ -318,7 +405,7 @@ class PosixFilesTest extends AbstractFilesTest {
         linkEntry.lastModifiedTime == childLinkAttributes.lastModifiedTime().toMillis()
 
         when:
-        entries = files.listDir(testFile, false)
+        entries = files.listDir(dir, false)
 
         then:
         entries.size() == 3
@@ -345,7 +432,7 @@ class PosixFilesTest extends AbstractFilesTest {
         linkEntry2.lastModifiedTime == childLinkAttributes.lastModifiedTime().toMillis()
 
         when:
-        entries = files.listDir(testFile, true)
+        entries = files.listDir(dir, true)
 
         then:
         entries.size() == 3
@@ -368,9 +455,9 @@ class PosixFilesTest extends AbstractFilesTest {
         def linkEntry3 = entries[2]
         linkEntry3.type == FileInfo.Type.File
         linkEntry3.name == childLink.name
-        linkEntry3.size == childFile.length()
-        linkEntry3.lastModifiedTime == childFileAttributes.lastModifiedTime().toMillis()
-        toJavaFileTime(linkEntry3.lastModifiedTime) == childFile.lastModified()
+        linkEntry3.size == linkTarget.length()
+        linkEntry3.lastModifiedTime == linkTargetAttributes.lastModifiedTime().toMillis()
+        toJavaFileTime(linkEntry3.lastModifiedTime) == linkTarget.lastModified()
 
         where:
         fileName << ["test-dir", "test\u03b1\u2295-dir"]
@@ -390,6 +477,30 @@ class PosixFilesTest extends AbstractFilesTest {
         def list = files.listDir(link1)
         list.size() == 2
         list*.name.sort() == ["a", "b"]
+    }
+
+    def "cannot list directory without read and execute permissions"() {
+        def dir = tmpDir.newFolder()
+        new File(dir, "a").text = 'content'
+        new File(dir, "b").text = 'content'
+        chmod(dir, permissions)
+
+        when:
+        files.listDir(dir)
+
+        then:
+        def e = thrown(FilePermissionException)
+        e.message == "Could not list directory $dir: permission denied"
+
+        cleanup:
+        chmod(dir, [OWNER_READ, OWNER_WRITE, OWNER_EXECUTE])
+
+        where:
+        permissions     | _
+        []              | _
+        [OWNER_WRITE]   | _
+        [OWNER_EXECUTE] | _
+        [OWNER_READ]    | _
     }
 
     def "can set mode on a file"() {
@@ -515,6 +626,11 @@ class PosixFilesTest extends AbstractFilesTest {
             }
         }
         return mode
+    }
+
+    void chmod(File file, Collection<PosixFilePermission> perms) {
+        PosixFileAttributeView fileAttributeView = java.nio.file.Files.getFileAttributeView(file.toPath(), PosixFileAttributeView)
+        fileAttributeView.setPermissions(perms as Set)
     }
 
     PosixFileAttributes attributes(File file) {

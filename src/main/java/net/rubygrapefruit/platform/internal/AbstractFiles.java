@@ -16,10 +16,7 @@
 
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.Files;
-import net.rubygrapefruit.platform.NativeException;
-import net.rubygrapefruit.platform.NoSuchFileException;
-import net.rubygrapefruit.platform.NotADirectoryException;
+import net.rubygrapefruit.platform.*;
 
 import java.io.File;
 
@@ -30,6 +27,9 @@ public abstract class AbstractFiles implements Files {
         }
         if (result.getFailure() == FunctionResult.Failure.NotADirectory) {
             throw new NotADirectoryException(String.format("Could not list directory %s as it is not a directory.", dir));
+        }
+        if (result.getFailure() == FunctionResult.Failure.Permissions) {
+            throw new FilePermissionException(String.format("Could not list directory %s: permission denied", dir));
         }
         throw new NativeException(String.format("Could not list directory %s: %s", dir, result.getMessage()));
     }

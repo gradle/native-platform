@@ -36,6 +36,7 @@ extern "C" {
 #define FAILURE_GENERIC 0
 #define FAILURE_NO_SUCH_FILE 1
 #define FAILURE_NOT_A_DIRECTORY 2
+#define FAILURE_PERMISSIONS 3
 
 /*
  * Marks the given result as failed, using the given error message

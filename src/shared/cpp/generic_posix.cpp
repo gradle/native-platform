@@ -45,6 +45,9 @@ int map_error_code(int error_code) {
     if (error_code == ENOTDIR) {
         return FAILURE_NOT_A_DIRECTORY;
     }
+    if (error_code == EACCES) {
+        return FAILURE_PERMISSIONS;
+    }
     return FAILURE_GENERIC;
 }
 

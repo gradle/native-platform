@@ -34,6 +34,7 @@ public interface Files extends NativeIntegration {
      * @return Details of the file. Returns details with type {@link FileInfo.Type#Missing} for a file that does not
      * exist.
      * @throws NativeException On failure to query the file information.
+     * @throws FilePermissionException When the user has insufficient permissions to query the file information
      */
     @ThreadSafe
     FileInfo stat(File file) throws NativeException;
@@ -47,6 +48,7 @@ public interface Files extends NativeIntegration {
      * @return Details of the file. Returns details with type {@link FileInfo.Type#Missing} for a file that does not
      * exist.
      * @throws NativeException On failure to query the file information.
+     * @throws FilePermissionException When the user has insufficient permissions to query the file information
      */
     @ThreadSafe
     FileInfo stat(File file, boolean linkTarget) throws NativeException;
@@ -60,6 +62,7 @@ public interface Files extends NativeIntegration {
      * @throws NativeException On failure.
      * @throws NoSuchFileException When the specified directory does not exist.
      * @throws NotADirectoryException When the specified file is not a directory.
+     * @throws FilePermissionException When the user has insufficient permissions to list the entries
      */
     @ThreadSafe
     List<? extends DirEntry> listDir(File dir) throws NativeException;
@@ -72,6 +75,7 @@ public interface Files extends NativeIntegration {
      * @throws NativeException On failure.
      * @throws NoSuchFileException When the specified directory does not exist.
      * @throws NotADirectoryException When the specified file is not a directory.
+     * @throws FilePermissionException When the user has insufficient permissions to list the entries
      */
     @ThreadSafe
     List<? extends DirEntry> listDir(File dir, boolean linkTarget) throws NativeException;
