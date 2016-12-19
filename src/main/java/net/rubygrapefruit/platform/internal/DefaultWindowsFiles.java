@@ -34,7 +34,7 @@ public class DefaultWindowsFiles extends AbstractFiles implements WindowsFiles {
     }
 
     public FileInfo stat(File file, boolean linkTarget) throws NativeException {
-        throw new UnsupportedOperationException();
+        return stat(file);
     }
 
     public List<? extends DirEntry> listDir(File dir) throws NativeException {
@@ -48,6 +48,6 @@ public class DefaultWindowsFiles extends AbstractFiles implements WindowsFiles {
     }
 
     public List<? extends DirEntry> listDir(File dir, boolean linkTarget) throws NativeException {
-        throw new UnsupportedOperationException();
+        return listDir(dir);
     }
 }
