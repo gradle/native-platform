@@ -114,6 +114,8 @@ Some sample code to use the terminal:
 
 ### 0.13 (not released)
 
+* Added overloads of `Files.stat()` and `Files.listDir()` that follow links.
+* Improvements to error handling for `Files.stat()` and `listDir()`.
 * Fixes for build time detection of ncurses 6. Thanks to [Marcin Zajączkowski](https://github.com/szpak)
 
 ### 0.12
