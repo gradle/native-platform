@@ -40,6 +40,7 @@ jstring char_to_java(JNIEnv* env, const char* chars, jobject result) {
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#include <mach/mach.h>
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_MemoryFunctions_getMemoryInfo(JNIEnv *env, jclass type, jobject dest, jobject result) {
@@ -50,26 +51,20 @@ Java_net_rubygrapefruit_platform_internal_jni_MemoryFunctions_getMemoryInfo(JNIE
         return;
     }
 
+    // Get total physical memory
     int mib[2];
     mib[0] = CTL_HW;
     mib[1] = HW_MEMSIZE;
-    int64_t size = 0;
-    size_t len = sizeof(size);
-    if (sysctl(mib, 2, &size, &len, NULL, 0) != 0) {
+    int64_t total_memory = 0;
+    size_t len = sizeof(total_memory);
+    if (sysctl(mib, 2, &total_memory, &len, NULL, 0) != 0) {
         mark_failed_with_errno(env, "could not query memory size", result);
         return;
     }
 
-
-    env->CallVoidMethod(dest, mid, (jlong)size, (jlong)0);
-}
-
-//#include <mach/vm_statistics.h>
-//#include <mach/mach_types.h>
-//#include <mach/mach_init.h>
-#include <mach/mach.h>
-
-void delete_me() {
+    // Calculate available system memory
+    // This is an approximation due to the Darwin VM model
+    // free + inactive - speculative pages
     vm_size_t page_size;
     mach_port_t mach_port;
     mach_msg_type_number_t count;
@@ -77,17 +72,20 @@ void delete_me() {
 
     mach_port = mach_host_self();
     count = sizeof(vm_stats) / sizeof(natural_t);
-    if (KERN_SUCCESS == host_page_size(mach_port, &page_size) &&
-        KERN_SUCCESS == host_statistics64(mach_port, HOST_VM_INFO,
-                                        (host_info64_t)&vm_stats, &count))
-    {
-        long long free_memory = (int64_t)vm_stats.free_count * (int64_t)page_size;
-
-        long long used_memory = ((int64_t)vm_stats.active_count +
-                                 (int64_t)vm_stats.inactive_count +
-                                 (int64_t)vm_stats.wire_count) *  (int64_t)page_size;
-        printf("free memory: %lld\nused memory: %lld\n", free_memory, used_memory);
+    if (KERN_SUCCESS != host_page_size(mach_port, &page_size)) {
+        mark_failed_with_errno(env, "could not query page size", result);
+        return;
     }
+    if (KERN_SUCCESS != host_statistics64(mach_port, HOST_VM_INFO, (host_info64_t)&vm_stats, &count)) {
+        mark_failed_with_errno(env, "could not query host statistics", result);
+        return;
+    }
+    long long available_memory = ((int64_t)vm_stats.free_count
+                                 + (int64_t)vm_stats.inactive_count
+                                 - (int64_t)vm_stats.speculative_count)
+                                 * (int64_t)page_size;
+
+    env->CallVoidMethod(dest, mid, (jlong)total_memory, (jlong)available_memory);
 }
 
 #endif
