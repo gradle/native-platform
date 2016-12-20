@@ -88,7 +88,7 @@ this:
     }
 
     dependencies {
-        compile "net.rubygrapefruit:native-platform:0.12"
+        compile "net.rubygrapefruit:native-platform:0.13"
     }
 
 You can also download [here](https://repo.gradle.org/gradle/libs-releases-local/net/rubygrapefruit/)
@@ -112,7 +112,9 @@ Some sample code to use the terminal:
 
 ## Changes
 
-### 0.13 (not released)
+### 0.14 (not released)
+
+### 0.13
 
 * Added overloads of `Files.stat()` and `Files.listDir()` that follow links.
 * Improvements to error handling for `Files.stat()` and `listDir()`.
