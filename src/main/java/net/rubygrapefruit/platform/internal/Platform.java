@@ -298,6 +298,14 @@ public abstract class Platform {
         String getCursesLibraryName() {
             return "libnative-platform-curses.dylib";
         }
+
+        @Override
+        public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
+            if (type.equals(Memory.class)) {
+                return type.cast(new DefaultMemory());
+            }
+            return super.get(type, nativeLibraryLoader);
+        }
     }
 
     private static class OsX32Bit extends OsX {
