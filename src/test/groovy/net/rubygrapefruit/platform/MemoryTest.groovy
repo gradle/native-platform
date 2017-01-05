@@ -16,8 +16,11 @@
 
 package net.rubygrapefruit.platform
 
+import net.rubygrapefruit.platform.internal.Platform
+import spock.lang.IgnoreIf
 import spock.lang.Specification
 
+@IgnoreIf({ Platform.current().linux || Platform.current().windows })
 class MemoryTest extends Specification {
     def "caches memory instance"() {
         expect:
