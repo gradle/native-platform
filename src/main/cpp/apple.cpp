@@ -117,16 +117,14 @@ Java_net_rubygrapefruit_platform_internal_jni_MemoryFunctions_getMemoryInfo(JNIE
         return;
     }
 
-    // Calculate available system memory
-    // This is an approximation due to the Darwin VM model
-    // free + inactive - speculative pages
+    // Get VM stats
     vm_size_t page_size;
     mach_port_t mach_port;
     mach_msg_type_number_t count;
     vm_statistics64_data_t vm_stats;
 
     mach_port = mach_host_self();
-    count = sizeof(vm_stats) / sizeof(natural_t);
+    count = HOST_VM_INFO64_COUNT;
     if (KERN_SUCCESS != host_page_size(mach_port, &page_size)) {
         mark_failed_with_errno(env, "could not query page size", result);
         return;
@@ -135,11 +133,14 @@ Java_net_rubygrapefruit_platform_internal_jni_MemoryFunctions_getMemoryInfo(JNIE
         mark_failed_with_errno(env, "could not query host statistics", result);
         return;
     }
+
+    // Calculate available memory
     long long available_memory = ((int64_t)vm_stats.free_count
                                  + (int64_t)vm_stats.inactive_count
                                  - (int64_t)vm_stats.speculative_count)
                                  * (int64_t)page_size;
 
+    // Feed Java with details
     env->CallVoidMethod(dest, mid, (jlong)total_memory, (jlong)available_memory);
 }
 
