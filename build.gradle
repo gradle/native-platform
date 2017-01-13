@@ -68,7 +68,8 @@ task nativeHeaders {
             'net.rubygrapefruit.platform.internal.jni.WindowsFileFunctions',
             'net.rubygrapefruit.platform.internal.jni.FileEventFunctions',
             'net.rubygrapefruit.platform.internal.jni.PosixTypeFunctions',
-            'net.rubygrapefruit.platform.internal.jni.MemoryFunctions'
+            'net.rubygrapefruit.platform.internal.jni.MemoryFunctions',
+            'net.rubygrapefruit.platform.internal.jni.OsxMemoryFunctions'
     ]
     inputs.files sourceSets.main.output
     inputs.property('classes', classes)

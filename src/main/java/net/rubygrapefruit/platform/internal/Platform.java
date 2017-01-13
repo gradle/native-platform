@@ -301,6 +301,9 @@ public abstract class Platform {
 
         @Override
         public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
+            if (type.equals(OsxMemory.class)) {
+                return type.cast(new DefaultOsxMemory());
+            }
             if (type.equals(Memory.class)) {
                 return type.cast(new DefaultMemory());
             }
