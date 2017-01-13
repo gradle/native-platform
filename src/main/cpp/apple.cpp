@@ -144,4 +144,60 @@ Java_net_rubygrapefruit_platform_internal_jni_MemoryFunctions_getMemoryInfo(JNIE
     env->CallVoidMethod(dest, mid, (jlong)total_memory, (jlong)available_memory);
 }
 
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_OsxMemoryFunctions_getOsxMemoryInfo(JNIEnv *env, jclass type, jobject dest, jobject result) {
+    jclass destClass = env->GetObjectClass(dest);
+    jmethodID mid = env->GetMethodID(destClass, "details", "(JJJJJJJJJ)V");
+    if (mid == NULL) {
+        mark_failed_with_message(env, "could not find method", result);
+        return;
+    }
+
+    // Get total physical memory
+    int mib[2];
+    mib[0] = CTL_HW;
+    mib[1] = HW_MEMSIZE;
+    int64_t total_memory = 0;
+    size_t len = sizeof(total_memory);
+    if (sysctl(mib, 2, &total_memory, &len, NULL, 0) != 0) {
+        mark_failed_with_errno(env, "could not query memory size", result);
+        return;
+    }
+
+    // Get VM stats
+    vm_size_t page_size;
+    mach_port_t mach_port;
+    vm_statistics64_data_t vm_stats;
+    unsigned int count;
+
+    mach_port = mach_host_self();
+    count = HOST_VM_INFO64_COUNT;
+    if (KERN_SUCCESS != host_page_size(mach_port, &page_size)) {
+        mark_failed_with_errno(env, "could not query page size", result);
+        return;
+    }
+    if (KERN_SUCCESS != host_statistics64(mach_port, HOST_VM_INFO, (host_info64_t)&vm_stats, &count)) {
+        mark_failed_with_errno(env, "could not query host statistics", result);
+        return;
+    }
+
+    // Calculate available memory
+    long long available_memory = ((int64_t)vm_stats.free_count
+                                 + (int64_t)vm_stats.inactive_count
+                                 - (int64_t)vm_stats.speculative_count)
+                                 * (int64_t)page_size;
+
+    // Feed Java with details
+    env->CallVoidMethod(dest, mid,
+        (jlong)page_size,
+        (jlong)vm_stats.free_count,
+        (jlong)vm_stats.inactive_count,
+        (jlong)vm_stats.wire_count,
+        (jlong)vm_stats.active_count,
+        (jlong)vm_stats.external_page_count,
+        (jlong)vm_stats.speculative_count,
+        (jlong)total_memory,
+        (jlong)available_memory);
+}
+
 #endif
