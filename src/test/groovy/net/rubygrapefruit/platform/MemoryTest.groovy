@@ -35,17 +35,12 @@ class MemoryTest extends Specification {
 
         def memoryInfo = memory.memoryInfo
         memoryInfo.totalPhysicalMemory > 0
+        memoryInfo.totalPhysicalMemory == jmxTotalPhysicalMemory
         memoryInfo.availablePhysicalMemory > 0
         memoryInfo.availablePhysicalMemory <= memoryInfo.totalPhysicalMemory
-        memoryInfo.totalPhysicalMemory == jmxTotalPhysicalMemory
-        memoryInfo.availablePhysicalMemory > jmxAvailablePhysicalMemory
     }
 
     long getJmxTotalPhysicalMemory() {
         ManagementFactory.operatingSystemMXBean.totalPhysicalMemorySize
-    }
-
-    long getJmxAvailablePhysicalMemory() {
-        ManagementFactory.operatingSystemMXBean.freePhysicalMemorySize
     }
 }
