@@ -17,7 +17,7 @@
 package net.rubygrapefruit.platform;
 
 @ThreadSafe
-public interface OsxMemory extends NativeIntegration {
+public interface OsxMemory extends Memory {
     /**
      * Queries the current state of the system memory.
      *

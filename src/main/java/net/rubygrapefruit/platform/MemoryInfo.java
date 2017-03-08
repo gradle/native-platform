@@ -19,6 +19,7 @@ package net.rubygrapefruit.platform;
 /**
  * Provides some information about the system memory. This is a snapshot and does not change.
  */
+@ThreadSafe
 public interface MemoryInfo {
     /**
      * Returns the number of bytes of physical memory installed in the machine.

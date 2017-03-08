@@ -26,7 +26,8 @@ package net.rubygrapefruit.platform;
  *
  * {@link #getExternalPagesCount()} is displayed as {@literal File-backed pages}.
  */
-public interface OsxMemoryInfo {
+@ThreadSafe
+public interface OsxMemoryInfo extends MemoryInfo {
     long getPageSize();
 
     long getFreePagesCount();
