@@ -312,6 +312,7 @@ Use `-Psnapshot` instead of `-Prelease` to publish a dev version.
 * All: add a method to Terminal that indicates whether the cursor wraps to the next line when a character is written
   to the rightmost character position.
 * All: check for null parameters.
+* Windows: long paths, prefix with `\\?\` or `\\?\UNC\`
 
 ### Ideas
 
