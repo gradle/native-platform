@@ -15,10 +15,21 @@
  */
 package net.rubygrapefruit.platform
 
+import net.rubygrapefruit.platform.internal.Platform
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
+import spock.lang.IgnoreIf
+import spock.lang.Shared
 
 class FilesTest extends AbstractFilesTest {
+    @Shared
+    def names = [
+            "test.txt",
+            "test\u03b1\u2295.txt",
+            "nested/test",
+            // Long name
+            (0..25).inject("") { s, v -> s + "/1234567890" }
+    ]
     @Rule TemporaryFolder tmpDir
     final def files = Native.get(Files.class)
 
@@ -28,7 +39,9 @@ class FilesTest extends AbstractFilesTest {
     }
 
     def "can stat a file"() {
-        def testFile = tmpDir.newFile(fileName)
+        def dir = tmpDir.newFolder()
+        def testFile = new File(dir, fileName)
+        testFile.parentFile.mkdirs()
         testFile.text = 'hi'
         def attributes = attributes(testFile)
 
@@ -42,7 +55,7 @@ class FilesTest extends AbstractFilesTest {
         toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
 
         where:
-        fileName << ["test.txt", "test\u03b1\u2295.txt"]
+        fileName << names
     }
 
     def "follow links has no effect for stat of a file"() {
@@ -64,7 +77,9 @@ class FilesTest extends AbstractFilesTest {
     }
 
     def "can stat a directory"() {
-        def testFile = tmpDir.newFolder(fileName)
+        def dir = tmpDir.newFolder()
+        def testFile = new File(dir, fileName)
+        testFile.mkdirs()
         def attributes = attributes(testFile)
 
         when:
@@ -77,7 +92,7 @@ class FilesTest extends AbstractFilesTest {
         toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
 
         where:
-        fileName << ["test-dir", "test\u03b1\u2295-dir"]
+        fileName << names
     }
 
     def "follow links has no effect for stat of a directory"() {
@@ -129,7 +144,7 @@ class FilesTest extends AbstractFilesTest {
         stat.lastModifiedTime == 0
 
         where:
-        fileName << ["test-dir", "test\u03b1\u2295-dir", "nested/dir"]
+        fileName << names
     }
 
     def "follow links has no effect for stat of a missing file"() {
@@ -147,8 +162,108 @@ class FilesTest extends AbstractFilesTest {
         followLinks << [true, false]
     }
 
+    def "can stat a changing file"() {
+        def dir = tmpDir.newFolder()
+        def testFile = new File(dir, "file")
+
+        when:
+        def stat = files.stat(testFile)
+
+        then:
+        stat.type == FileInfo.Type.Missing
+
+        when:
+        testFile.text = "123"
+        stat = files.stat(testFile)
+
+        then:
+        stat.type == FileInfo.Type.File
+        stat.size == 3
+
+        when:
+        testFile.text = "1"
+        stat = files.stat(testFile)
+
+        then:
+        stat.type == FileInfo.Type.File
+        stat.size == 1
+
+        when:
+        testFile.delete()
+        stat = files.stat(testFile)
+
+        then:
+        stat.type == FileInfo.Type.Missing
+
+        when:
+        testFile.mkdirs()
+        stat = files.stat(testFile)
+
+        then:
+        stat.type == FileInfo.Type.Directory
+    }
+
+    def "can stat a renamed file"() {
+        def dir = tmpDir.newFolder()
+        def testFile = new File(dir, "file")
+        testFile.text = "123"
+        def other = new File(dir, "renamed")
+
+        when:
+        def stat = files.stat(testFile)
+
+        then:
+        stat.type == FileInfo.Type.File
+        stat.size == 3
+
+        when:
+        testFile.renameTo(other)
+        stat = files.stat(other)
+
+        then:
+        stat.type == FileInfo.Type.File
+        stat.size == 3
+    }
+
+    def "can stat relative paths"() {
+        def thisDir = new File(".")
+        def parentDir = new File("..")
+
+        when:
+        def stat = files.stat(thisDir)
+
+        then:
+        stat.type == FileInfo.Type.Directory
+
+        when:
+        stat = files.stat(parentDir)
+
+        then:
+        stat.type == FileInfo.Type.Directory
+
+        when:
+        stat = files.stat(new File("../../" + parentDir.canonicalFile.name + "/" + thisDir.canonicalFile.name))
+
+        then:
+        stat.type == FileInfo.Type.Directory
+    }
+
+    @IgnoreIf({ !Platform.current().windows })
+    def "can stat file using UNC path"() {
+        def file = tmpDir.newFile()
+        def testFile = new File('\\\\localhost\\' + file.absolutePath.charAt(0) + '$\\' + file.absolutePath.substring(2))
+
+        when:
+        def stat = files.stat(testFile)
+
+        then:
+        stat.type == FileInfo.Type.File
+    }
+
     def "can list contents of an empty directory"() {
-        def testFile = tmpDir.newFolder(fileName)
+        def dir = tmpDir.newFolder()
+        def testFile = new File(dir, fileName)
+        testFile.mkdirs()
 
         when:
         def files = files.listDir(testFile)
@@ -157,15 +272,18 @@ class FilesTest extends AbstractFilesTest {
         files.size() == 0
 
         where:
-        fileName << ["test-dir", "test\u03b1\u2295-dir"]
+        fileName << names
     }
 
     def "can list contents of a directory"() {
-        def testFile = tmpDir.newFolder(fileName)
-        def childDir = new File(testFile, fileName + ".a")
+        def dir = tmpDir.newFolder()
+        def testFile = new File(dir, fileName)
+        testFile.mkdirs()
+
+        def childDir = new File(testFile, testFile.name + ".a")
         childDir.mkdirs()
         def childDirAttributes = attributes(childDir)
-        def childFile = new File(testFile, fileName + ".b")
+        def childFile = new File(testFile, testFile.name + ".b")
         childFile.text = 'contents'
         def childFileAttributes = attributes(childFile)
 
@@ -191,7 +309,7 @@ class FilesTest extends AbstractFilesTest {
         toJavaFileTime(fileEntry.lastModifiedTime) == childFile.lastModified()
 
         where:
-        fileName << ["test-dir", "test\u03b1\u2295-dir"]
+        fileName << names
     }
 
     def "follow links has no effect on list contents of a directory when the directory does not contain links"() {
@@ -250,7 +368,7 @@ class FilesTest extends AbstractFilesTest {
         e.message == "Could not list directory $testFile as this directory does not exist."
 
         where:
-        fileName << ["test-dir", "test\u03b1\u2295-dir", "nested/dir"]
+        fileName << names
     }
 
 }
