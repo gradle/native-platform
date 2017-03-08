@@ -17,14 +17,10 @@
 package net.rubygrapefruit.platform;
 
 /**
- * Base exception for native integration.
+ * Thrown when a native integration is not available due to a native linkage error.
  */
-public class NativeException extends RuntimeException {
-    public NativeException(String message, Throwable cause) {
+public class NativeIntegrationLinkageException extends NativeIntegrationUnavailableException {
+    public NativeIntegrationLinkageException(String message, Throwable cause) {
         super(message, cause);
-    }
-
-    public NativeException(String message) {
-        super(message);
     }
 }

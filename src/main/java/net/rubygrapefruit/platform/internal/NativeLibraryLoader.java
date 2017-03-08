@@ -17,6 +17,7 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
+import net.rubygrapefruit.platform.NativeIntegrationLinkageException;
 import net.rubygrapefruit.platform.NativeIntegrationUnavailableException;
 
 import java.io.File;
@@ -39,7 +40,7 @@ public class NativeLibraryLoader {
             return;
         }
         try {
-            Throwable loadFailure = null;
+            UnsatisfiedLinkError loadFailure = null;
             for (String platformId : platforms) {
                 File libFile = nativeLibraryLocator.find(new LibraryDef(libraryFileName, platformId));
                 if (libFile == null) {
@@ -57,7 +58,7 @@ public class NativeLibraryLoader {
                 return;
             }
             if (loadFailure != null) {
-                throw loadFailure;
+                throw new NativeIntegrationLinkageException(String.format("Native library '%s' could not be loaded for %s.", libraryFileName, platform), loadFailure);
             }
             throw new NativeIntegrationUnavailableException(String.format("Native library '%s' is not available for %s.", libraryFileName, platform));
         } catch (NativeException e) {

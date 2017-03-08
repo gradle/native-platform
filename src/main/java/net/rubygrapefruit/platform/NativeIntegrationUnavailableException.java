@@ -23,4 +23,8 @@ public class NativeIntegrationUnavailableException extends NativeException {
     public NativeIntegrationUnavailableException(String message) {
         super(message);
     }
+
+    public NativeIntegrationUnavailableException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

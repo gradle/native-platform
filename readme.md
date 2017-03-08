@@ -114,6 +114,8 @@ Some sample code to use the terminal:
 
 ### 0.14 (not released)
 
+* `NativeIntegrationLinkageException` is thrown by `Native.get()` when a particular native library cannot be loaded due to a linkage error.
+
 ### 0.13
 
 * Added overloads of `Files.stat()` and `Files.listDir()` that follow links.
