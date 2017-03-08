@@ -238,7 +238,7 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 1. Check the version number in `build.gradle`.
 2. Check that the native interface version has been incremented since last release, when changes have been made to native code.
 3. Create a tag and push.
-4. Build each variant:
+4. Build each variant. Note: for ensure linux ncurses6 is built before linux ncurses5
     1. Checkout tag.
     2. `./gradlew clean :test :uploadJni -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`.
 5. Build Java library:
