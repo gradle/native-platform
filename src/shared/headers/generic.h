@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-#define NATIVE_VERSION 24
+#define NATIVE_VERSION 25
 
 // Corresponds to values of FileInfo.Type
 #define FILE_TYPE_FILE 0
