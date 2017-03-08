@@ -12,6 +12,7 @@ These APIs support Java 5 and later. Some of these APIs overlap with APIs availa
 
 * Query kernel name and version.
 * Query machine architecture.
+* Query total and available memory (OS X only).
 
 See [SystemInfo](src/main/java/net/rubygrapefruit/platform/SystemInfo.java)
 
@@ -20,7 +21,7 @@ See [SystemInfo](src/main/java/net/rubygrapefruit/platform/SystemInfo.java)
 * Query the PID of the current process.
 * Query and set the process working directory.
 * Query and set the process environment variables.
-* Detatch process from its controlling console
+* Detach process from its controlling console
 
 See [Process](src/main/java/net/rubygrapefruit/platform/Process.java)
 
@@ -114,6 +115,7 @@ Some sample code to use the terminal:
 
 ### 0.14 (not released)
 
+* Added `Memory`, for OS X only. Thanks to [Paul Merlin](https://github.com/eskatos)
 * `NativeIntegrationLinkageException` is thrown by `Native.get()` when a particular native library cannot be loaded due to a linkage error.
 
 ### 0.13
