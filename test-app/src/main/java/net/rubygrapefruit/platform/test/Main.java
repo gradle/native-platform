@@ -171,6 +171,15 @@ public class Main {
                     fileSystem.getMountPoint(), fileSystem.getDeviceName(), fileSystem.getFileSystemType(),
                     fileSystem.isRemote() ? "remote" : "local", fileSystem.isCaseSensitive(), fileSystem.isCasePreserving()));
         }
+
+        try {
+            MemoryInfo memory = Native.get(Memory.class).getMemoryInfo();
+            System.out.println("* Available memory: " + memory.getAvailablePhysicalMemory());
+            System.out.println("* Total memory: " + memory.getTotalPhysicalMemory());
+        } catch (NativeIntegrationUnavailableException e) {
+            // ignore
+        }
+
         System.out.println();
     }
 
