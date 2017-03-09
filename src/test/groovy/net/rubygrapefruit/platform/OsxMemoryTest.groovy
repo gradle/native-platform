@@ -16,9 +16,6 @@
 
 package net.rubygrapefruit.platform
 
-import java.lang.management.ManagementFactory
-import java.util.regex.Matcher
-import java.util.regex.Pattern
 import net.rubygrapefruit.platform.internal.DefaultOsxMemoryInfo
 import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.Ignore
@@ -26,7 +23,11 @@ import spock.lang.IgnoreIf
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
 
-@IgnoreIf({Platform.current().linux || Platform.current().windows})
+import java.lang.management.ManagementFactory
+import java.util.regex.Matcher
+import java.util.regex.Pattern
+
+@IgnoreIf({ !Platform.current().macOs })
 class OsxMemoryTest extends Specification {
 
   def "caches memory instance"() {

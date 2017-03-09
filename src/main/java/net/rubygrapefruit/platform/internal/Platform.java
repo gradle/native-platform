@@ -47,9 +47,9 @@ public abstract class Platform {
                     }
                 } else if (osName.contains("os x") || osName.contains("darwin")) {
                     if (arch.equals("i386")) {
-                        platform = new OsX32Bit();
+                        platform = new MacOs32Bit();
                     } else if (arch.equals("x86_64") || arch.equals("amd64") || arch.equals("universal")) {
-                        platform = new OsX64Bit();
+                        platform = new MacOs64Bit();
                     }
                 } else if (osName.contains("freebsd")) {
                     if (arch.equals("amd64")) {
@@ -67,6 +67,10 @@ public abstract class Platform {
     }
 
     public boolean isLinux() {
+        return false;
+    }
+
+    public boolean isMacOs() {
         return false;
     }
 
@@ -288,7 +292,12 @@ public abstract class Platform {
         }
     }
 
-    private static abstract class OsX extends Posix {
+    private static abstract class MacOs extends Posix {
+        @Override
+        public boolean isMacOs() {
+            return true;
+        }
+
         @Override
         public String getLibraryName() {
             return "libnative-platform.dylib";
@@ -311,14 +320,14 @@ public abstract class Platform {
         }
     }
 
-    private static class OsX32Bit extends OsX {
+    private static class MacOs32Bit extends MacOs {
         @Override
         public String getId() {
             return "osx-i386";
         }
     }
 
-    private static class OsX64Bit extends OsX {
+    private static class MacOs64Bit extends MacOs {
         @Override
         public String getId() {
             return "osx-amd64";
