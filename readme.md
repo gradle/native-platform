@@ -89,7 +89,7 @@ this:
     }
 
     dependencies {
-        compile "net.rubygrapefruit:native-platform:0.13"
+        compile "net.rubygrapefruit:native-platform:0.14"
     }
 
 You can also download [here](https://repo.gradle.org/gradle/libs-releases-local/net/rubygrapefruit/)
@@ -113,7 +113,9 @@ Some sample code to use the terminal:
 
 ## Changes
 
-### 0.14 (not released)
+### 0.15 (not released)
+
+### 0.14
 
 * Added `Memory`, for OS X only. Thanks to [Paul Merlin](https://github.com/eskatos)
 * `NativeIntegrationLinkageException` is thrown by `Native.get()` when a particular native library cannot be loaded due to a linkage error.
@@ -249,7 +251,8 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
     2. `./gradlew clean :testApp:uploadArchives -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`
 7. Checkout master
 8. Increment version number in `build.gradle` and this readme.
-9. Push changes.
+9. Increment version number in `generic.h`.
+10. Push changes.
 
 Use `-Psnapshot` instead of `-Prelease` to publish a dev version.
 
