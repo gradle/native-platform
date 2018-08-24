@@ -115,6 +115,8 @@ Some sample code to use the terminal:
 
 ### 0.15 (not released)
 
+* Added methods to `Terminal` to write text to the terminal. Anything written to `System.out` or `System.err` is no longer automatically flushed before cursor or text attributes are changed.
+
 ### 0.14
 
 * Added `Memory`, for OS X only. Thanks to [Paul Merlin](https://github.com/eskatos)
