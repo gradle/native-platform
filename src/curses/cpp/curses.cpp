@@ -42,45 +42,60 @@
 #define TERMINAL_CHAR_TYPE int
 #endif
 
-int current_terminal = -1;
 const char* terminal_capabilities[9];
-
-int write_to_terminal(TERMINAL_CHAR_TYPE ch) {
-    write(current_terminal, &ch, 1);
-    return ch;
-}
 
 const char* getcap(const char* capability) {
     return tgetstr((char*)capability, NULL);
 }
 
-void write_capability(JNIEnv *env, const char* capability, jobject result) {
-    if (capability == NULL) {
-        mark_failed_with_message(env, "unknown terminal capability", result);
-        return;
+#define BUFFER_LEN 20
+
+int is_init = 0;
+int buffer_pos = 0;
+jbyte buffer[BUFFER_LEN];
+
+int write_to_buffer(TERMINAL_CHAR_TYPE ch) {
+    if (buffer_pos == BUFFER_LEN) {
+        return EOF;
     }
-    if (tputs((char*)capability, 1, write_to_terminal) == ERR) {
-        mark_failed_with_message(env, "could not write to terminal", result);
-        return;
-    }
+
+    buffer[buffer_pos] = ch;
+    buffer_pos++;
+
+    return ch;
 }
 
-void write_param_capability(JNIEnv *env, const char* capability, int count, jobject result) {
+jbyteArray byte_array_for_capability(JNIEnv *env, const char* capability, jobject result) {
+    buffer_pos = 0;
+    if (tputs((char*)capability, 1, write_to_buffer) == ERR) {
+        mark_failed_with_message(env, "could not write to buffer", result);
+        return NULL;
+    }
+    jbyteArray bytes = env->NewByteArray(buffer_pos);
+    env->SetByteArrayRegion(bytes, 0, buffer_pos, buffer);
+    return bytes;
+}
+
+jbyteArray read_capability(JNIEnv *env, const char* capability, jobject result) {
     if (capability == NULL) {
         mark_failed_with_message(env, "unknown terminal capability", result);
-        return;
+        return NULL;
+    }
+    return byte_array_for_capability(env, capability, result);
+}
+
+jbyteArray read_param_capability(JNIEnv *env, const char* capability, int count, jobject result) {
+    if (capability == NULL) {
+        mark_failed_with_message(env, "unknown terminal capability", result);
+        return NULL;
     }
 
     capability = tparm((char*)capability, count, 0, 0, 0, 0, 0, 0, 0, 0);
     if (capability == NULL) {
         mark_failed_with_message(env, "could not format terminal capability string", result);
-        return;
+        return NULL;
     }
-
-    if (tputs((char*)capability, 1, write_to_terminal) == ERR) {
-        mark_failed_with_message(env, "could not write to terminal", result);
-        return;
-    }
+    return byte_array_for_capability(env, capability, result);
 }
 
 JNIEXPORT jint JNICALL
@@ -94,7 +109,7 @@ Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_initTerminal(JNI
         mark_failed_with_message(env, "not a terminal", result);
         return;
     }
-    if (current_terminal < 0) {
+    if (is_init == 0) {
         char* termType = getenv("TERM");
         if (termType == NULL) {
             mark_failed_with_message(env, "$TERM not set", result);
@@ -137,65 +152,56 @@ Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_initTerminal(JNI
                                 && terminal_capabilities[CURSOR_START_LINE] != NULL
                                 && terminal_capabilities[CLEAR_END_OF_LINE] != NULL);
     }
-    current_terminal = output + 1;
-    if (terminal_capabilities[NORMAL_TEXT] != NULL) {
-        write_capability(env, terminal_capabilities[NORMAL_TEXT], result);
-    }
+    is_init = 1;
 }
 
-JNIEXPORT void JNICALL
+JNIEXPORT jbyteArray JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_bold(JNIEnv *env, jclass target, jobject result) {
-    write_capability(env, terminal_capabilities[BRIGHT_TEXT], result);
+    return read_capability(env, terminal_capabilities[BRIGHT_TEXT], result);
 }
 
-JNIEXPORT void JNICALL
+JNIEXPORT jbyteArray JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_reset(JNIEnv *env, jclass target, jobject result) {
     if (terminal_capabilities[NORMAL_TEXT] != NULL) {
-        write_capability(env, terminal_capabilities[NORMAL_TEXT], result);
+        return read_capability(env, terminal_capabilities[NORMAL_TEXT], result);
+    } else {
+        return NULL;
     }
 }
 
-JNIEXPORT void JNICALL
+JNIEXPORT jbyteArray JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_foreground(JNIEnv *env, jclass target, jint color, jobject result) {
-    write_param_capability(env, terminal_capabilities[FOREGROUND_COLOR], color, result);
+    return read_param_capability(env, terminal_capabilities[FOREGROUND_COLOR], color, result);
 }
 
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_up(JNIEnv *env, jclass target, jint count, jobject result) {
-    for (jint i = 0; i < count; i++) {
-        write_capability(env, terminal_capabilities[CURSOR_UP], result);
-    }
+JNIEXPORT jbyteArray JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_up(JNIEnv *env, jclass target, jobject result) {
+    return read_capability(env, terminal_capabilities[CURSOR_UP], result);
 }
 
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_down(JNIEnv *env, jclass target, jint count, jobject result) {
-    for (jint i = 0; i < count; i++) {
-        write_capability(env, terminal_capabilities[CURSOR_DOWN], result);
-    }
+JNIEXPORT jbyteArray JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_down(JNIEnv *env, jclass target, jobject result) {
+    return read_capability(env, terminal_capabilities[CURSOR_DOWN], result);
 }
 
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_left(JNIEnv *env, jclass target, jint count, jobject result) {
-    for (jint i = 0; i < count; i++) {
-        write_capability(env, terminal_capabilities[CURSOR_LEFT], result);
-    }
+JNIEXPORT jbyteArray JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_left(JNIEnv *env, jclass target, jobject result) {
+    return read_capability(env, terminal_capabilities[CURSOR_LEFT], result);
 }
 
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_right(JNIEnv *env, jclass target, jint count, jobject result) {
-    for (jint i = 0; i < count; i++) {
-        write_capability(env, terminal_capabilities[CURSOR_RIGHT], result);
-    }
+JNIEXPORT jbyteArray JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_right(JNIEnv *env, jclass target, jobject result) {
+    return read_capability(env, terminal_capabilities[CURSOR_RIGHT], result);
 }
 
-JNIEXPORT void JNICALL
+JNIEXPORT jbyteArray JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_startLine(JNIEnv *env, jclass target, jobject result) {
-    write_capability(env, terminal_capabilities[CURSOR_START_LINE], result);
+    return read_capability(env, terminal_capabilities[CURSOR_START_LINE], result);
 }
 
-JNIEXPORT void JNICALL
+JNIEXPORT jbyteArray JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_clearToEndOfLine(JNIEnv *env, jclass target, jobject result) {
-    write_capability(env, terminal_capabilities[CLEAR_END_OF_LINE], result);
+    return read_capability(env, terminal_capabilities[CLEAR_END_OF_LINE], result);
 }
 
 #endif

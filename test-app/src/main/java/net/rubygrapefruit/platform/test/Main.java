@@ -130,7 +130,8 @@ public class Main {
                 terminal.cursorLeft(13);
                 System.out.print("[1]");
                 terminal.cursorLeft(3);
-                terminal.cursorDown(1);
+                terminal.cursorUp(2);
+                terminal.cursorDown(3);
                 System.out.print("[3]");
                 terminal.cursorDown(1);
                 terminal.cursorStartOfLine();

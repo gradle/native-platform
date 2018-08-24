@@ -27,21 +27,22 @@ public class TerminfoFunctions {
      */
     public static native void initTerminal(int filedes, TerminalCapabilities terminalCapabilities, FunctionResult result);
 
-    public static native void bold(FunctionResult result);
+    public static native byte[] bold(FunctionResult result);
 
-    public static native void reset(FunctionResult result);
+    // May be null
+    public static native byte[] reset(FunctionResult result);
 
-    public static native void foreground(int ansiColor, FunctionResult result);
+    public static native byte[] foreground(int ansiColor, FunctionResult result);
 
-    public static native void left(int count, FunctionResult result);
+    public static native byte[] left(FunctionResult result);
 
-    public static native void right(int count, FunctionResult result);
+    public static native byte[] right(FunctionResult result);
 
-    public static native void up(int count, FunctionResult result);
+    public static native byte[] up(FunctionResult result);
 
-    public static native void down(int count, FunctionResult result);
+    public static native byte[] down(FunctionResult result);
 
-    public static native void startLine(FunctionResult result);
+    public static native byte[] startLine(FunctionResult result);
 
-    public static native void clearToEndOfLine(FunctionResult result);
+    public static native byte[] clearToEndOfLine(FunctionResult result);
 }

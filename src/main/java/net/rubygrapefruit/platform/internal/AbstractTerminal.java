@@ -25,11 +25,16 @@ public abstract class AbstractTerminal implements Terminal {
     protected abstract void init();
 
     public Terminal write(String text) throws NativeException {
+        byte[] bytes = text.getBytes();
+        write(bytes);
+        return this;
+    }
+
+    protected void write(byte[] bytes) {
         try {
-            getOutputStream().write(text.getBytes());
+            getOutputStream().write(bytes);
         } catch (IOException e) {
             throw new NativeException("Could not write to output stream.", e);
         }
-        return this;
     }
 }
