@@ -23,13 +23,20 @@ import net.rubygrapefruit.platform.Terminals;
 import net.rubygrapefruit.platform.internal.jni.PosixTerminalFunctions;
 import net.rubygrapefruit.platform.internal.jni.TerminfoFunctions;
 
+import java.io.FileDescriptor;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
+
 public class TerminfoTerminal extends AbstractTerminal {
     private final Terminals.Output output;
     private final TerminalCapabilities capabilities = new TerminalCapabilities();
+    private final OutputStream outputStream;
+    private final Object lock = new Object();
     private Color foreground;
 
     public TerminfoTerminal(Terminals.Output output) {
         this.output = output;
+        this.outputStream = new FileOutputStream(output == Terminals.Output.Stdout ? FileDescriptor.out : FileDescriptor.err);
     }
 
     @Override
@@ -43,21 +50,25 @@ public class TerminfoTerminal extends AbstractTerminal {
 
     @Override
     protected void init() {
-        FunctionResult result = new FunctionResult();
-        TerminfoFunctions.initTerminal(output.ordinal(), capabilities, result);
-        if (result.isFailed()) {
-            throw new NativeException(String.format("Could not open terminal for %s: %s", getOutputDisplay(), result.getMessage()));
+        synchronized (lock) {
+            FunctionResult result = new FunctionResult();
+            TerminfoFunctions.initTerminal(output.ordinal(), capabilities, result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not open terminal for %s: %s", getOutputDisplay(), result.getMessage()));
+            }
         }
     }
 
     public TerminalSize getTerminalSize() {
-        MutableTerminalSize terminalSize = new MutableTerminalSize();
-        FunctionResult result = new FunctionResult();
-        PosixTerminalFunctions.getTerminalSize(output.ordinal(), terminalSize, result);
-        if (result.isFailed()) {
-            throw new NativeException(String.format("Could not get terminal size for %s: %s", getOutputDisplay(), result.getMessage()));
+        synchronized (lock) {
+            MutableTerminalSize terminalSize = new MutableTerminalSize();
+            FunctionResult result = new FunctionResult();
+            PosixTerminalFunctions.getTerminalSize(output.ordinal(), terminalSize, result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not get terminal size for %s: %s", getOutputDisplay(), result.getMessage()));
+            }
+            return terminalSize;
         }
-        return terminalSize;
     }
 
     public boolean supportsColor() {
@@ -72,18 +83,24 @@ public class TerminfoTerminal extends AbstractTerminal {
         return capabilities.textAttributes;
     }
 
+    public OutputStream getOutputStream() {
+        return outputStream;
+    }
+
     public Terminal foreground(Color color) {
         if (!capabilities.colors) {
             return this;
         }
 
-        FunctionResult result = new FunctionResult();
-        TerminfoFunctions.foreground(color.ordinal(), result);
-        if (result.isFailed()) {
-            throw new NativeException(String.format("Could not switch foreground color for %s: %s", getOutputDisplay(),
-                    result.getMessage()));
+        synchronized (lock) {
+            FunctionResult result = new FunctionResult();
+            TerminfoFunctions.foreground(color.ordinal(), result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not switch foreground color for %s: %s", getOutputDisplay(),
+                        result.getMessage()));
+            }
+            foreground = color;
         }
-        foreground = color;
         return this;
     }
 
@@ -92,82 +109,100 @@ public class TerminfoTerminal extends AbstractTerminal {
             return this;
         }
 
-        FunctionResult result = new FunctionResult();
-        TerminfoFunctions.bold(result);
-        if (result.isFailed()) {
-            throw new NativeException(String.format("Could not switch to bold mode for %s: %s", getOutputDisplay(),
-                    result.getMessage()));
+        synchronized (lock) {
+            FunctionResult result = new FunctionResult();
+            TerminfoFunctions.bold(result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not switch to bold mode for %s: %s", getOutputDisplay(),
+                        result.getMessage()));
+            }
         }
         return this;
     }
 
     public Terminal normal() {
-        reset();
-        if (foreground != null) {
-            foreground(foreground);
+        synchronized (lock) {
+            reset();
+            if (foreground != null) {
+                foreground(foreground);
+            }
         }
         return this;
     }
 
     public Terminal reset() {
-        FunctionResult result = new FunctionResult();
-        TerminfoFunctions.reset(result);
-        if (result.isFailed()) {
-            throw new NativeException(String.format("Could not reset terminal for %s: %s", getOutputDisplay(), result.getMessage()));
+        synchronized (lock) {
+            FunctionResult result = new FunctionResult();
+            TerminfoFunctions.reset(result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not reset terminal for %s: %s", getOutputDisplay(), result.getMessage()));
+            }
         }
         return this;
     }
 
     public Terminal cursorDown(int count) {
-        FunctionResult result = new FunctionResult();
-        TerminfoFunctions.down(count, result);
-        if (result.isFailed()) {
-            throw new NativeException(String.format("Could not move cursor down for %s: %s", getOutputDisplay(), result.getMessage()));
+        synchronized (lock) {
+            FunctionResult result = new FunctionResult();
+            TerminfoFunctions.down(count, result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not move cursor down for %s: %s", getOutputDisplay(), result.getMessage()));
+            }
         }
         return this;
     }
 
     public Terminal cursorUp(int count) {
-        FunctionResult result = new FunctionResult();
-        TerminfoFunctions.up(count, result);
-        if (result.isFailed()) {
-            throw new NativeException(String.format("Could not move cursor up for %s: %s", getOutputDisplay(), result.getMessage()));
+        synchronized (lock) {
+            FunctionResult result = new FunctionResult();
+            TerminfoFunctions.up(count, result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not move cursor up for %s: %s", getOutputDisplay(), result.getMessage()));
+            }
         }
         return this;
     }
 
     public Terminal cursorLeft(int count) {
-        FunctionResult result = new FunctionResult();
-        TerminfoFunctions.left(count, result);
-        if (result.isFailed()) {
-            throw new NativeException(String.format("Could not move cursor left for %s: %s", getOutputDisplay(), result.getMessage()));
+        synchronized (lock) {
+            FunctionResult result = new FunctionResult();
+            TerminfoFunctions.left(count, result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not move cursor left for %s: %s", getOutputDisplay(), result.getMessage()));
+            }
         }
         return this;
     }
 
     public Terminal cursorRight(int count) {
-        FunctionResult result = new FunctionResult();
-        TerminfoFunctions.right(count, result);
-        if (result.isFailed()) {
-            throw new NativeException(String.format("Could not move cursor right for %s: %s", getOutputDisplay(), result.getMessage()));
+        synchronized (lock) {
+            FunctionResult result = new FunctionResult();
+            TerminfoFunctions.right(count, result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not move cursor right for %s: %s", getOutputDisplay(), result.getMessage()));
+            }
         }
         return this;
     }
 
     public Terminal cursorStartOfLine() throws NativeException {
-        FunctionResult result = new FunctionResult();
-        TerminfoFunctions.startLine(result);
-        if (result.isFailed()) {
-            throw new NativeException(String.format("Could not move cursor to start of line for %s: %s", getOutputDisplay(), result.getMessage()));
+        synchronized (lock) {
+            FunctionResult result = new FunctionResult();
+            TerminfoFunctions.startLine(result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not move cursor to start of line for %s: %s", getOutputDisplay(), result.getMessage()));
+            }
         }
         return this;
     }
 
     public Terminal clearToEndOfLine() throws NativeException {
-        FunctionResult result = new FunctionResult();
-        TerminfoFunctions.clearToEndOfLine(result);
-        if (result.isFailed()) {
-            throw new NativeException(String.format("Could not clear to end of line for %s: %s", getOutputDisplay(), result.getMessage()));
+        synchronized (lock) {
+            FunctionResult result = new FunctionResult();
+            TerminfoFunctions.clearToEndOfLine(result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not clear to end of line for %s: %s", getOutputDisplay(), result.getMessage()));
+            }
         }
         return this;
     }

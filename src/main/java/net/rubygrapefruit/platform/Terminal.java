@@ -16,6 +16,8 @@
 
 package net.rubygrapefruit.platform;
 
+import java.io.OutputStream;
+
 /**
  * Allows the terminal/console to be manipulated.
  *
@@ -59,6 +61,20 @@ public interface Terminal {
      */
     @ThreadSafe
     TerminalSize getTerminalSize() throws NativeException;
+
+    /**
+     * Returns an {@link OutputStream} that writes to this terminal. The output stream is not buffered.
+     */
+    @ThreadSafe
+    OutputStream getOutputStream();
+
+    /**
+     * Writes some text to this terminal.
+     *
+     * @throws NativeException On failure.
+     */
+    @ThreadSafe
+    Terminal write(String text) throws NativeException;
 
     /**
      * Sets the terminal foreground color, if supported. Does nothing if this terminal does not support setting the

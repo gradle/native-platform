@@ -16,8 +16,20 @@
 
 package net.rubygrapefruit.platform.internal;
 
+import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.Terminal;
+
+import java.io.IOException;
 
 public abstract class AbstractTerminal implements Terminal {
     protected abstract void init();
+
+    public Terminal write(String text) throws NativeException {
+        try {
+            getOutputStream().write(text.getBytes());
+        } catch (IOException e) {
+            throw new NativeException("Could not write to output stream.", e);
+        }
+        return this;
+    }
 }

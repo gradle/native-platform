@@ -24,6 +24,7 @@ import net.rubygrapefruit.platform.Process;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -84,6 +85,7 @@ public class Main {
         System.out.println("* Stderr: " + (stderrIsTerminal ? "terminal" : "not a terminal"));
         if (stdoutIsTerminal) {
             Terminal terminal = terminals.getTerminal(Terminals.Output.Stdout);
+            System.setOut(new PrintStream(terminal.getOutputStream(), true));
             TerminalSize terminalSize = terminal.getTerminalSize();
             System.out.println("* Terminal implementation: " + terminal);
             System.out.println("* Terminal size: " + terminalSize.getCols() + " cols x " + terminalSize.getRows() + " rows");
@@ -139,8 +141,18 @@ public class Main {
                 terminal.reset();
                 System.out.println();
             }
+
+            System.out.print("Can write ");
+            terminal.bold().foreground(Terminal.Color.Blue).write("\u03B1\u03B2\u03B3");
+            terminal.reset();
+            System.out.print(" unicode ");
+            terminal.foreground(Terminal.Color.Green);
+            System.out.println("\u2714");
+            terminal.reset();
+            System.out.println();
         } else if (stderrIsTerminal) {
             Terminal terminal = terminals.getTerminal(Terminals.Output.Stderr);
+            System.setErr(new PrintStream(terminal.getOutputStream(), true));
             System.err.print("* this is ");
             terminal.bold().foreground(Terminal.Color.Red);
             System.err.print("red");

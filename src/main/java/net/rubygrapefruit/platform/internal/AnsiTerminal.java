@@ -67,11 +67,14 @@ public class AnsiTerminal extends AbstractTerminal {
         return new MutableTerminalSize();
     }
 
+    public OutputStream getOutputStream() {
+        return outputStream;
+    }
+
     public Terminal foreground(Color color) throws NativeException {
         try {
             String esc = String.format("\u001b[%sm", 30 + color.ordinal());
             outputStream.write(esc.getBytes());
-            outputStream.flush();
         } catch (IOException e) {
             throw new NativeException(String.format("Could not set foreground color on %s.", getOutputDisplay()), e);
         }
@@ -82,7 +85,6 @@ public class AnsiTerminal extends AbstractTerminal {
     public Terminal bold() throws NativeException {
         try {
             outputStream.write(BOLD);
-            outputStream.flush();
         } catch (IOException e) {
             throw new NativeException(String.format("Could not switch to bold output on %s.", getOutputDisplay()), e);
         }
@@ -92,7 +94,6 @@ public class AnsiTerminal extends AbstractTerminal {
     public Terminal normal() throws NativeException {
         try {
             outputStream.write(RESET);
-            outputStream.flush();
         } catch (IOException e) {
             throw new NativeException(String.format("Could not switch to normal output on %s.", getOutputDisplay()), e);
         }
@@ -105,7 +106,6 @@ public class AnsiTerminal extends AbstractTerminal {
     public Terminal reset() throws NativeException {
         try {
             outputStream.write(RESET);
-            outputStream.flush();
         } catch (IOException e) {
             throw new NativeException(String.format("Could not reset output on %s.", getOutputDisplay()), e);
         }
@@ -116,7 +116,6 @@ public class AnsiTerminal extends AbstractTerminal {
         try {
             String esc = String.format("\u001b[%sD", count);
             outputStream.write(esc.getBytes());
-            outputStream.flush();
         } catch (IOException e) {
             throw new NativeException(String.format("Could not move cursor on %s.", getOutputDisplay()), e);
         }
@@ -127,7 +126,6 @@ public class AnsiTerminal extends AbstractTerminal {
         try {
             String esc = String.format("\u001b[%sC", count);
             outputStream.write(esc.getBytes());
-            outputStream.flush();
         } catch (IOException e) {
             throw new NativeException(String.format("Could not move cursor on %s.", getOutputDisplay()), e);
         }
@@ -138,7 +136,6 @@ public class AnsiTerminal extends AbstractTerminal {
         try {
             String esc = String.format("\u001b[%sA", count);
             outputStream.write(esc.getBytes());
-            outputStream.flush();
         } catch (IOException e) {
             throw new NativeException(String.format("Could not move cursor on %s.", getOutputDisplay()), e);
         }
@@ -149,7 +146,6 @@ public class AnsiTerminal extends AbstractTerminal {
         try {
             String esc = String.format("\u001b[%sB", count);
             outputStream.write(esc.getBytes());
-            outputStream.flush();
         } catch (IOException e) {
             throw new NativeException(String.format("Could not move cursor on %s.", getOutputDisplay()), e);
         }
@@ -159,7 +155,6 @@ public class AnsiTerminal extends AbstractTerminal {
     public Terminal cursorStartOfLine() throws NativeException {
         try {
             outputStream.write(START_OF_LINE);
-            outputStream.flush();
         } catch (IOException e) {
             throw new NativeException(String.format("Could not move cursor on %s.", getOutputDisplay()), e);
         }
@@ -169,7 +164,6 @@ public class AnsiTerminal extends AbstractTerminal {
     public Terminal clearToEndOfLine() throws NativeException {
         try {
             outputStream.write(CLEAR_TO_END_OF_LINE);
-            outputStream.flush();
         } catch (IOException e) {
             throw new NativeException(String.format("Could not clear to end of line on %s.", getOutputDisplay()), e);
         }
