@@ -16,13 +16,16 @@
 
 package net.rubygrapefruit.platform.internal;
 
+import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.Terminal;
+import net.rubygrapefruit.platform.TerminalInput;
 import net.rubygrapefruit.platform.Terminals;
 
 public abstract class AbstractTerminals implements Terminals {
     private final Object lock = new Object();
     private Output currentlyOpen;
-    private AbstractTerminal current;
+    private AbstractTerminal currentOutput;
+    private TerminalInput currentInput;
 
     public Terminal getTerminal(Output output) {
         synchronized (lock) {
@@ -30,7 +33,7 @@ public abstract class AbstractTerminals implements Terminals {
                 throw new UnsupportedOperationException("Currently only one output can be used as a terminal.");
             }
 
-            if (current == null) {
+            if (currentOutput == null) {
                 final AbstractTerminal terminal = createTerminal(output);
                 terminal.init();
                 Runtime.getRuntime().addShutdownHook(new Thread(){
@@ -40,12 +43,30 @@ public abstract class AbstractTerminals implements Terminals {
                     }
                 });
                 currentlyOpen = output;
-                current = terminal;
+                currentOutput = terminal;
             }
 
-            return current;
+            return currentOutput;
         }
     }
+
+    @Override
+    public TerminalInput getTerminalInput() throws NativeException {
+        synchronized (lock) {
+            if (currentInput == null) {
+                currentInput = createInput();
+                Runtime.getRuntime().addShutdownHook(new Thread(){
+                    @Override
+                    public void run() {
+                        currentInput.reset();
+                    }
+                });
+            }
+            return currentInput;
+        }
+    }
+
+    protected abstract TerminalInput createInput();
 
     protected abstract AbstractTerminal createTerminal(Output output);
 }

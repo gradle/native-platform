@@ -208,7 +208,7 @@ public abstract class Platform {
                             "Unexpected native library version loaded. Expected %s, was %s.", nativeVersion,
                             NativeLibraryFunctions.VERSION));
                 }
-                return type.cast(new TerminfoTerminals());
+                return type.cast(new PosixTerminals());
             }
             if (type.equals(SystemInfo.class)) {
                 return type.cast(new DefaultSystemInfo());

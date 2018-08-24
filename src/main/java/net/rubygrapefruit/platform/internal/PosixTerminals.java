@@ -17,10 +17,11 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
+import net.rubygrapefruit.platform.TerminalInput;
 import net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions;
 import net.rubygrapefruit.platform.internal.jni.PosixTerminalFunctions;
 
-public class TerminfoTerminals extends AbstractTerminals {
+public class PosixTerminals extends AbstractTerminals {
     public boolean isTerminal(Output output) {
         switch (output) {
             case Stdout:
@@ -35,6 +36,11 @@ public class TerminfoTerminals extends AbstractTerminals {
     @Override
     public boolean isTerminalInput() throws NativeException {
         return PosixTerminalFunctions.isatty(NativeLibraryFunctions.STDIN);
+    }
+
+    @Override
+    protected TerminalInput createInput() {
+        return new PosixTerminalInput();
     }
 
     @Override

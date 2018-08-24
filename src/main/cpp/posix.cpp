@@ -30,6 +30,7 @@
 #include <sys/utsname.h>
 #include <dirent.h>
 #include <string.h>
+#include <termios.h>
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getSystemInfo(JNIEnv *env, jclass target, jobject info, jobject result) {
@@ -374,6 +375,29 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixTerminalFunctions_getTerminal
     env->SetIntField(dimension, widthField, screen_size.ws_col);
     jfieldID heightField = env->GetFieldID(dimensionClass, "rows", "I");
     env->SetIntField(dimension, heightField, screen_size.ws_row);
+}
+
+int input_init = 0;
+struct termios original_input_mode;
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixTerminalFunctions_rawInputMode(JNIEnv *env, jclass target, jobject result) {
+    if (input_init == 0) {
+        tcgetattr( STDIN_FILENO, &original_input_mode);
+        input_init = 1;
+    }
+    struct termios new_mode;
+    new_mode = original_input_mode;
+    new_mode.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr( STDIN_FILENO, TCSANOW, &new_mode);
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixTerminalFunctions_resetInputMode(JNIEnv *env, jclass target, jobject result) {
+    if (input_init == 0) {
+        return;
+    }
+    tcsetattr( STDIN_FILENO, TCSANOW, &original_input_mode);
 }
 
 #endif

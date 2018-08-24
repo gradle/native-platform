@@ -460,6 +460,34 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_getConsole
     env->SetIntField(dimension, heightField, console_info.srWindow.Bottom - console_info.srWindow.Top + 1);
 }
 
+HANDLE console_buffer = NULL;
+DWORD original_mode = 0;
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_rawInputMode(JNIEnv *env, jclass target, jobject result) {
+    if (console_buffer == NULL) {
+        console_buffer = GetStdHandle(STD_INPUT_HANDLE);
+        if (!GetConsoleMode(console_buffer, &original_mode)) {
+            mark_failed_with_errno(env, "could not get console buffer mode", result);
+            return;
+        }
+    }
+    DWORD mode = original_mode & ~(ENABLE_ECHO_INPUT | ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT);
+    if (!SetConsoleMode(console_buffer, mode)) {
+        mark_failed_with_errno(env, "could not set console buffer mode", result);
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_resetInputMode(JNIEnv *env, jclass target, jobject result) {
+    if (console_buffer == NULL) {
+        return;
+    }
+    if (!SetConsoleMode(console_buffer, original_mode)) {
+        mark_failed_with_errno(env, "could not set console buffer mode", result);
+    }
+}
+
 HANDLE current_console = NULL;
 WORD original_attributes = 0;
 WORD current_attributes = 0;

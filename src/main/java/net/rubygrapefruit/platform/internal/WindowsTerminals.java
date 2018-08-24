@@ -17,6 +17,7 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
+import net.rubygrapefruit.platform.TerminalInput;
 import net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions;
 import net.rubygrapefruit.platform.internal.jni.WindowsConsoleFunctions;
 
@@ -40,6 +41,11 @@ public class WindowsTerminals extends AbstractTerminals {
             throw new NativeException(String.format("Could not determine if stdin is a console: %s", result.getMessage()));
         }
         return console;
+    }
+
+    @Override
+    protected TerminalInput createInput() {
+        return new WindowsTerminalInput();
     }
 
     @Override

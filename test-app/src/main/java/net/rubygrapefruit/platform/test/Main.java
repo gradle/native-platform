@@ -38,6 +38,7 @@ public class Main {
         optionParser.accepts("watch", "Watches for changes to the specified file or directory").withRequiredArg();
         optionParser.accepts("machine", "Display details about the current machine");
         optionParser.accepts("terminal", "Display details about the terminal");
+        optionParser.accepts("input", "Reads input from the terminal");
 
         OptionSet result = null;
         try {
@@ -70,6 +71,11 @@ public class Main {
 
         if (result.has("machine")) {
             machine();
+            return;
+        }
+
+        if (result.has("input")) {
+            input();
             return;
         }
 
@@ -166,6 +172,39 @@ public class Main {
             terminal.reset();
             System.err.println(".");
         }
+    }
+
+    private static void input() throws IOException {
+        System.out.println();
+        Terminals terminals = Native.get(Terminals.class);
+        if (!terminals.isTerminalInput()) {
+            System.out.println("* Not attached to terminal.");
+            return;
+        }
+        TerminalInput terminalInput = terminals.getTerminalInput();
+        System.out.println("* Using processed mode");
+        System.out.print("Enter some text: ");
+        StringBuilder builder = new StringBuilder();
+        while (true) {
+            int ch = terminalInput.getInputStream().read();
+            if (ch < 0 || ch == '\n') {
+                break;
+            }
+            builder.append((char) ch);
+        }
+        System.out.println("Text: " + builder.toString());
+        System.out.println("* Using raw mode");
+        terminalInput.rawMode();
+        System.out.println("Enter some text: ");
+        while (true) {
+            int ch = terminalInput.getInputStream().read();
+            if (ch < 0 || ch == '\n') {
+                break;
+            }
+            System.out.println("Character: " + (char) ch);
+        }
+        terminalInput.reset();
+        System.out.println();
     }
 
     private static void machine() {

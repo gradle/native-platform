@@ -26,6 +26,10 @@ public class WindowsConsoleFunctions {
 
     public static native void initConsole(int filedes, FunctionResult result);
 
+    public static native void rawInputMode(FunctionResult result);
+
+    public static native void resetInputMode(FunctionResult result);
+
     public static native void bold(FunctionResult result);
 
     public static native void normal(FunctionResult result);

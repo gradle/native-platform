@@ -52,4 +52,13 @@ public interface Terminals extends NativeIntegration {
      */
     @ThreadSafe
     Terminal getTerminal(Output output) throws NativeException;
+
+    /**
+     * Returns the terminal attached to system input
+     *
+     * @return The terminal. Never returns null.
+     * @throws NativeException When the output is not attached to a terminal.
+     */
+    @ThreadSafe
+    TerminalInput getTerminalInput() throws NativeException;
 }
