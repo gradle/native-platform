@@ -393,7 +393,18 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_readdir(JNIEn
  */
 
 HANDLE getHandle(JNIEnv *env, int output, jobject result) {
-    HANDLE handle = output == 0 ? GetStdHandle(STD_OUTPUT_HANDLE) : GetStdHandle(STD_ERROR_HANDLE);
+    HANDLE handle = INVALID_HANDLE_VALUE;
+    switch (output) {
+    case STDIN_DESCRIPTOR:
+        handle = GetStdHandle(STD_INPUT_HANDLE);
+        break;
+    case STDOUT_DESCRIPTOR:
+        handle = GetStdHandle(STD_OUTPUT_HANDLE);
+        break;
+    case STDERR_DESCRIPTOR:
+        handle = GetStdHandle(STD_ERROR_HANDLE);
+        break;
+    }
     if (handle == INVALID_HANDLE_VALUE) {
         mark_failed_with_errno(env, "could not get console handle", result);
         return NULL;
@@ -407,6 +418,17 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_isConsole(
     HANDLE handle = getHandle(env, output, result);
     if (handle == NULL) {
         return JNI_FALSE;
+    }
+    if (output == STDIN_DESCRIPTOR) {
+        DWORD mode;
+        if (!GetConsoleMode(handle, &mode)) {
+            if (GetLastError() == ERROR_INVALID_HANDLE) {
+                return JNI_FALSE;
+            }
+            mark_failed_with_errno(env, "could not get console buffer", result);
+            return JNI_FALSE;
+        }
+        return JNI_TRUE;
     }
     if (!GetConsoleScreenBufferInfo(handle, &console_info)) {
         if (GetLastError() == ERROR_INVALID_HANDLE) {

@@ -81,8 +81,10 @@ public class Main {
         Terminals terminals = Native.get(Terminals.class);
         boolean stdoutIsTerminal = terminals.isTerminal(Terminals.Output.Stdout);
         boolean stderrIsTerminal = terminals.isTerminal(Terminals.Output.Stderr);
+        boolean stdinIsTerminal = terminals.isTerminalInput();
         System.out.println("* Stdout: " + (stdoutIsTerminal ? "terminal" : "not a terminal"));
         System.out.println("* Stderr: " + (stderrIsTerminal ? "terminal" : "not a terminal"));
+        System.out.println("* Stdin: " + (stdinIsTerminal ? "terminal" : "not a terminal"));
         if (stdoutIsTerminal) {
             Terminal terminal = terminals.getTerminal(Terminals.Output.Stdout);
             System.setOut(new PrintStream(terminal.getOutputStream(), true));

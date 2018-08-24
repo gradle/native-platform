@@ -17,15 +17,27 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
+import net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions;
 import net.rubygrapefruit.platform.internal.jni.WindowsConsoleFunctions;
 
 public class WindowsTerminals extends AbstractTerminals {
     public boolean isTerminal(Output output) {
+        int ordinal = output == Output.Stdout ? NativeLibraryFunctions.STDOUT : NativeLibraryFunctions.STDERR;
         FunctionResult result = new FunctionResult();
-        boolean console = WindowsConsoleFunctions.isConsole(output.ordinal(), result);
+        boolean console = WindowsConsoleFunctions.isConsole(ordinal, result);
         if (result.isFailed()) {
             throw new NativeException(String.format("Could not determine if %s is a console: %s", output,
                     result.getMessage()));
+        }
+        return console;
+    }
+
+    @Override
+    public boolean isTerminalInput() throws NativeException {
+        FunctionResult result = new FunctionResult();
+        boolean console = WindowsConsoleFunctions.isConsole(NativeLibraryFunctions.STDIN, result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not determine if stdin is a console: %s", result.getMessage()));
         }
         return console;
     }

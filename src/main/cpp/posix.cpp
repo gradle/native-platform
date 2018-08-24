@@ -350,9 +350,12 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixTerminalFunctions_isatty(JNIE
     struct stat fileInfo;
     int result;
     switch (output) {
-    case 0:
-    case 1:
-        return isatty(output+1) ? JNI_TRUE : JNI_FALSE;
+    case STDIN_DESCRIPTOR:
+        return isatty(STDIN_FILENO) ? JNI_TRUE : JNI_FALSE;
+    case STDOUT_DESCRIPTOR:
+        return isatty(STDOUT_FILENO) ? JNI_TRUE : JNI_FALSE;
+    case STDERR_DESCRIPTOR:
+        return isatty(STDERR_FILENO) ? JNI_TRUE : JNI_FALSE;
     default:
         return JNI_FALSE;
     }

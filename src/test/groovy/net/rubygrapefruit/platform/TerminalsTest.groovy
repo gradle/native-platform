@@ -33,8 +33,9 @@ class TerminalsTest extends Specification {
 
     def "can check if attached to terminal"() {
         expect:
-        !terminals.isTerminal(Terminals.Output.Stdout);
-        !terminals.isTerminal(Terminals.Output.Stderr);
+        !terminals.isTerminal(Terminals.Output.Stdout)
+        !terminals.isTerminal(Terminals.Output.Stderr)
+        !terminals.isTerminalInput()
     }
 
     @IgnoreIf({Platform.current().windows})

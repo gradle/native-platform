@@ -23,7 +23,12 @@
 extern "C" {
 #endif
 
-#define NATIVE_VERSION 26
+#define NATIVE_VERSION 27
+
+// Corresponds to NativeLibraryFunctions constants
+#define STDOUT_DESCRIPTOR 0
+#define STDERR_DESCRIPTOR 1
+#define STDIN_DESCRIPTOR 2
 
 // Corresponds to values of FileInfo.Type
 #define FILE_TYPE_FILE 0

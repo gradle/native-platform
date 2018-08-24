@@ -16,11 +16,17 @@
 
 package net.rubygrapefruit.platform.internal.jni;
 
+import net.rubygrapefruit.platform.Terminal;
+import net.rubygrapefruit.platform.Terminals;
 import net.rubygrapefruit.platform.internal.FunctionResult;
 import net.rubygrapefruit.platform.internal.MutableSystemInfo;
 
 public class NativeLibraryFunctions {
-    public static final int VERSION = 26;
+    public static final int VERSION = 27;
+
+    public static final int STDOUT = Terminals.Output.Stdout.ordinal();
+    public static final int STDERR = Terminals.Output.Stderr.ordinal();
+    public static final int STDIN = STDERR + 1;
 
     public static native int getVersion();
 

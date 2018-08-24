@@ -16,11 +16,25 @@
 
 package net.rubygrapefruit.platform.internal;
 
+import net.rubygrapefruit.platform.NativeException;
+import net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions;
 import net.rubygrapefruit.platform.internal.jni.PosixTerminalFunctions;
 
 public class TerminfoTerminals extends AbstractTerminals {
     public boolean isTerminal(Output output) {
-        return PosixTerminalFunctions.isatty(output.ordinal());
+        switch (output) {
+            case Stdout:
+                return PosixTerminalFunctions.isatty(NativeLibraryFunctions.STDOUT);
+            case Stderr:
+                return PosixTerminalFunctions.isatty(NativeLibraryFunctions.STDERR);
+            default:
+                throw new IllegalArgumentException();
+        }
+    }
+
+    @Override
+    public boolean isTerminalInput() throws NativeException {
+        return PosixTerminalFunctions.isatty(NativeLibraryFunctions.STDIN);
     }
 
     @Override

@@ -39,6 +39,12 @@ public interface Terminals extends NativeIntegration {
     boolean isTerminal(Output output) throws NativeException;
 
     /**
+     * Returns true if the system input is attached to a terminal.
+     */
+    @ThreadSafe
+    boolean isTerminalInput() throws NativeException;
+
+    /**
      * Returns the terminal attached to the given output.
      *
      * @return The terminal. Never returns null.
