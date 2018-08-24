@@ -304,11 +304,9 @@ model {
                 }
 
                 binary.tasks.withType(LinkSharedLibrary) { builderTask ->
-                    nativeJar.into("net/rubygrapefruit/platform/$variantName") { from builderTask.outputFile }
-                    nativeJar.dependsOn builderTask
+                    nativeJar.into("net/rubygrapefruit/platform/$variantName") { from builderTask.linkedFile }
                 }
                 project.tasks.test {
-                    dependsOn nativeJar
                     classpath.from nativeJar
                 }
             }
