@@ -35,6 +35,7 @@ These bindings work for both the UNIX terminal and the Windows console:
 * Change foreground color on the terminal.
 * Move terminal cursor up, down, left, right, start of line.
 * Clear to end of line.
+* Show and hide the cursor.
 * Read raw input from the terminal.
 * Read arrow keys from the terminal.
 
