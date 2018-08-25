@@ -71,6 +71,13 @@ public interface Terminal {
     Terminal write(String text) throws NativeException;
 
     /**
+     * Writes line separator.
+     *
+     * @throws NativeException On failure.
+     */
+    Terminal newLine() throws NativeException;
+
+    /**
      * Sets the terminal foreground color, if supported. Does nothing if this terminal does not support setting the
      * foreground color.
      *

@@ -22,7 +22,15 @@ import net.rubygrapefruit.platform.Terminal;
 import java.io.IOException;
 
 public abstract class AbstractTerminal implements Terminal {
+    protected static byte[] NEW_LINE = System.getProperty("line.separator").getBytes();
+
     protected abstract void init();
+
+    @Override
+    public Terminal newLine() throws NativeException {
+        write(NEW_LINE);
+        return this;
+    }
 
     public Terminal write(String text) throws NativeException {
         byte[] bytes = text.getBytes();
