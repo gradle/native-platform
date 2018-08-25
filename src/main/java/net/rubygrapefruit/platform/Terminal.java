@@ -75,7 +75,7 @@ public interface Terminal {
      *
      * @throws NativeException On failure.
      */
-    Terminal newLine() throws NativeException;
+    Terminal newline() throws NativeException;
 
     /**
      * Sets the terminal foreground color, if supported. Does nothing if this terminal does not support setting the

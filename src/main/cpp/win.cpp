@@ -477,7 +477,7 @@ void init_input(JNIEnv *env, jobject result) {
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_rawInputMode(JNIEnv *env, jclass target, jobject result) {
     init_input(env, result);
-    DWORD mode = original_mode & ~(ENABLE_ECHO_INPUT | ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT);
+    DWORD mode = original_mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT);
     if (!SetConsoleMode(console_buffer, mode)) {
         mark_failed_with_errno(env, "could not set console buffer mode", result);
     }
@@ -520,6 +520,10 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_readInput(
         }
         KEY_EVENT_RECORD keyEvent = events[0].Event.KeyEvent;
         if (!keyEvent.bKeyDown) {
+            if (keyEvent.wVirtualKeyCode == 0x43 && keyEvent.uChar.UnicodeChar == 3) {
+                // key down event for ctrl-c doesn't seem to be delivered, but key up event does
+                return;
+            }
             continue;
         }
 
@@ -539,6 +543,11 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_readInput(
             control_key(env, 6, char_buffer, result);
         } else if (keyEvent.wVirtualKeyCode == VK_BACK) {
             control_key(env, 7, char_buffer, result);
+        } else if (keyEvent.wVirtualKeyCode == VK_DELETE) {
+            control_key(env, 8, char_buffer, result);
+        } else if (keyEvent.wVirtualKeyCode == 0x44 && keyEvent.uChar.UnicodeChar == 4) {
+            // ctrl-d
+            return;
         } else if (keyEvent.uChar.UnicodeChar == 0) {
             // Some other key
             continue;

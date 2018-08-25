@@ -59,6 +59,7 @@ public class PosixTerminalInput implements TerminalInput {
                 } else if (ch == ERASE1 && peek(3) == ERASE2) {
                     inputStream.consume();
                     listener.controlKey(TerminalInputListener.Key.EraseForward);
+                    return;
                 }
             }
             int ch = next();
@@ -68,6 +69,9 @@ public class PosixTerminalInput implements TerminalInput {
                 listener.controlKey(TerminalInputListener.Key.Enter);
             } else if (ch == 127) {
                 listener.controlKey(TerminalInputListener.Key.EraseBack);
+            } else if (ch == 4) {
+                // ctrl-d
+                listener.endInput();
             } else {
                 listener.character((char) ch);
             }

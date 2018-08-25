@@ -27,7 +27,7 @@ public abstract class AbstractTerminal implements Terminal {
     protected abstract void init();
 
     @Override
-    public Terminal newLine() throws NativeException {
+    public Terminal newline() throws NativeException {
         write(NEW_LINE);
         return this;
     }
