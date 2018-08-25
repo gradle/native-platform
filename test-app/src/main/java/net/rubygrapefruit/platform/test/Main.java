@@ -91,7 +91,12 @@ public class Main {
         }
 
         while (true) {
-            int selected = prompter.select("Select test to run", Arrays.asList("Show terminal details", "Show machine details", "Test input handling", "Example prompts", "Exit"), 4);
+            Integer selected = prompter.select("Select test to run", Arrays.asList("Show terminal details", "Show machine details", "Test input handling", "Example prompts", "Exit"), 4);
+            if (selected == null) {
+                System.out.println();
+                return;
+            }
+
             switch (selected) {
                 case 0:
                     terminal(ansi);
