@@ -9,19 +9,39 @@ import java.util.List;
 
 public class Prompter {
     private final Terminals terminals;
+    private final boolean interactive;
 
     public Prompter(Terminals terminals) {
         this.terminals = terminals;
+        interactive = terminals.isTerminalInput() && terminals.isTerminal(Terminals.Output.Stdout);
+    }
+
+    /**
+     * Returns true if this prompter can ask the user questions. Returns null on end of input.
+     */
+    public boolean isInteractive() {
+        return interactive;
     }
 
     /**
      * Asks the user to select an option from a list. Returns the index of the selected option or a value < 0 on end of input.
      */
     public int select(String prompt, List<String> options, int defaultOption) {
-        if (terminals.isTerminalInput() && terminals.isTerminal(Terminals.Output.Stdout)) {
+        if (interactive) {
             return selectInteractive(prompt, options, defaultOption);
         } else {
             return defaultOption;
+        }
+    }
+
+    /**
+     * Asks the user to enter some text. Returns the text or null on end of input.
+     */
+    public String enterText(String prompt, String defaultValue) {
+        if (interactive) {
+            return enterTextInteractive(prompt, defaultValue);
+        } else {
+            return defaultValue;
         }
     }
 
@@ -36,9 +56,23 @@ public class Prompter {
             input.read(listener);
         }
         input.reset();
-        view.selected = listener.selected;
-        view.close();
+        view.close(listener.selected);
         return listener.selected;
+    }
+
+    private String enterTextInteractive(String prompt, String defaultValue) {
+        Terminal output = terminals.getTerminal(Terminals.Output.Stdout);
+        TerminalInput input = terminals.getTerminalInput();
+        TextView view = new TextView(output, prompt, defaultValue);
+        view.render();
+        input.rawMode();
+        TextEntryListener listener = new TextEntryListener(view);
+        while (!listener.finished) {
+            input.read(listener);
+        }
+        input.reset();
+        view.close(listener.entered);
+        return listener.entered;
     }
 
     private static class SelectView {
@@ -55,8 +89,8 @@ public class Prompter {
         }
 
         void render() {
-            output.newLine();
-            output.write(prompt).newLine();
+            output.newline();
+            output.write(prompt).write(":").newline();
             for (int i = 0; i < options.size(); i++) {
                 renderItem(i);
             }
@@ -75,7 +109,7 @@ public class Prompter {
             }
             output.write(String.valueOf((i + 1))).write(") ").write(options.get(i));
             output.reset();
-            output.newLine();
+            output.newline();
         }
 
         void selectPrevious() {
@@ -102,14 +136,14 @@ public class Prompter {
             output.cursorDown(rowsToModeUp - 2);
         }
 
-        void close() {
+        void close(int selected) {
             output.clearToEndOfLine();
             for (int i = 0; i < options.size(); i++) {
                 output.cursorUp(1).clearToEndOfLine();
             }
             output.cursorUp(1);
             output.write(prompt)
-                    .write(" ");
+                    .write(": ");
             if (selected >= 0) {
                 output.foreground(Terminal.Color.Cyan)
                         .write(options.get(selected))
@@ -117,7 +151,7 @@ public class Prompter {
             } else {
                 output.write("<none>");
             }
-            output.newLine();
+            output.newline();
         }
     }
 
@@ -154,6 +188,156 @@ public class Prompter {
         @Override
         public void endInput() {
             selected = -2;
+        }
+    }
+
+    private static class TextView {
+        private final Terminal output;
+        private final String prompt;
+        private final String defaultValue;
+        private StringBuilder value = new StringBuilder();
+        private int insertPos = 0;
+        private int cursor = 0;
+
+        TextView(Terminal output, String prompt, String defaultValue) {
+            this.output = output;
+            this.prompt = prompt;
+            this.defaultValue = defaultValue;
+        }
+
+        public void render() {
+            output.newline();
+            output.write(prompt).write(": ");
+            output.foreground(Terminal.Color.White);
+            output.write(defaultValue);
+            output.cursorLeft(defaultValue.length());
+            output.reset();
+        }
+
+        void update() {
+            output.cursorLeft(cursor);
+            output.clearToEndOfLine();
+            if (value.length() == 0) {
+                output.foreground(Terminal.Color.White);
+                output.write(defaultValue);
+                output.cursorLeft(defaultValue.length() - insertPos);
+            } else {
+                output.foreground(Terminal.Color.Cyan);
+                output.write(value.toString());
+                output.cursorLeft(value.length() - insertPos);
+            }
+            output.reset();
+            cursor = insertPos;
+        }
+
+        public void insert(char ch) {
+            value.insert(insertPos, ch);
+            insertPos++;
+            update();
+        }
+
+        public void eraseBack() {
+            if (insertPos == 0) {
+                return;
+            }
+            value.deleteCharAt(insertPos - 1);
+            insertPos--;
+            update();
+        }
+
+        public void eraseForward() {
+            if (insertPos == value.length()) {
+                return;
+            }
+            value.deleteCharAt(insertPos);
+            update();
+        }
+
+        public void cursorStart() {
+            insertPos = 0;
+            output.cursorLeft(cursor);
+            cursor = 0;
+        }
+
+        public void cursorEnd() {
+            insertPos = value.length();
+            output.cursorRight(insertPos - cursor);
+            cursor = insertPos;
+        }
+
+        public void cursorLeft() {
+            if (insertPos == 0) {
+                return;
+            }
+            insertPos--;
+            cursor--;
+            output.cursorLeft(1);
+        }
+
+        public void cursorRight() {
+            if (insertPos == value.length()) {
+                return;
+            }
+            insertPos++;
+            cursor++;
+            output.cursorRight(1);
+        }
+
+        public void close(String entered) {
+            output.cursorLeft(cursor);
+            output.clearToEndOfLine();
+            if (entered != null) {
+                output.foreground(Terminal.Color.Cyan);
+                output.write(entered);
+                output.reset();
+            } else {
+                output.write("<none>");
+            }
+            output.newline();
+        }
+    }
+
+    private static class TextEntryListener implements TerminalInputListener {
+        final TextView view;
+        String entered;
+        boolean finished;
+
+        TextEntryListener(TextView view) {
+            this.view = view;
+        }
+
+        @Override
+        public void character(char ch) {
+            view.insert(ch);
+        }
+
+        @Override
+        public void controlKey(Key key) {
+            if (key == Key.Enter) {
+                if (view.value.length() == 0) {
+                    entered = view.defaultValue;
+                } else {
+                    entered = view.value.toString();
+                }
+                finished = true;
+            } else if (key == Key.EraseBack) {
+                view.eraseBack();
+            } else if (key == Key.EraseForward) {
+                view.eraseForward();
+            } else if (key == Key.LeftArrow) {
+                view.cursorLeft();
+            } else if (key == Key.RightArrow) {
+                view.cursorRight();
+            } else if (key == Key.Home) {
+                view.cursorStart();
+            } else if (key == Key.End) {
+                view.cursorEnd();
+            }
+        }
+
+        @Override
+        public void endInput() {
+            finished = true;
         }
     }
 }

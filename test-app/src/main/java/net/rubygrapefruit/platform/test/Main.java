@@ -81,8 +81,13 @@ public class Main {
         }
 
         Prompter prompter = new Prompter(Native.get(Terminals.class));
+        if (!prompter.isInteractive()) {
+            terminal();
+            return;
+        }
+
         while (true) {
-            int selected = prompter.select("Select option:", Arrays.asList("Show terminal details", "Show machine details", "Test input handling", "Exit"), 0);
+            int selected = prompter.select("Select option", Arrays.asList("Show terminal details", "Show machine details", "Test input handling", "Example prompts", "Exit"), 4);
             switch (selected) {
                 case 0:
                     terminal();
@@ -93,11 +98,19 @@ public class Main {
                 case 2:
                     input();
                     break;
+                case 3:
+                    prompts(prompter);
+                    break;
                 default:
                     System.out.println();
                     return;
             }
         }
+    }
+
+    private static void prompts(Prompter prompter) {
+        String text = prompter.enterText("Enter some text", "default");
+        System.out.println("You entered: " + text);
     }
 
     private static void terminal() {
