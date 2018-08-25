@@ -21,6 +21,7 @@ import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import net.rubygrapefruit.platform.*;
 import net.rubygrapefruit.platform.Process;
+import net.rubygrapefruit.platform.prompts.Prompter;
 
 import java.io.File;
 import java.io.IOException;
@@ -114,6 +115,9 @@ public class Main {
     private static void prompts(Prompter prompter) {
         String text = prompter.enterText("Enter some text", "default");
         System.out.println("You entered: " + text);
+
+        Boolean answer = prompter.askYesNo("A yes/no question", true);
+        System.out.println("You answered: " + answer);
     }
 
     private static void terminal(boolean ansi) {

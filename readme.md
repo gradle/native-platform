@@ -41,6 +41,8 @@ These bindings work for both the UNIX terminal and the Windows console:
 
 See [Terminals](src/main/java/net/rubygrapefruit/platform/Terminals.java)
 
+* Utility class to display various kinds of prompts to the user on the terminal.
+
 ### File systems
 
 * Watch for changes to a directory. Implementation is currently limited to watching on a single directory.
@@ -125,6 +127,7 @@ Some sample code to use the terminal:
 * Added methods to `TerminalOutput` to show and hide the cursor.
 * Added methods to `TerminalOutput` to set foreground text color to its default value.
 * Added methods to `TerminalOutput` to write text to the terminal. Anything written to `System.out` or `System.err` is no longer automatically flushed before cursor or text attributes are changed.
+* Added `Prompter` utility class.
 
 ### 0.14
 

@@ -1,32 +1,42 @@
-package net.rubygrapefruit.platform.test;
+package net.rubygrapefruit.platform.prompts;
 
-import net.rubygrapefruit.platform.TerminalOutput;
 import net.rubygrapefruit.platform.TerminalInput;
 import net.rubygrapefruit.platform.TerminalInputListener;
+import net.rubygrapefruit.platform.TerminalOutput;
 import net.rubygrapefruit.platform.Terminals;
 
 import java.util.List;
 
+/**
+ * Displays prompts on the terminal to ask the user various kinds of questions.
+ */
 public class Prompter {
-    private final Terminals terminals;
+    private static final TerminalOutput.Color SELECTION_COLOR = TerminalOutput.Color.Cyan;
+    private static final TerminalOutput.Color DEFAULT_VALUE_COLOR = TerminalOutput.Color.White;
+    private static final TerminalOutput.Color INFO_COLOR = TerminalOutput.Color.White;
+    private final TerminalOutput output;
+    private final TerminalInput input;
     private final boolean interactive;
 
     public Prompter(Terminals terminals) {
-        this.terminals = terminals;
         interactive = terminals.isTerminalInput() && terminals.isTerminal(Terminals.Output.Stdout);
+        output = terminals.getTerminal(Terminals.Output.Stdout);
+        input = terminals.getTerminalInput();
     }
 
     /**
-     * Returns true if this prompter can ask the user questions. Returns null on end of input.
+     * Returns true if this prompter can ask the user questions.
      */
     public boolean isInteractive() {
         return interactive;
     }
 
     /**
-     * Asks the user to select an option from a list. Returns the index of the selected option or a value < 0 on end of input.
+     * Asks the user to select an option from a list.
+     *
+     * @return The index of the selected option or null on end of input. Returns the default option when not interactive.
      */
-    public int select(String prompt, List<String> options, int defaultOption) {
+    public Integer select(String prompt, List<String> options, int defaultOption) {
         if (interactive) {
             return selectInteractive(prompt, options, defaultOption);
         } else {
@@ -35,7 +45,9 @@ public class Prompter {
     }
 
     /**
-     * Asks the user to enter some text. Returns the text or null on end of input.
+     * Asks the user to enter some text.
+     *
+     * @return The text or null on end of input. Returns the default value when not interactive.
      */
     public String enterText(String prompt, String defaultValue) {
         if (interactive) {
@@ -45,9 +57,33 @@ public class Prompter {
         }
     }
 
-    private int selectInteractive(String prompt, List<String> options, final int defaultOption) {
-        TerminalOutput output = terminals.getTerminal(Terminals.Output.Stdout);
-        TerminalInput input = terminals.getTerminalInput();
+    /**
+     * Asks the user a yes/no question.
+     *
+     * @return The selected value or null on end of input. Returns the default value when not interactive.
+     */
+    public Boolean askYesNo(String prompt, boolean defaultValue) {
+        if (interactive) {
+            return yesNoInteractive(prompt, defaultValue);
+        } else {
+            return defaultValue;
+        }
+    }
+
+    private Boolean yesNoInteractive(String prompt, boolean defaultValue) {
+        YesNoView view = new YesNoView(output, prompt, defaultValue);
+        view.render();
+        input.rawMode();
+        YesNoListener listener = new YesNoListener(view);
+        while (!listener.finished) {
+            input.read(listener);
+        }
+        input.reset();
+        view.close(listener.selected);
+        return listener.selected;
+    }
+
+    private Integer selectInteractive(String prompt, List<String> options, final int defaultOption) {
         SelectView view = new SelectView(output, prompt, options, defaultOption);
         view.render();
         input.rawMode();
@@ -57,12 +93,10 @@ public class Prompter {
         }
         input.reset();
         view.close(listener.selected);
-        return listener.selected;
+        return listener.selected < 0 ? null : listener.selected;
     }
 
     private String enterTextInteractive(String prompt, String defaultValue) {
-        TerminalOutput output = terminals.getTerminal(Terminals.Output.Stdout);
-        TerminalInput input = terminals.getTerminalInput();
         TextView view = new TextView(output, prompt, defaultValue);
         view.render();
         input.rawMode();
@@ -73,6 +107,74 @@ public class Prompter {
         input.reset();
         view.close(listener.entered);
         return listener.entered;
+    }
+
+    private static class YesNoView {
+        private final TerminalOutput output;
+        private final String prompt;
+        private final boolean defaultValue;
+
+        YesNoView(TerminalOutput output, String prompt, boolean defaultValue) {
+            this.output = output;
+            this.prompt = prompt;
+            this.defaultValue = defaultValue;
+        }
+
+        public void render() {
+            output.newline();
+            output.hideCursor();
+            output.bold().write(prompt).normal().write(" [yn]: ");
+            output.foreground(DEFAULT_VALUE_COLOR).write(defaultValue ? "y" : "n").defaultForeground().cursorLeft(1);
+            output.showCursor();
+        }
+
+        public void close(Boolean selected) {
+            output.cursorStartOfLine();
+            output.clearToEndOfLine();
+            output.write(prompt).write(": ");
+            if (selected != null) {
+                output.foreground(SELECTION_COLOR);
+                output.write(selected ? "yes" : "no");
+                output.reset();
+            } else {
+                output.write("<none>");
+            }
+            output.newline();
+        }
+    }
+
+    private static class YesNoListener implements TerminalInputListener {
+        final YesNoView view;
+        Boolean selected;
+        boolean finished;
+
+        YesNoListener(YesNoView view) {
+            this.view = view;
+        }
+
+        @Override
+        public void character(char ch) {
+            if (ch == 'y') {
+                selected = true;
+                finished = true;
+            } else if (ch == 'n') {
+                selected = false;
+                finished = true;
+            }
+        }
+
+        @Override
+        public void controlKey(Key key) {
+            if (key == Key.Enter) {
+                selected = view.defaultValue;
+                finished = true;
+            }
+        }
+
+        @Override
+        public void endInput() {
+            finished = true;
+        }
     }
 
     private static class SelectView {
@@ -95,7 +197,7 @@ public class Prompter {
             for (int i = 0; i < options.size(); i++) {
                 renderItem(i);
             }
-            output.foreground(TerminalOutput.Color.White)
+            output.foreground(INFO_COLOR)
                     .write("Use the arrow keys to select an option and press enter")
                     .defaultForeground()
                     .cursorStartOfLine();
@@ -103,7 +205,7 @@ public class Prompter {
 
         private void renderItem(int i) {
             if (i == selected) {
-                output.foreground(TerminalOutput.Color.Cyan);
+                output.foreground(SELECTION_COLOR);
                 output.write("> ");
             } else {
                 output.write("  ");
@@ -146,7 +248,7 @@ public class Prompter {
             output.write(prompt)
                     .write(": ");
             if (selected >= 0) {
-                output.foreground(TerminalOutput.Color.Cyan)
+                output.foreground(SELECTION_COLOR)
                         .write(options.get(selected))
                         .reset();
             } else {
@@ -211,7 +313,7 @@ public class Prompter {
             output.newline();
             output.hideCursor();
             output.bold().write(prompt).write(": ").normal();
-            output.foreground(TerminalOutput.Color.White);
+            output.foreground(DEFAULT_VALUE_COLOR);
             output.write(defaultValue);
             output.cursorLeft(defaultValue.length());
             output.reset();
@@ -222,11 +324,11 @@ public class Prompter {
             output.cursorLeft(cursor);
             output.clearToEndOfLine();
             if (value.length() == 0) {
-                output.foreground(TerminalOutput.Color.White);
+                output.foreground(DEFAULT_VALUE_COLOR);
                 output.write(defaultValue);
                 output.cursorLeft(defaultValue.length() - insertPos);
             } else {
-                output.foreground(TerminalOutput.Color.Cyan);
+                output.foreground(SELECTION_COLOR);
                 output.write(value.toString());
                 output.cursorLeft(value.length() - insertPos);
             }
@@ -292,7 +394,7 @@ public class Prompter {
             output.clearToEndOfLine();
             output.write(prompt).write(": ");
             if (entered != null) {
-                output.foreground(TerminalOutput.Color.Cyan);
+                output.foreground(SELECTION_COLOR);
                 output.write(entered);
                 output.reset();
             } else {
