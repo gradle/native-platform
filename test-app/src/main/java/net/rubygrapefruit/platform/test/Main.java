@@ -34,6 +34,7 @@ public class Main {
     public static void main(String[] args) throws IOException {
         OptionParser optionParser = new OptionParser();
         optionParser.accepts("cache-dir", "The directory to cache native libraries in").withRequiredArg();
+        optionParser.accepts("ansi", "Force the use of ANSI escape sequences for terminal output");
         optionParser.accepts("stat", "Display details about the specified file or directory").withRequiredArg();
         optionParser.accepts("ls", "Display contents of the specified directory").withRequiredArg();
         optionParser.accepts("watch", "Watches for changes to the specified file or directory").withRequiredArg();
@@ -54,6 +55,8 @@ public class Main {
         if (result.has("cache-dir")) {
             Native.init(new File(result.valueOf("cache-dir").toString()));
         }
+
+        boolean ansi = result.has("ansi");
 
         if (result.has("stat")) {
             stat((String) result.valueOf("stat"));
@@ -80,9 +83,9 @@ public class Main {
             return;
         }
 
-        Prompter prompter = new Prompter(Native.get(Terminals.class));
+        Prompter prompter = new Prompter(terminals(ansi));
         if (!prompter.isInteractive()) {
-            terminal();
+            terminal(ansi);
             return;
         }
 
@@ -90,7 +93,7 @@ public class Main {
             int selected = prompter.select("Select test to run", Arrays.asList("Show terminal details", "Show machine details", "Test input handling", "Example prompts", "Exit"), 4);
             switch (selected) {
                 case 0:
-                    terminal();
+                    terminal(ansi);
                     break;
                 case 1:
                     machine();
@@ -113,9 +116,9 @@ public class Main {
         System.out.println("You entered: " + text);
     }
 
-    private static void terminal() {
+    private static void terminal(boolean ansi) {
         System.out.println();
-        Terminals terminals = Native.get(Terminals.class);
+        Terminals terminals = terminals(ansi);
         boolean stdoutIsTerminal = terminals.isTerminal(Terminals.Output.Stdout);
         boolean stderrIsTerminal = terminals.isTerminal(Terminals.Output.Stderr);
         boolean stdinIsTerminal = terminals.isTerminalInput();
@@ -204,6 +207,14 @@ public class Main {
             terminal.reset();
             System.err.println(".");
         }
+    }
+
+    private static Terminals terminals(boolean ansi) {
+        Terminals terminals = Native.get(Terminals.class);
+        if (ansi) {
+            terminals = terminals.withAnsiOutput();
+        }
+        return terminals;
     }
 
     private static void input() {

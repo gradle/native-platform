@@ -23,7 +23,8 @@ import java.io.OutputStream;
  *
  * <p>On UNIX based platforms, this provides access to the terminal. On Windows platforms, this provides access to the
  * console.
- * </p>
+ *
+ * <p>To create an instance of this interface use the {@link Terminals#getTerminal(Terminals.Output)} method.
  */
 @ThreadSafe
 public interface TerminalOutput {

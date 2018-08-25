@@ -21,7 +21,8 @@ package net.rubygrapefruit.platform;
  *
  * <p>On UNIX based platforms, this provides access to the terminal. On Windows platforms, this provides access to the
  * console.
- * </p>
+ *
+ * <p>To create an instance of this interface use the {@link Native#get(Class)} method.
  */
 @ThreadSafe
 public interface Terminals extends NativeIntegration {
@@ -29,6 +30,14 @@ public interface Terminals extends NativeIntegration {
      * System outputs.
      */
     enum Output {Stdout, Stderr}
+
+    /**
+     * Returns a copy of this terminal access that forces terminal output to use ANSI escape sequences.
+     * This can be used to force rich terminal output when not attached to a terminal.
+     *
+     * <p>Terminal input is not changed.
+     */
+    Terminals withAnsiOutput();
 
     /**
      * Returns true if the given output is attached to a terminal.

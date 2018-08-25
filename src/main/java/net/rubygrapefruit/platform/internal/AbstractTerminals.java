@@ -27,6 +27,11 @@ public abstract class AbstractTerminals implements Terminals {
     private AbstractTerminal currentOutput;
     private TerminalInput currentInput;
 
+    @Override
+    public Terminals withAnsiOutput() {
+        return new AnsiTerminals(this);
+    }
+
     public TerminalOutput getTerminal(Output output) {
         synchronized (lock) {
             if (currentlyOpen != null && currentlyOpen != output) {
@@ -69,4 +74,5 @@ public abstract class AbstractTerminals implements Terminals {
     protected abstract TerminalInput createInput();
 
     protected abstract AbstractTerminal createTerminal(Output output);
+
 }

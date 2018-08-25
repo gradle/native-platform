@@ -26,7 +26,7 @@ import java.io.OutputStream;
 
 public class AnsiTerminal extends AbstractTerminal {
     private static final byte[] BOLD = "\u001b[1m".getBytes();
-    private static final byte[] BOLD_OFF = "\u001b[21m".getBytes();
+    private static final byte[] BOLD_OFF = "\u001b[22m".getBytes();
     private static final byte[] DEFAULT_FG = "\u001b[39m".getBytes();
     private static final byte[] RESET = "\u001b[0m".getBytes();
     private static final byte[] START_OF_LINE = "\u001b[0E".getBytes();
@@ -135,6 +135,9 @@ public class AnsiTerminal extends AbstractTerminal {
     }
 
     public TerminalOutput cursorLeft(int count) throws NativeException {
+        if (count == 0) {
+            return this;
+        }
         try {
             String esc = String.format("\u001b[%sD", count);
             outputStream.write(esc.getBytes());
@@ -145,6 +148,9 @@ public class AnsiTerminal extends AbstractTerminal {
     }
 
     public TerminalOutput cursorRight(int count) throws NativeException {
+        if (count == 0) {
+            return this;
+        }
         try {
             String esc = String.format("\u001b[%sC", count);
             outputStream.write(esc.getBytes());
@@ -155,6 +161,9 @@ public class AnsiTerminal extends AbstractTerminal {
     }
 
     public TerminalOutput cursorUp(int count) throws NativeException {
+        if (count == 0) {
+            return this;
+        }
         try {
             String esc = String.format("\u001b[%sA", count);
             outputStream.write(esc.getBytes());
@@ -165,6 +174,9 @@ public class AnsiTerminal extends AbstractTerminal {
     }
 
     public TerminalOutput cursorDown(int count) throws NativeException {
+        if (count == 0) {
+            return this;
+        }
         try {
             String esc = String.format("\u001b[%sB", count);
             outputStream.write(esc.getBytes());

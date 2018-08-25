@@ -4,6 +4,11 @@ import java.io.InputStream;
 
 /**
  * Allows input to be received from the terminal.
+ *
+ * <p>On UNIX based platforms, this provides access to the terminal. On Windows platforms, this provides access to the
+ * console.
+ *
+ * <p>To create an instance of this interface use the {@link Terminals#getTerminalInput()} method.
  */
 @ThreadSafe
 public interface TerminalInput {
