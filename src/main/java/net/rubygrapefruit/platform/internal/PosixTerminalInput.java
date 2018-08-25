@@ -10,6 +10,9 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
+/**
+ * Assumes vt100 input control sequences: http://invisible-island.net/xterm/ctlseqs/ctlseqs.html
+ */
 public class PosixTerminalInput implements TerminalInput {
     private final PeekInputStream inputStream = new PeekInputStream(new FileInputStream(FileDescriptor.in));
     private final Object lock = new Object();
@@ -19,8 +22,10 @@ public class PosixTerminalInput implements TerminalInput {
     private static final int LEFT_ARROW = 68;
     private static final int END = 70;
     private static final int HOME = 72;
+    private static final int END1 = 52;
+    private static final int HOME1 = 49;
     private static final int ERASE1 = 51;
-    private static final int ERASE2 = 126;
+    private static final int TILDE = 126;
 
     @Override
     public InputStream getInputStream() {
@@ -56,9 +61,17 @@ public class PosixTerminalInput implements TerminalInput {
                     inputStream.consume();
                     listener.controlKey(TerminalInputListener.Key.End);
                     return;
-                } else if (ch == ERASE1 && peek(3) == ERASE2) {
+                } else if (ch == ERASE1 && peek(3) == TILDE) {
                     inputStream.consume();
                     listener.controlKey(TerminalInputListener.Key.EraseForward);
+                    return;
+                } else if (ch == HOME1 && peek(3) == TILDE) {
+                    inputStream.consume();
+                    listener.controlKey(TerminalInputListener.Key.Home);
+                    return;
+                } else if (ch == END1 && peek(3) == TILDE) {
+                    inputStream.consume();
+                    listener.controlKey(TerminalInputListener.Key.End);
                     return;
                 }
             }
@@ -67,7 +80,7 @@ public class PosixTerminalInput implements TerminalInput {
                 listener.endInput();
             } else if (ch == '\n') {
                 listener.controlKey(TerminalInputListener.Key.Enter);
-            } else if (ch == 127) {
+            } else if (ch == 127 || ch == 8) {
                 listener.controlKey(TerminalInputListener.Key.EraseBack);
             } else if (ch == 4) {
                 // ctrl-d
