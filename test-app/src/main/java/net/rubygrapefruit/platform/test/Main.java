@@ -26,6 +26,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
@@ -79,7 +80,24 @@ public class Main {
             return;
         }
 
-        terminal();
+        Prompter prompter = new Prompter(Native.get(Terminals.class));
+        while (true) {
+            int selected = prompter.select("Select option:", Arrays.asList("Show terminal details", "Show machine details", "Test input handling", "Exit"), 0);
+            switch (selected) {
+                case 0:
+                    terminal();
+                    break;
+                case 1:
+                    machine();
+                    break;
+                case 2:
+                    input();
+                    break;
+                default:
+                    System.out.println();
+                    return;
+            }
+        }
     }
 
     private static void terminal() {
