@@ -8,17 +8,22 @@ import java.io.InputStream;
 @ThreadSafe
 public interface TerminalInput {
     /**
-     * Returns an input stream that can be used to read characters from the terminal.
+     * Returns an input stream that can be used to read characters from this terminal. Control keys are discarded.
      */
     InputStream getInputStream();
 
     /**
-     * Switches the input to raw mode. Characters are delivered as they are typed, are not echoed and are not processed.
+     * Reads characters and control keys from this terminal.
+     */
+    void read(TerminalInputListener listener) throws NativeException;
+
+    /**
+     * Switches this terminal to raw mode. Keys are delivered as they are typed, are not echoed and are not processed.
      */
     TerminalInput rawMode() throws NativeException;
 
     /**
-     * Resets the input to default mode.
+     * Resets this terminal to its default mode.
      */
-    TerminalInput reset();
+    TerminalInput reset() throws NativeException;
 }

@@ -463,8 +463,8 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_getConsole
 HANDLE console_buffer = NULL;
 DWORD original_mode = 0;
 
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_rawInputMode(JNIEnv *env, jclass target, jobject result) {
+
+void init_input(JNIEnv *env, jobject result) {
     if (console_buffer == NULL) {
         console_buffer = GetStdHandle(STD_INPUT_HANDLE);
         if (!GetConsoleMode(console_buffer, &original_mode)) {
@@ -472,6 +472,11 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_rawInputMo
             return;
         }
     }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_rawInputMode(JNIEnv *env, jclass target, jobject result) {
+    init_input(env, result);
     DWORD mode = original_mode & ~(ENABLE_ECHO_INPUT | ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT);
     if (!SetConsoleMode(console_buffer, mode)) {
         mark_failed_with_errno(env, "could not set console buffer mode", result);
@@ -485,6 +490,56 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_resetInput
     }
     if (!SetConsoleMode(console_buffer, original_mode)) {
         mark_failed_with_errno(env, "could not set console buffer mode", result);
+    }
+}
+
+void control_key(JNIEnv *env, jint key, jobject char_buffer, jobject result) {
+    jclass bufferClass = env->GetObjectClass(char_buffer);
+    jmethodID method = env->GetMethodID(bufferClass, "key", "(I)V");
+    env->CallVoidMethod(char_buffer, method, key);
+}
+
+void character(JNIEnv *env, jchar char_value, jobject char_buffer, jobject result) {
+    jclass bufferClass = env->GetObjectClass(char_buffer);
+    jmethodID method = env->GetMethodID(bufferClass, "character", "(C)V");
+    env->CallVoidMethod(char_buffer, method, char_value);
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_readInput(JNIEnv *env, jclass target, jobject char_buffer, jobject result) {
+    init_input(env, result);
+    INPUT_RECORD events[1];
+    DWORD nread;
+    while(TRUE) {
+        if (!ReadConsoleInputW(console_buffer, events, 1, &nread)) {
+            mark_failed_with_errno(env, "could not read from console", result);
+            return;
+        }
+        if (events[0].EventType != KEY_EVENT) {
+            continue;
+        }
+        KEY_EVENT_RECORD keyEvent = events[0].Event.KeyEvent;
+        if (!keyEvent.bKeyDown) {
+            continue;
+        }
+
+        if (keyEvent.wVirtualKeyCode == VK_UP) {
+            control_key(env, 0, char_buffer, result);
+        } else if (keyEvent.wVirtualKeyCode == VK_DOWN) {
+            control_key(env, 1, char_buffer, result);
+        } else if (keyEvent.wVirtualKeyCode == VK_LEFT) {
+            control_key(env, 2, char_buffer, result);
+        } else if (keyEvent.wVirtualKeyCode == VK_RIGHT) {
+            control_key(env, 3, char_buffer, result);
+        } else if (keyEvent.wVirtualKeyCode == VK_RETURN) {
+            character(env, '\n', char_buffer, result);
+        } else if (keyEvent.uChar.UnicodeChar == 0) {
+            // Some other key
+            continue;
+        } else {
+            character(env, (jchar)keyEvent.uChar.UnicodeChar, char_buffer, result);
+        }
+        return;
     }
 }
 

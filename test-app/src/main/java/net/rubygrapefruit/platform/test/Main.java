@@ -174,34 +174,26 @@ public class Main {
         }
     }
 
-    private static void input() throws IOException {
+    private static void input() {
         System.out.println();
         Terminals terminals = Native.get(Terminals.class);
         if (!terminals.isTerminalInput()) {
-            System.out.println("* Not attached to terminal.");
+            System.out.println("* Input not attached to terminal.");
             return;
         }
         TerminalInput terminalInput = terminals.getTerminalInput();
-        System.out.println("* Using processed mode");
+        System.out.println("* Using default mode");
         System.out.print("Enter some text: ");
-        StringBuilder builder = new StringBuilder();
-        while (true) {
-            int ch = terminalInput.getInputStream().read();
-            if (ch < 0 || ch == '\n') {
-                break;
-            }
-            builder.append((char) ch);
+        LoggingTerminalInputListener listener = new LoggingTerminalInputListener();
+        while (!listener.finished) {
+            terminalInput.read(listener);
         }
-        System.out.println("Text: " + builder.toString());
         System.out.println("* Using raw mode");
         terminalInput.rawMode();
-        System.out.println("Enter some text: ");
-        while (true) {
-            int ch = terminalInput.getInputStream().read();
-            if (ch < 0 || ch == '\n') {
-                break;
-            }
-            System.out.println("Character: " + (char) ch);
+        System.out.println("Enter some text (press 'enter' to finish): ");
+        listener = new LoggingTerminalInputListener();
+        while (!listener.finished) {
+            terminalInput.read(listener);
         }
         terminalInput.reset();
         System.out.println();
@@ -323,5 +315,28 @@ public class Main {
 
     private static String date(long timestamp) {
         return new SimpleDateFormat("yyyyMMdd HHmmss.SSS").format(new Date(timestamp));
+    }
+
+    private static class LoggingTerminalInputListener implements TerminalInputListener {
+        boolean finished;
+
+        @Override
+        public void character(char ch) {
+            System.out.println("Character: " + ch + " (" + (int) ch + ")");
+            if (ch == '\n') {
+                finished = true;
+            }
+        }
+
+        @Override
+        public void controlKey(Key key) {
+            System.out.println("Control key: " + key);
+        }
+
+        @Override
+        public void endInput() {
+            System.out.println("End input");
+            finished = true;
+        }
     }
 }

@@ -36,6 +36,7 @@ These bindings work for both the UNIX terminal and the Windows console:
 * Move terminal cursor up, down, left, right, start of line.
 * Clear to end of line.
 * Read raw input from the terminal.
+* Read arrow keys from the terminal.
 
 See [Terminals](src/main/java/net/rubygrapefruit/platform/Terminals.java)
 
@@ -116,7 +117,7 @@ Some sample code to use the terminal:
 
 ### 0.15 (not released)
 
-* Added `TerminalInput` to read text from the terminal. Supports raw mode.
+* Added `TerminalInput` to read text from the terminal. Supports raw mode and arrow keys.
 * Added methods to `Terminal` to write text to the terminal. Anything written to `System.out` or `System.err` is no longer automatically flushed before cursor or text attributes are changed.
 * Added method to `Terminals` to determine whether stdin is attached to a terminal.
 

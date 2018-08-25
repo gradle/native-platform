@@ -16,6 +16,7 @@
 
 package net.rubygrapefruit.platform.internal.jni;
 
+import net.rubygrapefruit.platform.internal.CharInputBuffer;
 import net.rubygrapefruit.platform.internal.FunctionResult;
 import net.rubygrapefruit.platform.internal.MutableTerminalSize;
 
@@ -29,6 +30,8 @@ public class WindowsConsoleFunctions {
     public static native void rawInputMode(FunctionResult result);
 
     public static native void resetInputMode(FunctionResult result);
+
+    public static native void readInput(CharInputBuffer buffer, FunctionResult result);
 
     public static native void bold(FunctionResult result);
 

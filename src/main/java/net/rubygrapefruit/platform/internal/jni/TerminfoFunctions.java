@@ -23,7 +23,7 @@ public class TerminfoFunctions {
     public static native int getVersion();
 
     /**
-     * Sets up terminal info and switches output to normal mode.
+     * Sets up output.
      */
     public static native void initTerminal(int filedes, TerminalCapabilities terminalCapabilities, FunctionResult result);
 
