@@ -35,15 +35,18 @@ public class TerminfoTerminal extends AbstractTerminal {
     private final OutputStream outputStream;
     private final Object lock = new Object();
     private Map<Color, byte[]> foregroundColors = new HashMap<Color, byte[]>();
-    private byte[] bold;
+    private byte[] boldOn;
+    private byte[] boldOff;
+    private byte[] defaultForeground;
     private byte[] reset;
+    private byte[] hideCursor;
+    private byte[] showCursor;
     private byte[] up;
     private byte[] down;
     private byte[] left;
     private byte[] right;
     private byte[] startLine;
     private byte[] clearEOL;
-    private Color foreground;
 
     public TerminfoTerminal(Terminals.Output output) {
         this.output = output;
@@ -67,10 +70,26 @@ public class TerminfoTerminal extends AbstractTerminal {
             if (result.isFailed()) {
                 throw new NativeException(String.format("Could not open terminal for %s: %s", getOutputDisplay(), result.getMessage()));
             }
-            reset();
+            hideCursor = TerminfoFunctions.hideCursor(result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not determine hide cursor control sequence %s: %s", getOutputDisplay(), result.getMessage()));
+            }
+            showCursor = TerminfoFunctions.showCursor(result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not determine show cursor control sequence %s: %s", getOutputDisplay(), result.getMessage()));
+            }
+            defaultForeground = TerminfoFunctions.defaultForeground(result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not determine default foreground control sequence %s: %s", getOutputDisplay(), result.getMessage()));
+            }
+            boldOff = TerminfoFunctions.boldOff(result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not determine bold off control sequence %s: %s", getOutputDisplay(), result.getMessage()));
+            }
         }
     }
 
+    @Override
     public TerminalSize getTerminalSize() {
         synchronized (lock) {
             MutableTerminalSize terminalSize = new MutableTerminalSize();
@@ -83,22 +102,32 @@ public class TerminfoTerminal extends AbstractTerminal {
         }
     }
 
+    @Override
     public boolean supportsColor() {
         return capabilities.colors;
     }
 
+    @Override
     public boolean supportsCursorMotion() {
         return capabilities.cursorMotion;
     }
 
+    @Override
     public boolean supportsTextAttributes() {
         return capabilities.textAttributes;
     }
 
+    @Override
+    public boolean supportsCursorVisibility() {
+        return showCursor != null && hideCursor != null;
+    }
+
+    @Override
     public OutputStream getOutputStream() {
         return outputStream;
     }
 
+    @Override
     public Terminal foreground(Color color) {
         if (!capabilities.colors) {
             return this;
@@ -116,40 +145,47 @@ public class TerminfoTerminal extends AbstractTerminal {
                 foregroundColors.put(color, sequence);
             }
             write(sequence);
-            foreground = color;
         }
         return this;
     }
 
+    @Override
     public Terminal bold() {
         if (!capabilities.textAttributes) {
             return this;
         }
 
         synchronized (lock) {
-            if (bold == null) {
+            if (boldOn == null) {
                 FunctionResult result = new FunctionResult();
-                bold = TerminfoFunctions.bold(result);
+                boldOn = TerminfoFunctions.boldOn(result);
                 if (result.isFailed()) {
                     throw new NativeException(String.format("Could not switch to bold mode for %s: %s", getOutputDisplay(),
                             result.getMessage()));
                 }
             }
-            write(bold);
+            write(boldOn);
         }
         return this;
     }
 
+    @Override
     public Terminal normal() {
         synchronized (lock) {
-            reset();
-            if (foreground != null) {
-                foreground(foreground);
-            }
+            write(boldOff);
         }
         return this;
     }
 
+    @Override
+    public Terminal defaultForeground() throws NativeException {
+        synchronized (lock) {
+            write(defaultForeground);
+        }
+        return this;
+    }
+
+    @Override
     public Terminal reset() {
         synchronized (lock) {
             if (reset == null) {
@@ -163,10 +199,34 @@ public class TerminfoTerminal extends AbstractTerminal {
                 }
             }
             write(reset);
+            if (showCursor != null) {
+                write(showCursor);
+            }
         }
         return this;
     }
 
+    @Override
+    public Terminal hideCursor() throws NativeException {
+        synchronized (lock) {
+            if (hideCursor != null) {
+                write(hideCursor);
+            }
+        }
+        return this;
+    }
+
+    @Override
+    public Terminal showCursor() throws NativeException {
+        synchronized (lock) {
+            if (showCursor != null) {
+                write(showCursor);
+            }
+        }
+        return this;
+    }
+
+    @Override
     public Terminal cursorDown(int count) {
         synchronized (lock) {
             if (down == null) {
@@ -183,6 +243,7 @@ public class TerminfoTerminal extends AbstractTerminal {
         return this;
     }
 
+    @Override
     public Terminal cursorUp(int count) {
         synchronized (lock) {
             if (up == null) {
@@ -199,6 +260,7 @@ public class TerminfoTerminal extends AbstractTerminal {
         return this;
     }
 
+    @Override
     public Terminal cursorLeft(int count) {
         synchronized (lock) {
             if (left == null) {
@@ -215,6 +277,7 @@ public class TerminfoTerminal extends AbstractTerminal {
         return this;
     }
 
+    @Override
     public Terminal cursorRight(int count) {
         synchronized (lock) {
             if (right == null) {
@@ -231,6 +294,7 @@ public class TerminfoTerminal extends AbstractTerminal {
         return this;
     }
 
+    @Override
     public Terminal cursorStartOfLine() throws NativeException {
         synchronized (lock) {
             if (startLine == null) {
@@ -245,6 +309,7 @@ public class TerminfoTerminal extends AbstractTerminal {
         return this;
     }
 
+    @Override
     public Terminal clearToEndOfLine() throws NativeException {
         synchronized (lock) {
             if (clearEOL == null) {

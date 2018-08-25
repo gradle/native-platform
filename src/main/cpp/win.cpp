@@ -22,6 +22,8 @@
 #include <Shlwapi.h>
 #include <wchar.h>
 
+#define ALL_COLORS (FOREGROUND_BLUE|FOREGROUND_RED|FOREGROUND_GREEN)
+
 /*
  * Marks the given result as failed, using the current value of GetLastError()
  */
@@ -561,6 +563,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_readInput(
 HANDLE current_console = NULL;
 WORD original_attributes = 0;
 WORD current_attributes = 0;
+CONSOLE_CURSOR_INFO original_cursor;
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_initConsole(JNIEnv *env, jclass target, jint output, jobject result) {
@@ -578,14 +581,17 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_initConsol
         }
         return;
     }
+    if (!GetConsoleCursorInfo(handle, &original_cursor)) {
+        mark_failed_with_errno(env, "could not get console cursor", result);
+        return;
+    }
     current_console = handle;
     original_attributes = console_info.wAttributes;
     current_attributes = original_attributes;
-    Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_normal(env, target, result);
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_bold(JNIEnv *env, jclass target, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_boldOn(JNIEnv *env, jclass target, jobject result) {
     current_attributes |= FOREGROUND_INTENSITY;
     if (!SetConsoleTextAttribute(current_console, current_attributes)) {
         mark_failed_with_errno(env, "could not set text attributes", result);
@@ -593,7 +599,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_bold(JNIEn
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_normal(JNIEnv *env, jclass target, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_boldOff(JNIEnv *env, jclass target, jobject result) {
     current_attributes &= ~FOREGROUND_INTENSITY;
     if (!SetConsoleTextAttribute(current_console, current_attributes)) {
         mark_failed_with_errno(env, "could not set text attributes", result);
@@ -606,11 +612,14 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_reset(JNIE
     if (!SetConsoleTextAttribute(current_console, current_attributes)) {
         mark_failed_with_errno(env, "could not set text attributes", result);
     }
+    if (!SetConsoleCursorInfo(current_console, &original_cursor)) {
+        mark_failed_with_errno(env, "could not set console cursor", result);
+    }
 }
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_foreground(JNIEnv *env, jclass target, jint color, jobject result) {
-    current_attributes &= ~ (FOREGROUND_BLUE|FOREGROUND_RED|FOREGROUND_GREEN);
+    current_attributes &= ~ ALL_COLORS;
     switch (color) {
         case 0:
             break;
@@ -639,6 +648,34 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_foreground
 
     if (!SetConsoleTextAttribute(current_console, current_attributes)) {
         mark_failed_with_errno(env, "could not set text attributes", result);
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_defaultForeground(JNIEnv *env, jclass target, jobject result) {
+    current_attributes = (current_attributes & ~ALL_COLORS) | (original_attributes & ALL_COLORS);
+    if (!SetConsoleTextAttribute(current_console, current_attributes)) {
+        mark_failed_with_errno(env, "could not set text attributes", result);
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_hideCursor(JNIEnv *env, jclass target, jobject result) {
+    CONSOLE_CURSOR_INFO cursor;
+    cursor = original_cursor;
+    cursor.bVisible = false;
+    if (!SetConsoleCursorInfo(current_console, &cursor)) {
+        mark_failed_with_errno(env, "could not hide cursor", result);
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_showCursor(JNIEnv *env, jclass target, jobject result) {
+    CONSOLE_CURSOR_INFO cursor;
+    cursor = original_cursor;
+    cursor.bVisible = true;
+    if (!SetConsoleCursorInfo(current_console, &cursor)) {
+        mark_failed_with_errno(env, "could not show cursor", result);
     }
 }
 

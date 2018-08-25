@@ -26,12 +26,13 @@ import java.io.OutputStream;
 
 public class AnsiTerminal extends AbstractTerminal {
     private static final byte[] BOLD = "\u001b[1m".getBytes();
+    private static final byte[] BOLD_OFF = "\u001b[21m".getBytes();
+    private static final byte[] DEFAULT_FG = "\u001b[39m".getBytes();
     private static final byte[] RESET = "\u001b[0m".getBytes();
     private static final byte[] START_OF_LINE = "\u001b[0E".getBytes();
     private static final byte[] CLEAR_TO_END_OF_LINE = "\u001b[0K".getBytes();
     private final Terminals.Output output;
     private final OutputStream outputStream;
-    private Color foreground;
 
     public AnsiTerminal(OutputStream outputStream, Terminals.Output output) {
         this.outputStream = outputStream;
@@ -63,6 +64,11 @@ public class AnsiTerminal extends AbstractTerminal {
         return true;
     }
 
+    @Override
+    public boolean supportsCursorVisibility() {
+        return false;
+    }
+
     public TerminalSize getTerminalSize() throws NativeException {
         return new MutableTerminalSize();
     }
@@ -78,7 +84,6 @@ public class AnsiTerminal extends AbstractTerminal {
         } catch (IOException e) {
             throw new NativeException(String.format("Could not set foreground color on %s.", getOutputDisplay()), e);
         }
-        foreground = color;
         return this;
     }
 
@@ -91,14 +96,21 @@ public class AnsiTerminal extends AbstractTerminal {
         return this;
     }
 
+    @Override
+    public Terminal defaultForeground() throws NativeException {
+        try {
+            outputStream.write(DEFAULT_FG);
+        } catch (IOException e) {
+            throw new NativeException(String.format("Could not switch to bold output on %s.", getOutputDisplay()), e);
+        }
+        return this;
+    }
+
     public Terminal normal() throws NativeException {
         try {
-            outputStream.write(RESET);
+            outputStream.write(BOLD_OFF);
         } catch (IOException e) {
             throw new NativeException(String.format("Could not switch to normal output on %s.", getOutputDisplay()), e);
-        }
-        if (foreground != null) {
-            foreground(foreground);
         }
         return this;
     }
@@ -109,6 +121,16 @@ public class AnsiTerminal extends AbstractTerminal {
         } catch (IOException e) {
             throw new NativeException(String.format("Could not reset output on %s.", getOutputDisplay()), e);
         }
+        return this;
+    }
+
+    @Override
+    public Terminal hideCursor() throws NativeException {
+        return this;
+    }
+
+    @Override
+    public Terminal showCursor() throws NativeException {
         return this;
     }
 

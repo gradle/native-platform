@@ -8,7 +8,7 @@ import java.io.InputStream;
 @ThreadSafe
 public interface TerminalInput {
     /**
-     * Returns an input stream that can be used to read characters from this terminal. Control keys are discarded.
+     * Returns an input stream that can be used to read characters from this terminal.
      */
     InputStream getInputStream();
 

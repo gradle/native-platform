@@ -27,12 +27,20 @@ public class TerminfoFunctions {
      */
     public static native void initTerminal(int filedes, TerminalCapabilities terminalCapabilities, FunctionResult result);
 
-    public static native byte[] bold(FunctionResult result);
+    public static native byte[] boldOn(FunctionResult result);
+
+    public static native byte[] boldOff(FunctionResult result);
 
     // May be null
     public static native byte[] reset(FunctionResult result);
 
     public static native byte[] foreground(int ansiColor, FunctionResult result);
+
+    public static native byte[] defaultForeground(FunctionResult result);
+
+    public static native byte[] hideCursor(FunctionResult result);
+
+    public static native byte[] showCursor(FunctionResult result);
 
     public static native byte[] left(FunctionResult result);
 

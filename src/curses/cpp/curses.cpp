@@ -156,17 +156,18 @@ Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_initTerminal(JNI
 }
 
 JNIEXPORT jbyteArray JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_bold(JNIEnv *env, jclass target, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_boldOn(JNIEnv *env, jclass target, jobject result) {
     return read_capability(env, terminal_capabilities[BRIGHT_TEXT], result);
 }
 
 JNIEXPORT jbyteArray JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_boldOff(JNIEnv *env, jclass target, jobject result) {
+    return read_capability(env, getcap("me"), result);
+}
+
+JNIEXPORT jbyteArray JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_reset(JNIEnv *env, jclass target, jobject result) {
-    if (terminal_capabilities[NORMAL_TEXT] != NULL) {
-        return read_capability(env, terminal_capabilities[NORMAL_TEXT], result);
-    } else {
-        return NULL;
-    }
+    return read_capability(env, getcap("me"), result);
 }
 
 JNIEXPORT jbyteArray JNICALL
@@ -202,6 +203,21 @@ Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_startLine(JNIEnv
 JNIEXPORT jbyteArray JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_clearToEndOfLine(JNIEnv *env, jclass target, jobject result) {
     return read_capability(env, terminal_capabilities[CLEAR_END_OF_LINE], result);
+}
+
+JNIEXPORT jbyteArray JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_defaultForeground(JNIEnv *env, jclass target, jobject result) {
+    return read_capability(env, getcap("op"), result);
+}
+
+JNIEXPORT jbyteArray JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_hideCursor(JNIEnv *env, jclass target, jobject result) {
+    return read_capability(env, getcap("vi"), result);
+}
+
+JNIEXPORT jbyteArray JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_showCursor(JNIEnv *env, jclass target, jobject result) {
+    return read_capability(env, getcap("ve"), result);
 }
 
 #endif

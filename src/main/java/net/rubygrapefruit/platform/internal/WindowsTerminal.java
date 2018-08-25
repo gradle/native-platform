@@ -27,8 +27,8 @@ import java.io.FileOutputStream;
 import java.io.OutputStream;
 
 public class WindowsTerminal extends AbstractTerminal {
-    private final Terminals.Output output;
     private final Object lock = new Object();
+    private final Terminals.Output output;
     private final OutputStream outputStream;
 
     public WindowsTerminal(Terminals.Output output) {
@@ -56,18 +56,27 @@ public class WindowsTerminal extends AbstractTerminal {
         }
     }
 
+    @Override
     public boolean supportsColor() {
         return true;
     }
 
+    @Override
     public boolean supportsTextAttributes() {
         return true;
     }
 
+    @Override
     public boolean supportsCursorMotion() {
         return true;
     }
 
+    @Override
+    public boolean supportsCursorVisibility() {
+        return true;
+    }
+
+    @Override
     public TerminalSize getTerminalSize() {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();
@@ -80,14 +89,16 @@ public class WindowsTerminal extends AbstractTerminal {
         }
     }
 
+    @Override
     public OutputStream getOutputStream() {
         return outputStream;
     }
 
+    @Override
     public Terminal bold() {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();
-            WindowsConsoleFunctions.bold(result);
+            WindowsConsoleFunctions.boldOn(result);
             if (result.isFailed()) {
                 throw new NativeException(String.format("Could not switch console to bold mode for %s: %s", getOutputDisplay(), result.getMessage()));
             }
@@ -95,6 +106,7 @@ public class WindowsTerminal extends AbstractTerminal {
         return this;
     }
 
+    @Override
     public Terminal foreground(Color color) {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();
@@ -106,10 +118,23 @@ public class WindowsTerminal extends AbstractTerminal {
         return this;
     }
 
+    @Override
+    public Terminal defaultForeground() throws NativeException {
+        synchronized (lock) {
+            FunctionResult result = new FunctionResult();
+            WindowsConsoleFunctions.defaultForeground(result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not switch console to default foreground for %s: %s", getOutputDisplay(), result.getMessage()));
+            }
+        }
+        return this;
+    }
+
+    @Override
     public Terminal normal() {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();
-            WindowsConsoleFunctions.normal(result);
+            WindowsConsoleFunctions.boldOff(result);
             if (result.isFailed()) {
                 throw new NativeException(String.format("Could not switch console to normal mode for %s: %s", getOutputDisplay(), result.getMessage()));
             }
@@ -117,6 +142,7 @@ public class WindowsTerminal extends AbstractTerminal {
         return this;
     }
 
+    @Override
     public Terminal reset() {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();
@@ -128,6 +154,31 @@ public class WindowsTerminal extends AbstractTerminal {
         return this;
     }
 
+    @Override
+    public Terminal hideCursor() throws NativeException {
+        synchronized (lock) {
+            FunctionResult result = new FunctionResult();
+            WindowsConsoleFunctions.hideCursor(result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not hide cursor for %s: %s", getOutputDisplay(), result.getMessage()));
+            }
+        }
+        return this;
+    }
+
+    @Override
+    public Terminal showCursor() throws NativeException {
+        synchronized (lock) {
+            FunctionResult result = new FunctionResult();
+            WindowsConsoleFunctions.showCursor(result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not show cursor for %s: %s", getOutputDisplay(), result.getMessage()));
+            }
+        }
+        return this;
+    }
+
+    @Override
     public Terminal cursorDown(int count) throws NativeException {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();
@@ -139,6 +190,7 @@ public class WindowsTerminal extends AbstractTerminal {
         return this;
     }
 
+    @Override
     public Terminal cursorUp(int count) throws NativeException {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();
@@ -150,6 +202,7 @@ public class WindowsTerminal extends AbstractTerminal {
         return this;
     }
 
+    @Override
     public Terminal cursorLeft(int count) throws NativeException {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();
@@ -161,6 +214,7 @@ public class WindowsTerminal extends AbstractTerminal {
         return this;
     }
 
+    @Override
     public Terminal cursorRight(int count) throws NativeException {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();
@@ -172,6 +226,7 @@ public class WindowsTerminal extends AbstractTerminal {
         return this;
     }
 
+    @Override
     public Terminal cursorStartOfLine() throws NativeException {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();
@@ -183,6 +238,7 @@ public class WindowsTerminal extends AbstractTerminal {
         return this;
     }
 
+    @Override
     public Terminal clearToEndOfLine() throws NativeException {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();

@@ -51,6 +51,11 @@ public interface Terminal {
     boolean supportsCursorMotion();
 
     /**
+     * Returns true if this terminal supports hiding the cursor.
+     */
+    boolean supportsCursorVisibility();
+
+    /**
      * Returns the size of the terminal. Supported by all terminals.
      *
      * @return The current terminal size. Never returns null.
@@ -86,25 +91,47 @@ public interface Terminal {
     Terminal foreground(Color color) throws NativeException;
 
     /**
-     * Switches the terminal to bold mode, if supported. Does nothing if this terminal does not support bold mode.
+     * Sets the terminal foreground color to the default, if supported. Does nothing if this terminal does not support setting the
+     * foreground color.
+     *
+     * @throws NativeException On failure.
+     */
+    Terminal defaultForeground() throws NativeException;
+
+    /**
+     * Switches the terminal to bold text mode, if supported. Does nothing if this terminal does not support bold mode.
      *
      * @throws NativeException On failure.
      */
     Terminal bold() throws NativeException;
 
     /**
-     * Switches the terminal to normal mode. Supported by all terminals.
+     * Switches the terminal to normal text mode. Supported by all terminals.
      *
      * @throws NativeException On failure.
      */
     Terminal normal() throws NativeException;
 
     /**
-     * Switches the terminal to normal mode and restores default colors. Supported by all terminals.
+     * Resets this terminal. Switches to normal text mode, restores default colors and shows the cursor. Supported by all terminals.
      *
      * @throws NativeException On failure.
      */
     Terminal reset() throws NativeException;
+
+    /**
+     * Hides the cursor. Does nothing if this terminal does not support hiding the cursor.
+     *
+     * @throws NativeException On failure.
+     */
+    Terminal hideCursor() throws NativeException;
+
+    /**
+     * Shows the cursor, if hidden. Supported by all terminals.
+     *
+     * @throws NativeException On failure.
+     */
+    Terminal showCursor() throws NativeException;
 
     /**
      * Moves the cursor the given number of characters to the left.

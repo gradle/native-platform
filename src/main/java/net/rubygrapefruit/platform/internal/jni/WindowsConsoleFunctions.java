@@ -33,13 +33,19 @@ public class WindowsConsoleFunctions {
 
     public static native void readInput(CharInputBuffer buffer, FunctionResult result);
 
-    public static native void bold(FunctionResult result);
+    public static native void boldOn(FunctionResult result);
 
-    public static native void normal(FunctionResult result);
+    public static native void boldOff(FunctionResult result);
 
     public static native void reset(FunctionResult result);
 
+    public static native void showCursor(FunctionResult result);
+
+    public static native void hideCursor(FunctionResult result);
+
     public static native void foreground(int ansiColor, FunctionResult result);
+
+    public static native void defaultForeground(FunctionResult result);
 
     public static native void left(int count, FunctionResult result);
 
