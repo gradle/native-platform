@@ -1,6 +1,6 @@
 package net.rubygrapefruit.platform.test;
 
-import net.rubygrapefruit.platform.Terminal;
+import net.rubygrapefruit.platform.TerminalOutput;
 import net.rubygrapefruit.platform.TerminalInput;
 import net.rubygrapefruit.platform.TerminalInputListener;
 import net.rubygrapefruit.platform.Terminals;
@@ -46,7 +46,7 @@ public class Prompter {
     }
 
     private int selectInteractive(String prompt, List<String> options, final int defaultOption) {
-        Terminal output = terminals.getTerminal(Terminals.Output.Stdout);
+        TerminalOutput output = terminals.getTerminal(Terminals.Output.Stdout);
         TerminalInput input = terminals.getTerminalInput();
         SelectView view = new SelectView(output, prompt, options, defaultOption);
         view.render();
@@ -61,7 +61,7 @@ public class Prompter {
     }
 
     private String enterTextInteractive(String prompt, String defaultValue) {
-        Terminal output = terminals.getTerminal(Terminals.Output.Stdout);
+        TerminalOutput output = terminals.getTerminal(Terminals.Output.Stdout);
         TerminalInput input = terminals.getTerminalInput();
         TextView view = new TextView(output, prompt, defaultValue);
         view.render();
@@ -76,12 +76,12 @@ public class Prompter {
     }
 
     private static class SelectView {
-        final Terminal output;
+        final TerminalOutput output;
         final String prompt;
         final List<String> options;
         int selected;
 
-        SelectView(Terminal output, String prompt, List<String> options, int defaultOption) {
+        SelectView(TerminalOutput output, String prompt, List<String> options, int defaultOption) {
             this.output = output;
             this.prompt = prompt;
             this.options = options;
@@ -95,7 +95,7 @@ public class Prompter {
             for (int i = 0; i < options.size(); i++) {
                 renderItem(i);
             }
-            output.foreground(Terminal.Color.White)
+            output.foreground(TerminalOutput.Color.White)
                     .write("Use the arrow keys to select an option and press enter")
                     .defaultForeground()
                     .cursorStartOfLine();
@@ -103,7 +103,7 @@ public class Prompter {
 
         private void renderItem(int i) {
             if (i == selected) {
-                output.foreground(Terminal.Color.Cyan);
+                output.foreground(TerminalOutput.Color.Cyan);
                 output.write("> ");
             } else {
                 output.write("  ");
@@ -146,7 +146,7 @@ public class Prompter {
             output.write(prompt)
                     .write(": ");
             if (selected >= 0) {
-                output.foreground(Terminal.Color.Cyan)
+                output.foreground(TerminalOutput.Color.Cyan)
                         .write(options.get(selected))
                         .reset();
             } else {
@@ -194,14 +194,14 @@ public class Prompter {
     }
 
     private static class TextView {
-        private final Terminal output;
+        private final TerminalOutput output;
         private final String prompt;
         private final String defaultValue;
         private StringBuilder value = new StringBuilder();
         private int insertPos = 0;
         private int cursor = 0;
 
-        TextView(Terminal output, String prompt, String defaultValue) {
+        TextView(TerminalOutput output, String prompt, String defaultValue) {
             this.output = output;
             this.prompt = prompt;
             this.defaultValue = defaultValue;
@@ -211,7 +211,7 @@ public class Prompter {
             output.newline();
             output.hideCursor();
             output.bold().write(prompt).write(": ").normal();
-            output.foreground(Terminal.Color.White);
+            output.foreground(TerminalOutput.Color.White);
             output.write(defaultValue);
             output.cursorLeft(defaultValue.length());
             output.reset();
@@ -222,11 +222,11 @@ public class Prompter {
             output.cursorLeft(cursor);
             output.clearToEndOfLine();
             if (value.length() == 0) {
-                output.foreground(Terminal.Color.White);
+                output.foreground(TerminalOutput.Color.White);
                 output.write(defaultValue);
                 output.cursorLeft(defaultValue.length() - insertPos);
             } else {
-                output.foreground(Terminal.Color.Cyan);
+                output.foreground(TerminalOutput.Color.Cyan);
                 output.write(value.toString());
                 output.cursorLeft(value.length() - insertPos);
             }
@@ -292,7 +292,7 @@ public class Prompter {
             output.clearToEndOfLine();
             output.write(prompt).write(": ");
             if (entered != null) {
-                output.foreground(Terminal.Color.Cyan);
+                output.foreground(TerminalOutput.Color.Cyan);
                 output.write(entered);
                 output.reset();
             } else {

@@ -17,22 +17,22 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
-import net.rubygrapefruit.platform.Terminal;
+import net.rubygrapefruit.platform.TerminalOutput;
 
 import java.io.IOException;
 
-public abstract class AbstractTerminal implements Terminal {
+public abstract class AbstractTerminal implements TerminalOutput {
     protected static byte[] NEW_LINE = System.getProperty("line.separator").getBytes();
 
     protected abstract void init();
 
     @Override
-    public Terminal newline() throws NativeException {
+    public TerminalOutput newline() throws NativeException {
         write(NEW_LINE);
         return this;
     }
 
-    public Terminal write(String text) throws NativeException {
+    public TerminalOutput write(String text) throws NativeException {
         byte[] bytes = text.getBytes();
         write(bytes);
         return this;

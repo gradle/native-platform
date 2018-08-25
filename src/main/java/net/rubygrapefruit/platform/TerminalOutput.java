@@ -26,7 +26,7 @@ import java.io.OutputStream;
  * </p>
  */
 @ThreadSafe
-public interface Terminal {
+public interface TerminalOutput {
     /**
      * Basic colors supported by a terminal.
      */
@@ -73,14 +73,14 @@ public interface Terminal {
      *
      * @throws NativeException On failure.
      */
-    Terminal write(String text) throws NativeException;
+    TerminalOutput write(String text) throws NativeException;
 
     /**
      * Writes line separator.
      *
      * @throws NativeException On failure.
      */
-    Terminal newline() throws NativeException;
+    TerminalOutput newline() throws NativeException;
 
     /**
      * Sets the terminal foreground color, if supported. Does nothing if this terminal does not support setting the
@@ -88,7 +88,7 @@ public interface Terminal {
      *
      * @throws NativeException On failure.
      */
-    Terminal foreground(Color color) throws NativeException;
+    TerminalOutput foreground(Color color) throws NativeException;
 
     /**
      * Sets the terminal foreground color to the default, if supported. Does nothing if this terminal does not support setting the
@@ -96,82 +96,82 @@ public interface Terminal {
      *
      * @throws NativeException On failure.
      */
-    Terminal defaultForeground() throws NativeException;
+    TerminalOutput defaultForeground() throws NativeException;
 
     /**
      * Switches the terminal to bold text mode, if supported. Does nothing if this terminal does not support bold mode.
      *
      * @throws NativeException On failure.
      */
-    Terminal bold() throws NativeException;
+    TerminalOutput bold() throws NativeException;
 
     /**
      * Switches the terminal to normal text mode. Supported by all terminals.
      *
      * @throws NativeException On failure.
      */
-    Terminal normal() throws NativeException;
+    TerminalOutput normal() throws NativeException;
 
     /**
      * Resets this terminal. Switches to normal text mode, restores default colors and shows the cursor. Supported by all terminals.
      *
      * @throws NativeException On failure.
      */
-    Terminal reset() throws NativeException;
+    TerminalOutput reset() throws NativeException;
 
     /**
      * Hides the cursor. Does nothing if this terminal does not support hiding the cursor.
      *
      * @throws NativeException On failure.
      */
-    Terminal hideCursor() throws NativeException;
+    TerminalOutput hideCursor() throws NativeException;
 
     /**
      * Shows the cursor, if hidden. Supported by all terminals.
      *
      * @throws NativeException On failure.
      */
-    Terminal showCursor() throws NativeException;
+    TerminalOutput showCursor() throws NativeException;
 
     /**
      * Moves the cursor the given number of characters to the left.
      *
      * @throws NativeException On failure, or if this terminal does not support cursor motion.
      */
-    Terminal cursorLeft(int count) throws NativeException;
+    TerminalOutput cursorLeft(int count) throws NativeException;
 
     /**
      * Moves the cursor the given number of characters to the right.
      *
      * @throws NativeException On failure, or if this terminal does not support cursor motion.
      */
-    Terminal cursorRight(int count) throws NativeException;
+    TerminalOutput cursorRight(int count) throws NativeException;
 
     /**
      * Moves the cursor the given number of characters up.
      *
      * @throws NativeException On failure, or if this terminal does not support cursor motion.
      */
-    Terminal cursorUp(int count) throws NativeException;
+    TerminalOutput cursorUp(int count) throws NativeException;
 
     /**
      * Moves the cursor the given number of characters down.
      *
      * @throws NativeException On failure, or if this terminal does not support cursor motion.
      */
-    Terminal cursorDown(int count) throws NativeException;
+    TerminalOutput cursorDown(int count) throws NativeException;
 
     /**
      * Moves the cursor to the start of the current line.
      *
      * @throws NativeException On failure, or if this terminal does not support cursor motion.
      */
-    Terminal cursorStartOfLine() throws NativeException;
+    TerminalOutput cursorStartOfLine() throws NativeException;
 
     /**
      * Clears characters from the cursor position to the end of the current line.
      *
      * @throws NativeException On failure, or if this terminal does not support clearing.
      */
-    Terminal clearToEndOfLine() throws NativeException;
+    TerminalOutput clearToEndOfLine() throws NativeException;
 }

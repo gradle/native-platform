@@ -123,7 +123,7 @@ public class Main {
         System.out.println("* Stderr: " + (stderrIsTerminal ? "terminal" : "not a terminal"));
         System.out.println("* Stdin: " + (stdinIsTerminal ? "terminal" : "not a terminal"));
         if (stdoutIsTerminal) {
-            Terminal terminal = terminals.getTerminal(Terminals.Output.Stdout);
+            TerminalOutput terminal = terminals.getTerminal(Terminals.Output.Stdout);
             System.setOut(new PrintStream(terminal.getOutputStream(), true));
             TerminalSize terminalSize = terminal.getTerminalSize();
             System.out.println("* Terminal implementation: " + terminal);
@@ -142,7 +142,7 @@ public class Main {
             System.out.println();
 
             System.out.println("COLORS");
-            for (Terminal.Color color : Terminal.Color.values()) {
+            for (TerminalOutput.Color color : TerminalOutput.Color.values()) {
                 terminal.foreground(color);
                 terminal.bold();
                 System.out.print(String.format("[%s] ", color.toString().toLowerCase()));
@@ -175,7 +175,7 @@ public class Main {
                 System.out.print("[3]");
                 terminal.cursorDown(1);
                 terminal.cursorStartOfLine();
-                terminal.foreground(Terminal.Color.Blue).bold();
+                terminal.foreground(TerminalOutput.Color.Blue).bold();
                 System.out.print("done");
                 terminal.clearToEndOfLine();
                 System.out.println("!");
@@ -184,18 +184,18 @@ public class Main {
             }
 
             System.out.print("Can write ");
-            terminal.bold().foreground(Terminal.Color.Blue).write("\u03B1\u03B2\u03B3");
+            terminal.bold().foreground(TerminalOutput.Color.Blue).write("\u03B1\u03B2\u03B3");
             terminal.reset();
             System.out.print(" unicode ");
-            terminal.foreground(Terminal.Color.Green);
+            terminal.foreground(TerminalOutput.Color.Green);
             System.out.println("\u2714");
             terminal.reset();
             System.out.println();
         } else if (stderrIsTerminal) {
-            Terminal terminal = terminals.getTerminal(Terminals.Output.Stderr);
+            TerminalOutput terminal = terminals.getTerminal(Terminals.Output.Stderr);
             System.setErr(new PrintStream(terminal.getOutputStream(), true));
             System.err.print("* this is ");
-            terminal.bold().foreground(Terminal.Color.Red);
+            terminal.bold().foreground(TerminalOutput.Color.Red);
             System.err.print("red");
             terminal.reset();
             System.err.print(" text on ");

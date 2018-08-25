@@ -16,7 +16,6 @@
 
 package net.rubygrapefruit.platform.internal.jni;
 
-import net.rubygrapefruit.platform.Terminal;
 import net.rubygrapefruit.platform.Terminals;
 import net.rubygrapefruit.platform.internal.FunctionResult;
 import net.rubygrapefruit.platform.internal.MutableSystemInfo;

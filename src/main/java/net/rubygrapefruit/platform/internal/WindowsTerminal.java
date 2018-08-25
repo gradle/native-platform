@@ -17,7 +17,7 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
-import net.rubygrapefruit.platform.Terminal;
+import net.rubygrapefruit.platform.TerminalOutput;
 import net.rubygrapefruit.platform.TerminalSize;
 import net.rubygrapefruit.platform.Terminals;
 import net.rubygrapefruit.platform.internal.jni.WindowsConsoleFunctions;
@@ -95,7 +95,7 @@ public class WindowsTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal bold() {
+    public TerminalOutput bold() {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();
             WindowsConsoleFunctions.boldOn(result);
@@ -107,7 +107,7 @@ public class WindowsTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal foreground(Color color) {
+    public TerminalOutput foreground(Color color) {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();
             WindowsConsoleFunctions.foreground(color.ordinal(), result);
@@ -119,7 +119,7 @@ public class WindowsTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal defaultForeground() throws NativeException {
+    public TerminalOutput defaultForeground() throws NativeException {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();
             WindowsConsoleFunctions.defaultForeground(result);
@@ -131,7 +131,7 @@ public class WindowsTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal normal() {
+    public TerminalOutput normal() {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();
             WindowsConsoleFunctions.boldOff(result);
@@ -143,7 +143,7 @@ public class WindowsTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal reset() {
+    public TerminalOutput reset() {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();
             WindowsConsoleFunctions.reset(result);
@@ -155,7 +155,7 @@ public class WindowsTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal hideCursor() throws NativeException {
+    public TerminalOutput hideCursor() throws NativeException {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();
             WindowsConsoleFunctions.hideCursor(result);
@@ -167,7 +167,7 @@ public class WindowsTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal showCursor() throws NativeException {
+    public TerminalOutput showCursor() throws NativeException {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();
             WindowsConsoleFunctions.showCursor(result);
@@ -179,7 +179,7 @@ public class WindowsTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal cursorDown(int count) throws NativeException {
+    public TerminalOutput cursorDown(int count) throws NativeException {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();
             WindowsConsoleFunctions.down(count, result);
@@ -191,7 +191,7 @@ public class WindowsTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal cursorUp(int count) throws NativeException {
+    public TerminalOutput cursorUp(int count) throws NativeException {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();
             WindowsConsoleFunctions.up(count, result);
@@ -203,7 +203,7 @@ public class WindowsTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal cursorLeft(int count) throws NativeException {
+    public TerminalOutput cursorLeft(int count) throws NativeException {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();
             WindowsConsoleFunctions.left(count, result);
@@ -215,7 +215,7 @@ public class WindowsTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal cursorRight(int count) throws NativeException {
+    public TerminalOutput cursorRight(int count) throws NativeException {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();
             WindowsConsoleFunctions.right(count, result);
@@ -227,7 +227,7 @@ public class WindowsTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal cursorStartOfLine() throws NativeException {
+    public TerminalOutput cursorStartOfLine() throws NativeException {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();
             WindowsConsoleFunctions.startLine(result);
@@ -239,7 +239,7 @@ public class WindowsTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal clearToEndOfLine() throws NativeException {
+    public TerminalOutput clearToEndOfLine() throws NativeException {
         synchronized (lock) {
             FunctionResult result = new FunctionResult();
             WindowsConsoleFunctions.clearToEndOfLine(result);

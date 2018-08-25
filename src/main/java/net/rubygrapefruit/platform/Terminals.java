@@ -51,7 +51,7 @@ public interface Terminals extends NativeIntegration {
      * @throws NativeException When the output is not attached to a terminal.
      */
     @ThreadSafe
-    Terminal getTerminal(Output output) throws NativeException;
+    TerminalOutput getTerminal(Output output) throws NativeException;
 
     /**
      * Returns the terminal attached to system input

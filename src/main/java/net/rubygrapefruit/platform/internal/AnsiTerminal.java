@@ -17,7 +17,7 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
-import net.rubygrapefruit.platform.Terminal;
+import net.rubygrapefruit.platform.TerminalOutput;
 import net.rubygrapefruit.platform.TerminalSize;
 import net.rubygrapefruit.platform.Terminals;
 
@@ -77,7 +77,7 @@ public class AnsiTerminal extends AbstractTerminal {
         return outputStream;
     }
 
-    public Terminal foreground(Color color) throws NativeException {
+    public TerminalOutput foreground(Color color) throws NativeException {
         try {
             String esc = String.format("\u001b[%sm", 30 + color.ordinal());
             outputStream.write(esc.getBytes());
@@ -87,7 +87,7 @@ public class AnsiTerminal extends AbstractTerminal {
         return this;
     }
 
-    public Terminal bold() throws NativeException {
+    public TerminalOutput bold() throws NativeException {
         try {
             outputStream.write(BOLD);
         } catch (IOException e) {
@@ -97,7 +97,7 @@ public class AnsiTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal defaultForeground() throws NativeException {
+    public TerminalOutput defaultForeground() throws NativeException {
         try {
             outputStream.write(DEFAULT_FG);
         } catch (IOException e) {
@@ -106,7 +106,7 @@ public class AnsiTerminal extends AbstractTerminal {
         return this;
     }
 
-    public Terminal normal() throws NativeException {
+    public TerminalOutput normal() throws NativeException {
         try {
             outputStream.write(BOLD_OFF);
         } catch (IOException e) {
@@ -115,7 +115,7 @@ public class AnsiTerminal extends AbstractTerminal {
         return this;
     }
 
-    public Terminal reset() throws NativeException {
+    public TerminalOutput reset() throws NativeException {
         try {
             outputStream.write(RESET);
         } catch (IOException e) {
@@ -125,16 +125,16 @@ public class AnsiTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal hideCursor() throws NativeException {
+    public TerminalOutput hideCursor() throws NativeException {
         return this;
     }
 
     @Override
-    public Terminal showCursor() throws NativeException {
+    public TerminalOutput showCursor() throws NativeException {
         return this;
     }
 
-    public Terminal cursorLeft(int count) throws NativeException {
+    public TerminalOutput cursorLeft(int count) throws NativeException {
         try {
             String esc = String.format("\u001b[%sD", count);
             outputStream.write(esc.getBytes());
@@ -144,7 +144,7 @@ public class AnsiTerminal extends AbstractTerminal {
         return this;
     }
 
-    public Terminal cursorRight(int count) throws NativeException {
+    public TerminalOutput cursorRight(int count) throws NativeException {
         try {
             String esc = String.format("\u001b[%sC", count);
             outputStream.write(esc.getBytes());
@@ -154,7 +154,7 @@ public class AnsiTerminal extends AbstractTerminal {
         return this;
     }
 
-    public Terminal cursorUp(int count) throws NativeException {
+    public TerminalOutput cursorUp(int count) throws NativeException {
         try {
             String esc = String.format("\u001b[%sA", count);
             outputStream.write(esc.getBytes());
@@ -164,7 +164,7 @@ public class AnsiTerminal extends AbstractTerminal {
         return this;
     }
 
-    public Terminal cursorDown(int count) throws NativeException {
+    public TerminalOutput cursorDown(int count) throws NativeException {
         try {
             String esc = String.format("\u001b[%sB", count);
             outputStream.write(esc.getBytes());
@@ -174,7 +174,7 @@ public class AnsiTerminal extends AbstractTerminal {
         return this;
     }
 
-    public Terminal cursorStartOfLine() throws NativeException {
+    public TerminalOutput cursorStartOfLine() throws NativeException {
         try {
             outputStream.write(START_OF_LINE);
         } catch (IOException e) {
@@ -183,7 +183,7 @@ public class AnsiTerminal extends AbstractTerminal {
         return this;
     }
 
-    public Terminal clearToEndOfLine() throws NativeException {
+    public TerminalOutput clearToEndOfLine() throws NativeException {
         try {
             outputStream.write(CLEAR_TO_END_OF_LINE);
         } catch (IOException e) {

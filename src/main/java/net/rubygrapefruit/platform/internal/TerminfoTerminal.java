@@ -17,7 +17,7 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
-import net.rubygrapefruit.platform.Terminal;
+import net.rubygrapefruit.platform.TerminalOutput;
 import net.rubygrapefruit.platform.TerminalSize;
 import net.rubygrapefruit.platform.Terminals;
 import net.rubygrapefruit.platform.internal.jni.PosixTerminalFunctions;
@@ -128,7 +128,7 @@ public class TerminfoTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal foreground(Color color) {
+    public TerminalOutput foreground(Color color) {
         if (!capabilities.colors) {
             return this;
         }
@@ -150,7 +150,7 @@ public class TerminfoTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal bold() {
+    public TerminalOutput bold() {
         if (!capabilities.textAttributes) {
             return this;
         }
@@ -170,7 +170,7 @@ public class TerminfoTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal normal() {
+    public TerminalOutput normal() {
         synchronized (lock) {
             write(boldOff);
         }
@@ -178,7 +178,7 @@ public class TerminfoTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal defaultForeground() throws NativeException {
+    public TerminalOutput defaultForeground() throws NativeException {
         synchronized (lock) {
             write(defaultForeground);
         }
@@ -186,7 +186,7 @@ public class TerminfoTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal reset() {
+    public TerminalOutput reset() {
         synchronized (lock) {
             if (reset == null) {
                 FunctionResult result = new FunctionResult();
@@ -207,7 +207,7 @@ public class TerminfoTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal hideCursor() throws NativeException {
+    public TerminalOutput hideCursor() throws NativeException {
         synchronized (lock) {
             if (hideCursor != null) {
                 write(hideCursor);
@@ -217,7 +217,7 @@ public class TerminfoTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal showCursor() throws NativeException {
+    public TerminalOutput showCursor() throws NativeException {
         synchronized (lock) {
             if (showCursor != null) {
                 write(showCursor);
@@ -227,7 +227,7 @@ public class TerminfoTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal cursorDown(int count) {
+    public TerminalOutput cursorDown(int count) {
         synchronized (lock) {
             if (down == null) {
                 FunctionResult result = new FunctionResult();
@@ -244,7 +244,7 @@ public class TerminfoTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal cursorUp(int count) {
+    public TerminalOutput cursorUp(int count) {
         synchronized (lock) {
             if (up == null) {
                 FunctionResult result = new FunctionResult();
@@ -261,7 +261,7 @@ public class TerminfoTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal cursorLeft(int count) {
+    public TerminalOutput cursorLeft(int count) {
         synchronized (lock) {
             if (left == null) {
                 FunctionResult result = new FunctionResult();
@@ -278,7 +278,7 @@ public class TerminfoTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal cursorRight(int count) {
+    public TerminalOutput cursorRight(int count) {
         synchronized (lock) {
             if (right == null) {
                 FunctionResult result = new FunctionResult();
@@ -295,7 +295,7 @@ public class TerminfoTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal cursorStartOfLine() throws NativeException {
+    public TerminalOutput cursorStartOfLine() throws NativeException {
         synchronized (lock) {
             if (startLine == null) {
                 FunctionResult result = new FunctionResult();
@@ -310,7 +310,7 @@ public class TerminfoTerminal extends AbstractTerminal {
     }
 
     @Override
-    public Terminal clearToEndOfLine() throws NativeException {
+    public TerminalOutput clearToEndOfLine() throws NativeException {
         synchronized (lock) {
             if (clearEOL == null) {
                 FunctionResult result = new FunctionResult();
