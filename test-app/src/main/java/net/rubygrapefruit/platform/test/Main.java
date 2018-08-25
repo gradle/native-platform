@@ -87,7 +87,7 @@ public class Main {
         }
 
         while (true) {
-            int selected = prompter.select("Select option", Arrays.asList("Show terminal details", "Show machine details", "Test input handling", "Example prompts", "Exit"), 4);
+            int selected = prompter.select("Select test to run", Arrays.asList("Show terminal details", "Show machine details", "Test input handling", "Example prompts", "Exit"), 4);
             switch (selected) {
                 case 0:
                     terminal();
@@ -131,6 +131,7 @@ public class Main {
             System.out.println("* Text attributes: " + (terminal.supportsTextAttributes() ? "yes" : "no"));
             System.out.println("* Color: " + (terminal.supportsColor() ? "yes" : "no"));
             System.out.println("* Cursor motion: " + (terminal.supportsCursorMotion() ? "yes" : "no"));
+            System.out.println("* Cursor visibility: " + (terminal.supportsCursorVisibility() ? "yes" : "no"));
             System.out.println();
             System.out.println("TEXT ATTRIBUTES");
             System.out.print("[normal] ");
@@ -219,6 +220,7 @@ public class Main {
         while (!listener.finished) {
             terminalInput.read(listener);
         }
+        System.out.println();
         System.out.println("* Using raw mode");
         terminalInput.rawMode();
         System.out.println("Enter some text (press 'enter' to finish): ");

@@ -90,13 +90,14 @@ public class Prompter {
 
         void render() {
             output.newline();
-            output.write(prompt).write(":").newline();
+            output.hideCursor();
+            output.bold().write(prompt).write(":").normal().newline();
             for (int i = 0; i < options.size(); i++) {
                 renderItem(i);
             }
             output.foreground(Terminal.Color.White)
-                    .write("  Use the arrow keys to select an option and press enter")
-                    .reset()
+                    .write("Use the arrow keys to select an option and press enter")
+                    .defaultForeground()
                     .cursorStartOfLine();
         }
 
@@ -108,7 +109,7 @@ public class Prompter {
                 output.write("  ");
             }
             output.write(String.valueOf((i + 1))).write(") ").write(options.get(i));
-            output.reset();
+            output.defaultForeground();
             output.newline();
         }
 
@@ -151,6 +152,7 @@ public class Prompter {
             } else {
                 output.write("<none>");
             }
+            output.showCursor();
             output.newline();
         }
     }
@@ -207,7 +209,8 @@ public class Prompter {
 
         public void render() {
             output.newline();
-            output.write(prompt).write(": ");
+            output.hideCursor();
+            output.bold().write(prompt).write(": ").normal();
             output.foreground(Terminal.Color.White);
             output.write(defaultValue);
             output.cursorLeft(defaultValue.length());
@@ -215,6 +218,7 @@ public class Prompter {
         }
 
         void update() {
+            output.hideCursor();
             output.cursorLeft(cursor);
             output.clearToEndOfLine();
             if (value.length() == 0) {
@@ -284,8 +288,9 @@ public class Prompter {
         }
 
         public void close(String entered) {
-            output.cursorLeft(cursor);
+            output.cursorStartOfLine();
             output.clearToEndOfLine();
+            output.write(prompt).write(": ");
             if (entered != null) {
                 output.foreground(Terminal.Color.Cyan);
                 output.write(entered);
