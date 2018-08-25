@@ -117,9 +117,11 @@ Some sample code to use the terminal:
 
 ### 0.15 (not released)
 
-* Added `TerminalInput` to read text from the terminal. Supports raw mode and arrow keys.
-* Added methods to `Terminal` to write text to the terminal. Anything written to `System.out` or `System.err` is no longer automatically flushed before cursor or text attributes are changed.
 * Added method to `Terminals` to determine whether stdin is attached to a terminal.
+* Added `TerminalInput` to read text from the terminal. Supports raw mode and arrow keys.
+* Added methods to `Terminal` to show and hide the cursor.
+* Added methods to `Terminal` to set foreground text color to its default value.
+* Added methods to `Terminal` to write text to the terminal. Anything written to `System.out` or `System.err` is no longer automatically flushed before cursor or text attributes are changed.
 
 ### 0.14
 
