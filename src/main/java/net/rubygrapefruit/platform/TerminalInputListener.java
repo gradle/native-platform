@@ -5,14 +5,20 @@ package net.rubygrapefruit.platform;
  */
 public interface TerminalInputListener {
     enum Key {
+        // Order is significant
+        Enter,
         UpArrow,
         DownArrow,
         LeftArrow,
-        RightArrow
+        RightArrow,
+        Home,
+        End,
+        EraseBack,
+        EraseForward,
     }
 
     /**
-     * Called when a character is typed.
+     * Called when a character is typed. Note that this method is not called for the 'enter' key.
      */
     void character(char ch);
 

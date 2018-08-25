@@ -523,16 +523,22 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_readInput(
             continue;
         }
 
-        if (keyEvent.wVirtualKeyCode == VK_UP) {
+        if (keyEvent.wVirtualKeyCode == VK_RETURN) {
             control_key(env, 0, char_buffer, result);
-        } else if (keyEvent.wVirtualKeyCode == VK_DOWN) {
+        } else if (keyEvent.wVirtualKeyCode == VK_UP) {
             control_key(env, 1, char_buffer, result);
-        } else if (keyEvent.wVirtualKeyCode == VK_LEFT) {
+        } else if (keyEvent.wVirtualKeyCode == VK_DOWN) {
             control_key(env, 2, char_buffer, result);
-        } else if (keyEvent.wVirtualKeyCode == VK_RIGHT) {
+        } else if (keyEvent.wVirtualKeyCode == VK_LEFT) {
             control_key(env, 3, char_buffer, result);
-        } else if (keyEvent.wVirtualKeyCode == VK_RETURN) {
-            character(env, '\n', char_buffer, result);
+        } else if (keyEvent.wVirtualKeyCode == VK_RIGHT) {
+            control_key(env, 4, char_buffer, result);
+        } else if (keyEvent.wVirtualKeyCode == VK_HOME) {
+            control_key(env, 5, char_buffer, result);
+        } else if (keyEvent.wVirtualKeyCode == VK_END) {
+            control_key(env, 6, char_buffer, result);
+        } else if (keyEvent.wVirtualKeyCode == VK_BACK) {
+            control_key(env, 7, char_buffer, result);
         } else if (keyEvent.uChar.UnicodeChar == 0) {
             // Some other key
             continue;

@@ -11,7 +11,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 public class WindowsTerminalInput implements TerminalInput {
-    private final InputStream inputStream = new FileInputStream(FileDescriptor.in);
+    private final PeekInputStream inputStream = new PeekInputStream(new FileInputStream(FileDescriptor.in));
     private final Object lock = new Object();
     private boolean raw;
 
@@ -32,18 +32,34 @@ public class WindowsTerminalInput implements TerminalInput {
                 }
                 buffer.applyTo(listener);
             } else {
-                int ch;
-                try {
-                    ch = inputStream.read();
-                } catch (IOException e) {
-                    throw new NativeException("Could not read from console", e);
+                if (peek(0) == '\r' && peek(1) == '\n') {
+                    inputStream.consume();
+                    listener.controlKey(TerminalInputListener.Key.Enter);
+                    return;
                 }
+                int ch = next();
                 if (ch < 0) {
                     listener.endInput();
                 } else {
                     listener.character((char) ch);
                 }
             }
+        }
+    }
+
+    private int peek(int i) {
+        try {
+            return inputStream.peek(i);
+        } catch (IOException e) {
+            throw new NativeException("Could not read from console.", e);
+        }
+    }
+
+    private int next() {
+        try {
+            return inputStream.read();
+        } catch (IOException e) {
+            throw new NativeException("Could not read from console.", e);
         }
     }
 

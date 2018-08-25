@@ -323,14 +323,14 @@ public class Main {
         @Override
         public void character(char ch) {
             System.out.println("Character: " + ch + " (" + (int) ch + ")");
-            if (ch == '\n') {
-                finished = true;
-            }
         }
 
         @Override
         public void controlKey(Key key) {
             System.out.println("Control key: " + key);
+            if (key == Key.Enter) {
+                finished = true;
+            }
         }
 
         @Override

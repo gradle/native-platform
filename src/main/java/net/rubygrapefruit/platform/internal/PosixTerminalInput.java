@@ -11,12 +11,16 @@ import java.io.IOException;
 import java.io.InputStream;
 
 public class PosixTerminalInput implements TerminalInput {
-    private final InputStream inputStream = new FileInputStream(FileDescriptor.in);
+    private final PeekInputStream inputStream = new PeekInputStream(new FileInputStream(FileDescriptor.in));
     private final Object lock = new Object();
-    private byte upArrow = 65;
-    private byte downArrow = 66;
-    private byte leftArrow = 68;
-    private byte rightArrow = 67;
+    private static final int UP_ARROW = 65;
+    private static final int DOWN_ARROW = 66;
+    private static final int RIGHT_ARROW = 67;
+    private static final int LEFT_ARROW = 68;
+    private static final int END = 70;
+    private static final int HOME = 72;
+    private static final int ERASE1 = 51;
+    private static final int ERASE2 = 126;
 
     @Override
     public InputStream getInputStream() {
@@ -26,44 +30,55 @@ public class PosixTerminalInput implements TerminalInput {
     @Override
     public void read(TerminalInputListener listener) {
         synchronized (lock) {
+            if (peek(0) == 27 && peek(1) == 91) {
+                int ch = peek(2);
+                if (ch == UP_ARROW) {
+                    inputStream.consume();
+                    listener.controlKey(TerminalInputListener.Key.UpArrow);
+                    return;
+                } else if (ch == DOWN_ARROW) {
+                    inputStream.consume();
+                    listener.controlKey(TerminalInputListener.Key.DownArrow);
+                    return;
+                } else if (ch == LEFT_ARROW) {
+                    inputStream.consume();
+                    listener.controlKey(TerminalInputListener.Key.LeftArrow);
+                    return;
+                } else if (ch == RIGHT_ARROW) {
+                    inputStream.consume();
+                    listener.controlKey(TerminalInputListener.Key.RightArrow);
+                    return;
+                } else if (ch == HOME) {
+                    inputStream.consume();
+                    listener.controlKey(TerminalInputListener.Key.Home);
+                    return;
+                } else if (ch == END) {
+                    inputStream.consume();
+                    listener.controlKey(TerminalInputListener.Key.End);
+                    return;
+                } else if (ch == ERASE1 && peek(3) == ERASE2) {
+                    inputStream.consume();
+                    listener.controlKey(TerminalInputListener.Key.EraseForward);
+                }
+            }
             int ch = next();
             if (ch < 0) {
                 listener.endInput();
-                return;
-            }
-            if (ch == 27) {
-                int ch2 = next();
-                if (ch2 < 0) {
-                    listener.character((char) ch);
-                    listener.endInput();
-                    return;
-                }
-                if (ch2 == 91) {
-                    int ch3 = next();
-                    if (ch3 < 0) {
-                        listener.character((char) ch);
-                        listener.character((char) ch2);
-                        listener.endInput();
-                    } else if (ch3 == upArrow) {
-                        listener.controlKey(TerminalInputListener.Key.UpArrow);
-                    } else if (ch3 == downArrow) {
-                        listener.controlKey(TerminalInputListener.Key.DownArrow);
-                    } else if (ch3 == leftArrow) {
-                        listener.controlKey(TerminalInputListener.Key.LeftArrow);
-                    } else if (ch3 == rightArrow) {
-                        listener.controlKey(TerminalInputListener.Key.RightArrow);
-                    } else {
-                        listener.character((char) ch);
-                        listener.character((char) ch2);
-                        listener.character((char) ch3);
-                    }
-                } else {
-                    listener.character((char) ch);
-                    listener.character((char) ch2);
-                }
+            } else if (ch == '\n') {
+                listener.controlKey(TerminalInputListener.Key.Enter);
+            } else if (ch == 127) {
+                listener.controlKey(TerminalInputListener.Key.EraseBack);
             } else {
                 listener.character((char) ch);
             }
+        }
+    }
+
+    private int peek(int i) {
+        try {
+            return inputStream.peek(i);
+        } catch (IOException e) {
+            throw new NativeException("Could not read from terminal.", e);
         }
     }
 
