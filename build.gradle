@@ -271,9 +271,6 @@ model {
                     cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/freebsd"
                 }
                 cppCompiler.args "-I${nativeHeadersDir}"
-                tasks.withType(CppCompile) { task ->
-                    task.dependsOn project.tasks.nativeHeaders
-                }
             }
 
             binaries.withType(SharedLibraryBinarySpec) { binary ->
@@ -312,6 +309,10 @@ model {
             }
         }
     }
+}
+
+tasks.withType(CppCompile) { task ->
+    task.dependsOn project.tasks.nativeHeaders
 }
 
 javadoc {
