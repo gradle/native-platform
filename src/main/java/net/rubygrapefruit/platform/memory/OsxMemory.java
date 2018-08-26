@@ -17,13 +17,14 @@
 package net.rubygrapefruit.platform.memory;
 
 import net.rubygrapefruit.platform.NativeException;
+import net.rubygrapefruit.platform.NativeIntegration;
 import net.rubygrapefruit.platform.ThreadSafe;
 
 /**
  * Provides MacOS specific details about the system memory.
  */
 @ThreadSafe
-public interface OsxMemory extends Memory {
+public interface OsxMemory extends Memory, NativeIntegration {
     /**
      * Queries the current state of the system memory.
      *

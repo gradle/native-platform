@@ -17,6 +17,7 @@
 package net.rubygrapefruit.platform.file;
 
 import net.rubygrapefruit.platform.NativeException;
+import net.rubygrapefruit.platform.NativeIntegration;
 import net.rubygrapefruit.platform.ThreadSafe;
 
 import java.io.File;
@@ -25,7 +26,7 @@ import java.io.File;
  * Functions to query and modify files on a Posix file system.
  */
 @ThreadSafe
-public interface PosixFiles extends Files {
+public interface PosixFiles extends Files, NativeIntegration {
     /**
      * Sets the mode for the given file.
      *

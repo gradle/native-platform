@@ -17,6 +17,6 @@
 /**
  * Native integrations.
  *
- * <p>Use {@link net.rubygrapefruit.platform.Native#get(Class)} to access a native integration.
+ * <p>Use {@link net.rubygrapefruit.platform.Native#get(Class)} to access a {@link net.rubygrapefruit.platform.NativeIntegration}.
  */
 package net.rubygrapefruit.platform;

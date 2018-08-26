@@ -17,13 +17,14 @@
 package net.rubygrapefruit.platform.file;
 
 import net.rubygrapefruit.platform.NativeException;
+import net.rubygrapefruit.platform.NativeIntegration;
 
 import java.io.File;
 
 /**
  * Functions to query files on a Windows file system.
  */
-public interface WindowsFiles extends Files {
+public interface WindowsFiles extends Files, NativeIntegration {
     /**
      * {@inheritDoc}
      */
