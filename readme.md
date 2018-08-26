@@ -102,9 +102,9 @@ You can also download [here](https://repo.gradle.org/gradle/libs-releases-local/
 Some sample code to use the terminal:
 
     import net.rubygrapefruit.platform.Native;
-    import net.rubygrapefruit.platform.Terminals;
-    import net.rubygrapefruit.platform.TerminalOutput;
-    import static net.rubygrapefruit.platform.Terminals.Output.*;
+    import net.rubygrapefruit.platform.terminal.Terminals;
+    import net.rubygrapefruit.platform.terminal.TerminalOutput;
+    import static net.rubygrapefruit.platform.terminal.Terminals.Output.*;
 
     Terminals terminals = Native.get(Terminals.class);
 
@@ -121,6 +121,7 @@ Some sample code to use the terminal:
 ### 0.15 (not released)
 
 * Renamed `Terminal` to `TerminalOutput`.
+* Moved some types to subpackages.
 * Added `TerminalInput` to read text from the terminal. Supports raw mode and arrow keys.
 * Added method to `Terminals` to determine whether stdin is attached to a terminal.
 * Added method to `Terminals` to force the use of ANSI escape sequences to write the terminal output.

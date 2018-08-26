@@ -1,9 +1,9 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
-import net.rubygrapefruit.platform.TerminalInput;
-import net.rubygrapefruit.platform.TerminalOutput;
-import net.rubygrapefruit.platform.Terminals;
+import net.rubygrapefruit.platform.terminal.TerminalInput;
+import net.rubygrapefruit.platform.terminal.TerminalOutput;
+import net.rubygrapefruit.platform.terminal.Terminals;
 
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;

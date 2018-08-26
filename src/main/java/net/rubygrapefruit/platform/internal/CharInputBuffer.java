@@ -1,6 +1,6 @@
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.TerminalInputListener;
+import net.rubygrapefruit.platform.terminal.TerminalInputListener;
 
 public class CharInputBuffer {
     char ch;

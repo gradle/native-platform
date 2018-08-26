@@ -21,6 +21,7 @@ import net.rubygrapefruit.platform.Process;
 import net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions;
 import net.rubygrapefruit.platform.internal.jni.PosixTypeFunctions;
 import net.rubygrapefruit.platform.internal.jni.TerminfoFunctions;
+import net.rubygrapefruit.platform.terminal.Terminals;
 
 import java.util.Arrays;
 import java.util.List;

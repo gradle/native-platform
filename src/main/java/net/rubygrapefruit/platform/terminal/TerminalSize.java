@@ -14,7 +14,9 @@
  *    limitations under the License.
  */
 
-package net.rubygrapefruit.platform;
+package net.rubygrapefruit.platform.terminal;
+
+import net.rubygrapefruit.platform.ThreadSafe;
 
 /**
  * The size of a terminal. This is a snapshot view and does not change.

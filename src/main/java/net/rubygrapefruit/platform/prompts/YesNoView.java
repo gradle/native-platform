@@ -1,6 +1,6 @@
 package net.rubygrapefruit.platform.prompts;
 
-import net.rubygrapefruit.platform.TerminalOutput;
+import net.rubygrapefruit.platform.terminal.TerminalOutput;
 
 import static net.rubygrapefruit.platform.prompts.Prompter.DEFAULT_VALUE_COLOR;
 import static net.rubygrapefruit.platform.prompts.Prompter.SELECTION_COLOR;

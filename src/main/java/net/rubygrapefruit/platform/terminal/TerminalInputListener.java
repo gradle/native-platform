@@ -1,4 +1,4 @@
-package net.rubygrapefruit.platform;
+package net.rubygrapefruit.platform.terminal;
 
 /**
  * Receives terminal input.

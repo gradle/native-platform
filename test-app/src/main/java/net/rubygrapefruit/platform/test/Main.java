@@ -22,6 +22,7 @@ import joptsimple.OptionSet;
 import net.rubygrapefruit.platform.*;
 import net.rubygrapefruit.platform.Process;
 import net.rubygrapefruit.platform.prompts.Prompter;
+import net.rubygrapefruit.platform.terminal.*;
 
 import java.io.File;
 import java.io.IOException;

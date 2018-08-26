@@ -16,7 +16,7 @@
 
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.TerminalSize;
+import net.rubygrapefruit.platform.terminal.TerminalSize;
 
 public class MutableTerminalSize implements TerminalSize {
     int rows;

@@ -17,7 +17,7 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
-import net.rubygrapefruit.platform.TerminalOutput;
+import net.rubygrapefruit.platform.terminal.TerminalOutput;
 
 import java.io.IOException;
 

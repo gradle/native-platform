@@ -1,6 +1,6 @@
 package net.rubygrapefruit.platform.prompts;
 
-import net.rubygrapefruit.platform.TerminalOutput;
+import net.rubygrapefruit.platform.terminal.TerminalOutput;
 
 class TextView {
     final TerminalOutput output;

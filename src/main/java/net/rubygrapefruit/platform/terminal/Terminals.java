@@ -14,7 +14,12 @@
  *    limitations under the License.
  */
 
-package net.rubygrapefruit.platform;
+package net.rubygrapefruit.platform.terminal;
+
+import net.rubygrapefruit.platform.Native;
+import net.rubygrapefruit.platform.NativeException;
+import net.rubygrapefruit.platform.NativeIntegration;
+import net.rubygrapefruit.platform.ThreadSafe;
 
 /**
  * Provides access to the terminal/console.

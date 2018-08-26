@@ -17,7 +17,7 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
-import net.rubygrapefruit.platform.TerminalInput;
+import net.rubygrapefruit.platform.terminal.TerminalInput;
 import net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions;
 import net.rubygrapefruit.platform.internal.jni.PosixTerminalFunctions;
 
