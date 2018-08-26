@@ -13,14 +13,12 @@ public class Prompter {
     static final TerminalOutput.Color SELECTION_COLOR = TerminalOutput.Color.Cyan;
     static final TerminalOutput.Color DEFAULT_VALUE_COLOR = TerminalOutput.Color.White;
     static final TerminalOutput.Color INFO_COLOR = TerminalOutput.Color.White;
-    private final TerminalOutput output;
-    private final TerminalInput input;
     private final boolean interactive;
+    private final Terminals terminals;
 
     public Prompter(Terminals terminals) {
         interactive = terminals.isTerminalInput() && terminals.isTerminal(Terminals.Output.Stdout) && terminals.getTerminal(Terminals.Output.Stdout).supportsCursorMotion();
-        output = terminals.getTerminal(Terminals.Output.Stdout);
-        input = terminals.getTerminalInput();
+        this.terminals = terminals;
     }
 
     /**
@@ -83,6 +81,7 @@ public class Prompter {
     }
 
     private Boolean yesNoInteractive(String prompt, boolean defaultValue) {
+        TerminalOutput output = terminals.getTerminal(Terminals.Output.Stdout);
         YesNoView view = new YesNoView(output, prompt, defaultValue);
         YesNoListener listener = new YesNoListener(defaultValue);
         view.render();
@@ -92,6 +91,7 @@ public class Prompter {
     }
 
     private Integer selectInteractive(String prompt, List<String> options, final int defaultOption) {
+        TerminalOutput output = terminals.getTerminal(Terminals.Output.Stdout);
         SelectView view = new SelectView(output, prompt, options, defaultOption);
         SelectionListener listener = new SelectionListener(view, options);
         view.render();
@@ -101,6 +101,7 @@ public class Prompter {
     }
 
     private String enterTextInteractive(String prompt, String defaultValue) {
+        TerminalOutput output = terminals.getTerminal(Terminals.Output.Stdout);
         TextView view = new TextView(output, prompt, defaultValue);
         TextEntryListener listener = new TextEntryListener(view, defaultValue);
         view.render();
@@ -110,6 +111,7 @@ public class Prompter {
     }
 
     private String enterPasswordInteractive(String prompt) {
+        TerminalOutput output = terminals.getTerminal(Terminals.Output.Stdout);
         PasswordView view = new PasswordView(output, prompt);
         TextEntryListener listener = new TextEntryListener(view, null);
         view.render();
@@ -119,6 +121,7 @@ public class Prompter {
     }
 
     private void handleInput(AbstractListener listener) {
+        TerminalInput input = terminals.getTerminalInput();
         input.rawMode();
         try {
             while (!listener.isFinished()) {
