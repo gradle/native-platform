@@ -18,7 +18,7 @@ public class Prompter {
     private final boolean interactive;
 
     public Prompter(Terminals terminals) {
-        interactive = terminals.isTerminalInput() && terminals.isTerminal(Terminals.Output.Stdout);
+        interactive = terminals.isTerminalInput() && terminals.isTerminal(Terminals.Output.Stdout) && terminals.getTerminal(Terminals.Output.Stdout).supportsCursorMotion();
         output = terminals.getTerminal(Terminals.Output.Stdout);
         input = terminals.getTerminalInput();
     }
