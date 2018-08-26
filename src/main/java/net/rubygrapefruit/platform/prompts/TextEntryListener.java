@@ -1,8 +1,6 @@
 package net.rubygrapefruit.platform.prompts;
 
-import net.rubygrapefruit.platform.TerminalInputListener;
-
-class TextEntryListener implements TerminalInputListener {
+class TextEntryListener extends AbstractListener {
     private final TextView view;
     private final String defaultValue;
     private String entered;

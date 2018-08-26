@@ -1,8 +1,6 @@
 package net.rubygrapefruit.platform.prompts;
 
-import net.rubygrapefruit.platform.TerminalInputListener;
-
-class YesNoListener implements TerminalInputListener {
+class YesNoListener extends AbstractListener {
     private final boolean defaultValue;
     private Boolean selected;
     private boolean finished;

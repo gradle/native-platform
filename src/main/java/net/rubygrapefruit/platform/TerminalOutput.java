@@ -74,7 +74,14 @@ public interface TerminalOutput {
      *
      * @throws NativeException On failure.
      */
-    TerminalOutput write(String text) throws NativeException;
+    TerminalOutput write(CharSequence text) throws NativeException;
+
+    /**
+     * Writes a character to this terminal. Uses the system encoding.
+     *
+     * @throws NativeException On failure.
+     */
+    TerminalOutput write(char ch) throws NativeException;
 
     /**
      * Writes line separator.

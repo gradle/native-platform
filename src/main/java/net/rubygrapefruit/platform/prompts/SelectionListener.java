@@ -1,10 +1,8 @@
 package net.rubygrapefruit.platform.prompts;
 
-import net.rubygrapefruit.platform.TerminalInputListener;
-
 import java.util.List;
 
-class SelectionListener implements TerminalInputListener {
+class SelectionListener extends AbstractListener {
     private final SelectView view;
     private final List<String> options;
     private int selected;

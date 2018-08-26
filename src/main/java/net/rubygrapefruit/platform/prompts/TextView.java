@@ -3,7 +3,7 @@ package net.rubygrapefruit.platform.prompts;
 import net.rubygrapefruit.platform.TerminalOutput;
 
 class TextView {
-    private final TerminalOutput output;
+    final TerminalOutput output;
     private final String prompt;
     private final String defaultValue;
     private StringBuilder value = new StringBuilder();
@@ -44,11 +44,20 @@ class TextView {
             output.cursorLeft(defaultValue.length() - insertPos);
         } else {
             output.foreground(Prompter.SELECTION_COLOR);
-            output.write(value.toString());
-            output.cursorLeft(value.length() - insertPos);
+            int len = renderValue(value);
+            output.cursorLeft(len - insertPos);
         }
         output.reset();
         cursor = insertPos;
+    }
+
+    protected int renderValue(CharSequence value) {
+        output.write(value);
+        return value.length();
+    }
+
+    protected int renderFinalValue(CharSequence value) {
+        return renderValue(value);
     }
 
     void insert(char ch) {
@@ -110,7 +119,7 @@ class TextView {
         output.write(prompt).write(": ");
         if (entered != null) {
             output.foreground(Prompter.SELECTION_COLOR);
-            output.write(entered);
+            renderFinalValue(entered);
             output.reset();
         } else {
             output.write("<none>");

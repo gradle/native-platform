@@ -19,7 +19,7 @@ class YesNoView {
     public void render() {
         output.newline();
         output.hideCursor();
-        output.bold().write(prompt).normal().write(" [yn]: ");
+        output.bold().write(prompt).normal().write(" [y/n]: ");
         output.foreground(DEFAULT_VALUE_COLOR).write(defaultValue ? "y" : "n").defaultForeground().cursorLeft(1);
         output.showCursor();
     }

@@ -42,6 +42,7 @@ public class Main {
         optionParser.accepts("machine", "Display details about the current machine");
         optionParser.accepts("terminal", "Display details about the terminal");
         optionParser.accepts("input", "Reads input from the terminal");
+        optionParser.accepts("prompts", "Display sample prompts");
 
         OptionSet result = null;
         try {
@@ -85,6 +86,12 @@ public class Main {
         }
 
         Prompter prompter = new Prompter(terminals(ansi));
+
+        if (result.has("prompts")) {
+            prompts(prompter);
+            return;
+        }
+
         if (!prompter.isInteractive()) {
             terminal(ansi);
             return;
@@ -118,11 +125,19 @@ public class Main {
     }
 
     private static void prompts(Prompter prompter) {
+        Integer selected = prompter.select("Select an option", Arrays.asList("Option 1", "Option 2", "Option 3"), 2);
+        System.out.println("You selected item: " + selected);
+
         String text = prompter.enterText("Enter some text", "default");
         System.out.println("You entered: " + text);
 
+        String password = prompter.enterPassword("Enter a password");
+        System.out.println("You entered: " + password);
+
         Boolean answer = prompter.askYesNo("A yes/no question", true);
         System.out.println("You answered: " + answer);
+
+        System.out.println();
     }
 
     private static void terminal(boolean ansi) {

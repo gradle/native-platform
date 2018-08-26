@@ -32,9 +32,17 @@ public abstract class AbstractTerminal implements TerminalOutput {
         return this;
     }
 
-    public TerminalOutput write(String text) throws NativeException {
-        byte[] bytes = text.getBytes();
+    public TerminalOutput write(CharSequence text) throws NativeException {
+        // TODO encode directly to output stream instead of creating intermediate String
+        byte[] bytes = text.toString().getBytes();
         write(bytes);
+        return this;
+    }
+
+    @Override
+    public TerminalOutput write(char ch) throws NativeException {
+        // TODO encode directly to output stream instead of creating intermediate String
+        write(Character.toString(ch));
         return this;
     }
 
