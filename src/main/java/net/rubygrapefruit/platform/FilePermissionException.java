@@ -16,6 +16,9 @@
 
 package net.rubygrapefruit.platform;
 
+/**
+ * Thrown when the user has insufficient permissions to perform some file system operation.
+ */
 public class FilePermissionException extends NativeException {
     public FilePermissionException(String message) {
         super(message);

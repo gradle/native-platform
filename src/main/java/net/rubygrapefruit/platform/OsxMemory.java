@@ -16,6 +16,9 @@
 
 package net.rubygrapefruit.platform;
 
+/**
+ * Provides MacOS specific details about the system memory.
+ */
 @ThreadSafe
 public interface OsxMemory extends Memory {
     /**

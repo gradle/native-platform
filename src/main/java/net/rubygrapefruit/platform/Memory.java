@@ -16,6 +16,9 @@
 
 package net.rubygrapefruit.platform;
 
+/**
+ * Provides details about the system memory.
+ */
 @ThreadSafe
 public interface Memory extends NativeIntegration {
     /**
