@@ -16,8 +16,8 @@
 
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.DirEntry;
-import net.rubygrapefruit.platform.FileInfo;
+import net.rubygrapefruit.platform.file.DirEntry;
+import net.rubygrapefruit.platform.file.FileInfo;
 
 import java.util.ArrayList;
 import java.util.List;

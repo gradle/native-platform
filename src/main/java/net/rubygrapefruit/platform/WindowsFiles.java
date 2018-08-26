@@ -16,6 +16,8 @@
 
 package net.rubygrapefruit.platform;
 
+import net.rubygrapefruit.platform.file.Files;
+
 import java.io.File;
 
 /**

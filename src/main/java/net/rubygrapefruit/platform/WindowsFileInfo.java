@@ -16,6 +16,8 @@
 
 package net.rubygrapefruit.platform;
 
+import net.rubygrapefruit.platform.file.FileInfo;
+
 /**
  * Provides some information about a file on a Windows file system. This is a snapshot and does not change.
  *

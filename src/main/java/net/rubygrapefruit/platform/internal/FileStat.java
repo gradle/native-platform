@@ -16,7 +16,7 @@
 
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.PosixFileInfo;
+import net.rubygrapefruit.platform.file.PosixFileInfo;
 
 public class FileStat implements PosixFileInfo {
     private final String path;

@@ -16,8 +16,8 @@
 
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.FileEvents;
-import net.rubygrapefruit.platform.FileWatch;
+import net.rubygrapefruit.platform.file.FileEvents;
+import net.rubygrapefruit.platform.file.FileWatch;
 import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.ResourceClosedException;
 import net.rubygrapefruit.platform.internal.jni.FileEventFunctions;

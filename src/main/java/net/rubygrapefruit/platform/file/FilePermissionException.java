@@ -14,13 +14,15 @@
  *    limitations under the License.
  */
 
-package net.rubygrapefruit.platform;
+package net.rubygrapefruit.platform.file;
+
+import net.rubygrapefruit.platform.NativeException;
 
 /**
- * Thrown when attempting to list the elements of a file that is not a directory.
+ * Thrown when the user has insufficient permissions to perform some file system operation.
  */
-public class NotADirectoryException extends NativeException {
-    public NotADirectoryException(String message) {
+public class FilePermissionException extends NativeException {
+    public FilePermissionException(String message) {
         super(message);
     }
 }

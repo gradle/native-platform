@@ -14,7 +14,10 @@
  *    limitations under the License.
  */
 
-package net.rubygrapefruit.platform;
+package net.rubygrapefruit.platform.file;
+
+import net.rubygrapefruit.platform.NativeException;
+import net.rubygrapefruit.platform.ThreadSafe;
 
 import java.io.File;
 

@@ -14,13 +14,17 @@
  *    limitations under the License.
  */
 
-package net.rubygrapefruit.platform;
+package net.rubygrapefruit.platform.file;
+
+import net.rubygrapefruit.platform.ThreadSafe;
 
 /**
- * Thrown when attempting to query details of a file that does not exist.
+ * Details about a file in a directory. This is a snapshot and does not change.
  */
-public class NoSuchFileException extends NativeException {
-    public NoSuchFileException(String message) {
-        super(message);
-    }
+@ThreadSafe
+public interface DirEntry extends FileInfo {
+    /**
+     * Returns the name of the file.
+     */
+    String getName();
 }

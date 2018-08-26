@@ -17,6 +17,10 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.*;
+import net.rubygrapefruit.platform.file.DirEntry;
+import net.rubygrapefruit.platform.file.FilePermissionException;
+import net.rubygrapefruit.platform.file.PosixFileInfo;
+import net.rubygrapefruit.platform.file.PosixFiles;
 import net.rubygrapefruit.platform.internal.jni.PosixFileFunctions;
 
 import java.io.File;

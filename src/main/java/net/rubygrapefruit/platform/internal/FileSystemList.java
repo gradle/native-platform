@@ -16,7 +16,7 @@
 
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.FileSystemInfo;
+import net.rubygrapefruit.platform.file.FileSystemInfo;
 
 import java.io.File;
 import java.util.ArrayList;

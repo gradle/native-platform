@@ -17,6 +17,8 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.*;
+import net.rubygrapefruit.platform.file.DirEntry;
+import net.rubygrapefruit.platform.file.FileInfo;
 import net.rubygrapefruit.platform.internal.jni.WindowsFileFunctions;
 
 import java.io.File;

@@ -18,6 +18,10 @@ package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.*;
 import net.rubygrapefruit.platform.Process;
+import net.rubygrapefruit.platform.file.FileEvents;
+import net.rubygrapefruit.platform.file.FileSystems;
+import net.rubygrapefruit.platform.file.Files;
+import net.rubygrapefruit.platform.file.PosixFiles;
 import net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions;
 import net.rubygrapefruit.platform.internal.jni.PosixTypeFunctions;
 import net.rubygrapefruit.platform.internal.jni.TerminfoFunctions;

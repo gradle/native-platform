@@ -13,8 +13,9 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-package net.rubygrapefruit.platform
+package net.rubygrapefruit.platform.file
 
+import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.internal.Platform
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder

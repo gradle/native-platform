@@ -14,7 +14,9 @@
  *    limitations under the License.
  */
 
-package net.rubygrapefruit.platform;
+package net.rubygrapefruit.platform.file;
+
+import net.rubygrapefruit.platform.ThreadSafe;
 
 /**
  * Provides some information about a file. This is a snapshot and does not change.

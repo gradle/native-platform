@@ -17,6 +17,10 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.*;
+import net.rubygrapefruit.platform.file.FilePermissionException;
+import net.rubygrapefruit.platform.file.Files;
+import net.rubygrapefruit.platform.file.NoSuchFileException;
+import net.rubygrapefruit.platform.file.NotADirectoryException;
 
 import java.io.File;
 

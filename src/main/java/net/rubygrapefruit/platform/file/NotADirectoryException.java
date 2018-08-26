@@ -14,21 +14,15 @@
  *    limitations under the License.
  */
 
-package net.rubygrapefruit.platform;
+package net.rubygrapefruit.platform.file;
 
-import java.util.List;
+import net.rubygrapefruit.platform.NativeException;
 
 /**
- * Provides access to the file systems of the current machine.
+ * Thrown when attempting to list the elements of a file that is not a directory.
  */
-@ThreadSafe
-public interface FileSystems extends NativeIntegration {
-    /**
-     * Returns the set of all file systems for the current machine.
-     *
-     * @return The set of file systems. Never returns null.
-     * @throws NativeException On failure.
-     */
-    @ThreadSafe
-    List<FileSystemInfo> getFileSystems() throws NativeException;
+public class NotADirectoryException extends NativeException {
+    public NotADirectoryException(String message) {
+        super(message);
+    }
 }

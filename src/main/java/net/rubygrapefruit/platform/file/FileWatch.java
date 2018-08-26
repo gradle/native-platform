@@ -14,7 +14,11 @@
  *    limitations under the License.
  */
 
-package net.rubygrapefruit.platform;
+package net.rubygrapefruit.platform.file;
+
+import net.rubygrapefruit.platform.NativeException;
+import net.rubygrapefruit.platform.ResourceClosedException;
+import net.rubygrapefruit.platform.ThreadSafe;
 
 /**
  * A source for file change events.

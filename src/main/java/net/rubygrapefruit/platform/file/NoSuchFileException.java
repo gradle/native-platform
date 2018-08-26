@@ -14,23 +14,15 @@
  *    limitations under the License.
  */
 
-package net.rubygrapefruit.platform
+package net.rubygrapefruit.platform.file;
 
-import org.junit.Rule
-import org.junit.rules.TemporaryFolder
-import spock.lang.Specification
+import net.rubygrapefruit.platform.NativeException;
 
-class FileSystemsTest extends Specification {
-    @Rule TemporaryFolder tmpDir
-    final FileSystems fileSystems = Native.get(FileSystems.class)
-
-    def "caches file systems instance"() {
-        expect:
-        Native.get(FileSystems.class) == fileSystems
-    }
-
-    def "can query filesystem details"() {
-        expect:
-        fileSystems.fileSystems.collect() { it.mountPoint }.containsAll(File.listRoots())
+/**
+ * Thrown when attempting to query details of a file that does not exist.
+ */
+public class NoSuchFileException extends NativeException {
+    public NoSuchFileException(String message) {
+        super(message);
     }
 }

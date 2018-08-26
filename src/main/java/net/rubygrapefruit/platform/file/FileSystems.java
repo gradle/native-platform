@@ -14,13 +14,25 @@
  *    limitations under the License.
  */
 
-package net.rubygrapefruit.platform;
+package net.rubygrapefruit.platform.file;
+
+import net.rubygrapefruit.platform.NativeException;
+import net.rubygrapefruit.platform.NativeIntegration;
+import net.rubygrapefruit.platform.ThreadSafe;
+
+import java.util.List;
 
 /**
- * Thrown when the user has insufficient permissions to perform some file system operation.
+ * Provides access to the file systems of the current machine.
  */
-public class FilePermissionException extends NativeException {
-    public FilePermissionException(String message) {
-        super(message);
-    }
+@ThreadSafe
+public interface FileSystems extends NativeIntegration {
+    /**
+     * Returns the set of all file systems for the current machine.
+     *
+     * @return The set of file systems. Never returns null.
+     * @throws NativeException On failure.
+     */
+    @ThreadSafe
+    List<FileSystemInfo> getFileSystems() throws NativeException;
 }

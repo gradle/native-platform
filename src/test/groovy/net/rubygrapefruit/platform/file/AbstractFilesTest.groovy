@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package net.rubygrapefruit.platform
+package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.Specification

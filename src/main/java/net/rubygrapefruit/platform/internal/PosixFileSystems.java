@@ -16,8 +16,8 @@
 
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.FileSystemInfo;
-import net.rubygrapefruit.platform.FileSystems;
+import net.rubygrapefruit.platform.file.FileSystemInfo;
+import net.rubygrapefruit.platform.file.FileSystems;
 import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.internal.jni.PosixFileSystemFunctions;
 

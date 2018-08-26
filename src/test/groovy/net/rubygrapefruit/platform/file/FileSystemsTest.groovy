@@ -14,15 +14,24 @@
  *    limitations under the License.
  */
 
-package net.rubygrapefruit.platform;
+package net.rubygrapefruit.platform.file
 
-/**
- * Details about a file in a directory. This is a snapshot and does not change.
- */
-@ThreadSafe
-public interface DirEntry extends FileInfo {
-    /**
-     * Returns the name of the file.
-     */
-    String getName();
+import net.rubygrapefruit.platform.Native
+import org.junit.Rule
+import org.junit.rules.TemporaryFolder
+import spock.lang.Specification
+
+class FileSystemsTest extends Specification {
+    @Rule TemporaryFolder tmpDir
+    final FileSystems fileSystems = Native.get(FileSystems.class)
+
+    def "caches file systems instance"() {
+        expect:
+        Native.get(FileSystems.class) == fileSystems
+    }
+
+    def "can query filesystem details"() {
+        expect:
+        fileSystems.fileSystems.collect() { it.mountPoint }.containsAll(File.listRoots())
+    }
 }
