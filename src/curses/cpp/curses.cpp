@@ -26,23 +26,11 @@
 #include <curses.h>
 #include <term.h>
 
-#define NORMAL_TEXT 0
-#define BRIGHT_TEXT 1
-#define FOREGROUND_COLOR 2
-#define CURSOR_UP 3
-#define CURSOR_DOWN 4
-#define CURSOR_LEFT 5
-#define CURSOR_RIGHT 6
-#define CURSOR_START_LINE 7
-#define CLEAR_END_OF_LINE 8
-
 #ifdef SOLARIS
 #define TERMINAL_CHAR_TYPE char
 #else
 #define TERMINAL_CHAR_TYPE int
 #endif
-
-const char* terminal_capabilities[9];
 
 const char* getcap(const char* capability) {
     return tgetstr((char*)capability, NULL);
@@ -78,7 +66,6 @@ jbyteArray byte_array_for_capability(JNIEnv *env, const char* capability, jobjec
 
 jbyteArray read_capability(JNIEnv *env, const char* capability, jobject result) {
     if (capability == NULL) {
-        mark_failed_with_message(env, "unknown terminal capability", result);
         return NULL;
     }
     return byte_array_for_capability(env, capability, result);
@@ -86,7 +73,6 @@ jbyteArray read_capability(JNIEnv *env, const char* capability, jobject result) 
 
 jbyteArray read_param_capability(JNIEnv *env, const char* capability, int count, jobject result) {
     if (capability == NULL) {
-        mark_failed_with_message(env, "unknown terminal capability", result);
         return NULL;
     }
 
@@ -125,39 +111,13 @@ Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_initTerminal(JNI
         jfieldID field = env->GetFieldID(destClass, "terminalName", "Ljava/lang/String;");
         jstring jtermType = char_to_java(env, termType, result);
         env->SetObjectField(capabilities, field, jtermType);
-
-        // Text attributes
-        terminal_capabilities[NORMAL_TEXT] = getcap("me");
-        terminal_capabilities[BRIGHT_TEXT] = getcap("md");
-        field = env->GetFieldID(destClass, "textAttributes", "Z");
-        env->SetBooleanField(capabilities, field, terminal_capabilities[NORMAL_TEXT] != NULL && terminal_capabilities[BRIGHT_TEXT] != NULL);
-
-        // Colors
-        terminal_capabilities[FOREGROUND_COLOR] = getcap("AF");
-        field = env->GetFieldID(destClass, "colors", "Z");
-        env->SetBooleanField(capabilities, field, terminal_capabilities[FOREGROUND_COLOR] != NULL);
-
-        // Cursor motion
-        terminal_capabilities[CURSOR_UP] = getcap("up");
-        terminal_capabilities[CURSOR_DOWN] = getcap("do");
-        terminal_capabilities[CURSOR_LEFT] = getcap("le");
-        terminal_capabilities[CURSOR_RIGHT] = getcap("nd");
-        terminal_capabilities[CURSOR_START_LINE] = getcap("cr");
-        terminal_capabilities[CLEAR_END_OF_LINE] = getcap("ce");
-        field = env->GetFieldID(destClass, "cursorMotion", "Z");
-        env->SetBooleanField(capabilities, field, terminal_capabilities[CURSOR_UP] != NULL
-                                && terminal_capabilities[CURSOR_DOWN] != NULL
-                                && terminal_capabilities[CURSOR_RIGHT] != NULL
-                                && terminal_capabilities[CURSOR_LEFT] != NULL
-                                && terminal_capabilities[CURSOR_START_LINE] != NULL
-                                && terminal_capabilities[CLEAR_END_OF_LINE] != NULL);
     }
     is_init = 1;
 }
 
 JNIEXPORT jbyteArray JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_boldOn(JNIEnv *env, jclass target, jobject result) {
-    return read_capability(env, terminal_capabilities[BRIGHT_TEXT], result);
+    return read_capability(env, getcap("md"), result);
 }
 
 JNIEXPORT jbyteArray JNICALL
@@ -172,37 +132,37 @@ Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_reset(JNIEnv *en
 
 JNIEXPORT jbyteArray JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_foreground(JNIEnv *env, jclass target, jint color, jobject result) {
-    return read_param_capability(env, terminal_capabilities[FOREGROUND_COLOR], color, result);
+    return read_param_capability(env, getcap("AF"), color, result);
 }
 
 JNIEXPORT jbyteArray JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_up(JNIEnv *env, jclass target, jobject result) {
-    return read_capability(env, terminal_capabilities[CURSOR_UP], result);
+    return read_capability(env, getcap("up"), result);
 }
 
 JNIEXPORT jbyteArray JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_down(JNIEnv *env, jclass target, jobject result) {
-    return read_capability(env, terminal_capabilities[CURSOR_DOWN], result);
+    return read_capability(env, getcap("do"), result);
 }
 
 JNIEXPORT jbyteArray JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_left(JNIEnv *env, jclass target, jobject result) {
-    return read_capability(env, terminal_capabilities[CURSOR_LEFT], result);
+    return read_capability(env, getcap("le"), result);
 }
 
 JNIEXPORT jbyteArray JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_right(JNIEnv *env, jclass target, jobject result) {
-    return read_capability(env, terminal_capabilities[CURSOR_RIGHT], result);
+    return read_capability(env, getcap("nd"), result);
 }
 
 JNIEXPORT jbyteArray JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_startLine(JNIEnv *env, jclass target, jobject result) {
-    return read_capability(env, terminal_capabilities[CURSOR_START_LINE], result);
+    return read_capability(env, getcap("cr"), result);
 }
 
 JNIEXPORT jbyteArray JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_clearToEndOfLine(JNIEnv *env, jclass target, jobject result) {
-    return read_capability(env, terminal_capabilities[CLEAR_END_OF_LINE], result);
+    return read_capability(env, getcap("ce"), result);
 }
 
 JNIEXPORT jbyteArray JNICALL
