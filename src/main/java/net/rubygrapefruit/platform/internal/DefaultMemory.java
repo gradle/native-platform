@@ -16,8 +16,8 @@
 
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.Memory;
-import net.rubygrapefruit.platform.MemoryInfo;
+import net.rubygrapefruit.platform.memory.Memory;
+import net.rubygrapefruit.platform.memory.MemoryInfo;
 import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.internal.jni.MemoryFunctions;
 

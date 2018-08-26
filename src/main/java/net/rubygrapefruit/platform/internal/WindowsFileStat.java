@@ -16,7 +16,7 @@
 
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.WindowsFileInfo;
+import net.rubygrapefruit.platform.file.WindowsFileInfo;
 
 public class WindowsFileStat implements WindowsFileInfo {
     private final String path;

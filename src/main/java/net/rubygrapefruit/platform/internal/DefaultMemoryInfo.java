@@ -16,7 +16,7 @@
 
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.MemoryInfo;
+import net.rubygrapefruit.platform.memory.MemoryInfo;
 
 public class DefaultMemoryInfo implements MemoryInfo {
     private long totalMem;

@@ -16,7 +16,7 @@
 
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.OsxMemoryInfo;
+import net.rubygrapefruit.platform.memory.OsxMemoryInfo;
 
 public class DefaultOsxMemoryInfo implements OsxMemoryInfo {
     private long pageSize;

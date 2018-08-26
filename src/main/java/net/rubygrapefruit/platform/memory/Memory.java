@@ -14,18 +14,22 @@
  *    limitations under the License.
  */
 
-package net.rubygrapefruit.platform;
+package net.rubygrapefruit.platform.memory;
 
-import net.rubygrapefruit.platform.file.Files;
-
-import java.io.File;
+import net.rubygrapefruit.platform.NativeException;
+import net.rubygrapefruit.platform.NativeIntegration;
+import net.rubygrapefruit.platform.ThreadSafe;
 
 /**
- * Functions to query files on a Windows file system.
+ * Provides details about the system memory.
  */
-public interface WindowsFiles extends Files {
+@ThreadSafe
+public interface Memory extends NativeIntegration {
     /**
-     * {@inheritDoc}
+     * Queries the current state of the system memory.
+     *
+     * @throws NativeException On failure.
      */
-    WindowsFileInfo stat(File file) throws NativeException;
+    @ThreadSafe
+    MemoryInfo getMemoryInfo() throws NativeException;
 }

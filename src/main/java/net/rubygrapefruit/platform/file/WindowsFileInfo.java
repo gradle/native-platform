@@ -14,18 +14,15 @@
  *    limitations under the License.
  */
 
-package net.rubygrapefruit.platform;
+package net.rubygrapefruit.platform.file;
+
+import net.rubygrapefruit.platform.ThreadSafe;
 
 /**
- * Provides MacOS specific details about the system memory.
+ * Provides some information about a file on a Windows file system. This is a snapshot and does not change.
+ *
+ * <p>A snapshot be fetched using {@link WindowsFiles#stat(java.io.File)}</p>
  */
 @ThreadSafe
-public interface OsxMemory extends Memory {
-    /**
-     * Queries the current state of the system memory.
-     *
-     * @throws NativeException On failure.
-     */
-    @ThreadSafe
-    OsxMemoryInfo getMemoryInfo() throws NativeException;
+public interface WindowsFileInfo extends FileInfo {
 }

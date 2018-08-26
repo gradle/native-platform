@@ -17,8 +17,8 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
-import net.rubygrapefruit.platform.OsxMemory;
-import net.rubygrapefruit.platform.OsxMemoryInfo;
+import net.rubygrapefruit.platform.memory.OsxMemory;
+import net.rubygrapefruit.platform.memory.OsxMemoryInfo;
 import net.rubygrapefruit.platform.internal.jni.OsxMemoryFunctions;
 
 public class DefaultOsxMemory implements OsxMemory {

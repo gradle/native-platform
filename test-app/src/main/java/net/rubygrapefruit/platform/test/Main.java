@@ -22,6 +22,8 @@ import joptsimple.OptionSet;
 import net.rubygrapefruit.platform.*;
 import net.rubygrapefruit.platform.Process;
 import net.rubygrapefruit.platform.file.*;
+import net.rubygrapefruit.platform.memory.Memory;
+import net.rubygrapefruit.platform.memory.MemoryInfo;
 import net.rubygrapefruit.platform.prompts.Prompter;
 import net.rubygrapefruit.platform.terminal.*;
 

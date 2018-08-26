@@ -14,20 +14,18 @@
  *    limitations under the License.
  */
 
-package net.rubygrapefruit.platform;
+package net.rubygrapefruit.platform.file;
+
+import net.rubygrapefruit.platform.NativeException;
+
+import java.io.File;
 
 /**
- * Provides some information about the system memory. This is a snapshot and does not change.
+ * Functions to query files on a Windows file system.
  */
-@ThreadSafe
-public interface MemoryInfo {
+public interface WindowsFiles extends Files {
     /**
-     * Returns the number of bytes of physical memory installed in the machine.
+     * {@inheritDoc}
      */
-    long getTotalPhysicalMemory();
-
-    /**
-     * Returns the number of bytes of physical memory that are available for use. Includes memory that is available without swapping.
-     */
-    long getAvailablePhysicalMemory();
+    WindowsFileInfo stat(File file) throws NativeException;
 }

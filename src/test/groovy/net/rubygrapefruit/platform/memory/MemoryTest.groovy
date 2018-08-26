@@ -14,8 +14,9 @@
  *    limitations under the License.
  */
 
-package net.rubygrapefruit.platform
+package net.rubygrapefruit.platform.memory
 
+import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.IgnoreIf
 import spock.lang.Specification

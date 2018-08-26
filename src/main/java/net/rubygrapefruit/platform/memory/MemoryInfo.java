@@ -14,38 +14,22 @@
  *    limitations under the License.
  */
 
-package net.rubygrapefruit.platform;
+package net.rubygrapefruit.platform.memory;
+
+import net.rubygrapefruit.platform.ThreadSafe;
 
 /**
- * Detailed OSX memory info.
- *
- * <strong>This is not exactly what {@literal vm_stat} displays:</strong>
- *
- * {@literal vm_stat}'s {@literal Free pages}
- * is {@link #getFreePagesCount()} minus {@link #getSpeculativePagesCount()}.
- *
- * {@link #getExternalPagesCount()} is displayed as {@literal File-backed pages}.
+ * Provides some information about the system memory. This is a snapshot and does not change.
  */
 @ThreadSafe
-public interface OsxMemoryInfo extends MemoryInfo {
-    long getPageSize();
-
-    long getFreePagesCount();
-
-    long getInactivePagesCount();
-
-    long getWiredPagesCount();
-
-    long getActivePagesCount();
-
-    long getExternalPagesCount();
-
-    long getSpeculativePagesCount();
-
+public interface MemoryInfo {
+    /**
+     * Returns the number of bytes of physical memory installed in the machine.
+     */
     long getTotalPhysicalMemory();
 
     /**
-     * Calculated.
+     * Returns the number of bytes of physical memory that are available for use. Includes memory that is available without swapping.
      */
     long getAvailablePhysicalMemory();
 }
