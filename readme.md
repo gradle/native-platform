@@ -90,7 +90,7 @@ Include `native-platform.jar` and `native-platform-${os}-${arch}.jar` in your cl
 this:
 
     repositories {
-        maven { url "https://repo.gradle.org/gradle/libs-releases-local" }
+        jcenter()
     }
 
     dependencies {
