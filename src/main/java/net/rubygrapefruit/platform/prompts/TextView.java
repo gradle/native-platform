@@ -37,14 +37,15 @@ class TextView {
     void update() {
         output.hideCursor();
         output.cursorLeft(cursor);
-        output.clearToEndOfLine();
         if (value.length() == 0) {
             output.foreground(Prompter.DEFAULT_VALUE_COLOR);
             output.write(defaultValue);
+            output.clearToEndOfLine();
             output.cursorLeft(defaultValue.length() - insertPos);
         } else {
             output.foreground(Prompter.SELECTION_COLOR);
             int len = renderValue(value);
+            output.clearToEndOfLine();
             output.cursorLeft(len - insertPos);
         }
         output.reset();
@@ -115,7 +116,6 @@ class TextView {
 
     void close(String entered) {
         output.cursorStartOfLine();
-        output.clearToEndOfLine();
         output.write(prompt).write(": ");
         if (entered != null) {
             output.foreground(Prompter.SELECTION_COLOR);
@@ -124,6 +124,7 @@ class TextView {
         } else {
             output.write("<none>");
         }
+        output.clearToEndOfLine();
         output.newline();
     }
 }
