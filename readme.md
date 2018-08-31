@@ -129,6 +129,7 @@ Some sample code to use the terminal:
 * Added methods to `TerminalOutput` to set foreground text color to its default value.
 * Added methods to `TerminalOutput` to write text to the terminal. Anything written to `System.out` or `System.err` is no longer automatically flushed before cursor or text attributes are changed.
 * Added `Prompter` utility class.
+* Moved releases to JCenter.
 
 ### 0.14
 
