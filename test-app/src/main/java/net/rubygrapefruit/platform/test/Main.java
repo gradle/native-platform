@@ -89,6 +89,11 @@ public class Main {
             return;
         }
 
+        if (result.has("terminal")) {
+            terminal(ansi);
+            return;
+        }
+
         Prompter prompter = new Prompter(terminals(ansi));
 
         if (result.has("prompts")) {
@@ -173,6 +178,7 @@ public class Main {
             System.out.println();
 
             System.out.println("COLORS");
+            System.out.println("[bold] [normal]");
             for (TerminalOutput.Color color : TerminalOutput.Color.values()) {
                 terminal.foreground(color);
                 terminal.bold();
