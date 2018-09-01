@@ -121,11 +121,6 @@ Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_boldOn(JNIEnv *e
 }
 
 JNIEXPORT jbyteArray JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_boldOff(JNIEnv *env, jclass target, jobject result) {
-    return read_capability(env, getcap("me"), result);
-}
-
-JNIEXPORT jbyteArray JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_reset(JNIEnv *env, jclass target, jobject result) {
     return read_capability(env, getcap("me"), result);
 }

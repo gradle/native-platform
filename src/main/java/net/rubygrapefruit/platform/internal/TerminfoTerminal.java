@@ -36,7 +36,6 @@ public class TerminfoTerminal extends AbstractTerminal {
     private final Object lock = new Object();
     private Map<Color, byte[]> foregroundColors = new HashMap<Color, byte[]>();
     private byte[] boldOn;
-    private byte[] boldOff;
     private byte[] defaultForeground;
     private byte[] reset;
     private byte[] hideCursor;
@@ -47,6 +46,7 @@ public class TerminfoTerminal extends AbstractTerminal {
     private byte[] right;
     private byte[] startLine;
     private byte[] clearEOL;
+    private Color foreground;
 
     public TerminfoTerminal(Terminals.Output output) {
         this.output = output;
@@ -86,10 +86,6 @@ public class TerminfoTerminal extends AbstractTerminal {
             if (result.isFailed()) {
                 throw new NativeException(String.format("Could not determine bold on control sequence %s: %s", getOutputDisplay(),
                         result.getMessage()));
-            }
-            boldOff = TerminfoFunctions.boldOff(result);
-            if (result.isFailed()) {
-                throw new NativeException(String.format("Could not determine bold off control sequence for %s: %s", getOutputDisplay(), result.getMessage()));
             }
             reset = TerminfoFunctions.reset(result);
             if (result.isFailed()) {
@@ -147,7 +143,7 @@ public class TerminfoTerminal extends AbstractTerminal {
 
     @Override
     public boolean supportsTextAttributes() {
-        return boldOn != null && boldOff != null;
+        return boldOn != null;
     }
 
     @Override
@@ -167,6 +163,7 @@ public class TerminfoTerminal extends AbstractTerminal {
             if (sequence != null) {
                 write(sequence);
             }
+            foreground = color;
         }
         return this;
     }
@@ -200,8 +197,11 @@ public class TerminfoTerminal extends AbstractTerminal {
     @Override
     public TerminalOutput normal() {
         synchronized (lock) {
-            if (boldOff != null) {
-                write(boldOff);
+            if (reset != null) {
+                write(reset);
+            }
+            if (foreground != null) {
+                foreground(foreground);
             }
         }
         return this;
@@ -213,6 +213,7 @@ public class TerminfoTerminal extends AbstractTerminal {
             if (defaultForeground != null) {
                 write(defaultForeground);
             }
+            foreground = null;
         }
         return this;
     }
@@ -226,6 +227,7 @@ public class TerminfoTerminal extends AbstractTerminal {
             if (showCursor != null) {
                 write(showCursor);
             }
+            foreground = null;
         }
         return this;
     }
