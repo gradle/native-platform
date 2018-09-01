@@ -19,10 +19,10 @@ class YesNoListener extends AbstractListener {
 
     @Override
     public void character(char ch) {
-        if (ch == 'y') {
+        if (ch == 'y' || ch == 'Y') {
             selected = true;
             finished = true;
-        } else if (ch == 'n') {
+        } else if (ch == 'n' || ch == 'N') {
             selected = false;
             finished = true;
         }
