@@ -5,7 +5,7 @@ package net.rubygrapefruit.platform.terminal;
  */
 public interface TerminalInputListener {
     enum Key {
-        // Order is significant
+        // Order is significant, used by Windows native code
         Enter,
         UpArrow,
         DownArrow,
@@ -15,6 +15,9 @@ public interface TerminalInputListener {
         End,
         EraseBack,
         EraseForward,
+        BackTab,
+        PageUp,
+        PageDown
     }
 
     /**

@@ -529,30 +529,53 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_readInput(
             continue;
         }
 
-        if (keyEvent.wVirtualKeyCode == VK_RETURN) {
-            control_key(env, 0, char_buffer, result);
-        } else if (keyEvent.wVirtualKeyCode == VK_UP) {
-            control_key(env, 1, char_buffer, result);
-        } else if (keyEvent.wVirtualKeyCode == VK_DOWN) {
-            control_key(env, 2, char_buffer, result);
-        } else if (keyEvent.wVirtualKeyCode == VK_LEFT) {
-            control_key(env, 3, char_buffer, result);
-        } else if (keyEvent.wVirtualKeyCode == VK_RIGHT) {
-            control_key(env, 4, char_buffer, result);
-        } else if (keyEvent.wVirtualKeyCode == VK_HOME) {
-            control_key(env, 5, char_buffer, result);
-        } else if (keyEvent.wVirtualKeyCode == VK_END) {
-            control_key(env, 6, char_buffer, result);
-        } else if (keyEvent.wVirtualKeyCode == VK_BACK) {
-            control_key(env, 7, char_buffer, result);
-        } else if (keyEvent.wVirtualKeyCode == VK_DELETE) {
-            control_key(env, 8, char_buffer, result);
-        } else if (keyEvent.wVirtualKeyCode == 0x44 && keyEvent.uChar.UnicodeChar == 4) {
+        if ((keyEvent.dwControlKeyState & (LEFT_ALT_PRESSED|LEFT_CTRL_PRESSED|RIGHT_ALT_PRESSED|RIGHT_CTRL_PRESSED|SHIFT_PRESSED)) == 0) {
+            if (keyEvent.wVirtualKeyCode == VK_RETURN) {
+                control_key(env, 0, char_buffer, result);
+                return;
+            } else if (keyEvent.wVirtualKeyCode == VK_UP) {
+                control_key(env, 1, char_buffer, result);
+                return;
+            } else if (keyEvent.wVirtualKeyCode == VK_DOWN) {
+                control_key(env, 2, char_buffer, result);
+                return;
+            } else if (keyEvent.wVirtualKeyCode == VK_LEFT) {
+                control_key(env, 3, char_buffer, result);
+                return;
+            } else if (keyEvent.wVirtualKeyCode == VK_RIGHT) {
+                control_key(env, 4, char_buffer, result);
+                return;
+            } else if (keyEvent.wVirtualKeyCode == VK_HOME) {
+                control_key(env, 5, char_buffer, result);
+                return;
+            } else if (keyEvent.wVirtualKeyCode == VK_END) {
+                control_key(env, 6, char_buffer, result);
+                return;
+            } else if (keyEvent.wVirtualKeyCode == VK_BACK) {
+                control_key(env, 7, char_buffer, result);
+                return;
+            } else if (keyEvent.wVirtualKeyCode == VK_DELETE) {
+                control_key(env, 8, char_buffer, result);
+                return;
+            } else if (keyEvent.wVirtualKeyCode == VK_PRIOR) { // page up
+                control_key(env, 10, char_buffer, result);
+                return;
+            } else if (keyEvent.wVirtualKeyCode == VK_NEXT) { // page down
+                control_key(env, 11, char_buffer, result);
+                return;
+            }
+        }
+        if (keyEvent.wVirtualKeyCode == 0x44 && keyEvent.uChar.UnicodeChar == 4) {
             // ctrl-d
             return;
-        } else if (keyEvent.uChar.UnicodeChar == 0) {
-            // Some other key
+        }
+        if (keyEvent.uChar.UnicodeChar == 0) {
+            // Some other control key
             continue;
+        }
+        if (keyEvent.uChar.UnicodeChar == '\t' && (keyEvent.dwControlKeyState & (SHIFT_PRESSED)) == 0) {
+            // shift-tab
+            control_key(env, 9, char_buffer, result);
         } else {
             character(env, (jchar)keyEvent.uChar.UnicodeChar, char_buffer, result);
         }

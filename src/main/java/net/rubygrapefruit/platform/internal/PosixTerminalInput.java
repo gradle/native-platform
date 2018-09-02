@@ -20,11 +20,14 @@ public class PosixTerminalInput implements TerminalInput {
     private static final int DOWN_ARROW = 66;
     private static final int RIGHT_ARROW = 67;
     private static final int LEFT_ARROW = 68;
+    private static final int BACK_TAB = 90;
     private static final int END = 70;
-    private static final int HOME = 72;
     private static final int END1 = 52;
+    private static final int HOME = 72;
     private static final int HOME1 = 49;
     private static final int ERASE1 = 51;
+    private static final int PAGE_UP = 53;
+    private static final int PAGE_DOWN = 54;
     private static final int TILDE = 126;
 
     @Override
@@ -53,6 +56,10 @@ public class PosixTerminalInput implements TerminalInput {
                     inputStream.consume();
                     listener.controlKey(TerminalInputListener.Key.RightArrow);
                     return;
+                } else if (ch == BACK_TAB) {
+                    inputStream.consume();
+                    listener.controlKey(TerminalInputListener.Key.BackTab);
+                    return;
                 } else if (ch == HOME) {
                     inputStream.consume();
                     listener.controlKey(TerminalInputListener.Key.Home);
@@ -72,6 +79,14 @@ public class PosixTerminalInput implements TerminalInput {
                 } else if (ch == END1 && peek(3) == TILDE) {
                     inputStream.consume();
                     listener.controlKey(TerminalInputListener.Key.End);
+                    return;
+                } else if (ch == PAGE_UP && peek(3) == TILDE) {
+                    inputStream.consume();
+                    listener.controlKey(TerminalInputListener.Key.PageUp);
+                    return;
+                } else if (ch == PAGE_DOWN && peek(3) == TILDE) {
+                    inputStream.consume();
+                    listener.controlKey(TerminalInputListener.Key.PageDown);
                     return;
                 }
             }
