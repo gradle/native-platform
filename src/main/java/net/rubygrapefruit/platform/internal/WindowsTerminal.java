@@ -17,10 +17,10 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
+import net.rubygrapefruit.platform.internal.jni.WindowsConsoleFunctions;
 import net.rubygrapefruit.platform.terminal.TerminalOutput;
 import net.rubygrapefruit.platform.terminal.TerminalSize;
 import net.rubygrapefruit.platform.terminal.Terminals;
-import net.rubygrapefruit.platform.internal.jni.WindowsConsoleFunctions;
 
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
@@ -116,6 +116,16 @@ public class WindowsTerminal extends AbstractTerminal {
             }
         }
         return this;
+    }
+
+    @Override
+    public TerminalOutput dim() throws NativeException {
+        return normal();
+    }
+
+    @Override
+    public TerminalOutput bright() throws NativeException {
+        return bold();
     }
 
     @Override

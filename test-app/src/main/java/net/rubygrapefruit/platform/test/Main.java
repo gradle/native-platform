@@ -170,21 +170,34 @@ public class Main {
             System.out.println("* Cursor visibility: " + (terminal.supportsCursorVisibility() ? "yes" : "no"));
             System.out.println();
             System.out.println("TEXT ATTRIBUTES");
-            System.out.print("[normal] ");
+            System.out.print("[normal]");
             terminal.bold();
-            System.out.print("[bold]");
+            System.out.print(" [bold]");
+            terminal.dim();
+            System.out.print(" [bold+dim]");
             terminal.normal();
-            System.out.println(" [normal]");
+            System.out.print(" [normal]");
+            terminal.dim();
+            System.out.println(" [dim]");
+            terminal.normal();
             System.out.println();
 
             System.out.println("COLORS");
-            System.out.println("[bold] [normal]");
+            System.out.println("bold      bold+dim  bright    normal    dim");
             for (TerminalOutput.Color color : TerminalOutput.Color.values()) {
                 terminal.foreground(color);
                 terminal.bold();
-                System.out.print(String.format("[%s] ", color.toString().toLowerCase()));
+                System.out.print(String.format("%-9s ", "[" + color.toString().toLowerCase() + "]"));
+                terminal.dim();
+                System.out.print(String.format("%-9s ", "[" + color.toString().toLowerCase() + "]"));
                 terminal.normal();
-                System.out.print(String.format("[%s]", color.toString().toLowerCase()));
+                terminal.bright();
+                System.out.print(String.format("%-9s ", "[" + color.toString().toLowerCase() + "]"));
+                terminal.normal();
+                System.out.print(String.format("%-9s ", "[" + color.toString().toLowerCase() + "]"));
+                terminal.dim();
+                System.out.print(String.format("%-9s ", "[" + color.toString().toLowerCase() + "]"));
+                terminal.normal();
                 System.out.println();
             }
             System.out.println();
@@ -220,10 +233,10 @@ public class Main {
                 System.out.println();
             }
 
-            System.out.print("Can write ");
+            System.out.print("Can write unicode: ");
             terminal.bold().foreground(TerminalOutput.Color.Blue).write("\u03B1\u03B2\u03B3");
-            terminal.reset();
-            System.out.print(" unicode ");
+            terminal.normal();
+            System.out.print(' ');
             terminal.foreground(TerminalOutput.Color.Green);
             System.out.println("\u2714");
             terminal.reset();

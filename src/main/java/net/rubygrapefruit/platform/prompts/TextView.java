@@ -28,7 +28,7 @@ class TextView {
         output.newline();
         output.hideCursor();
         output.bold().write(prompt).write(": ").normal();
-        output.foreground(Prompter.DEFAULT_VALUE_COLOR);
+        output.dim();
         output.write(defaultValue);
         output.cursorLeft(defaultValue.length());
         output.reset();
@@ -38,7 +38,7 @@ class TextView {
         output.hideCursor();
         output.cursorLeft(cursor);
         if (value.length() == 0) {
-            output.foreground(Prompter.DEFAULT_VALUE_COLOR);
+            output.dim();
             output.write(defaultValue);
             output.clearToEndOfLine();
             output.cursorLeft(defaultValue.length() - insertPos);

@@ -2,7 +2,6 @@ package net.rubygrapefruit.platform.prompts;
 
 import net.rubygrapefruit.platform.terminal.TerminalOutput;
 
-import static net.rubygrapefruit.platform.prompts.Prompter.DEFAULT_VALUE_COLOR;
 import static net.rubygrapefruit.platform.prompts.Prompter.SELECTION_COLOR;
 
 class YesNoView {
@@ -20,7 +19,7 @@ class YesNoView {
         output.newline();
         output.hideCursor();
         output.bold().write(prompt).normal().write(" [y/n]: ");
-        output.foreground(DEFAULT_VALUE_COLOR).write(defaultValue ? "y" : "n").defaultForeground().cursorLeft(1);
+        output.dim().write(defaultValue ? "y" : "n").normal().cursorLeft(1);
         output.showCursor();
     }
 

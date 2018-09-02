@@ -29,6 +29,8 @@ public class TerminfoFunctions {
 
     public static native byte[] boldOn(FunctionResult result);
 
+    public static native byte[] dimOn(FunctionResult result);
+
     // May be null
     public static native byte[] reset(FunctionResult result);
 

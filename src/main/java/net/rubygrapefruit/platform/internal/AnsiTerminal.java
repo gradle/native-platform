@@ -23,16 +23,30 @@ import net.rubygrapefruit.platform.terminal.Terminals;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 public class AnsiTerminal extends AbstractTerminal {
     private static final byte[] BOLD = "\u001b[1m".getBytes();
-    private static final byte[] BOLD_OFF = "\u001b[22m".getBytes();
+    static final byte[] DIM_ON = "\u001b[2m".getBytes();
+    private static final byte[] NORMAL_INTENSITY = "\u001b[22m".getBytes();
     private static final byte[] DEFAULT_FG = "\u001b[39m".getBytes();
     private static final byte[] RESET = "\u001b[0m".getBytes();
-    private static final byte[] START_OF_LINE = "\u001b[0E".getBytes();
+    private static final byte[] START_OF_LINE = "\u001b[1G".getBytes();
     private static final byte[] CLEAR_TO_END_OF_LINE = "\u001b[0K".getBytes();
+    private static final List<byte[]> FOREGROUND = new ArrayList<byte[]>();
+    static final List<byte[]> BRIGHT_FOREGROUND = new ArrayList<byte[]>();
+    private Color foreground;
+    private boolean bright;
     private final Terminals.Output output;
     private final OutputStream outputStream;
+
+    static {
+        for (Color color : Color.values()) {
+            FOREGROUND.add(String.format("\u001b[%sm", 30 + color.ordinal()).getBytes());
+            BRIGHT_FOREGROUND.add(String.format("\u001b[%sm", 90 + color.ordinal()).getBytes());
+        }
+    }
 
     public AnsiTerminal(OutputStream outputStream, Terminals.Output output) {
         this.outputStream = outputStream;
@@ -79,8 +93,47 @@ public class AnsiTerminal extends AbstractTerminal {
 
     public TerminalOutput foreground(Color color) throws NativeException {
         try {
-            String esc = String.format("\u001b[%sm", 30 + color.ordinal());
-            outputStream.write(esc.getBytes());
+            if (bright) {
+                outputStream.write(BRIGHT_FOREGROUND.get(color.ordinal()));
+            } else {
+                outputStream.write(FOREGROUND.get(color.ordinal()));
+            }
+            foreground = color;
+        } catch (IOException e) {
+            throw new NativeException(String.format("Could not set foreground color on %s.", getOutputDisplay()), e);
+        }
+        return this;
+    }
+
+    @Override
+    public TerminalOutput defaultForeground() throws NativeException {
+        try {
+            outputStream.write(DEFAULT_FG);
+            foreground = null;
+        } catch (IOException e) {
+            throw new NativeException(String.format("Could not switch to bold output on %s.", getOutputDisplay()), e);
+        }
+        return this;
+    }
+
+    @Override
+    public TerminalOutput bright() throws NativeException {
+        try {
+            bright = true;
+            if (foreground != null) {
+                outputStream.write(BRIGHT_FOREGROUND.get(foreground.ordinal()));
+            }
+        } catch (IOException e) {
+            throw new NativeException(String.format("Could not set foreground color on %s.", getOutputDisplay()), e);
+        }
+        return this;
+    }
+
+    @Override
+    public TerminalOutput dim() throws NativeException {
+        try {
+            outputStream.write(DIM_ON);
+            bright = false;
         } catch (IOException e) {
             throw new NativeException(String.format("Could not set foreground color on %s.", getOutputDisplay()), e);
         }
@@ -96,19 +149,13 @@ public class AnsiTerminal extends AbstractTerminal {
         return this;
     }
 
-    @Override
-    public TerminalOutput defaultForeground() throws NativeException {
-        try {
-            outputStream.write(DEFAULT_FG);
-        } catch (IOException e) {
-            throw new NativeException(String.format("Could not switch to bold output on %s.", getOutputDisplay()), e);
-        }
-        return this;
-    }
-
     public TerminalOutput normal() throws NativeException {
         try {
-            outputStream.write(BOLD_OFF);
+            outputStream.write(NORMAL_INTENSITY);
+            if (foreground != null && bright) {
+                outputStream.write(FOREGROUND.get(foreground.ordinal()));
+            }
+            bright = false;
         } catch (IOException e) {
             throw new NativeException(String.format("Could not switch to normal output on %s.", getOutputDisplay()), e);
         }
@@ -118,6 +165,8 @@ public class AnsiTerminal extends AbstractTerminal {
     public TerminalOutput reset() throws NativeException {
         try {
             outputStream.write(RESET);
+            foreground = null;
+            bright = false;
         } catch (IOException e) {
             throw new NativeException(String.format("Could not reset output on %s.", getOutputDisplay()), e);
         }

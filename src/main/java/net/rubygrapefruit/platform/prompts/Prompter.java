@@ -11,8 +11,6 @@ import java.util.List;
  */
 public class Prompter {
     static final TerminalOutput.Color SELECTION_COLOR = TerminalOutput.Color.Cyan;
-    static final TerminalOutput.Color DEFAULT_VALUE_COLOR = TerminalOutput.Color.White;
-    static final TerminalOutput.Color INFO_COLOR = TerminalOutput.Color.White;
     private final boolean interactive;
     private final Terminals terminals;
 

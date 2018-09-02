@@ -112,19 +112,35 @@ public interface TerminalOutput {
     /**
      * Switches the terminal to bold text mode, if supported. Does nothing if this terminal does not support bold mode.
      *
+     * <p>Often the same as {@link #bright()}.</p>
+     *
      * @throws NativeException On failure.
      */
     TerminalOutput bold() throws NativeException;
 
     /**
-     * Switches the terminal to normal text mode. Supported by all terminals.
+     * Switches the terminal to dim intensity, if supported. Does nothing if this terminal does not support dim mode.
+     *
+     * @throws NativeException On failure.
+     */
+    TerminalOutput dim() throws NativeException;
+
+    /**
+     * Switches the terminal to high intensity, if supported. Does nothing if this terminal does not support bright mode.
+     *
+     * @throws NativeException On failure.
+     */
+    TerminalOutput bright() throws NativeException;
+
+    /**
+     * Switches the terminal to normal text mode. Switches off bold text mode and sets normal intensity. Supported by all terminals.
      *
      * @throws NativeException On failure.
      */
     TerminalOutput normal() throws NativeException;
 
     /**
-     * Resets this terminal. Switches to normal text mode, restores default colors and shows the cursor. Supported by all terminals.
+     * Resets this terminal. Switches to normal text mode, restores default foreground color and shows the cursor. Supported by all terminals.
      *
      * @throws NativeException On failure.
      */

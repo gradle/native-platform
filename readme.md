@@ -31,13 +31,14 @@ These bindings work for both the UNIX terminal and the Windows console:
 
 * Determine whether stdin/stdout/stderr are attached to a terminal.
 * Query the terminal size.
-* Switch between bold and normal text mode on the terminal.
 * Change foreground color on the terminal.
+* Switch between bold and normal text mode on the terminal.
+* Switch between dim, bright and normal text intensity on the terminal. 
 * Move terminal cursor up, down, left, right, start of line.
 * Clear to end of line.
 * Show and hide the cursor.
 * Read raw input from the terminal.
-* Read arrow keys from the terminal.
+* Read arrow keys and other function keys from the terminal.
 
 See [Terminals](src/main/java/net/rubygrapefruit/platform/Terminals.java)
 
@@ -127,8 +128,9 @@ Some sample code to use the terminal:
 * Added method to `Terminals` to force the use of ANSI escape sequences to write the terminal output.
 * Added methods to `TerminalOutput` to show and hide the cursor.
 * Added methods to `TerminalOutput` to set foreground text color to its default value.
+* Added methods to `TerminalOutput` to set bright and dim foreground text intensity.
 * Added methods to `TerminalOutput` to write text to the terminal. Anything written to `System.out` or `System.err` is no longer automatically flushed before cursor or text attributes are changed.
-* Added `Prompter` utility class.
+* Added `Prompter` utility class to display prompts on the terminal to ask the user various questions. 
 * Moved releases to JCenter.
 
 ### 0.14

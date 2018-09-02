@@ -28,9 +28,9 @@ class SelectView {
         for (int i = 0; i < options.size(); i++) {
             renderItem(i);
         }
-        output.foreground(Prompter.INFO_COLOR)
+        output.dim()
                 .write("Use the arrow keys to select an option and press enter")
-                .defaultForeground()
+                .normal()
                 .cursorStartOfLine();
     }
 

@@ -26,6 +26,7 @@ import net.rubygrapefruit.platform.terminal.Terminals;
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -36,6 +37,7 @@ public class TerminfoTerminal extends AbstractTerminal {
     private final Object lock = new Object();
     private Map<Color, byte[]> foregroundColors = new HashMap<Color, byte[]>();
     private byte[] boldOn;
+    private byte[] dim;
     private byte[] defaultForeground;
     private byte[] reset;
     private byte[] hideCursor;
@@ -47,6 +49,8 @@ public class TerminfoTerminal extends AbstractTerminal {
     private byte[] startLine;
     private byte[] clearEOL;
     private Color foreground;
+    private boolean ansiTerminal;
+    private boolean bright;
 
     public TerminfoTerminal(Terminals.Output output) {
         this.output = output;
@@ -70,6 +74,7 @@ public class TerminfoTerminal extends AbstractTerminal {
             if (result.isFailed()) {
                 throw new NativeException(String.format("Could not open terminal for %s: %s", getOutputDisplay(), result.getMessage()));
             }
+            ansiTerminal = isAnsiTerminal();
             hideCursor = TerminfoFunctions.hideCursor(result);
             if (result.isFailed()) {
                 throw new NativeException(String.format("Could not determine hide cursor control sequence for %s: %s", getOutputDisplay(), result.getMessage()));
@@ -84,8 +89,14 @@ public class TerminfoTerminal extends AbstractTerminal {
             }
             boldOn = TerminfoFunctions.boldOn(result);
             if (result.isFailed()) {
-                throw new NativeException(String.format("Could not determine bold on control sequence %s: %s", getOutputDisplay(),
-                        result.getMessage()));
+                throw new NativeException(String.format("Could not determine bold on control sequence %s: %s", getOutputDisplay(), result.getMessage()));
+            }
+            dim = TerminfoFunctions.dimOn(result);
+            if (result.isFailed()) {
+                throw new NativeException(String.format("Could not determine dim on control sequence %s: %s", getOutputDisplay(), result.getMessage()));
+            }
+            if (dim == null && ansiTerminal) {
+                dim = AnsiTerminal.DIM_ON;
             }
             reset = TerminfoFunctions.reset(result);
             if (result.isFailed()) {
@@ -118,6 +129,11 @@ public class TerminfoTerminal extends AbstractTerminal {
         }
     }
 
+    private boolean isAnsiTerminal() {
+        // A hard-coded (and very incomplete) list of terminals that are ANSI capable
+        return capabilities.terminalName.contains("xterm") || capabilities.terminalName.equals("linux");
+    }
+
     @Override
     public TerminalSize getTerminalSize() {
         synchronized (lock) {
@@ -133,7 +149,7 @@ public class TerminfoTerminal extends AbstractTerminal {
 
     @Override
     public boolean supportsColor() {
-        return getColor(Color.Black) != null;
+        return getColor(Color.Black, false) != null;
     }
 
     @Override
@@ -143,7 +159,7 @@ public class TerminfoTerminal extends AbstractTerminal {
 
     @Override
     public boolean supportsTextAttributes() {
-        return boldOn != null;
+        return boldOn != null && dim != null;
     }
 
     @Override
@@ -159,7 +175,7 @@ public class TerminfoTerminal extends AbstractTerminal {
     @Override
     public TerminalOutput foreground(Color color) {
         synchronized (lock) {
-            byte[] sequence = getColor(color);
+            byte[] sequence = getColor(color, bright);
             if (sequence != null) {
                 write(sequence);
             }
@@ -168,7 +184,10 @@ public class TerminfoTerminal extends AbstractTerminal {
         return this;
     }
 
-    private byte[] getColor(Color color) {
+    private byte[] getColor(Color color, boolean bright) {
+        if (bright && ansiTerminal) {
+            return AnsiTerminal.BRIGHT_FOREGROUND.get(color.ordinal());
+        }
         byte[] sequence = foregroundColors.get(color);
         if (sequence == null) {
             FunctionResult result = new FunctionResult();
@@ -195,13 +214,41 @@ public class TerminfoTerminal extends AbstractTerminal {
     }
 
     @Override
+    public TerminalOutput dim() throws NativeException {
+        if (!supportsTextAttributes()) {
+            return this;
+        }
+
+        synchronized (lock) {
+            write(dim);
+            if (bright && foreground != null) {
+                write(getColor(foreground, false));
+            }
+            bright = false;
+        }
+        return this;
+    }
+
+    @Override
+    public TerminalOutput bright() throws NativeException {
+        synchronized (lock) {
+            bright = true;
+            if (foreground != null) {
+                write(getColor(foreground, true));
+            }
+        }
+        return this;
+    }
+
+    @Override
     public TerminalOutput normal() {
         synchronized (lock) {
             if (reset != null) {
                 write(reset);
             }
+            bright = false;
             if (foreground != null) {
-                foreground(foreground);
+                write(getColor(foreground, bright));
             }
         }
         return this;
@@ -227,6 +274,7 @@ public class TerminfoTerminal extends AbstractTerminal {
             if (showCursor != null) {
                 write(showCursor);
             }
+            bright = false;
             foreground = null;
         }
         return this;
