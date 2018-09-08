@@ -107,8 +107,14 @@ public class Main {
         }
 
         while (true) {
-            Integer selected = prompter.select("Select test to run", Arrays.asList("Show terminal details", "Show machine details", "Test input handling", "Example prompts", "Exit"), 4);
-            if (selected == null) {
+            Integer selected = prompter.select("Select test to run", Arrays.asList(
+                    "Show terminal details",
+                    "Show machine details",
+                    "Show file systems",
+                    "Test input handling",
+                    "Example prompts",
+                    "Exit"), 5);
+            if (selected == null || selected > 4) {
                 System.out.println();
                 return;
             }
@@ -121,14 +127,14 @@ public class Main {
                     machine();
                     break;
                 case 2:
-                    input();
+                    fileSystems();
                     break;
                 case 3:
+                    input();
+                    break;
+                case 4:
                     prompts(prompter);
                     break;
-                default:
-                    System.out.println();
-                    return;
             }
         }
     }
@@ -301,20 +307,26 @@ public class Main {
         Process process = Native.get(Process.class);
         System.out.println("* PID: " + process.getProcessId());
 
-        FileSystems fileSystems = Native.get(FileSystems.class);
-        System.out.println("* File systems: ");
-        for (FileSystemInfo fileSystem : fileSystems.getFileSystems()) {
-            System.out.println(String.format("    * %s -> %s (type: %s %s, case sensitive: %s, case preserving: %s)",
-                    fileSystem.getMountPoint(), fileSystem.getDeviceName(), fileSystem.getFileSystemType(),
-                    fileSystem.isRemote() ? "remote" : "local", fileSystem.isCaseSensitive(), fileSystem.isCasePreserving()));
-        }
-
         try {
             MemoryInfo memory = Native.get(Memory.class).getMemoryInfo();
             System.out.println("* Available memory: " + memory.getAvailablePhysicalMemory());
             System.out.println("* Total memory: " + memory.getTotalPhysicalMemory());
         } catch (NativeIntegrationUnavailableException e) {
             // ignore
+        }
+
+        System.out.println();
+    }
+
+    private static void fileSystems() {
+        System.out.println();
+
+        FileSystems fileSystems = Native.get(FileSystems.class);
+        System.out.println("* File systems: ");
+        for (FileSystemInfo fileSystem : fileSystems.getFileSystems()) {
+            System.out.println(String.format("    * %s -> %s (type: %s %s, case sensitive: %s, case preserving: %s)",
+                    fileSystem.getMountPoint(), fileSystem.getDeviceName(), fileSystem.getFileSystemType(),
+                    fileSystem.isRemote() ? "remote" : "local", fileSystem.isCaseSensitive(), fileSystem.isCasePreserving()));
         }
 
         System.out.println();
