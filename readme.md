@@ -216,7 +216,7 @@ You should avoid using this release, and use 0.7 or later instead.
 ## Building
 
 This project uses (Gradle)[https://www.gradle.org] to build. Just run `gradlew` in the root of the source repo.
-You will need Java 7 or later to run the tests.
+You will need Java 8 or later to run the tests.
 
 ### Ubuntu
 
@@ -236,11 +236,11 @@ You need to install the `lib32ncurses5-dev` package to pick up the ncurses i386 
 
 ### Windows
 
-You need to install Visual studio 2010 or later, plus the Windows SDK to allow you to build both x86 and x64 binaries.
+You need to install Visual studio 2012 or later, plus the Windows SDK to allow you to build both x86 and x64 binaries.
 
 ### OS X
 
-The g++ compiler is required to build the native library. You will need to install the XCode command-line tools for this.
+The clang compiler is required to build the native library. You will need to install the XCode command-line tools for this.
 
 ### Solaris
 
@@ -248,7 +248,7 @@ For Solaris 11, you need to install the `development/gcc-45` and `system/header`
 
 ## Running
 
-Run `gradle installApp` to install the test application into `test-app/build/install/native-platform-test`. Or
+Run `gradlew installDist` to install the test application into `test-app/build/install/native-platform-test`. Or
 `gradle distZip` to create an application distribution in `test-app/build/distributions/native-platform-test-$version.zip`.
 
 You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
