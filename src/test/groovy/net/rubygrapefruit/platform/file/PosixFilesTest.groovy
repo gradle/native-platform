@@ -55,8 +55,8 @@ class PosixFilesTest extends AbstractFilesTest {
         stat.uid != 0
         stat.gid >= 0
         stat.size == testFile.size()
-        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
-        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
+        assertTimestampMatches(stat.lastModifiedTime, attributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(stat.lastModifiedTime, testFile.lastModified())
         stat.blockSize
 
         where:
@@ -76,8 +76,8 @@ class PosixFilesTest extends AbstractFilesTest {
         stat.uid != 0
         stat.gid >= 0
         stat.size == 0
-        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
-        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
+        assertTimestampMatches(stat.lastModifiedTime, attributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(stat.lastModifiedTime, testFile.lastModified())
         stat.blockSize
 
         where:
@@ -182,7 +182,7 @@ class PosixFilesTest extends AbstractFilesTest {
         stat.uid != 0
         stat.gid >= 0
         stat.size == 0
-        stat.lastModifiedTime == linkAttributes.lastModifiedTime().toMillis()
+        assertTimestampMatches(stat.lastModifiedTime, linkAttributes.lastModifiedTime().toMillis())
         stat.blockSize
 
         when:
@@ -194,7 +194,7 @@ class PosixFilesTest extends AbstractFilesTest {
         stat.uid != 0
         stat.gid >= 0
         stat.size == 0
-        stat.lastModifiedTime == linkAttributes.lastModifiedTime().toMillis()
+        assertTimestampMatches(stat.lastModifiedTime, linkAttributes.lastModifiedTime().toMillis())
         stat.blockSize
 
         when:
@@ -206,8 +206,8 @@ class PosixFilesTest extends AbstractFilesTest {
         stat.uid != 0
         stat.gid >= 0
         stat.size == 0
-        stat.lastModifiedTime == dirAttributes.lastModifiedTime().toMillis()
-        toJavaFileTime(stat.lastModifiedTime) == dir.lastModified()
+        assertTimestampMatches(stat.lastModifiedTime, dirAttributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(stat.lastModifiedTime, dir.lastModified())
         stat.blockSize
 
         where:
@@ -234,7 +234,7 @@ class PosixFilesTest extends AbstractFilesTest {
         stat.uid != 0
         stat.gid >= 0
         stat.size == 0
-        stat.lastModifiedTime == linkAttributes.lastModifiedTime().toMillis()
+        assertTimestampMatches(stat.lastModifiedTime, linkAttributes.lastModifiedTime().toMillis())
         stat.blockSize
 
         when:
@@ -246,7 +246,7 @@ class PosixFilesTest extends AbstractFilesTest {
         stat.uid != 0
         stat.gid >= 0
         stat.size == 0
-        stat.lastModifiedTime == linkAttributes.lastModifiedTime().toMillis()
+        assertTimestampMatches(stat.lastModifiedTime, linkAttributes.lastModifiedTime().toMillis())
         stat.blockSize
 
         when:
@@ -258,8 +258,8 @@ class PosixFilesTest extends AbstractFilesTest {
         stat.uid != 0
         stat.gid >= 0
         stat.size == file.length()
-        stat.lastModifiedTime == fileAttributes.lastModifiedTime().toMillis()
-        toJavaFileTime(stat.lastModifiedTime) == file.lastModified()
+        assertTimestampMatches(stat.lastModifiedTime, fileAttributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(stat.lastModifiedTime, file.lastModified())
         stat.blockSize
 
         where:
@@ -282,7 +282,7 @@ class PosixFilesTest extends AbstractFilesTest {
         stat.uid != 0
         stat.gid >= 0
         stat.size == 0
-        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
+        assertTimestampMatches(stat.lastModifiedTime, attributes.lastModifiedTime().toMillis())
         stat.blockSize
 
         when:
@@ -294,7 +294,7 @@ class PosixFilesTest extends AbstractFilesTest {
         stat.uid != 0
         stat.gid >= 0
         stat.size == 0
-        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
+        assertTimestampMatches(stat.lastModifiedTime, attributes.lastModifiedTime().toMillis())
         stat.blockSize
 
         when:
@@ -377,8 +377,8 @@ class PosixFilesTest extends AbstractFilesTest {
         stat.mode == mode(attributes)
         stat.uid != 0
         stat.gid >= 0
-        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
-        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
+        assertTimestampMatches(stat.lastModifiedTime, attributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(stat.lastModifiedTime, testFile.lastModified())
         stat.blockSize
 
         where:
@@ -413,21 +413,21 @@ class PosixFilesTest extends AbstractFilesTest {
         dirEntry.type == FileInfo.Type.Directory
         dirEntry.name == childDir.name
         dirEntry.size == 0
-        dirEntry.lastModifiedTime == childDirAttributes.lastModifiedTime().toMillis()
-        toJavaFileTime(dirEntry.lastModifiedTime) == childDir.lastModified()
+        assertTimestampMatches(dirEntry.lastModifiedTime, childDirAttributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(dirEntry.lastModifiedTime, childDir.lastModified())
 
         def fileEntry = entries[1]
         fileEntry.type == FileInfo.Type.File
         fileEntry.name == childFile.name
         fileEntry.size == childFile.length()
-        fileEntry.lastModifiedTime == childFileAttributes.lastModifiedTime().toMillis()
-        toJavaFileTime(fileEntry.lastModifiedTime) == childFile.lastModified()
+        assertTimestampMatches(fileEntry.lastModifiedTime, childFileAttributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(fileEntry.lastModifiedTime, childFile.lastModified())
 
         def linkEntry = entries[2]
         linkEntry.type == FileInfo.Type.Symlink
         linkEntry.name == childLink.name
         linkEntry.size == 0
-        linkEntry.lastModifiedTime == childLinkAttributes.lastModifiedTime().toMillis()
+        assertTimestampMatches(linkEntry.lastModifiedTime, childLinkAttributes.lastModifiedTime().toMillis())
 
         when:
         entries = files.listDir(dir, false)
@@ -440,21 +440,21 @@ class PosixFilesTest extends AbstractFilesTest {
         dirEntry2.type == FileInfo.Type.Directory
         dirEntry2.name == childDir.name
         dirEntry2.size == 0
-        dirEntry2.lastModifiedTime == childDirAttributes.lastModifiedTime().toMillis()
-        toJavaFileTime(dirEntry2.lastModifiedTime) == childDir.lastModified()
+        assertTimestampMatches(dirEntry2.lastModifiedTime, childDirAttributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(dirEntry2.lastModifiedTime, childDir.lastModified())
 
         def fileEntry2 = entries[1]
         fileEntry2.type == FileInfo.Type.File
         fileEntry2.name == childFile.name
         fileEntry2.size == childFile.length()
-        fileEntry2.lastModifiedTime == childFileAttributes.lastModifiedTime().toMillis()
-        toJavaFileTime(fileEntry2.lastModifiedTime) == childFile.lastModified()
+        assertTimestampMatches(fileEntry2.lastModifiedTime, childFileAttributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(fileEntry2.lastModifiedTime, childFile.lastModified())
 
         def linkEntry2 = entries[2]
         linkEntry2.type == FileInfo.Type.Symlink
         linkEntry2.name == childLink.name
         linkEntry2.size == 0
-        linkEntry2.lastModifiedTime == childLinkAttributes.lastModifiedTime().toMillis()
+        assertTimestampMatches(linkEntry2.lastModifiedTime, childLinkAttributes.lastModifiedTime().toMillis())
 
         when:
         entries = files.listDir(dir, true)
@@ -467,22 +467,22 @@ class PosixFilesTest extends AbstractFilesTest {
         dirEntry3.type == FileInfo.Type.Directory
         dirEntry3.name == childDir.name
         dirEntry3.size == 0
-        dirEntry3.lastModifiedTime == childDirAttributes.lastModifiedTime().toMillis()
-        toJavaFileTime(dirEntry3.lastModifiedTime) == childDir.lastModified()
+        assertTimestampMatches(dirEntry3.lastModifiedTime, childDirAttributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(dirEntry3.lastModifiedTime, childDir.lastModified())
 
         def fileEntry3 = entries[1]
         fileEntry3.type == FileInfo.Type.File
         fileEntry3.name == childFile.name
         fileEntry3.size == childFile.length()
-        fileEntry3.lastModifiedTime == childFileAttributes.lastModifiedTime().toMillis()
-        toJavaFileTime(fileEntry3.lastModifiedTime) == childFile.lastModified()
+        assertTimestampMatches(fileEntry3.lastModifiedTime, childFileAttributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(fileEntry3.lastModifiedTime, childFile.lastModified())
 
         def linkEntry3 = entries[2]
         linkEntry3.type == FileInfo.Type.File
         linkEntry3.name == childLink.name
         linkEntry3.size == linkTarget.length()
-        linkEntry3.lastModifiedTime == linkTargetAttributes.lastModifiedTime().toMillis()
-        toJavaFileTime(linkEntry3.lastModifiedTime) == linkTarget.lastModified()
+        assertTimestampMatches(linkEntry3.lastModifiedTime, linkTargetAttributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(linkEntry3.lastModifiedTime, linkTarget.lastModified())
 
         where:
         fileName << ["test-dir", "test\u03b1\u2295-dir"]

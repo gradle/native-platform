@@ -28,10 +28,14 @@ class AbstractFilesTest extends Specification {
         return java.nio.file.Files.getFileAttributeView(file.toPath(), BasicFileAttributeView, LinkOption.NOFOLLOW_LINKS).readAttributes()
     }
 
-    long toJavaFileTime(long time) {
-        if (Platform.current().isLinux()) {
+    private long toJavaFileTime(long time) {
+        if (Platform.current().isLinux() || Platform.current().isMacOs()) {
             return (time / 1000).longValue() * 1000 // round to nearest second
         }
         return time
+    }
+
+    void assertTimestampMatches(long statTime, long javaTime) {
+        assert toJavaFileTime(statTime) == javaTime
     }
 }
