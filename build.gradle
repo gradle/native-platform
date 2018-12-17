@@ -99,10 +99,6 @@ def ncursesVersion = inferNCursesVersion(os)
 
 model {
     platforms {
-        osx_i386 {
-            architecture "i386"
-            operatingSystem "osx"
-        }
         osx_amd64 {
             architecture "amd64"
             operatingSystem "osx"
@@ -256,8 +252,8 @@ model {
                 if (targetPlatform.operatingSystem.macOsX) {
                     cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
                     cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/darwin"
-                    cppCompiler.args '-mmacosx-version-min=10.4'
-                    linker.args '-mmacosx-version-min=10.4'
+                    cppCompiler.args '-mmacosx-version-min=10.9'
+                    linker.args '-mmacosx-version-min=10.9'
                 } else if (targetPlatform.operatingSystem.linux) {
                     cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
                     cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/linux"
