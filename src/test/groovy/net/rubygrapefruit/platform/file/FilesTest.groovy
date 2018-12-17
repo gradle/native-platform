@@ -52,8 +52,8 @@ class FilesTest extends AbstractFilesTest {
         then:
         stat.type == FileInfo.Type.File
         stat.size == 2
-        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
-        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
+        assertTimestampMatches(stat.lastModifiedTime, attributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(stat.lastModifiedTime, testFile.lastModified())
 
         where:
         fileName << names
@@ -70,8 +70,8 @@ class FilesTest extends AbstractFilesTest {
         then:
         stat.type == FileInfo.Type.File
         stat.size == 2
-        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
-        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
+        assertTimestampMatches(stat.lastModifiedTime, attributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(stat.lastModifiedTime, testFile.lastModified())
 
         where:
         followLinks << [true, false]
@@ -89,8 +89,8 @@ class FilesTest extends AbstractFilesTest {
         then:
         stat.type == FileInfo.Type.Directory
         stat.size == 0
-        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
-        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
+        assertTimestampMatches(stat.lastModifiedTime, attributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(stat.lastModifiedTime, testFile.lastModified())
 
         where:
         fileName << names
@@ -106,8 +106,8 @@ class FilesTest extends AbstractFilesTest {
         then:
         stat.type == FileInfo.Type.Directory
         stat.size == 0
-        stat.lastModifiedTime == attributes.lastModifiedTime().toMillis()
-        toJavaFileTime(stat.lastModifiedTime) == testFile.lastModified()
+        assertTimestampMatches(stat.lastModifiedTime, attributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(stat.lastModifiedTime, testFile.lastModified())
 
         where:
         followLinks << [true, false]
@@ -318,15 +318,15 @@ class FilesTest extends AbstractFilesTest {
         dirEntry.type == FileInfo.Type.Directory
         dirEntry.name == childDir.name
         dirEntry.size == 0L
-        dirEntry.lastModifiedTime == childDirAttributes.lastModifiedTime().toMillis()
-        toJavaFileTime(dirEntry.lastModifiedTime) == childDir.lastModified()
+        assertTimestampMatches(dirEntry.lastModifiedTime, childDirAttributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(dirEntry.lastModifiedTime, childDir.lastModified())
 
         def fileEntry = files[1]
         fileEntry.type == FileInfo.Type.File
         fileEntry.name == childFile.name
         fileEntry.size == 8
-        fileEntry.lastModifiedTime == childFileAttributes.lastModifiedTime().toMillis()
-        toJavaFileTime(fileEntry.lastModifiedTime) == childFile.lastModified()
+        assertTimestampMatches(fileEntry.lastModifiedTime, childFileAttributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(fileEntry.lastModifiedTime, childFile.lastModified())
 
         where:
         fileName << names
@@ -352,15 +352,15 @@ class FilesTest extends AbstractFilesTest {
         dirEntry.type == FileInfo.Type.Directory
         dirEntry.name == childDir.name
         dirEntry.size == 0L
-        dirEntry.lastModifiedTime == childDirAttributes.lastModifiedTime().toMillis()
-        toJavaFileTime(dirEntry.lastModifiedTime) == childDir.lastModified()
+        assertTimestampMatches(dirEntry.lastModifiedTime, childDirAttributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(dirEntry.lastModifiedTime, childDir.lastModified())
 
         def fileEntry = files[1]
         fileEntry.type == FileInfo.Type.File
         fileEntry.name == childFile.name
         fileEntry.size == 8
-        fileEntry.lastModifiedTime == childFileAttributes.lastModifiedTime().toMillis()
-        toJavaFileTime(fileEntry.lastModifiedTime) == childFile.lastModified()
+        assertTimestampMatches(fileEntry.lastModifiedTime, childFileAttributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(fileEntry.lastModifiedTime, childFile.lastModified())
 
         where:
         followLinks << [true, false]
