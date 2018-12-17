@@ -103,6 +103,29 @@ class PosixFilesTest extends AbstractFilesTest {
         fileName << ["test-dir", "test\u03b1\u2295-dir"]
     }
 
+    def "can stat a missing file when something in the path matches an existing file"() {
+        def testDir = tmpDir.newFile(dirName)
+        def testFile = new File(testDir, fileName)
+
+        when:
+        def stat = files.stat(testFile)
+
+        then:
+        stat.type == FileInfo.Type.Missing
+        stat.mode == 0
+        stat.uid == 0
+        stat.gid == 0
+        stat.size == 0
+        stat.lastModifiedTime == 0
+        stat.blockSize == 0
+
+        where:
+        dirName                | fileName
+        "test-dir"             | "test-file"
+        "test\u03b1\u2295-dir" | "test-file"
+        "test-dir1"            | "test-dir2/test-file"
+    }
+
     def "can stat a file with no read permissions"() {
         def testFile = tmpDir.newFile("test.file")
         chmod(testFile, [OWNER_WRITE])

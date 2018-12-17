@@ -128,7 +128,7 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *en
         retval = lstat(pathStr, &fileInfo);
     }
     free(pathStr);
-    if (retval != 0 && errno != ENOENT) {
+    if (retval != 0 && errno != ENOENT && errno != ENOTDIR) {
         mark_failed_with_errno(env, "could not stat file", result);
         return;
     }

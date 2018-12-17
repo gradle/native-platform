@@ -148,6 +148,25 @@ class FilesTest extends AbstractFilesTest {
         fileName << names
     }
 
+    def "can stat a missing file when something in the path matches an existing file"() {
+        def testDir = tmpDir.newFile(dirName)
+        def testFile = new File(testDir, fileName)
+
+        when:
+        def stat = files.stat(testFile)
+
+        then:
+        stat.type == FileInfo.Type.Missing
+        stat.size == 0
+        stat.lastModifiedTime == 0
+
+        where:
+        dirName                | fileName
+        "test-dir"             | "test-file"
+        "test\u03b1\u2295-dir" | "test-file"
+        "test-dir1"            | "test-dir2/test-file"
+    }
+
     def "follow links has no effect for stat of a missing file"() {
         def testFile = new File(tmpDir.root, "nested/missing")
 
