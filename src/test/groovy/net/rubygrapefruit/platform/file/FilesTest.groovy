@@ -17,10 +17,13 @@ package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.internal.Platform
+import org.junit.Assume
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import spock.lang.IgnoreIf
 import spock.lang.Shared
+
+import static org.junit.Assume.assumeFalse
 
 class FilesTest extends AbstractFilesTest {
     @Shared
@@ -40,6 +43,8 @@ class FilesTest extends AbstractFilesTest {
     }
 
     def "can stat a file"() {
+        assumeFalse(Platform.current().windows && fileName.size() > 260)
+
         def dir = tmpDir.newFolder()
         def testFile = new File(dir, fileName)
         testFile.parentFile.mkdirs()
@@ -78,6 +83,8 @@ class FilesTest extends AbstractFilesTest {
     }
 
     def "can stat a directory"() {
+        assumeFalse(Platform.current().windows && fileName.size() > 260)
+
         def dir = tmpDir.newFolder()
         def testFile = new File(dir, fileName)
         testFile.mkdirs()
@@ -281,6 +288,8 @@ class FilesTest extends AbstractFilesTest {
     }
 
     def "can list contents of an empty directory"() {
+        assumeFalse(Platform.current().windows && fileName.size() > 260)
+
         def dir = tmpDir.newFolder()
         def testFile = new File(dir, fileName)
         testFile.mkdirs()
@@ -296,6 +305,8 @@ class FilesTest extends AbstractFilesTest {
     }
 
     def "can list contents of a directory"() {
+        assumeFalse(Platform.current().windows && fileName.size() > 260)
+
         def dir = tmpDir.newFolder()
         def testFile = new File(dir, fileName)
         testFile.mkdirs()
