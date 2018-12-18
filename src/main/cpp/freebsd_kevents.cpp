@@ -75,7 +75,7 @@ Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_waitForNextEven
     watch_details_t* details = (watch_details_t*)env->GetDirectBufferAddress(handle);
     struct kevent event;
     int event_count = kevent(details->watch_fd, NULL, 0, &event, 1, NULL);
-    if (event_count < 0 && errno == EINTR) {
+    if (event_count < 0 && (errno == EINTR || errno == EBADF)) {
         return JNI_FALSE;
     }
     if ((event_count < 0) || (event.flags == EV_ERROR)) {
