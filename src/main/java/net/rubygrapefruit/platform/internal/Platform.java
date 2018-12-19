@@ -78,6 +78,10 @@ public abstract class Platform {
         return false;
     }
 
+    public boolean isFreeBSD() {
+        return false;
+    }
+
     public boolean isWindows() {
         return false;
     }
@@ -279,6 +283,11 @@ public abstract class Platform {
         @Override
         public List<String> getLibraryVariants() {
             return Arrays.asList(getId() + "-libcpp", getId() + "-libstdcpp");
+        }
+
+        @Override
+        public boolean isFreeBSD() {
+            return true;
         }
     }
 

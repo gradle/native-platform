@@ -29,14 +29,13 @@ class AbstractFilesTest extends Specification {
     }
 
     private long maybeRoundToNearestSecond(long time) {
-        if (Platform.current().isLinux() || Platform.current().isMacOs()) {
+        if (Platform.current().isLinux() || Platform.current().isMacOs() || Platform.current().isFreeBSD()) {
             return (time / 1000).longValue() * 1000 // round to nearest second
         }
         return time
     }
 
     void assertTimestampMatches(long statTime, long javaTime) {
-        def props = System.getProperties()
         assert maybeRoundToNearestSecond(statTime) == maybeRoundToNearestSecond(javaTime)
     }
 }
