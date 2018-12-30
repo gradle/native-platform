@@ -1,4 +1,6 @@
-apply plugin: 'application'
+plugins {
+    id('application')
+}
 
 mainClassName = 'net.rubygrapefruit.platform.test.Main'
 applicationName = 'native-platform-test'
@@ -18,11 +20,24 @@ if (project.hasProperty('release') || project.hasProperty('snapshot') || project
 }
 
 dependencies {
-    compile project(':')
-    compile 'net.sf.jopt-simple:jopt-simple:4.2'
+    implementation project(':')
+    implementation 'net.sf.jopt-simple:jopt-simple:4.2'
 }
 
-configurations.archives.artifacts.clear()
-artifacts {
-    archives distZip
+task sourceZip(type: Zip) {
+    from sourceSets.main.allSource
+    classifier = 'sources'
+    extension = 'jar'
+}
+
+publishing {
+    publications {
+        main(MavenPublication) {
+            groupId = project.group
+            artifactId = jar.baseName
+            version = project.version
+            artifact(distZip)
+            artifact(sourceZip)
+        }
+    }
 }

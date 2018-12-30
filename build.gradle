@@ -1,21 +1,17 @@
 import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
 
-apply plugin: 'groovy'
-apply plugin: 'cpp'
+plugins {
+    id 'groovy'
+    id 'cpp'
+}
 
 allprojects {
     apply plugin: 'java'
-    apply plugin: 'idea'
-    apply plugin: 'maven'
+    apply plugin: UploadPlugin
 
     repositories {
-        mavenCentral()
-        maven { url "http://repo.gradle.org/gradle/libs-releases-local" }
-        maven { url "http://repo.gradle.org/gradle/libs-snapshots-local" }
-    }
-
-    dependencies {
-        testCompile 'org.spockframework:spock-core:1.0-groovy-2.4'
+        jcenter()
+        maven { url "https://dl.bintray.com/adammurdoch/maven" }
     }
 
     group = 'net.rubygrapefruit'
@@ -27,28 +23,11 @@ allprojects {
 
     sourceCompatibility = 1.5
     targetCompatibility = 1.5
-
-    tasks.withType(Upload) {
-        repositories {
-            mavenDeployer {
-                if (project.hasProperty('release')) {
-                    repository(url: uri("https://gradle.artifactoryonline.com/gradle/libs-releases-local")) {
-                        authentication(userName: artifactoryUserName, password: artifactoryPassword)
-                    }
-                } else if (project.hasProperty('snapshot')) {
-                    repository(url: uri("https://gradle.artifactoryonline.com/gradle/libs-snapshots-local")) {
-                        authentication(userName: artifactoryUserName, password: artifactoryPassword)
-                    }
-                } else {
-                    repository(url: uri("$rootProject.buildDir/repo"))
-                }
-            }
-        }
-    }
 }
 
 dependencies {
     testCompile 'org.codehaus.groovy:groovy-all:2.4.1'
+    testCompile 'org.spockframework:spock-core:1.0-groovy-2.4'
 }
 
 def nativeHeadersDir = file("$buildDir/nativeHeaders")
@@ -85,12 +64,7 @@ task nativeHeaders {
     }
 }
 
-configurations {
-    jni
-}
-
-def deployer = uploadJni.repositories.mavenDeployer
-def publications = new LinkedHashSet()
+def variantNames = new LinkedHashSet()
 
 // Using internal classes here to make this simple
 def os = new DefaultNativePlatform("current").operatingSystem
@@ -271,7 +245,7 @@ model {
 
             binaries.withType(SharedLibraryBinarySpec) { binary ->
                 def variantName = targetPlatform.name.replace('_', '-')
-                publications << variantName
+                variantNames << variantName
 
                 if (!buildable) {
                     return
@@ -284,16 +258,18 @@ model {
                         baseName = "native-platform-$variantName"
                     }
                     artifacts {
-                        jni nativeJar
                         runtime nativeJar
                     }
-                    def jniPom = deployer.addFilter(variantName) { artifact, file ->
-                        return file == nativeJar.archivePath
+                    publishing {
+                        publications {
+                            "$variantName"(MavenPublication) {
+                                artifact(nativeJar)
+                                groupId = project.group
+                                artifactId = nativeJar.baseName
+                                version = project.version
+                            }
+                        }
                     }
-                    jniPom.groupId = project.group
-                    jniPom.artifactId = nativeJar.baseName
-                    jniPom.version = project.version
-                    jniPom.scopeMappings.mappings.clear()
                 }
 
                 binary.tasks.withType(LinkSharedLibrary) { builderTask ->
@@ -327,24 +303,27 @@ task javadocZip(type: Zip) {
     extension = 'jar'
 }
 
-artifacts {
-    archives sourceZip
-    archives javadocZip
-}
-
-def mainPom = uploadArchives.repositories.mavenDeployer.pom
-mainPom.groupId = project.group
-mainPom.artifactId = jar.baseName
-mainPom.version = project.version
-mainPom.scopeMappings.mappings.clear()
-mainPom.withXml { provider ->
-    def node = provider.asNode()
-    def deps = node.appendNode('dependencies')
-    publications.each { p ->
-        def dep = deps.appendNode('dependency')
-        dep.appendNode('groupId', project.group)
-        dep.appendNode('artifactId', "native-platform-${p}")
-        dep.appendNode('version', project.version)
+publishing {
+    publications {
+        main(MavenPublication) {
+            groupId = project.group
+            artifactId = jar.baseName
+            version = project.version
+            artifact jar
+            artifact sourceZip
+            artifact javadocZip
+            pom.withXml { provider ->
+                def node = provider.asNode()
+                def deps = node.appendNode('dependencies')
+                variantNames.each { p ->
+                    def dep = deps.appendNode('dependency')
+                    dep.appendNode('groupId', project.group)
+                    dep.appendNode('artifactId', "native-platform-${p}")
+                    dep.appendNode('version', project.version)
+                    dep.appendNode('scope', 'runtime')
+                }
+            }
+        }
     }
 }
 
