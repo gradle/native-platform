@@ -12,6 +12,12 @@ if (versions.useRepo) {
             substitute project(':') with module("net.rubygrapefruit:native-platform:${version}")
         }
     }
+    configurations {
+        download
+    }
+    dependencies {
+        download "$group:${archivesBaseName}:${version}"
+    }
 }
 
 dependencies {
@@ -29,10 +35,20 @@ publishing {
     publications {
         main(MavenPublication) {
             groupId = project.group
-            artifactId = jar.baseName
+            artifactId = project.archivesBaseName
             version = project.version
             artifact(distZip)
             artifact(sourceZip)
+        }
+    }
+}
+
+// Download and unpack the application to allow it to be tested
+task download {
+    doLast {
+        copy {
+            from(configurations.download.files.collect { zipTree(it) })
+            into("$buildDir/download")
         }
     }
 }
