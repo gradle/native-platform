@@ -97,6 +97,7 @@ public class UploadTask extends DefaultTask {
     }
 
     private void upload(URL uploadUrl, long length, InputStream instr) throws IOException {
+        System.setProperty("https.protocols", "TLSv1.2");
         HttpURLConnection connection = (HttpURLConnection) uploadUrl.openConnection();
         withCredentials(connection);
         connection.addRequestProperty("Content-Length", String.valueOf(length));
