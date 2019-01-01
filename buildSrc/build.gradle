@@ -1,6 +1,10 @@
+repositories {
+    jcenter()
+}
 
 dependencies {
     implementation gradleApi()
+    implementation 'org.apache.httpcomponents.client5:httpclient5:5.0-beta3'
 }
 
 if (JavaVersion.current() > JavaVersion.VERSION_1_8 || JavaVersion.current() < JavaVersion.VERSION_1_7) {

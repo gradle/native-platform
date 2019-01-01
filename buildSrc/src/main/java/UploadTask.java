@@ -1,26 +1,17 @@
-import org.gradle.api.DefaultTask;
 import org.gradle.api.Task;
 import org.gradle.api.publish.maven.MavenArtifact;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.tasks.TaskAction;
 
-import javax.xml.bind.DatatypeConverter;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.concurrent.Callable;
 
-public class UploadTask extends DefaultTask {
+public class UploadTask extends BintrayTask {
     private MavenPublication publication;
-    private Callable<File> repoDir;
-    private String userName;
-    private String apiKey;
+    private Callable<File> localRepoDir;
 
     public UploadTask() {
         dependsOn(new Callable<Task>() {
@@ -39,33 +30,17 @@ public class UploadTask extends DefaultTask {
         this.publication = publication;
     }
 
-    public Callable<File> getRepoDir() {
-        return repoDir;
+    public Callable<File> getLocalRepoDir() {
+        return localRepoDir;
     }
 
-    public void setRepoDir(Callable<File> repoDir) {
-        this.repoDir = repoDir;
-    }
-
-    public String getUserName() {
-        return userName;
-    }
-
-    public void setUserName(String userName) {
-        this.userName = userName;
-    }
-
-    public String getApiKey() {
-        return apiKey;
-    }
-
-    public void setApiKey(String apiKey) {
-        this.apiKey = apiKey;
+    public void setLocalRepoDir(Callable<File> localRepoDir) {
+        this.localRepoDir = localRepoDir;
     }
 
     @TaskAction
     void upload() throws Exception {
-        System.out.println("Uploading publication " + publication.getName());
+        System.out.println("Uploading publication " + publication.getName() + " as " + publication.getGroupId() + ":" + publication.getArtifactId() + ":" + publication.getVersion());
         for (MavenArtifact artifact : publication.getArtifacts()) {
             upload(publication.getGroupId(), publication.getArtifactId(), publication.getVersion(), artifact.getClassifier(), artifact.getExtension());
         }
@@ -86,46 +61,18 @@ public class UploadTask extends DefaultTask {
     private void upload(String groupId, String artifactId, String version, String baseName) throws Exception {
         System.out.println("Uploading file " + baseName);
         String mavenPath = groupId.replace(".", "/") + "/" + artifactId + "/" + version + "/" + baseName;
-        File file = new File(repoDir.call(), mavenPath);
+        File file = new File(localRepoDir.call(), mavenPath);
         if (!file.isFile()) {
             throw new IllegalArgumentException("Artifact " + baseName + " file " + file + " does not exist.");
         }
         try (FileInputStream instr = new FileInputStream(file)) {
-            URL uploadUrl = uploadUrl(groupId, artifactId, mavenPath);
-            upload(uploadUrl, file.length(), instr);
+            URI uploadUrl = uploadUrl(groupId, artifactId, mavenPath);
+            put(uploadUrl, file.length(), instr);
         }
     }
 
-    private void upload(URL uploadUrl, long length, InputStream instr) throws IOException {
-        System.setProperty("https.protocols", "TLSv1.2");
-        HttpURLConnection connection = (HttpURLConnection) uploadUrl.openConnection();
-        withCredentials(connection);
-        connection.addRequestProperty("Content-Length", String.valueOf(length));
-        connection.setRequestMethod("PUT");
-        connection.setDoOutput(true);
-        copyTo(instr, connection.getOutputStream());
-        ByteArrayOutputStream collect = new ByteArrayOutputStream();
-        copyTo(connection.getInputStream(), collect);
-    }
-
-    private URL uploadUrl(String groupId, String artifactId, String mavenPath) throws MalformedURLException {
-        return new URL("https://api.bintray.com/maven/adammurdoch/maven/" + groupId + ":" + artifactId + "/" + mavenPath);
-    }
-
-    private void copyTo(InputStream inputStream, OutputStream outputStream) throws IOException {
-        byte[] buffer = new byte[1024 * 16];
-        while (true) {
-            int nread = inputStream.read(buffer);
-            if (nread < 0) {
-                break;
-            }
-            outputStream.write(buffer, 0, nread);
-        }
-    }
-
-    private void withCredentials(HttpURLConnection connection) {
-        String str = DatatypeConverter.printBase64Binary((userName + ":" + apiKey).getBytes());
-        connection.addRequestProperty("Authorization", "Basic " + str);
+    private URI uploadUrl(String groupId, String artifactId, String mavenPath) throws URISyntaxException {
+        return new URI("https://api.bintray.com/maven/adammurdoch/maven/" + groupId + ":" + artifactId + "/" + mavenPath);
     }
 
     static String capitalize(String name) {

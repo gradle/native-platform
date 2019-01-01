@@ -44,17 +44,22 @@ public class UploadPlugin implements Plugin<Project> {
                 extension.getPublications().withType(MavenPublication.class, new Action<MavenPublication>() {
                     @Override
                     public void execute(MavenPublication publication) {
+                        UpdatePackageMetadataTask update = project.getTasks().create("update" + UploadTask.capitalize(publication.getName()), UpdatePackageMetadataTask.class);
+                        update.setPublication(publication);
+
                         UploadTask upload = project.getTasks().create("upload" + UploadTask.capitalize(publication.getName()), UploadTask.class);
                         upload.setGroup("Upload");
                         upload.setDescription("Upload publication " + publication.getName());
-                        upload.setRepoDir(repoDir);
+                        upload.setLocalRepoDir(repoDir);
                         upload.setPublication(publication);
+                        upload.dependsOn(update);
                         if (!publication.getName().equals("main")) {
-                            Task lifecycleTask = project.getTasks().maybeCreate("uploadJni");
-                            lifecycleTask.setGroup("Upload");
-                            lifecycleTask.setDescription("Upload all JNI publications");
-                            lifecycleTask.dependsOn(upload);
+                            Task uploadLifecycle = project.getTasks().maybeCreate("uploadJni");
+                            uploadLifecycle.setGroup("Upload");
+                            uploadLifecycle.setDescription("Upload all JNI publications");
+                            uploadLifecycle.dependsOn(upload);
                         }
+
                     }
                 });
             }
@@ -63,11 +68,11 @@ public class UploadPlugin implements Plugin<Project> {
             @Override
             public void execute(TaskExecutionGraph graph) {
                 for (Task task : graph.getAllTasks()) {
-                    if (task instanceof UploadTask) {
+                    if (task instanceof BintrayTask) {
                         credentials.assertPresent();
-                        UploadTask upload = (UploadTask) task;
-                        upload.setUserName(credentials.getUserName());
-                        upload.setApiKey(credentials.getApiKey());
+                        BintrayTask bintrayTask = (BintrayTask) task;
+                        bintrayTask.setUserName(credentials.getUserName());
+                        bintrayTask.setApiKey(credentials.getApiKey());
                     }
                 }
             }
