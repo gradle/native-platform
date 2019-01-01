@@ -14,10 +14,10 @@ allprojects {
     }
 
     group = 'net.rubygrapefruit'
-    version = '0.15'
 
-    if (!project.hasProperty('release')) {
-        version = "${version}-dev"
+    versions {
+        nextVersion = '0.15'
+        nextSnapshot = '1'
     }
 
     sourceCompatibility = 1.5

@@ -9,12 +9,27 @@ import org.gradle.authentication.http.BasicAuthentication;
  */
 public class ReleasePlugin implements Plugin<Project> {
     @Override
-    public void apply(Project project) {
+    public void apply(final Project project) {
         project.getPlugins().apply(UploadPlugin.class);
-        final BintrayCredentials credentials = project.getExtensions().getByType(BintrayCredentials.class);
+
+        boolean release = project.hasProperty("release");
+        boolean milestone = project.hasProperty("milestone");
+        if (release && milestone) {
+            throw new UnsupportedOperationException("Cannot build release and milestone in same build.");
+        }
+        VersionDetails.BuildType buildType = VersionDetails.BuildType.Dev;
+        if (release) {
+            buildType = VersionDetails.BuildType.Release;
+        } else if (milestone) {
+            buildType = VersionDetails.BuildType.Milestone;
+        }
+        VersionDetails versions = project.getExtensions().create("versions", VersionDetails.class, buildType);
+        project.setVersion(new VersionCalculator(versions, buildType));
 
         // Use authenticated bintray repo while building a test distribution during snapshot/release
-        if (credentials.getUserName() != null && credentials.getApiKey() != null) {
+        final BintrayCredentials credentials = project.getExtensions().getByType(BintrayCredentials.class);
+        if (versions.isUseRepo()) {
+            credentials.assertPresent();
             project.getRepositories().maven(new Action<MavenArtifactRepository>() {
                 @Override
                 public void execute(MavenArtifactRepository repo) {
@@ -24,6 +39,38 @@ public class ReleasePlugin implements Plugin<Project> {
                     repo.getAuthentication().create("basic", BasicAuthentication.class);
                 }
             });
+        }
+    }
+
+    private static class VersionCalculator {
+        private final VersionDetails release;
+        private final VersionDetails.BuildType buildType;
+        private String version;
+
+        VersionCalculator(VersionDetails release, VersionDetails.BuildType buildType) {
+            this.release = release;
+            this.buildType = buildType;
+        }
+
+        @Override
+        public String toString() {
+            if (version == null) {
+                String nextVersion = release.getNextVersion();
+                if (nextVersion == null) {
+                    throw new UnsupportedOperationException("Next version not specified.");
+                }
+                if (buildType == VersionDetails.BuildType.Release) {
+                    version = nextVersion;
+                } else if (buildType == VersionDetails.BuildType.Milestone) {
+                    if (release.getNextSnapshot() == null) {
+                        throw new UnsupportedOperationException("Next milestone not specified.");
+                    }
+                    version = nextVersion + "-milestone-" + release.getNextSnapshot();
+                } else {
+                    version = nextVersion + "-dev";
+                }
+            }
+            return version;
         }
     }
 }

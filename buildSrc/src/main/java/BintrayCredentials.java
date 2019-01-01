@@ -20,4 +20,13 @@ public class BintrayCredentials {
     public void setApiKey(String apiKey) {
         this.apiKey = apiKey;
     }
+
+    void assertPresent() {
+        if (userName == null) {
+            throw new IllegalStateException("No bintray user name specified. You can set project property 'bintrayUserName' to provide this.");
+        }
+        if (apiKey == null) {
+            throw new IllegalStateException("No bintray API key specified. You can set project property 'bintrayApiKey' to provide this.");
+        }
+    }
 }

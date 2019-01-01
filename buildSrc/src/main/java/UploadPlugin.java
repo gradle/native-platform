@@ -64,14 +64,9 @@ public class UploadPlugin implements Plugin<Project> {
             public void execute(TaskExecutionGraph graph) {
                 for (Task task : graph.getAllTasks()) {
                     if (task instanceof UploadTask) {
+                        credentials.assertPresent();
                         UploadTask upload = (UploadTask) task;
-                        if (credentials.getUserName() == null) {
-                            throw new IllegalStateException("No bintray user name specified. You can set project property 'bintrayUserName' to provide this.");
-                        }
                         upload.setUserName(credentials.getUserName());
-                        if (credentials.getApiKey() == null) {
-                            throw new IllegalStateException("No bintray API key specified. You can set project property 'bintrayApiKey' to provide this.");
-                        }
                         upload.setApiKey(credentials.getApiKey());
                     }
                 }
