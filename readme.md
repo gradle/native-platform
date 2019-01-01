@@ -260,13 +260,13 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 3. Create a tag and push.
 4. Build each variant. Note: for ensure linux ncurses6 is built before linux ncurses5
     1. Checkout tag.
-    2. `./gradlew clean :test :uploadJni -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`.
+    2. `./gradlew clean :test :uploadJni -Prelease -PbintrayUserName=<> -PbintrayApiKey=<>`.
 5. Build Java library:
     1. Checkout tag.
-    2. `./gradlew clean :test :uploadArchives -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`
+    2. `./gradlew clean :test :uploadMain -Prelease -PbintrayUserName=<> -PbintrayApiKey=<>`
 6. Build the test app:
     1. Checkout tag.
-    2. `./gradlew clean :testApp:uploadArchives -Prelease -PartifactoryUserName=<> -PartifactoryPassword=<>`
+    2. `./gradlew clean :testApp:uploadMain -Prelease -PbintrayUserName=<> -PbintrayApiKey=<>`
 7. Checkout master
 8. Increment version number in `build.gradle` and this readme.
 9. Increment version number in `generic.h`.
