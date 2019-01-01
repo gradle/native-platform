@@ -19,6 +19,13 @@ public class UploadPlugin implements Plugin<Project> {
     @Override
     public void apply(final Project project) {
         project.getPlugins().apply("maven-publish");
+        final BintrayCredentials credentials = project.getExtensions().create("bintray", BintrayCredentials.class);
+        if (project.hasProperty("bintrayUserName")) {
+            credentials.setUserName(project.property("bintrayUserName").toString());
+        }
+        if (project.hasProperty("bintrayApiKey")) {
+            credentials.setApiKey(project.property("bintrayApiKey").toString());
+        }
 
         final Callable<File> repoDir = new Callable<File>() {
             public File call() {
@@ -58,18 +65,14 @@ public class UploadPlugin implements Plugin<Project> {
                 for (Task task : graph.getAllTasks()) {
                     if (task instanceof UploadTask) {
                         UploadTask upload = (UploadTask) task;
-                        if (upload.getUserName() == null) {
-                            if (!project.hasProperty("bintrayUserName")) {
-                                throw new IllegalStateException("Project property 'bintrayUserName' not provided.");
-                            }
-                            upload.setUserName(project.property("bintrayUserName").toString());
+                        if (credentials.getUserName() == null) {
+                            throw new IllegalStateException("No bintray user name specified. You can set project property 'bintrayUserName' to provide this.");
                         }
-                        if (upload.getApiKey() == null) {
-                            if (!project.hasProperty("bintrayApiKey")) {
-                                throw new IllegalStateException("Project property 'bintrayApiKey' not provided.");
-                            }
-                            upload.setApiKey(project.property("bintrayApiKey").toString());
+                        upload.setUserName(credentials.getUserName());
+                        if (credentials.getApiKey() == null) {
+                            throw new IllegalStateException("No bintray API key specified. You can set project property 'bintrayApiKey' to provide this.");
                         }
+                        upload.setApiKey(credentials.getApiKey());
                     }
                 }
             }

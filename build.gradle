@@ -7,11 +7,10 @@ plugins {
 
 allprojects {
     apply plugin: 'java'
-    apply plugin: UploadPlugin
+    apply plugin: ReleasePlugin
 
     repositories {
         jcenter()
-        maven { url "https://dl.bintray.com/adammurdoch/maven" }
     }
 
     group = 'net.rubygrapefruit'
@@ -331,7 +330,7 @@ String inferNCursesVersion(def os) {
     if (!os.linux) {
         return "5"
     }
-    for (def d: ["/lib", "/lib64", "/lib/x86_64-linux-gnu"]) {
+    for (def d : ["/lib", "/lib64", "/lib/x86_64-linux-gnu"]) {
         if (new File("$d/libncurses.so.6").file) {
             return "6"
         }
