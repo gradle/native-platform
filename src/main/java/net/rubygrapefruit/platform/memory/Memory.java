@@ -28,6 +28,7 @@ public interface Memory extends NativeIntegration {
     /**
      * Queries the current state of the system memory.
      *
+     * @return A snapshot of the current state of the system memory.
      * @throws NativeException On failure.
      */
     @ThreadSafe

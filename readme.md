@@ -95,7 +95,7 @@ this:
     }
 
     dependencies {
-        compile "net.rubygrapefruit:native-platform:0.14"
+        compile "net.rubygrapefruit:native-platform:0.15"
     }
 
 You can also download [here](https://repo.gradle.org/gradle/libs-releases-local/net/rubygrapefruit/)
@@ -119,7 +119,7 @@ Some sample code to use the terminal:
 
 ## Changes
 
-### 0.15 (not released)
+### 0.15
 
 * Renamed `Terminal` to `TerminalOutput`.
 * Moved some types to subpackages.
@@ -257,7 +257,7 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
 1. Check the version number in `build.gradle`.
 2. Check that the native interface version has been incremented since last release, when changes have been made to native code.
-3. Build each variant. Note: for ensure linux ncurses6 is built before linux ncurses5
+3. Build each variant.
     1. Checkout tag.
     2. `./gradlew clean :test :uploadJni -Prelease -PbintrayUserName=<> -PbintrayApiKey=<>`.
 4. Build Java library:
@@ -266,11 +266,11 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 5. Build the test app:
     1. Checkout tag.
     2. `./gradlew clean :testApp:uploadMain -Prelease -PbintrayUserName=<> -PbintrayApiKey=<>`
-6. Create a tag and push.
+6. Create a tag
 7. Publish on bintray
 8. Checkout master
 9. Increment version number in `build.gradle` and this readme.
-10. Increment version number in `generic.h`.
+10. Increment version number in `generic.h` and `NativeLibraryFunctions`.
 11. Push changes.
 
 Use `-Pmilestone` instead of `-Prelease` to publish a milestone version.
