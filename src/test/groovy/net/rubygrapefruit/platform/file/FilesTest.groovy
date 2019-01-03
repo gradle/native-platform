@@ -132,7 +132,13 @@ class FilesTest extends AbstractFilesTest {
 
     def "can stat the file system roots reported by OS"() {
         expect:
-        def stat = files.stat(fileSystem.mountPoint)
+        def stat
+        try {
+            stat = files.stat(fileSystem.mountPoint)
+        } catch (FilePermissionException e) {
+            // This is ok
+            return
+        }
         stat.type == (fileSystem.mountPoint.exists() ? FileInfo.Type.Directory : FileInfo.Type.Missing)
         stat.size == 0
 
