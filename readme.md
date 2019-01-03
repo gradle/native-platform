@@ -119,6 +119,10 @@ Some sample code to use the terminal:
 
 ## Changes
 
+### 0.16 (not released yet)
+
+* Change `Terminals` to support running under Mintty from Cygwin and MSYS on Windows. Supported for Windows 2008 and later. `TerminalOutput` is supported, however `TerminalInput` is not.
+
 ### 0.15
 
 * Renamed `Terminal` to `TerminalOutput`.
