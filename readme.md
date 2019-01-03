@@ -27,18 +27,18 @@ See [Process](src/main/java/net/rubygrapefruit/platform/Process.java)
 
 ### Terminal and console
 
-These bindings work for both the UNIX terminal and the Windows console:
+These bindings work for the UNIX terminal, the Windows console and Mintty from Cygwin and MSys on Windows.
 
-* Determine whether stdin/stdout/stderr are attached to a terminal.
-* Query the terminal size.
+* Determine whether stdin/stdout/stderr are attached to a terminal. Stdin detection not supported for Mintty.
+* Query the terminal size. Not supported for Mintty
 * Change foreground color on the terminal.
 * Switch between bold and normal text mode on the terminal.
 * Switch between dim, bright and normal text intensity on the terminal. 
 * Move terminal cursor up, down, left, right, start of line.
 * Clear to end of line.
 * Show and hide the cursor.
-* Read raw input from the terminal.
-* Read arrow keys and other function keys from the terminal.
+* Read raw input from the terminal. Not support for Mintty.
+* Read arrow keys and other function keys from the terminal. Not support for Mintty.
 
 See [Terminals](src/main/java/net/rubygrapefruit/platform/Terminals.java)
 

@@ -25,7 +25,7 @@ import net.rubygrapefruit.platform.ThreadSafe;
  * Provides access to the terminal/console.
  *
  * <p>On UNIX based platforms, this provides access to the terminal. On Windows platforms, this provides access to the
- * console.
+ * Windows console and Mintty.
  *
  * <p>To create an instance of this interface use the {@link Native#get(Class)} method.
  */
@@ -71,7 +71,7 @@ public interface Terminals extends NativeIntegration {
      * Returns the terminal attached to system input
      *
      * @return The terminal. Never returns null.
-     * @throws NativeException When the output is not attached to a terminal.
+     * @throws NativeException When the input is not attached to a terminal.
      */
     @ThreadSafe
     TerminalInput getTerminalInput() throws NativeException;
