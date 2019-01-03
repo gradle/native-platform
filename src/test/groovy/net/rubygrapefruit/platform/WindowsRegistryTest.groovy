@@ -13,14 +13,14 @@ class WindowsRegistryTest extends Specification {
         def currentVersion = windowsRegistry.getStringValue(WindowsRegistry.Key.HKEY_LOCAL_MACHINE, /SOFTWARE\Microsoft\Windows NT\CurrentVersion/, "CurrentVersion")
         currentVersion.matches("\\d+\\.\\d+")
 
-        def p = ["whoami"].execute()
-        if (p.waitFor() != 0) {
-            throw new UnsupportedOperationException("Could not run command: ${p.inputStream.text} ${p.errorStream.text}")
+        def path
+        try {
+            path = new File(windowsRegistry.getStringValue(WindowsRegistry.Key.HKEY_CURRENT_USER, "Volatile Environment", "APPDATA"))
+        } catch (MissingRegistryEntryException e) {
+            // Happens when not logged in
+            return
         }
-        def userName = p.inputStream.text
-        println("user name = ${userName}")
 
-        def path = new File(windowsRegistry.getStringValue(WindowsRegistry.Key.HKEY_CURRENT_USER, "Volatile Environment", "APPDATA"))
         path.directory
     }
 
