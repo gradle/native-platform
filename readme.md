@@ -82,7 +82,7 @@ Currently ported to OS X, Linux, FreeBSD and Windows. Support for Solaris is a w
 * Fedora 23 and later (amd64, i386).
 * Ubuntu 8.04 and later (amd64, i386).
 * FreeBSD 8.4 and later (amd64, i386).
-* Windows XP and later (amd64, i386).
+* Windows XP and later (amd64, i386). Console integration works with cmd.exe, powershell, ConEmu, Mintty from Cygwin, Mintty from Msys (includes Git for Windows).
 
 ## Using
 
