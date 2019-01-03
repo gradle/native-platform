@@ -46,10 +46,6 @@ See [Terminals](src/main/java/net/rubygrapefruit/platform/Terminals.java)
 
 ### File systems
 
-* Watch for changes to a directory. Implementation is currently limited to watching on a single directory.
-
-See [FileEvents](src/main/java/net/rubygrapefruit/platform/FileEvents.java)
-
 * Query and set UNIX file mode.
 * Create and read symbolic links.
 * Query UNIX file uid and gid.
@@ -66,6 +62,10 @@ See [Files](src/main/java/net/rubygrapefruit/platform/Files.java)
 * Query whether a file system is case sensitive and case preserving.
 
 See [FileSystems](src/main/java/net/rubygrapefruit/platform/FileSystems.java)
+
+* Watch for changes to a directory. Implementation is currently limited to watching on a single directory.
+
+See [FileEvents](src/main/java/net/rubygrapefruit/platform/FileEvents.java)
 
 ### Windows registry
 
@@ -124,6 +124,7 @@ Some sample code to use the terminal:
 
 ### 0.15
 
+* Fixed `Files.stat()` when the path points to a descendent of a file. Thanks to [Gary Hale](https://github.com/ghale).
 * Renamed `Terminal` to `TerminalOutput`.
 * Moved some types to subpackages.
 * Added `TerminalInput` to read text from the terminal. Supports raw mode and arrow keys.
@@ -328,7 +329,7 @@ Use `-Pmilestone` instead of `-Prelease` to publish a milestone version.
 * Mac: change `java_to_char()` to convert java string directly to utf-8 char string.
 * Mac: change `char_to_java()` to assume utf-8 encoding and convert directly to java string.
 * Linux: change `char_to_java()` to use `iconv()` to convert from C char string to UTF-16 then to java string.
-* Windows: support for cygwin terminal
+* Windows: support for cygwin terminal input
 * Solaris: use `TERM=xtermc` instead of `TERM=xterm`.
 * All: add diagnostics for terminal.
 * All: version each native interface separately.
@@ -345,7 +346,6 @@ Use `-Pmilestone` instead of `-Prelease` to publish a milestone version.
 
 ### Ideas
 
-* Publish to bintray.
 * Normalise a unicode file name for a given file system (eg hfs+ uses fully decomposed form).
 * Expose meta-data about an NTFS volume:
     * Does the volume support 8.3 file names: Query [FILE_FS_PERSISTENT_VOLUME_INFORMATION](https://msdn.microsoft.com/en-us/library/windows/hardware/ff540280.aspx)
