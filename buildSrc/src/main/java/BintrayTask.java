@@ -1,5 +1,6 @@
 import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
 import org.apache.hc.client5.http.classic.methods.HttpPatch;
+import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.classic.methods.HttpPut;
 import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
 import org.apache.hc.client5.http.impl.auth.BasicScheme;
@@ -19,12 +20,10 @@ import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.gradle.api.DefaultTask;
 
 import javax.net.ssl.SSLContext;
-import javax.xml.bind.DatatypeConverter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.HttpURLConnection;
 import java.net.URI;
 
 public abstract class BintrayTask extends DefaultTask {
@@ -49,6 +48,10 @@ public abstract class BintrayTask extends DefaultTask {
 
     void put(URI uploadUrl, long length, InputStream instr) throws Exception {
         doRequest(new HttpPut(uploadUrl), length, instr);
+    }
+
+    void post(URI uploadUrl, long length, InputStream instr) throws Exception {
+        doRequest(new HttpPost(uploadUrl), length, instr);
     }
 
     void patch(URI uploadUrl, long length, InputStream instr) throws Exception {
@@ -76,7 +79,7 @@ public abstract class BintrayTask extends DefaultTask {
                 copyTo(response.getEntity().getContent(), outputStream);
                 if (response.getCode() != 200 && response.getCode() != 201) {
                     System.out.println(new String(outputStream.toByteArray()));
-                    throw new IOException("Received " + response.getCode() + " for " + request.getMethod() + " " + request.getUri());
+                    throw new HttpException(response.getCode(), "Received " + response.getCode() + " for " + request.getMethod() + " " + request.getUri());
                 }
             } finally {
                 response.close();
@@ -97,8 +100,16 @@ public abstract class BintrayTask extends DefaultTask {
         }
     }
 
-    void withCredentials(HttpURLConnection connection) {
-        String str = DatatypeConverter.printBase64Binary((userName + ":" + apiKey).getBytes());
-        connection.addRequestProperty("Authorization", "Basic " + str);
+    static class HttpException extends IOException {
+        private final int statusCode;
+
+        public HttpException(int statusCode, String message) {
+            super(message);
+            this.statusCode = statusCode;
+        }
+
+        public int getStatusCode() {
+            return statusCode;
+        }
     }
 }

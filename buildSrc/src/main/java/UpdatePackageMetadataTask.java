@@ -18,9 +18,22 @@ public class UpdatePackageMetadataTask extends BintrayTask {
     @TaskAction
     void update() throws Exception {
         System.out.println("Updating publication " + publication.getName() + " as " + publication.getGroupId() + ":" + publication.getArtifactId() + ":" + publication.getVersion());
-        String content = "{ \"vcs_url\": \"https://github.com/adammurdoch/native-platform.git\", \"website_url\": \"https://github.com/adammurdoch/native-platform\", \"licenses\": [\"Apache-2.0\"] }";
+
+        String packageName = publication.getGroupId() + ":" + publication.getArtifactId();
+        String content = "{ \"name\": \"" + packageName + "\", \"vcs_url\": \"https://github.com/adammurdoch/native-platform.git\", \"website_url\": \"https://github.com/adammurdoch/native-platform\", \"licenses\": [\"Apache-2.0\"] }";
         byte[] bytes = content.getBytes();
-        URI url = new URI("https://api.bintray.com/packages/adammurdoch/maven/" + publication.getGroupId() + ":" + publication.getArtifactId());
-        patch(url, bytes.length, new ByteArrayInputStream(bytes));
+
+        // Update the package details
+        URI updateUrl = new URI("https://api.bintray.com/packages/adammurdoch/maven/" + packageName);
+        try {
+            patch(updateUrl, bytes.length, new ByteArrayInputStream(bytes));
+        } catch (HttpException e) {
+            if (e.getStatusCode() != 404) {
+                throw e;
+            }
+            // Else, doesn't exist, try to create
+            URI createUrl = new URI("https://api.bintray.com/packages/adammurdoch/maven/");
+            post(createUrl, bytes.length, new ByteArrayInputStream(bytes));
+        }
     }
 }

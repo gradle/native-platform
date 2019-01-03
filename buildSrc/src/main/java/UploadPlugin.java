@@ -44,10 +44,10 @@ public class UploadPlugin implements Plugin<Project> {
                 extension.getPublications().withType(MavenPublication.class, new Action<MavenPublication>() {
                     @Override
                     public void execute(MavenPublication publication) {
-                        UpdatePackageMetadataTask update = project.getTasks().create("update" + UploadTask.capitalize(publication.getName()), UpdatePackageMetadataTask.class);
+                        UpdatePackageMetadataTask update = project.getTasks().create("updatePackage" + UploadTask.capitalize(publication.getName()), UpdatePackageMetadataTask.class);
                         update.setPublication(publication);
 
-                        UploadTask upload = project.getTasks().create("upload" + UploadTask.capitalize(publication.getName()), UploadTask.class);
+                        UploadTask upload = project.getTasks().create("uploadPackage" + UploadTask.capitalize(publication.getName()), UploadTask.class);
                         upload.setGroup("Upload");
                         upload.setDescription("Upload publication " + publication.getName());
                         upload.setLocalRepoDir(repoDir);

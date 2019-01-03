@@ -63,6 +63,24 @@ task nativeHeaders {
     }
 }
 
+javadoc {
+    exclude '**/internal/**'
+}
+
+task sourceZip(type: Jar) {
+    from sourceSets.main.allSource
+    classifier = 'sources'
+}
+
+task javadocZip(type: Jar) {
+    from javadoc
+    classifier = 'javadoc'
+}
+
+task emptyZip(type: Jar) {
+    classifier = 'empty'
+}
+
 def variantNames = new LinkedHashSet()
 
 // Using internal classes here to make this simple
@@ -274,6 +292,12 @@ model {
                         publications {
                             "$variantName"(MavenPublication) {
                                 artifact(nativeJar)
+                                artifact(emptyZip) {
+                                    classifier = "sources"
+                                }
+                                artifact(emptyZip) {
+                                    classifier = "javadoc"
+                                }
                                 groupId = project.group
                                 artifactId = nativeJar.baseName
                                 version = project.version
@@ -295,22 +319,6 @@ model {
 
 tasks.withType(CppCompile) { task ->
     task.dependsOn project.tasks.nativeHeaders
-}
-
-javadoc {
-    exclude '**/internal/**'
-}
-
-task sourceZip(type: Zip) {
-    from sourceSets.main.allSource
-    classifier = 'sources'
-    extension = 'jar'
-}
-
-task javadocZip(type: Zip) {
-    from javadoc
-    classifier = 'javadoc'
-    extension = 'jar'
 }
 
 publishing {
