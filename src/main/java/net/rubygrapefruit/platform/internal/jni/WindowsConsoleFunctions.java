@@ -21,7 +21,14 @@ import net.rubygrapefruit.platform.internal.FunctionResult;
 import net.rubygrapefruit.platform.internal.MutableTerminalSize;
 
 public class WindowsConsoleFunctions {
-    public static native boolean isConsole(int filedes, FunctionResult result);
+    public static final int CONSOLE_NONE = 0;
+    public static final int CONSOLE_WINDOWS = 1;
+    public static final int CONSOLE_CYGWIN = 2;
+
+    /**
+     * @return {@link #CONSOLE_NONE} when not a console, {@link #CONSOLE_WINDOWS} when Windows console, {@link #CONSOLE_CYGWIN} when Cygwin or msys console.
+     */
+    public static native int isConsole(int filedes, FunctionResult result);
 
     public static native void getConsoleSize(int filedes, MutableTerminalSize size, FunctionResult result);
 

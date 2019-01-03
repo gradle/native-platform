@@ -5,16 +5,13 @@ import net.rubygrapefruit.platform.terminal.TerminalInput;
 import net.rubygrapefruit.platform.terminal.TerminalOutput;
 import net.rubygrapefruit.platform.terminal.Terminals;
 
-import java.io.FileDescriptor;
-import java.io.FileOutputStream;
-
 class AnsiTerminals implements Terminals {
     private final Terminals delegate;
     private final AnsiTerminal output;
 
     public AnsiTerminals(Terminals delegate) {
         this.delegate = delegate;
-        this.output = new AnsiTerminal(new FileOutputStream(FileDescriptor.out), Output.Stdout);
+        this.output = new AnsiTerminal(Output.Stdout);
     }
 
     @Override

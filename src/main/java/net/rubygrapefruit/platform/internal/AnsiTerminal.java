@@ -53,6 +53,10 @@ public class AnsiTerminal extends AbstractTerminal {
         this.output = output;
     }
 
+    public AnsiTerminal(Terminals.Output output) {
+        this(streamForOutput(output), output);
+    }
+
     @Override
     public String toString() {
         return String.format("ANSI terminal on %s", getOutputDisplay());

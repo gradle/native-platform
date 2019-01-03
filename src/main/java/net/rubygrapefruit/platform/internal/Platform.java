@@ -131,6 +131,11 @@ public abstract class Platform {
         }
 
         @Override
+        public List<String> getLibraryVariants() {
+            return Arrays.asList(getId(), getId() + "-min");
+        }
+
+        @Override
         public <T extends NativeIntegration> Class<? extends T> canonicalise(Class<T> type) {
             if (type.equals(Files.class)) {
                 return WindowsFiles.class.asSubclass(type);

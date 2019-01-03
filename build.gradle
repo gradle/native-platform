@@ -108,6 +108,14 @@ model {
             architecture "amd64"
             operatingSystem "windows"
         }
+        windows_i386_min {
+            architecture "i386"
+            operatingSystem "windows"
+        }
+        windows_amd64_min {
+            architecture "amd64"
+            operatingSystem "windows"
+        }
         freebsd_i386_libcpp {
             architecture "i386"
             operatingSystem "freebsd"
@@ -232,6 +240,9 @@ model {
                     cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/linux"
                     cppCompiler.args '-D_FILE_OFFSET_BITS=64'
                 } else if (targetPlatform.operatingSystem.windows) {
+                    if (name.contains("_min")) {
+                        cppCompiler.define "WINDOWS_MIN"
+                    }
                     cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
                     cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"
                     linker.args "Shlwapi.lib", "Advapi32.lib"

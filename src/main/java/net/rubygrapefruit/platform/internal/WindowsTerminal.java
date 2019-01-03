@@ -22,8 +22,6 @@ import net.rubygrapefruit.platform.terminal.TerminalOutput;
 import net.rubygrapefruit.platform.terminal.TerminalSize;
 import net.rubygrapefruit.platform.terminal.Terminals;
 
-import java.io.FileDescriptor;
-import java.io.FileOutputStream;
 import java.io.OutputStream;
 
 public class WindowsTerminal extends AbstractTerminal {
@@ -33,7 +31,7 @@ public class WindowsTerminal extends AbstractTerminal {
 
     public WindowsTerminal(Terminals.Output output) {
         this.output = output;
-        this.outputStream = new FileOutputStream(output == Terminals.Output.Stdout ? FileDescriptor.out : FileDescriptor.err);
+        this.outputStream = streamForOutput(output);
     }
 
     @Override

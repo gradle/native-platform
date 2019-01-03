@@ -16,9 +16,9 @@
 
 package net.rubygrapefruit.platform.internal.jni;
 
-import net.rubygrapefruit.platform.terminal.Terminals;
 import net.rubygrapefruit.platform.internal.FunctionResult;
 import net.rubygrapefruit.platform.internal.MutableSystemInfo;
+import net.rubygrapefruit.platform.terminal.Terminals;
 
 public class NativeLibraryFunctions {
     public static final int VERSION = 28;

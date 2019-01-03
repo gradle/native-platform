@@ -18,13 +18,21 @@ package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.terminal.TerminalOutput;
+import net.rubygrapefruit.platform.terminal.Terminals;
 
+import java.io.FileDescriptor;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
 public abstract class AbstractTerminal implements TerminalOutput {
     protected static byte[] NEW_LINE = System.getProperty("line.separator").getBytes();
 
     protected abstract void init();
+
+    protected static OutputStream streamForOutput(Terminals.Output output) {
+        return output == Terminals.Output.Stdout ? new FileOutputStream(FileDescriptor.out) : new FileOutputStream(FileDescriptor.err);
+    }
 
     @Override
     public TerminalOutput newline() throws NativeException {

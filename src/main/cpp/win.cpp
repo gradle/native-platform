@@ -414,32 +414,72 @@ HANDLE getHandle(JNIEnv *env, int output, jobject result) {
     return handle;
 }
 
-JNIEXPORT jboolean JNICALL
+#define CONSOLE_NONE 0
+#define CONSOLE_WINDOWS 1
+#define CONSOLE_CYGWIN 2
+
+JNIEXPORT jint JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_isConsole(JNIEnv *env, jclass target, jint output, jobject result) {
     CONSOLE_SCREEN_BUFFER_INFO console_info;
     HANDLE handle = getHandle(env, output, result);
     if (handle == NULL) {
-        return JNI_FALSE;
+        return CONSOLE_NONE;
     }
+
+#ifndef WINDOWS_MIN
+    // Cygwin/msys console detection, uses an API not available on older Windows versions
+    // Look for a named pipe at the output or input handle, with a specific name:
+    // Cygwin: \cygwin-xxxx-from-master (stdin)
+    // Cygwin: \cygwin-xxxx-to-master (stdout/stderr)
+    // Msys: \msys-xxxx-from-master (stdin)
+    // Msys: \msys-xxxx-to-master (stdout/stderr)
+    DWORD type = GetFileType(handle);
+    if (type == FILE_TYPE_PIPE) {
+        size_t size = sizeof(_FILE_NAME_INFO) + MAX_PATH*sizeof(WCHAR);
+        _FILE_NAME_INFO* name_info = (_FILE_NAME_INFO*)malloc(size);
+
+        if (GetFileInformationByHandleEx(handle, FileNameInfo, name_info, size) == 0) {
+            mark_failed_with_errno(env, "could not get handle file information", result);
+            free(name_info);
+            return CONSOLE_NONE;
+        }
+
+        ((char*)name_info->FileName)[name_info->FileNameLength] = 0;
+
+        int consoleType = CONSOLE_NONE;
+        if (wcsstr(name_info->FileName, L"\\cygwin-") == name_info->FileName || wcsstr(name_info->FileName, L"\\msys-") == name_info->FileName) {
+            if (output == STDIN_DESCRIPTOR) {
+                if (wcsstr(name_info->FileName, L"-from-master") != NULL) {
+                    consoleType = CONSOLE_CYGWIN;
+                }
+            } else {
+                if (wcsstr(name_info->FileName, L"-to-master") != NULL) {
+                    consoleType = CONSOLE_CYGWIN;
+                }
+            }
+        }
+        free(name_info);
+        return consoleType;
+    }
+#endif // Else, no Cygwin console detection
+
     if (output == STDIN_DESCRIPTOR) {
         DWORD mode;
         if (!GetConsoleMode(handle, &mode)) {
-            if (GetLastError() == ERROR_INVALID_HANDLE) {
-                return JNI_FALSE;
+            if (GetLastError() != ERROR_INVALID_HANDLE) {
+                mark_failed_with_errno(env, "could not get console buffer", result);
             }
-            mark_failed_with_errno(env, "could not get console buffer", result);
-            return JNI_FALSE;
+            return CONSOLE_NONE;
         }
-        return JNI_TRUE;
+        return CONSOLE_WINDOWS;
     }
     if (!GetConsoleScreenBufferInfo(handle, &console_info)) {
-        if (GetLastError() == ERROR_INVALID_HANDLE) {
-            return JNI_FALSE;
+        if (GetLastError() != ERROR_INVALID_HANDLE) {
+            mark_failed_with_errno(env, "could not get console buffer", result);
         }
-        mark_failed_with_errno(env, "could not get console buffer", result);
-        return JNI_FALSE;
+        return CONSOLE_NONE;
     }
-    return JNI_TRUE;
+    return CONSOLE_WINDOWS;
 }
 
 JNIEXPORT void JNICALL
@@ -464,7 +504,6 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_getConsole
 
 HANDLE console_buffer = NULL;
 DWORD original_mode = 0;
-
 
 void init_input(JNIEnv *env, jobject result) {
     if (console_buffer == NULL) {

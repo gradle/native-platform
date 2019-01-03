@@ -23,10 +23,7 @@ import net.rubygrapefruit.platform.terminal.TerminalOutput;
 import net.rubygrapefruit.platform.terminal.TerminalSize;
 import net.rubygrapefruit.platform.terminal.Terminals;
 
-import java.io.FileDescriptor;
-import java.io.FileOutputStream;
 import java.io.OutputStream;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -54,7 +51,7 @@ public class TerminfoTerminal extends AbstractTerminal {
 
     public TerminfoTerminal(Terminals.Output output) {
         this.output = output;
-        this.outputStream = new FileOutputStream(output == Terminals.Output.Stdout ? FileDescriptor.out : FileDescriptor.err);
+        this.outputStream = AbstractTerminal.streamForOutput(output);
     }
 
     @Override
