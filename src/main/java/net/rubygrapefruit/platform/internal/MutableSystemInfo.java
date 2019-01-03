@@ -79,6 +79,11 @@ public class MutableSystemInfo implements SystemInfo {
                         return workstation ? "Windows 8.1" : "Windows Server 2012 R2";
                 }
                 break;
+            case 10:
+                if (minor == 0) {
+                    return workstation ? "Windows 10" : "Windows Server 2016";
+                }
+                break;
         }
         return "Windows (unknown version)";
     }
