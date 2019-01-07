@@ -94,7 +94,7 @@ this:
     }
 
     dependencies {
-        compile "net.rubygrapefruit:native-platform:0.15"
+        compile "net.rubygrapefruit:native-platform:0.16"
     }
 
 You can also download [here](https://repo.gradle.org/gradle/libs-releases-local/net/rubygrapefruit/)
@@ -118,7 +118,7 @@ Some sample code to use the terminal:
 
 ## Changes
 
-### 0.16 (not released yet)
+### 0.16
 
 * Change `Terminals` to support running under Mintty from Cygwin and MSYS on Windows. Supported for Windows 2008 and later. `TerminalOutput` is supported, however `TerminalInput` is not.
 

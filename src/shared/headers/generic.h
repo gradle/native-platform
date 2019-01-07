@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-#define NATIVE_VERSION 28
+#define NATIVE_VERSION 29
 
 // Corresponds to NativeLibraryFunctions constants
 #define STDOUT_DESCRIPTOR 0
