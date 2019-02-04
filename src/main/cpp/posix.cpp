@@ -328,16 +328,20 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_getEnvironme
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_setEnvironmentVariable(JNIEnv *env, jclass target, jstring var, jstring value, jobject result) {
     char* varStr = java_to_char(env, var, result);
-    if (value == NULL) {
-        if (setenv(varStr, "", 1) != 0) {
-            mark_failed_with_errno(env, "could not putenv()", result);
+    if (varStr != NULL) {
+        if (value == NULL) {
+            if (setenv(varStr, "", 1) != 0) {
+                mark_failed_with_errno(env, "could not putenv()", result);
+            }
+        } else {
+            char* valueStr = java_to_char(env, value, result);
+            if (valueStr != NULL) {
+                if (setenv(varStr, valueStr, 1) != 0) {
+                    mark_failed_with_errno(env, "could not putenv()", result);
+                }
+            }
+            free(valueStr);
         }
-    } else {
-        char* valueStr = java_to_char(env, value, result);
-        if (setenv(varStr, valueStr, 1) != 0) {
-            mark_failed_with_errno(env, "could not putenv()", result);
-        }
-        free(valueStr);
     }
     free(varStr);
 }
