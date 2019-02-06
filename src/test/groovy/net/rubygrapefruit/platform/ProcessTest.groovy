@@ -125,6 +125,21 @@ class ProcessTest extends Specification {
         'TEST_ENV_VAR_NULL'  | null
     }
 
+    def "can set environment variable to supplementary character"() {
+        given:
+        String utfSupplementaryString = String.valueOf(Character.toChars(128165))
+
+        when:
+        process.setEnvironmentVariable("TEST", utfSupplementaryString)
+
+        then:
+        println System.getenv("TEST")
+        System.getenv("TEST") == utfSupplementaryString
+        System.getenv()["TEST"] == utfSupplementaryString
+        println process.getEnvironmentVariable("TEST")
+        process.getEnvironmentVariable("TEST") == utfSupplementaryString
+    }
+
     def "can remove environment variable that does not exist"() {
         assert process.getEnvironmentVariable("TEST_ENV_UNKNOWN") == null
 

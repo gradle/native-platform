@@ -51,4 +51,17 @@ int map_error_code(int error_code) {
     return FAILURE_GENERIC;
 }
 
+char* java_to_utf_char(JNIEnv *env, jstring string, jobject result) {
+    size_t len = env->GetStringLength(string);
+    size_t bytes = env->GetStringUTFLength(string);
+    char* chars = (char*)malloc(bytes + 1);
+    env->GetStringUTFRegion(string, 0, len, chars);
+    chars[bytes] = 0;
+    return chars;
+}
+
+jstring utf_char_to_java(JNIEnv* env, const char* chars, jobject result) {
+    return env->NewStringUTF(chars);
+}
+
 #endif
