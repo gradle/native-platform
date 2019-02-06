@@ -92,6 +92,20 @@ extern char* java_to_char(JNIEnv *env, jstring string, jobject result);
  */
 extern jstring char_to_java(JNIEnv* env, const char* chars, jobject result);
 
+/*
+ * Converts the given Java string to a NULL terminated char string (encoded with modified UTF-8). Should call free() when finished.
+ *
+ * Returns NULL on failure.
+ */
+extern char* java_to_utf_char(JNIEnv *env, jstring string, jobject result);
+
+/*
+ * Converts the given NULL terminated char string (encoded with modified UTF-8) to a Java string.
+ *
+ * Returns NULL on failure.
+ */
+extern jstring utf_char_to_java(JNIEnv* env, const char* chars, jobject result);
+
 #ifdef __cplusplus
 }
 #endif
