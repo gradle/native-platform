@@ -97,7 +97,7 @@ this:
         compile "net.rubygrapefruit:native-platform:0.16"
     }
 
-You can also download [here](https://repo.gradle.org/gradle/libs-releases-local/net/rubygrapefruit/)
+You can also download [here](https://bintray.com/adammurdoch/maven/net.rubygrapefruit%3Anative-platform-test)
 
 Some sample code to use the terminal:
 
@@ -117,6 +117,10 @@ Some sample code to use the terminal:
     System.out.println("bold text");
 
 ## Changes
+
+### 0.17 (not released yet)
+
+* Fixed handling of supplementary characters in environment variable values. Thanks to [Gary Hale](https://github.com/ghale).
 
 ### 0.16
 
@@ -271,10 +275,10 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
     1. Checkout tag.
     2. `./gradlew clean :testApp:uploadMain -Prelease -PbintrayUserName=<> -PbintrayApiKey=<>`
 6. Create a tag
-7. Publish on bintray
-8. Checkout master
-9. Increment version number in `build.gradle` and this readme.
-10. Increment version number in `generic.h` and `NativeLibraryFunctions`.
+7. Checkout master
+8. Increment version number in `build.gradle` and this readme.
+9. Increment version number in `generic.h` and `NativeLibraryFunctions`.
+10. Publish on bintray
 11. Push changes.
 
 Use `-Pmilestone` instead of `-Prelease` to publish a milestone version.
