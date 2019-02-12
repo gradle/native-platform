@@ -21,17 +21,28 @@ public interface TerminalInput {
     InputStream getInputStream();
 
     /**
-     * Reads characters and control keys from this terminal.
+     * Reads the next character or control keys from this terminal. Blocks until an event is available.
+     *
+     * @throws NativeException On failure.
      */
     void read(TerminalInputListener listener) throws NativeException;
 
     /**
+     * Returns true if this terminal supports setting raw mode.
+     */
+    boolean supportsRawMode();
+
+    /**
      * Switches this terminal to raw mode. Keys are delivered as they are typed, are not echoed and are not processed.
+     *
+     * @throws NativeException On failure, or when raw mode is not supported by this terminal.
      */
     TerminalInput rawMode() throws NativeException;
 
     /**
      * Resets this terminal to its default mode.
+     *
+     * @throws NativeException On failure.
      */
     TerminalInput reset() throws NativeException;
 }

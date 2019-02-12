@@ -29,7 +29,7 @@ public class PeekInputStream extends InputStream {
         return ch;
     }
 
-    public void consume() {
+    public void consumeAll() {
         charsBuffered = 0;
     }
 

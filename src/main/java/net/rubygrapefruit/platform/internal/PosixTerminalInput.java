@@ -1,9 +1,9 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
+import net.rubygrapefruit.platform.internal.jni.PosixTerminalFunctions;
 import net.rubygrapefruit.platform.terminal.TerminalInput;
 import net.rubygrapefruit.platform.terminal.TerminalInputListener;
-import net.rubygrapefruit.platform.internal.jni.PosixTerminalFunctions;
 
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
@@ -31,6 +31,11 @@ public class PosixTerminalInput implements TerminalInput {
     private static final int TILDE = 126;
 
     @Override
+    public String toString() {
+        return "POSIX input on stdin";
+    }
+
+    @Override
     public InputStream getInputStream() {
         return inputStream;
     }
@@ -41,51 +46,51 @@ public class PosixTerminalInput implements TerminalInput {
             if (peek(0) == 27 && peek(1) == 91) {
                 int ch = peek(2);
                 if (ch == UP_ARROW) {
-                    inputStream.consume();
+                    inputStream.consumeAll();
                     listener.controlKey(TerminalInputListener.Key.UpArrow);
                     return;
                 } else if (ch == DOWN_ARROW) {
-                    inputStream.consume();
+                    inputStream.consumeAll();
                     listener.controlKey(TerminalInputListener.Key.DownArrow);
                     return;
                 } else if (ch == LEFT_ARROW) {
-                    inputStream.consume();
+                    inputStream.consumeAll();
                     listener.controlKey(TerminalInputListener.Key.LeftArrow);
                     return;
                 } else if (ch == RIGHT_ARROW) {
-                    inputStream.consume();
+                    inputStream.consumeAll();
                     listener.controlKey(TerminalInputListener.Key.RightArrow);
                     return;
                 } else if (ch == BACK_TAB) {
-                    inputStream.consume();
+                    inputStream.consumeAll();
                     listener.controlKey(TerminalInputListener.Key.BackTab);
                     return;
                 } else if (ch == HOME) {
-                    inputStream.consume();
+                    inputStream.consumeAll();
                     listener.controlKey(TerminalInputListener.Key.Home);
                     return;
                 } else if (ch == END) {
-                    inputStream.consume();
+                    inputStream.consumeAll();
                     listener.controlKey(TerminalInputListener.Key.End);
                     return;
                 } else if (ch == ERASE1 && peek(3) == TILDE) {
-                    inputStream.consume();
+                    inputStream.consumeAll();
                     listener.controlKey(TerminalInputListener.Key.EraseForward);
                     return;
                 } else if (ch == HOME1 && peek(3) == TILDE) {
-                    inputStream.consume();
+                    inputStream.consumeAll();
                     listener.controlKey(TerminalInputListener.Key.Home);
                     return;
                 } else if (ch == END1 && peek(3) == TILDE) {
-                    inputStream.consume();
+                    inputStream.consumeAll();
                     listener.controlKey(TerminalInputListener.Key.End);
                     return;
                 } else if (ch == PAGE_UP && peek(3) == TILDE) {
-                    inputStream.consume();
+                    inputStream.consumeAll();
                     listener.controlKey(TerminalInputListener.Key.PageUp);
                     return;
                 } else if (ch == PAGE_DOWN && peek(3) == TILDE) {
-                    inputStream.consume();
+                    inputStream.consumeAll();
                     listener.controlKey(TerminalInputListener.Key.PageDown);
                     return;
                 }
@@ -122,6 +127,11 @@ public class PosixTerminalInput implements TerminalInput {
             throw new NativeException("Could not read from terminal.", e);
         }
         return ch;
+    }
+
+    @Override
+    public boolean supportsRawMode() {
+        return true;
     }
 
     @Override

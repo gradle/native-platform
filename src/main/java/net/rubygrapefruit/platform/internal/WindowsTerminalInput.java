@@ -10,14 +10,12 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-public class WindowsTerminalInput implements TerminalInput {
-    private final PeekInputStream inputStream = new PeekInputStream(new FileInputStream(FileDescriptor.in));
-    private final Object lock = new Object();
+public class WindowsTerminalInput extends AbstractWindowsTerminalInput {
     private boolean raw;
 
     @Override
-    public InputStream getInputStream() {
-        return inputStream;
+    public String toString() {
+        return "Windows console on stdin";
     }
 
     @Override
@@ -32,35 +30,14 @@ public class WindowsTerminalInput implements TerminalInput {
                 }
                 buffer.applyTo(listener);
             } else {
-                if (peek(0) == '\r' && peek(1) == '\n') {
-                    inputStream.consume();
-                    listener.controlKey(TerminalInputListener.Key.Enter);
-                    return;
-                }
-                int ch = next();
-                if (ch < 0) {
-                    listener.endInput();
-                } else {
-                    listener.character((char) ch);
-                }
+                readNonRaw(listener);
             }
         }
     }
 
-    private int peek(int i) {
-        try {
-            return inputStream.peek(i);
-        } catch (IOException e) {
-            throw new NativeException("Could not read from console.", e);
-        }
-    }
-
-    private int next() {
-        try {
-            return inputStream.read();
-        } catch (IOException e) {
-            throw new NativeException("Could not read from console.", e);
-        }
+    @Override
+    public boolean supportsRawMode() {
+        return true;
     }
 
     @Override

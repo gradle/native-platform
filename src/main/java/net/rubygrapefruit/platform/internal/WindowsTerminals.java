@@ -31,11 +31,14 @@ public class WindowsTerminals extends AbstractTerminals {
     @Override
     public boolean isTerminalInput() throws NativeException {
         // Only supported for Windows console for now
-        return getTypeForInput() == WindowsConsoleFunctions.CONSOLE_WINDOWS;
+        return getTypeForInput() != WindowsConsoleFunctions.CONSOLE_NONE;
     }
 
     @Override
     protected TerminalInput createInput() {
+        if (getTypeForInput() == WindowsConsoleFunctions.CONSOLE_CYGWIN) {
+            return new PlainTerminalInput();
+        }
         return new WindowsTerminalInput();
     }
 
