@@ -121,6 +121,8 @@ Some sample code to use the terminal:
 ### 0.17 (not released yet)
 
 * Fixed handling of supplementary characters in environment variable values. Thanks to [Gary Hale](https://github.com/ghale).
+* Added `TerminalInput.supportsRawMode()` to determine whether terminal supports raw mode.
+* Improve `Prompter` to show an alternate UI when the terminal input does not support raw mode.
 
 ### 0.16
 
