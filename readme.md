@@ -94,7 +94,7 @@ this:
     }
 
     dependencies {
-        compile "net.rubygrapefruit:native-platform:0.16"
+        compile "net.rubygrapefruit:native-platform:0.17"
     }
 
 You can also download [here](https://bintray.com/adammurdoch/maven/net.rubygrapefruit%3Anative-platform-test)
@@ -118,7 +118,7 @@ Some sample code to use the terminal:
 
 ## Changes
 
-### 0.17 (not released yet)
+### 0.17
 
 * Fixed handling of supplementary characters in environment variable values. Thanks to [Gary Hale](https://github.com/ghale).
 * Added `TerminalInput.supportsRawMode()` to determine whether terminal supports raw mode.
