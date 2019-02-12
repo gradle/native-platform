@@ -140,17 +140,20 @@ public class Main {
     }
 
     private static void prompts(Prompter prompter) {
-        Integer selected = prompter.select("Select an option", Arrays.asList("Option 1", "Option 2", "Option 3"), 2);
-        System.out.println("You selected item: " + selected);
+        List<String> options = Arrays.asList("Option 1", "Option 2", "Option 3");
+        Integer selected = prompter.select("Select an option", options, 2);
 
         String text = prompter.enterText("Enter some text", "default");
-        System.out.println("You entered: " + text);
 
         String password = prompter.enterPassword("Enter a password");
-        System.out.println("You entered: " + password);
 
         Boolean answer = prompter.askYesNo("A yes/no question", true);
-        System.out.println("You answered: " + answer);
+
+        System.out.println();
+        System.out.println("You selected item: " + (selected == null ? "null" : options.get(selected)));
+        System.out.println("You entered: [" + text + "]");
+        System.out.println("You entered: " + (password == null ? null : "[" + password + "]"));
+        System.out.println("You answered: " + (answer ? "yes" : "no"));
 
         System.out.println();
     }
@@ -174,6 +177,11 @@ public class Main {
             System.out.println("* Color: " + (terminal.supportsColor() ? "yes" : "no"));
             System.out.println("* Cursor motion: " + (terminal.supportsCursorMotion() ? "yes" : "no"));
             System.out.println("* Cursor visibility: " + (terminal.supportsCursorVisibility() ? "yes" : "no"));
+            if (stdinIsTerminal) {
+                TerminalInput terminalInput = terminals.getTerminalInput();
+                System.out.println("* Terminal input: " + terminalInput);
+                System.out.println("* Raw mode: " + (terminalInput.supportsRawMode() ? "yes" : "no"));
+            }
             System.out.println();
             System.out.println("TEXT ATTRIBUTES");
             System.out.print("[normal]");

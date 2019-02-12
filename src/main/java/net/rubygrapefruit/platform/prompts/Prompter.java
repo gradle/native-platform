@@ -1,6 +1,5 @@
 package net.rubygrapefruit.platform.prompts;
 
-import net.rubygrapefruit.platform.terminal.TerminalInput;
 import net.rubygrapefruit.platform.terminal.TerminalOutput;
 import net.rubygrapefruit.platform.terminal.Terminals;
 
@@ -11,58 +10,52 @@ import java.util.List;
  */
 public class Prompter {
     static final TerminalOutput.Color SELECTION_COLOR = TerminalOutput.Color.Cyan;
-    private final boolean interactive;
-    private final Terminals terminals;
+    private final AbstractPrompter implementation;
 
     public Prompter(Terminals terminals) {
-        interactive = terminals.isTerminalInput() && terminals.isTerminal(Terminals.Output.Stdout) && terminals.getTerminal(Terminals.Output.Stdout).supportsCursorMotion();
-        this.terminals = terminals;
+        if (!terminals.isTerminalInput() || !terminals.isTerminal(Terminals.Output.Stdout)) {
+            implementation = new NonInteractivePrompter();
+        } else {
+            if (terminals.getTerminal(Terminals.Output.Stdout).supportsCursorMotion() && terminals.getTerminalInput().supportsRawMode()) {
+                implementation = new InteractivePrompter(terminals);
+            } else {
+                implementation = new PlainPrompter(terminals);
+            }
+        }
     }
 
     /**
-     * Returns true if this prompter can ask the user questions.
+     * Returns {@code true} if this prompter can ask the user questions.
      */
     public boolean isInteractive() {
-        return interactive;
+        return implementation.isInteractive();
     }
 
     /**
      * Asks the user to select an option from a list.
      *
-     * @return The index of the selected option or null on end of input. Returns the default option when not interactive.
+     * @return The index of the selected option or {@code null} on end of input. Returns the default option when not interactive.
      */
     public Integer select(String prompt, List<String> options, int defaultOption) {
-        if (interactive) {
-            return selectInteractive(prompt, options, defaultOption);
-        } else {
-            return defaultOption;
-        }
+        return implementation.select(prompt, options, defaultOption);
     }
 
     /**
      * Asks the user to enter some text.
      *
-     * @return The text or null on end of input. Returns the default value when not interactive.
+     * @return The text or {@code null} on end of input. Returns the default value when not interactive.
      */
     public String enterText(String prompt, String defaultValue) {
-        if (interactive) {
-            return enterTextInteractive(prompt, defaultValue);
-        } else {
-            return defaultValue;
-        }
+        return implementation.enterText(prompt, defaultValue);
     }
 
     /**
      * Asks the user to enter a password.
      *
-     * @return The password or null on end of input or when not interactive.
+     * @return The password or {@code null} on end of input or when not interactive or when not possible to prompt for a password without echoing the characters.
      */
     public String enterPassword(String prompt) {
-        if (interactive) {
-            return enterPasswordInteractive(prompt);
-        } else {
-            return null;
-        }
+        return implementation.enterPassword(prompt);
     }
 
     /**
@@ -71,62 +64,6 @@ public class Prompter {
      * @return The selected value or null on end of input. Returns the default value when not interactive.
      */
     public Boolean askYesNo(String prompt, boolean defaultValue) {
-        if (interactive) {
-            return yesNoInteractive(prompt, defaultValue);
-        } else {
-            return defaultValue;
-        }
-    }
-
-    private Boolean yesNoInteractive(String prompt, boolean defaultValue) {
-        TerminalOutput output = terminals.getTerminal(Terminals.Output.Stdout);
-        YesNoView view = new YesNoView(output, prompt, defaultValue);
-        YesNoListener listener = new YesNoListener(defaultValue);
-        view.render();
-        handleInput(listener);
-        view.close(listener.getSelected());
-        return listener.getSelected();
-    }
-
-    private Integer selectInteractive(String prompt, List<String> options, final int defaultOption) {
-        TerminalOutput output = terminals.getTerminal(Terminals.Output.Stdout);
-        SelectView view = new SelectView(output, prompt, options, defaultOption);
-        SelectionListener listener = new SelectionListener(view, options);
-        view.render();
-        handleInput(listener);
-        view.close(listener.getSelected());
-        return listener.getSelected();
-    }
-
-    private String enterTextInteractive(String prompt, String defaultValue) {
-        TerminalOutput output = terminals.getTerminal(Terminals.Output.Stdout);
-        TextView view = new TextView(output, prompt, defaultValue);
-        TextEntryListener listener = new TextEntryListener(view, defaultValue);
-        view.render();
-        handleInput(listener);
-        view.close(listener.getEntered());
-        return listener.getEntered();
-    }
-
-    private String enterPasswordInteractive(String prompt) {
-        TerminalOutput output = terminals.getTerminal(Terminals.Output.Stdout);
-        PasswordView view = new PasswordView(output, prompt);
-        TextEntryListener listener = new TextEntryListener(view, null);
-        view.render();
-        handleInput(listener);
-        view.close(listener.getEntered());
-        return listener.getEntered();
-    }
-
-    private void handleInput(AbstractListener listener) {
-        TerminalInput input = terminals.getTerminalInput();
-        input.rawMode();
-        try {
-            while (!listener.isFinished()) {
-                input.read(listener);
-            }
-        } finally {
-            input.reset();
-        }
+        return implementation.askYesNo(prompt, defaultValue);
     }
 }
