@@ -57,6 +57,76 @@ wchar_t* java_to_wchar(JNIEnv *env, jstring string, jobject result) {
     return str;
 }
 
+//
+// Returns 'true' if the path of the form "X:\", where 'X' is a drive letter.
+//
+bool is_path_absolute_local(wchar_t* path, int path_len) {
+    if (path_len < 3) {
+        return false;
+    }
+    return (('a' <= path[0] && path[0] <= 'z') || ('A' <= path[0] && path[0] <= 'Z')) &&
+        path[1] == ':' &&
+        path[2] == '\\';
+}
+
+//
+// Returns 'true' if the path is of the form "\\server\share", i.e. is a UNC path.
+//
+bool is_path_absolute_unc(wchar_t* path, int path_len) {
+    if (path_len < 3) {
+        return false;
+    }
+    return path[0] == '\\' && path[1] == '\\';
+}
+
+//
+// Returns a UTF-16 string that is the concatenation of |prefix| and |path|.
+//
+wchar_t* add_prefix(wchar_t* path, int path_len, wchar_t* prefix) {
+    int prefix_len = wcslen(prefix);
+    int str_len = path_len + prefix_len;
+    wchar_t* str = (wchar_t*)malloc(sizeof(wchar_t) * (str_len + 1));
+    wcscpy_s(str, str_len + 1, prefix);
+    wcscat_s(str, str_len + 1, path);
+    return str;
+}
+
+//
+// Converts a Java string to a UNICODE path, including the Long Path prefix ("\\?\")
+// so that the resulting path supports paths longer than MAX_PATH (260 characters)
+//
+wchar_t* java_to_wchar_path(JNIEnv *env, jstring string, jobject result) {
+    // Copy the Java string into a UTF-16 string.
+    jsize len = env->GetStringLength(string);
+    wchar_t* str = (wchar_t*)malloc(sizeof(wchar_t) * (len+1));
+    env->GetStringRegion(string, 0, len, (jchar*)str);
+    str[len] = L'\0';
+
+    // Technically, this should be MAX_PATH (i.e. 260), except some Win32 API related
+    // to working with directory paths are actually limited to 240. It is just
+    // safer/simpler to cover both cases in one code path.
+    if (len <= 240) {
+        return str;
+    }
+
+    if (is_path_absolute_local(str, len)) {
+        // Format: C:\... -> \\?\C:\...
+        wchar_t* str2 = add_prefix(str, len, L"\\\\\?\\");
+        free(str);
+        return str2;
+    } else if (is_path_absolute_unc(str, len)) {
+        // In this case, we need to skip the first 2 characters:
+        // Format: \\server\share\... -> \\?\UNC\server\share\...
+        wchar_t* str2 = add_prefix(&str[2], len - 2, L"\\\\?\\UNC\\");
+        free(str);
+        return str2;
+    }
+    else {
+        // It is some sort of unknown format, don't mess with it
+        return str;
+    }
+}
+
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getSystemInfo(JNIEnv *env, jclass target, jobject info, jobject result) {
     jclass infoClass = env->GetObjectClass(info);
@@ -280,7 +350,7 @@ typedef struct watch_details {
 
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_createWatch(JNIEnv *env, jclass target, jstring path, jobject result) {
-    wchar_t* pathStr = java_to_wchar(env, path, result);
+    wchar_t* pathStr = java_to_wchar_path(env, path, result);
     HANDLE h = FindFirstChangeNotificationW(pathStr, FALSE, FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE);
     free(pathStr);
     if (h == INVALID_HANDLE_VALUE) {
@@ -331,7 +401,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_stat(JNIEnv *
     }
 
     WIN32_FILE_ATTRIBUTE_DATA attr;
-    wchar_t* pathStr = java_to_wchar(env, path, result);
+    wchar_t* pathStr = java_to_wchar_path(env, path, result);
     BOOL ok = GetFileAttributesExW(pathStr, GetFileExInfoStandard, &attr);
     free(pathStr);
     if (!ok) {
@@ -363,7 +433,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_readdir(JNIEn
     }
 
     WIN32_FIND_DATAW entry;
-    wchar_t* pathStr = java_to_wchar(env, path, result);
+    wchar_t* pathStr = java_to_wchar_path(env, path, result);
     HANDLE dirHandle = FindFirstFileW(pathStr, &entry);
     free(pathStr);
     if (dirHandle == INVALID_HANDLE_VALUE) {
