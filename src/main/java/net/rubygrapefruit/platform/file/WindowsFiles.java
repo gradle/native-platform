@@ -29,4 +29,9 @@ public interface WindowsFiles extends Files, NativeIntegration {
      * {@inheritDoc}
      */
     WindowsFileInfo stat(File file) throws NativeException;
+
+    /**
+     * {@inheritDoc}
+     */
+    WindowsFileInfo stat(File file, boolean linkTarget) throws NativeException;
 }

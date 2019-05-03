@@ -87,7 +87,19 @@ wchar_t* add_prefix(wchar_t* path, int path_len, wchar_t* prefix) {
     int str_len = path_len + prefix_len;
     wchar_t* str = (wchar_t*)malloc(sizeof(wchar_t) * (str_len + 1));
     wcscpy_s(str, str_len + 1, prefix);
-    wcscat_s(str, str_len + 1, path);
+    wcsncat_s(str, str_len + 1, path, path_len);
+    return str;
+}
+
+//
+// Returns a UTF-16 string that is the concatenation of |path| and |suffix|.
+//
+wchar_t* add_suffix(wchar_t* path, int path_len, wchar_t* suffix) {
+    int suffix_len = wcslen(suffix);
+    int str_len = path_len + suffix_len;
+    wchar_t* str = (wchar_t*)malloc(sizeof(wchar_t) * (str_len + 1));
+    wcsncpy_s(str, str_len + 1, path, path_len);
+    wcscat_s(str, str_len + 1, suffix);
     return str;
 }
 
@@ -125,6 +137,125 @@ wchar_t* java_to_wchar_path(JNIEnv *env, jstring string, jobject result) {
         // It is some sort of unknown format, don't mess with it
         return str;
     }
+}
+
+//
+// Returns 'true' if a file, given its attributes, is a Windows Symbolic Link.
+//
+bool is_file_symlink(DWORD dwFileAttributes, DWORD reparseTagData) {
+    //
+    // See https://docs.microsoft.com/en-us/windows/desktop/fileio/reparse-point-tags
+    //  IO_REPARSE_TAG_SYMLINK (0xA000000C)
+    //
+    return 
+        ((dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == FILE_ATTRIBUTE_REPARSE_POINT) &&
+        (reparseTagData == IO_REPARSE_TAG_SYMLINK);
+}
+
+jlong lastModifiedNanos(FILETIME* time) {
+    return ((jlong)time->dwHighDateTime << 32) | time->dwLowDateTime;
+}
+
+jlong lastModifiedNanos(LARGE_INTEGER* time) {
+    return ((jlong)time->HighPart << 32) | time->LowPart;
+}
+
+typedef struct file_stat {
+    int fileType;
+    LONG64 lastModified;
+    LONG64 size;
+} file_stat_t;
+
+//
+// Retrieves the file attributes for the file specified by |pathStr|.
+// If |followLink| is true, symbolic link targets are resolved.
+//
+// * Returns ERROR_SUCCESS if the file exists and file attributes can be retrieved,
+// * Returns ERROR_SUCCESS with a FILE_TYPE_MISSING if the file does not exist,
+// * Returns a Win32 error code in all other cases.
+//
+DWORD get_file_stat(wchar_t* pathStr, jboolean followLink, file_stat_t* pFileStat) {
+#ifdef WINDOWS_MIN
+    WIN32_FILE_ATTRIBUTE_DATA attr;
+    BOOL ok = GetFileAttributesExW(pathStr, GetFileExInfoStandard, &attr);
+    if (!ok) {
+        DWORD error = GetLastError();
+        if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND || error == ERROR_NOT_READY) {
+            // Treat device with no media as missing
+            pFileStat->lastModified = 0;
+            pFileStat->size = 0;
+            pFileStat->fileType = FILE_TYPE_MISSING;
+            return ERROR_SUCCESS;
+        }
+        return error;
+    }
+    pFileStat->lastModified = lastModifiedNanos(&attr.ftLastWriteTime);
+    if (attr.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+        pFileStat->size = 0;
+        pFileStat->fileType = FILE_TYPE_DIRECTORY;
+    } else {
+        pFileStat->size = ((LONG64)attr.nFileSizeHigh << 32) | attr.nFileSizeLow;
+        pFileStat->fileType = FILE_TYPE_FILE;
+    }
+    return ERROR_SUCCESS;
+#else //WINDOWS_MIN: Windows Vista+ support for symlinks
+    DWORD dwFlagsAndAttributes = FILE_FLAG_BACKUP_SEMANTICS;
+    if (!followLink) {
+        dwFlagsAndAttributes |= FILE_FLAG_OPEN_REPARSE_POINT;
+    }
+    HANDLE fileHandle = CreateFileW(
+        pathStr, // lpFileName
+        GENERIC_READ, // dwDesiredAccess
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, // dwShareMode
+        NULL, // lpSecurityAttributes
+        OPEN_EXISTING, // dwCreationDisposition
+        dwFlagsAndAttributes, // dwFlagsAndAttributes
+        NULL // hTemplateFile
+        );
+    if (fileHandle == INVALID_HANDLE_VALUE) {
+        DWORD error = GetLastError();
+        if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND || error == ERROR_NOT_READY) {
+            // Treat device with no media as missing
+            pFileStat->lastModified = 0;
+            pFileStat->size = 0;
+            pFileStat->fileType = FILE_TYPE_MISSING;
+            return ERROR_SUCCESS;
+        }
+        return error;
+    }
+
+    // This call allows retrieving almost everything except for the reparseTag
+    BY_HANDLE_FILE_INFORMATION fileInfo;
+    BOOL ok = GetFileInformationByHandle(fileHandle, &fileInfo);
+    if (!ok) {
+        DWORD error = GetLastError();
+        CloseHandle(fileHandle);
+        return error;
+    }
+
+    // This call allows retrieving the reparse tag
+    FILE_ATTRIBUTE_TAG_INFO fileTagInfo;
+    ok = GetFileInformationByHandleEx(fileHandle, FileAttributeTagInfo, &fileTagInfo, sizeof(fileTagInfo));
+    if (!ok) {
+        DWORD error = GetLastError();
+        CloseHandle(fileHandle);
+        return error;
+    }
+
+    CloseHandle(fileHandle);
+
+    pFileStat->lastModified = lastModifiedNanos(&fileInfo.ftLastWriteTime);
+    pFileStat->size = 0;
+    if (is_file_symlink(fileTagInfo.FileAttributes, fileTagInfo.ReparseTag)) {
+        pFileStat->fileType = FILE_TYPE_SYMLINK;
+    } else if (fileTagInfo.FileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+        pFileStat->fileType = FILE_TYPE_DIRECTORY;
+    } else {
+        pFileStat->size = ((LONG64)fileInfo.nFileSizeHigh << 32) | fileInfo.nFileSizeLow;
+        pFileStat->fileType = FILE_TYPE_FILE;
+    }
+    return ERROR_SUCCESS;
+#endif
 }
 
 JNIEXPORT void JNICALL
@@ -387,12 +518,8 @@ Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_closeWatch(JNIE
     free(details);
 }
 
-jlong lastModifiedNanos(FILETIME* time) {
-    return ((jlong)time->dwHighDateTime << 32) | time->dwLowDateTime;
-}
-
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_stat(JNIEnv *env, jclass target, jstring path, jobject dest, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_stat(JNIEnv *env, jclass target, jstring path, jboolean followLink, jobject dest, jobject result) {
     jclass destClass = env->GetObjectClass(dest);
     jmethodID mid = env->GetMethodID(destClass, "details", "(IJJ)V");
     if (mid == NULL) {
@@ -400,31 +527,19 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_stat(JNIEnv *
         return;
     }
 
-    WIN32_FILE_ATTRIBUTE_DATA attr;
     wchar_t* pathStr = java_to_wchar_path(env, path, result);
-    BOOL ok = GetFileAttributesExW(pathStr, GetFileExInfoStandard, &attr);
+    file_stat_t fileStat;
+    DWORD errorCode = get_file_stat(pathStr, followLink, &fileStat);
     free(pathStr);
-    if (!ok) {
-        DWORD error = GetLastError();
-        if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND || error == ERROR_NOT_READY) {
-            // Treat device with no media as missing
-            env->CallVoidMethod(dest, mid, (jint)FILE_TYPE_MISSING, (jlong)0, (jlong)0);
-            return;
-        }
-        mark_failed_with_errno(env, "could not file attributes", result);
+    if (errorCode != ERROR_SUCCESS) {
+        mark_failed_with_code(env, "could not file attributes", errorCode, NULL, result);
         return;
     }
-    jlong lastModified = lastModifiedNanos(&attr.ftLastWriteTime);
-    if (attr.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-        env->CallVoidMethod(dest, mid, (jint)FILE_TYPE_DIRECTORY, (jlong)0, lastModified);
-    } else {
-        jlong size = ((jlong)attr.nFileSizeHigh << 32) | attr.nFileSizeLow;
-        env->CallVoidMethod(dest, mid, (jint)FILE_TYPE_FILE, size, lastModified);
-    }
+    env->CallVoidMethod(dest, mid, fileStat.fileType, fileStat.size, fileStat.lastModified);
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_readdir(JNIEnv *env, jclass target, jstring path, jobject contents, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_readdir(JNIEnv *env, jclass target, jstring path, jboolean followLink, jobject contents, jobject result) {
     jclass contentsClass = env->GetObjectClass(contents);
     jmethodID mid = env->GetMethodID(contentsClass, "addFile", "(Ljava/lang/String;IJJ)V");
     if (mid == NULL) {
@@ -434,10 +549,12 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_readdir(JNIEn
 
     WIN32_FIND_DATAW entry;
     wchar_t* pathStr = java_to_wchar_path(env, path, result);
-    HANDLE dirHandle = FindFirstFileW(pathStr, &entry);
+    wchar_t* patternStr = add_suffix(pathStr, wcslen(pathStr), L"\\*");
     free(pathStr);
+    HANDLE dirHandle = FindFirstFileW(patternStr, &entry);
     if (dirHandle == INVALID_HANDLE_VALUE) {
         mark_failed_with_errno(env, "could not open directory", result);
+        free(patternStr);
         return;
     }
 
@@ -445,11 +562,34 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_readdir(JNIEn
         if (wcscmp(L".", entry.cFileName) == 0 || wcscmp(L"..", entry.cFileName) == 0) {
             continue;
         }
+
+        // If entry is a symbolic link, we may have to get the attributes of the link target
+        bool isSymLink = is_file_symlink(entry.dwFileAttributes, entry.dwReserved0);
+        file_stat_t fileInfo;
+        if (isSymLink && followLink) {
+            // We use patternStr minus the last character ("*") to create the absolute path of the child entry
+            wchar_t* childPathStr = add_suffix(patternStr, wcslen(patternStr) - 1, entry.cFileName);
+            DWORD errorCode = get_file_stat(childPathStr, true, &fileInfo);
+            free(childPathStr);
+            if (errorCode != ERROR_SUCCESS) {
+                // If we can't dereference the symbolic link, create a "missing file" entry
+                fileInfo.fileType = FILE_TYPE_MISSING;
+                fileInfo.size = 0;
+                fileInfo.lastModified = 0;
+            }
+        } else {
+            fileInfo.fileType = isSymLink ?
+                    FILE_TYPE_SYMLINK :
+                    (entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ?
+                    FILE_TYPE_DIRECTORY :
+                    FILE_TYPE_FILE;
+            fileInfo.lastModified = lastModifiedNanos(&entry.ftLastWriteTime);
+            fileInfo.size = ((jlong)entry.nFileSizeHigh << 32) | entry.nFileSizeLow;
+        }
+
+        // Add entry
         jstring childName = wchar_to_java(env, entry.cFileName, wcslen(entry.cFileName), result);
-        jint type = (entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? FILE_TYPE_DIRECTORY : FILE_TYPE_FILE;
-        jlong lastModified = lastModifiedNanos(&entry.ftLastWriteTime);
-        jlong size = ((jlong)entry.nFileSizeHigh << 32) | entry.nFileSizeLow;
-        env->CallVoidMethod(contents, mid, childName, type, size, lastModified);
+        env->CallVoidMethod(contents, mid, childName, fileInfo.fileType, fileInfo.size, fileInfo.lastModified);
     } while (FindNextFileW(dirHandle, &entry) != 0);
 
     DWORD error = GetLastError();
@@ -457,6 +597,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_readdir(JNIEn
         mark_failed_with_errno(env, "could not read next directory entry", result);
     }
 
+    free(patternStr);
     FindClose(dirHandle);
 }
 
