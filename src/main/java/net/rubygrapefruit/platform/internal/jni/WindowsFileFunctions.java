@@ -31,5 +31,6 @@ public class WindowsFileFunctions {
     public static native boolean fastReaddirIsSupported();
     public static native long fastReaddirOpen(String path, FunctionResult result);
     public static native void fastReaddirClose(long handle);
+    public static native int fastReaddirGetVolumeId(long handle, FunctionResult result);
     public static native boolean fastReaddirNext(long handle, ByteBuffer buffer, FunctionResult result);
 }

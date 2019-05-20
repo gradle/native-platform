@@ -25,4 +25,13 @@ import net.rubygrapefruit.platform.ThreadSafe;
  */
 @ThreadSafe
 public interface WindowsFileInfo extends FileInfo {
+    /**
+     * Returns the volume ID (serial number) of the file.
+     */
+    int getVolumeId();
+
+    /**
+     * Returns the file ID of the file, unique within the volume identified by {@link #getVolumeId()}.
+     */
+    long getFileId();
 }

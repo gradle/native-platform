@@ -16,6 +16,7 @@
 
 package net.rubygrapefruit.platform.internal;
 
+import net.rubygrapefruit.platform.file.FileInfo;
 import net.rubygrapefruit.platform.file.WindowsFileInfo;
 
 public class WindowsDirList extends DirList {
@@ -23,10 +24,46 @@ public class WindowsDirList extends DirList {
     @SuppressWarnings("UnusedDeclaration")
     @Override
     public void addFile(String name, int type, long size, long lastModified) {
-        super.addFile(name, type, size, WindowsFileTime.toJavaTime(lastModified));
+        addFile(name, FileInfo.Type.values()[type], size, WindowsFileTime.toJavaTime(lastModified), 0, 0);
     }
 
-    public void addFile(String name, WindowsFileInfo fileInfo) {
-        super.addFile(name, fileInfo.getType().ordinal(), fileInfo.getSize(), fileInfo.getLastModifiedTime());
+    void addFile(String name, WindowsFileInfo fileInfo) {
+        addFile(name, fileInfo.getType(), fileInfo.getSize(), fileInfo.getLastModifiedTime(), fileInfo.getVolumeId(), fileInfo.getFileId());
+    }
+
+    void addFile(String name, FileInfo.Type type, long size, long lastModified, int volumeId, long fileId) {
+        if (volumeId == 0 && fileId == 0) {
+            super.addFile(name, type, size, lastModified);
+        } else {
+            WindowsDirListEntry entry = new WindowsDirListEntry(name, type, size, lastModified, volumeId, fileId);
+            addEntry(entry);
+        }
+    }
+
+    protected static class WindowsDirListEntry extends DefaultDirEntry {
+        private final int volumeId;
+        private final long fileId;
+        // Lazily initialized to avoid extra allocation if not needed
+        private volatile WindowsFileKey key;
+
+        WindowsDirListEntry(String name, Type type, long size, long lastModified, int volumeId, long fileId) {
+            super(name, type, size, lastModified);
+            this.volumeId = volumeId;
+            this.fileId = fileId;
+        }
+
+        public Object getKey() {
+            if (volumeId == 0 && fileId == 0) {
+                return null;
+            }
+            if (key == null) {
+                synchronized (this) {
+                    if (key == null) {
+                        key = new WindowsFileKey(volumeId, fileId);
+                    }
+                }
+            }
+            return key;
+        }
     }
 }

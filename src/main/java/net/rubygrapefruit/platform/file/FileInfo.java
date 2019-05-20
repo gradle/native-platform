@@ -44,4 +44,12 @@ public interface FileInfo {
      * Returns the last modification time of this file, in ms since epoch. Returns 0 when this file does not exist.
      */
     long getLastModifiedTime();
+
+    /**
+     * Returns an object that uniquely identifies the given file, or null if a file key is not available.
+     *
+     * <p>See <a href="https://docs.oracle.com/javase/7/docs/api/java/nio/file/attribute/BasicFileAttributes.html#fileKey()">BasicFileAttributes.fileKey()</a>
+     * for a more in depth explanation.</p>
+     */
+    Object getKey();
 }

@@ -86,6 +86,7 @@ public class DefaultWindowsFiles extends AbstractFiles implements WindowsFiles {
         private static final int OFFSETOF_FILE_ATTRIBUTES = 56;
         private static final int OFFSETOF_FILENAME_LENGTH = 60;
         private static final int OFFSETOF_EA_SIZE = 64;
+        private static final int OFFSETOF_FILE_ID = 72;
         private static final int OFFSETOF_FILENAME = 80;
 
         /**
@@ -109,6 +110,10 @@ public class DefaultWindowsFiles extends AbstractFiles implements WindowsFiles {
             if (result.isFailed()) {
                 throw listDirFailure(dir, result);
             }
+            int volumeId = WindowsFileFunctions.fastReaddirGetVolumeId(handle, result);
+            if (result.isFailed()) {
+                throw listDirFailure(dir, result);
+            }
             try {
                 NtQueryDirectoryFileContext context = getNtQueryDirectoryFileContext();
 
@@ -120,7 +125,7 @@ public class DefaultWindowsFiles extends AbstractFiles implements WindowsFiles {
                     int entryOffset = 0;
                     while (true) {
                         // Read entry from buffer
-                        entryOffset = addFullDirEntry(context, dir, linkTarget, entryOffset, dirList);
+                        entryOffset = addFullDirEntry(context, dir, linkTarget, volumeId, entryOffset, dirList);
 
                         // If we reached end of buffer, fetch next set of entries
                         if (entryOffset == 0) {
@@ -148,7 +153,7 @@ public class DefaultWindowsFiles extends AbstractFiles implements WindowsFiles {
          * <p>Returns the byte offset of the next entry in {@link NtQueryDirectoryFileContext#buffer} if there is one,
          * or {@code 0} if there is no next entry.</p>
          */
-        private int addFullDirEntry(NtQueryDirectoryFileContext context, File dir, boolean followLink, int entryOffset, WindowsDirList dirList) {
+        private int addFullDirEntry(NtQueryDirectoryFileContext context, File dir, boolean followLink, int volumeId, int entryOffset, WindowsDirList dirList) {
             // typedef struct _FILE_ID_FULL_DIR_INFORMATION {
             //  ULONG         NextEntryOffset;  // offset = 0
             //  ULONG         FileIndex;        // offset = 4
@@ -175,6 +180,7 @@ public class DefaultWindowsFiles extends AbstractFiles implements WindowsFiles {
             //
             int fileAttributes = context.buffer.getInt(entryOffset + OFFSETOF_FILE_ATTRIBUTES);
             int reparseTagData = context.buffer.getInt(entryOffset + OFFSETOF_EA_SIZE);
+            long fileId = context.buffer.getLong(entryOffset + OFFSETOF_FILE_ID);
 
             FileInfo.Type type = getFileType(fileAttributes, reparseTagData);
 
@@ -189,7 +195,7 @@ public class DefaultWindowsFiles extends AbstractFiles implements WindowsFiles {
                     WindowsFileInfo targetInfo = stat(new File(dir, fileName), true);
                     dirList.addFile(fileName, targetInfo);
                 } else {
-                    dirList.addFile(fileName, type.ordinal(), fileSize, lastModified);
+                    dirList.addFile(fileName, type, fileSize, WindowsFileTime.toJavaTime(lastModified), volumeId, fileId);
                 }
             }
 

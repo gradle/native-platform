@@ -105,6 +105,8 @@ void unpackStat(struct stat* source, file_stat_t* result) {
 #else
     result->lastModified = toMillis(source->st_mtimespec);
 #endif
+    result->volumeId = 0;
+    result->fileId = 0;
 }
 
 JNIEXPORT void JNICALL
@@ -207,6 +209,8 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_readdir(JNIEnv 
             fileResult.fileType = FILE_TYPE_MISSING;
             fileResult.size = 0;
             fileResult.lastModified = 0;
+            fileResult.volumeId = 0;
+            fileResult.fileId = 0;
         } else {
             unpackStat(&fileInfo, &fileResult);
         }

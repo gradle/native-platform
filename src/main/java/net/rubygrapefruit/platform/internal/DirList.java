@@ -28,11 +28,19 @@ public class DirList {
     // Called from native code
     @SuppressWarnings("UnusedDeclaration")
     public void addFile(String name, int type, long size, long lastModified) {
-        DefaultDirEntry fileStat = new DefaultDirEntry(name, FileInfo.Type.values()[type], size, lastModified);
-        files.add(fileStat);
+        addFile(name, FileInfo.Type.values()[type], size, lastModified);
     }
 
-    private static class DefaultDirEntry implements DirEntry {
+    void addFile(String name, FileInfo.Type type, long size, long lastModified) {
+        DefaultDirEntry fileStat = new DefaultDirEntry(name, type, size, lastModified);
+        addEntry(fileStat);
+    }
+
+    void addEntry(DirEntry entry) {
+        files.add(entry);
+    }
+
+    protected static class DefaultDirEntry implements DirEntry {
         private final String name;
         private final Type type;
         private final long size;
@@ -64,6 +72,10 @@ public class DirList {
 
         public long getSize() {
             return size;
+        }
+
+        public Object getKey() {
+            return null;
         }
     }
 }

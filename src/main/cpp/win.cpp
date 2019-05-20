@@ -189,11 +189,15 @@ DWORD get_file_stat(wchar_t* pathStr, jboolean followLink, file_stat_t* pFileSta
             pFileStat->lastModified = 0;
             pFileStat->size = 0;
             pFileStat->fileType = FILE_TYPE_MISSING;
+            pFileStat->volumeId = 0;
+            pFileStat->fileId = 0;
             return ERROR_SUCCESS;
         }
         return error;
     }
     pFileStat->lastModified = lastModifiedNanos(&attr.ftLastWriteTime);
+    pFileStat->volumeId = 0;
+    pFileStat->fileId = 0;
     if (attr.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
         pFileStat->size = 0;
         pFileStat->fileType = FILE_TYPE_DIRECTORY;
@@ -223,6 +227,8 @@ DWORD get_file_stat(wchar_t* pathStr, jboolean followLink, file_stat_t* pFileSta
             pFileStat->lastModified = 0;
             pFileStat->size = 0;
             pFileStat->fileType = FILE_TYPE_MISSING;
+            pFileStat->volumeId = 0;
+            pFileStat->fileId = 0;
             return ERROR_SUCCESS;
         }
         return error;
@@ -250,6 +256,8 @@ DWORD get_file_stat(wchar_t* pathStr, jboolean followLink, file_stat_t* pFileSta
 
     pFileStat->lastModified = lastModifiedNanos(&fileInfo.ftLastWriteTime);
     pFileStat->size = 0;
+    pFileStat->volumeId = fileInfo.dwVolumeSerialNumber;
+    pFileStat->fileId = ((LONGLONG)fileInfo.nFileIndexHigh << 32) | fileInfo.nFileIndexLow;
     if (is_file_symlink(fileTagInfo.FileAttributes, fileTagInfo.ReparseTag)) {
         pFileStat->fileType = FILE_TYPE_SYMLINK;
     } else if (fileTagInfo.FileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
@@ -524,12 +532,21 @@ Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_closeWatch(JNIE
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_stat(JNIEnv *env, jclass target, jstring path, jboolean followLink, jobject dest, jobject result) {
+#ifdef WINDOWS_MIN
     jclass destClass = env->GetObjectClass(dest);
     jmethodID mid = env->GetMethodID(destClass, "details", "(IJJ)V");
     if (mid == NULL) {
         mark_failed_with_message(env, "could not find method", result);
         return;
     }
+#else
+    jclass destClass = env->GetObjectClass(dest);
+    jmethodID mid = env->GetMethodID(destClass, "details", "(IJJIJ)V");
+    if (mid == NULL) {
+        mark_failed_with_message(env, "could not find method", result);
+        return;
+    }
+#endif
 
     wchar_t* pathStr = java_to_wchar_path(env, path, result);
     file_stat_t fileStat;
@@ -539,7 +556,12 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_stat(JNIEnv *
         mark_failed_with_code(env, "could not file attributes", errorCode, NULL, result);
         return;
     }
+
+#ifdef WINDOWS_MIN
     env->CallVoidMethod(dest, mid, fileStat.fileType, fileStat.size, fileStat.lastModified);
+#else
+    env->CallVoidMethod(dest, mid, fileStat.fileType, fileStat.size, fileStat.lastModified, fileStat.volumeId, fileStat.fileId);
+#endif
 }
 
 JNIEXPORT void JNICALL
@@ -587,6 +609,8 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_readdir(JNIEn
                     FILE_TYPE_FILE;
             fileInfo.lastModified = lastModifiedNanos(&entry.ftLastWriteTime);
             fileInfo.size = ((jlong)entry.nFileSizeHigh << 32) | entry.nFileSizeLow;
+            fileInfo.volumeId = 0;
+            fileInfo.fileId = 0;
         }
 
         // Add entry
@@ -619,6 +643,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_fastReaddirIs
 typedef struct fast_readdir_handle {
     HANDLE handle;
     wchar_t* pathStr;
+    ULONG volumeSerialNumber;
 } readdir_fast_handle_t;
 #endif
 
@@ -666,6 +691,17 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_fastReaddirOp
         free(pathStr);
         return NULL;
     }
+
+    // This call allows retrieving the volume ID of this directory (and all its entries)
+    BY_HANDLE_FILE_INFORMATION fileInfo;
+    BOOL ok = GetFileInformationByHandle(handle, &fileInfo);
+    if (!ok) {
+        mark_failed_with_errno(env, "could not open directory", result);
+        free(pathStr);
+        CloseHandle(handle);
+        return NULL;
+    }
+
     readdir_fast_handle_t* readdirHandle = (readdir_fast_handle_t*)LocalAlloc(LPTR, sizeof(readdir_fast_handle_t));
     if (readdirHandle == NULL) {
         mark_failed_with_code(env, "Out of native memory", ERROR_OUTOFMEMORY, NULL, result);
@@ -675,6 +711,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_fastReaddirOp
     }
     readdirHandle->handle = handle;
     readdirHandle->pathStr = pathStr;
+    readdirHandle->volumeSerialNumber = fileInfo.dwVolumeSerialNumber;
     return (jlong)readdirHandle;
 #endif
 }
@@ -691,6 +728,20 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_fastReaddirCl
     CloseHandle(readdirHandle->handle);
     free(readdirHandle->pathStr);
     LocalFree(readdirHandle);
+#endif
+}
+
+//
+// Returns the volume id of the directory opened by fastReaddirOpen
+//
+JNIEXPORT jint JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_fastReaddirGetVolumeId(JNIEnv *env, jclass target, jlong handle, jobject result) {
+#ifdef WINDOWS_MIN
+    mark_failed_with_code(env, "Operation not supported", ERROR_CALL_NOT_IMPLEMENTED, NULL, result);
+    return 0;
+#else
+    readdir_fast_handle_t* readdirHandle = (readdir_fast_handle_t*)handle;
+    return readdirHandle->volumeSerialNumber;
 #endif
 }
 

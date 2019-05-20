@@ -74,4 +74,8 @@ public class FileStat implements PosixFileInfo {
     public long getLastModifiedTime() {
         return modificationTime;
     }
+
+    public Object getKey() {
+        return null;
+    }
 }

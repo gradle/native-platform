@@ -404,6 +404,9 @@ public class Main {
             System.out.println();
             System.out.println("* Name: " + entry.getName());
             System.out.println("* Type: " + entry.getType());
+            if (entry.getKey() != null) {
+                System.out.println("* Key: " + entry.getKey());
+            }
             stat(new File(dir, entry.getName()), entry);
         }
     }
@@ -424,6 +427,9 @@ public class Main {
         System.out.println();
         System.out.println("* File: " + file);
         System.out.println("* Type: " + stat.getType());
+        if (stat.getKey() != null) {
+            System.out.println("* Key: " + stat.getKey());
+        }
         if (stat.getType() != FileInfo.Type.Missing) {
             if (stat instanceof PosixFileInfo) {
                 stat(file, (PosixFileInfo) stat);
