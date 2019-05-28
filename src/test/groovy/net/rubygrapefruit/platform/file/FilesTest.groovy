@@ -43,8 +43,6 @@ class FilesTest extends AbstractFilesTest {
     }
 
     def "can stat a file"() {
-        assumeFalse(Platform.current().windows && fileName.size() > 260)
-
         def dir = tmpDir.newFolder()
         def testFile = new File(dir, fileName)
         testFile.parentFile.mkdirs()
@@ -83,8 +81,6 @@ class FilesTest extends AbstractFilesTest {
     }
 
     def "can stat a directory"() {
-        assumeFalse(Platform.current().windows && fileName.size() > 260)
-
         def dir = tmpDir.newFolder()
         def testFile = new File(dir, fileName)
         testFile.mkdirs()
@@ -294,8 +290,6 @@ class FilesTest extends AbstractFilesTest {
     }
 
     def "can list contents of an empty directory"() {
-        assumeFalse(Platform.current().windows && fileName.size() > 260)
-
         def dir = tmpDir.newFolder()
         def testFile = new File(dir, fileName)
         testFile.mkdirs()
@@ -311,8 +305,6 @@ class FilesTest extends AbstractFilesTest {
     }
 
     def "can list contents of a directory"() {
-        assumeFalse(Platform.current().windows && fileName.size() > 260)
-
         def dir = tmpDir.newFolder()
         def testFile = new File(dir, fileName)
         testFile.mkdirs()
