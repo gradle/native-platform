@@ -42,7 +42,6 @@ public class Main {
         optionParser.accepts("ansi", "Force the use of ANSI escape sequences for terminal output");
         optionParser.accepts("stat", "Display details about the specified file or directory").withRequiredArg();
         optionParser.accepts("ls", "Display contents of the specified directory").withRequiredArg();
-        optionParser.accepts("long-paths", "Test support for long (i.e. >= 260 characters) paths");
         optionParser.accepts("watch", "Watches for changes to the specified file or directory").withRequiredArg();
         optionParser.accepts("machine", "Display details about the current machine");
         optionParser.accepts("terminal", "Display details about the terminal");
@@ -72,11 +71,6 @@ public class Main {
 
         if (result.has("ls")) {
             ls((String) result.valueOf("ls"));
-            return;
-        }
-
-        if (result.has("long-paths")) {
-            longPaths();
             return;
         }
 
@@ -392,74 +386,6 @@ public class Main {
             System.out.println("* Type: " + entry.getType());
             stat(new File(dir, entry.getName()), entry);
         }
-    }
-
-    private static void longPaths() {
-        try {
-            File rootDir = createTempDirectory();
-            try {
-                // Create a temporary directory with a long path
-                File dir = rootDir;
-                while (dir.toString().length() < 300) {
-                    dir = new File(dir, "somewhat-long-named-sub-directory");
-                    if (!dir.mkdir()) {
-                        throw new IOException(String.format("Error creating temporary directory \"%s\"", dir));
-                    }
-                }
-                System.out.println(String.format("Created directory with long (%d characters) path: \"%s\"", dir.toString().length(), dir));
-                System.out.println();
-
-                // Create a couple of empty files in there
-                File textFile1 = new File(dir, "foo.txt");
-                textFile1.createNewFile();
-
-                File textFile2 = new File(dir, "foo2.txt");
-                textFile2.createNewFile();
-
-                System.out.println("Created 2 empty files \"foo.txt\" and \"foo2.txt\" in directory");
-                System.out.println();
-
-                // List the contents of the directory
-                System.out.println("Checking \"ls\" function works as expected:");
-                ls(dir.getAbsolutePath());
-                System.out.println();
-
-                System.out.println("Checking \"stat\" function works as expected:");
-                stat(textFile1.getAbsolutePath());
-
-                System.out.println("Success!");
-            } finally {
-                deleteDirectoryRecursive(rootDir);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static void deleteDirectoryRecursive(File file) throws IOException {
-        if (file.isDirectory()) {
-            File[] entries = file.listFiles();
-            if (entries != null) {
-                for (File entry : entries) {
-                    deleteDirectoryRecursive(entry);
-                }
-            }
-        }
-        if (!file.delete()) {
-            throw new IOException(String.format("Failed to delete \"%s\"", file));
-        }
-    }
-
-    private static File createTempDirectory() throws IOException {
-        File rootDir = File.createTempFile("native-platform-", ".tmp");
-        if (!rootDir.delete()) {
-            throw new IOException("Error creating temporary directory");
-        }
-
-        if (!rootDir.mkdir()) {
-            throw new IOException(String.format("Error creating temporary directory \"%s\"", rootDir));
-        }
-        return rootDir;
     }
 
     private static void stat(String path) {
