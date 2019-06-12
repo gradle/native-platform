@@ -120,6 +120,10 @@ Some sample code to use the terminal:
 
 ## Changes
 
+### Next version
+
+* Fixed handling of long paths on Windows. Thanks to [Renaud Paquay](https://github.com/rpaquay).
+
 ### 0.17
 
 * Fixed handling of supplementary characters in environment variable values. Thanks to [Gary Hale](https://github.com/ghale).
@@ -350,7 +354,6 @@ Use `-Pmilestone` instead of `-Prelease` to publish a milestone version.
 * All: add a method to Terminal that indicates whether the cursor wraps to the next line when a character is written
   to the rightmost character position.
 * All: check for null parameters.
-* Windows: long paths, prefix with `\\?\` or `\\?\UNC\`
 
 ### Ideas
 
