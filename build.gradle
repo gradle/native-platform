@@ -118,6 +118,18 @@ model {
             architecture "amd64"
             operatingSystem "linux"
         }
+        linux_aarch64 {
+            architecture "aarch64"
+            operatingSystem "linux"
+        }
+        linux_aarch64_ncurses5 {
+            architecture "aarch64"
+            operatingSystem "linux"
+        }
+        linux_aarch64_ncurses6 {
+            architecture "aarch64"
+            operatingSystem "linux"
+        }
         windows_i386 {
             architecture "i386"
             operatingSystem "windows"
@@ -154,6 +166,12 @@ model {
 
     toolChains {
         gcc(Gcc) {
+            // The core Gradle toolchain for gcc only targets x86 and x86_64 out of the box.
+            // https://github.com/gradle/gradle/blob/36614ee523e5906ddfa1fed9a5dc00a5addac1b0/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/gcc/AbstractGccCompatibleToolChain.java
+            target("linux_aarch64")
+            target("linux_aarch64_ncurses5")
+            target("linux_aarch64_ncurses6")
+
             eachPlatform {
                 // Use GCC to build for libstdc++ on FreeBSD
                 if (platform.operatingSystem.freeBSD) {
