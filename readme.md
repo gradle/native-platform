@@ -123,6 +123,7 @@ Some sample code to use the terminal:
 ### Next version
 
 * Fixed handling of long paths on Windows. Thanks to [Renaud Paquay](https://github.com/rpaquay).
+* Support for Linux on aarch64. Thanks to [Amey](https://github.com/ameyp). 
 
 ### 0.17
 
