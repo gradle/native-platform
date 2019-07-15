@@ -17,7 +17,6 @@ package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.internal.Platform
-import org.junit.Assume
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import spock.lang.IgnoreIf
@@ -167,6 +166,40 @@ class FilesTest extends AbstractFilesTest {
         statFile.size == 2
         assertTimestampMatches(statFile.lastModifiedTime, testFileAttributes.lastModifiedTime().toMillis())
         assertTimestampMatches(statFile.lastModifiedTime, testFile.lastModified())
+
+        where:
+        fileName << names
+    }
+
+    @IgnoreIf({ !FilesTest.supportsSymbolicLinks() })
+    def "can stat a missing symbolic link"() {
+        // We can't run this test with long paths on Windows, because the createDirectorySymbolicLink
+        // and createFileSymbolicLink methods use the "mklink" command on that platform, and it is currently
+        // limited to 260 character paths.
+        assumeFalse(Platform.current().windows && fileName.size() > 260)
+
+        def dir = tmpDir.newFolder()
+        def testFile = new File(dir, fileName)
+
+        def testLink = new File(dir, fileName + ".link")
+        testLink.parentFile.mkdirs()
+        createFileSymbolicLink(testLink, testFile.name)
+        def testLinkAttributes = attributes(testLink)
+
+        when:
+        def statLink = files.stat(testLink, false)
+        def statFile = files.stat(testLink, true)
+
+        then:
+        statLink.type == FileInfo.Type.Symlink
+        statLink.size == 0
+        assertTimestampMatches(statLink.lastModifiedTime, testLinkAttributes.lastModifiedTime().toMillis())
+        // Note java.io.File.lastModified() follows symbolic links, so the following assertions is not verified
+        //assertTimestampMatches(statLink.lastModifiedTime, testLink.lastModified())
+
+        statFile.type == FileInfo.Type.Missing
+        statFile.size == 0
+        statFile.lastModifiedTime == 0
 
         where:
         fileName << names
@@ -436,11 +469,15 @@ class FilesTest extends AbstractFilesTest {
         createFileSymbolicLink(childLink, childFile.name)
         def childLinkAttributes = attributes(childLink)
 
+        def childMissingLink = new File(testFile, testFile.name + ".missing.link")
+        createFileSymbolicLink(childMissingLink, "missing")
+        def childMissingLinkAttributes = attributes(childMissingLink)
+
         when:
         def files = files.listDir(testFile, false)
 
         then:
-        files.size() == 3
+        files.size() == 4
         files.sort { it.name }
 
         def dirEntry = files[0]
@@ -464,6 +501,12 @@ class FilesTest extends AbstractFilesTest {
         assertTimestampMatches(linkEntry.lastModifiedTime, childLinkAttributes.lastModifiedTime().toMillis())
         // Note java.io.File.lastModified() follows symbolic links, so the following assertions is not verified
         //assertTimestampMatches(linkEntry.lastModifiedTime, childLink.lastModified())
+
+        def missingEntry = files[3]
+        missingEntry.type == FileInfo.Type.Symlink
+        missingEntry.name == childMissingLink.name
+        missingEntry.size == 0
+        assertTimestampMatches(missingEntry.lastModifiedTime, childMissingLinkAttributes.lastModifiedTime().toMillis())
 
         where:
         fileName << names
@@ -490,11 +533,14 @@ class FilesTest extends AbstractFilesTest {
         def childLink = new File(testFile, testFile.name + ".link")
         createFileSymbolicLink(childLink, childFile.name)
 
+        def childMissingLink = new File(testFile, testFile.name + ".missing.link")
+        createFileSymbolicLink(childMissingLink, "missing")
+
         when:
         def files = files.listDir(testFile, true)
 
         then:
-        files.size() == 3
+        files.size() == 4
         files.sort { it.name }
 
         def dirEntry = files[0]
@@ -517,6 +563,12 @@ class FilesTest extends AbstractFilesTest {
         linkEntry.size == fileEntry.size
         assertTimestampMatches(linkEntry.lastModifiedTime, childFileAttributes.lastModifiedTime().toMillis())
         assertTimestampMatches(linkEntry.lastModifiedTime, childFile.lastModified())
+
+        def missingEntry = files[3]
+        missingEntry.type == FileInfo.Type.Missing
+        missingEntry.name == childMissingLink.name
+        missingEntry.size == 0
+        missingEntry.lastModifiedTime == 0
 
         where:
         fileName << names

@@ -28,17 +28,17 @@ public class DirList {
     // Called from native code
     @SuppressWarnings("UnusedDeclaration")
     public void addFile(String name, int type, long size, long lastModified) {
-        PosixDirEntry fileStat = new PosixDirEntry(name, FileInfo.Type.values()[type], size, lastModified);
+        DefaultDirEntry fileStat = new DefaultDirEntry(name, FileInfo.Type.values()[type], size, lastModified);
         files.add(fileStat);
     }
 
-    private class PosixDirEntry implements DirEntry {
+    private static class DefaultDirEntry implements DirEntry {
         private final String name;
         private final Type type;
         private final long size;
         private final long lastModified;
 
-        PosixDirEntry(String name, Type type, long size, long lastModified) {
+        DefaultDirEntry(String name, Type type, long size, long lastModified) {
             this.name = name;
             this.type = type;
             this.size = size;

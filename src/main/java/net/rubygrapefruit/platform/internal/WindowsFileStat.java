@@ -31,7 +31,7 @@ public class WindowsFileStat implements WindowsFileInfo {
     public void details(int type, long size, long lastModifiedWinTime) {
         this.type = Type.values()[type];
         this.size = size;
-        this.lastModified = this.type == Type.Missing ? 0 : WindowsFileTime.toJavaTime(lastModifiedWinTime);
+        this.lastModified = WindowsFileTime.toJavaTime(lastModifiedWinTime);
     }
 
     @Override

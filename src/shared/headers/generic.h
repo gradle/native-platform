@@ -106,6 +106,12 @@ extern char* java_to_utf_char(JNIEnv *env, jstring string, jobject result);
  */
 extern jstring utf_char_to_java(JNIEnv* env, const char* chars, jobject result);
 
+typedef struct file_stat {
+    jint fileType;
+    jlong lastModified;
+    jlong size;
+} file_stat_t;
+
 #ifdef __cplusplus
 }
 #endif

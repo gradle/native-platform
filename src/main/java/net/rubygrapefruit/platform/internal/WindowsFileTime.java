@@ -31,6 +31,9 @@ public class WindowsFileTime {
     }
 
     public static long toJavaTime(long winFileTime) {
+        if (winFileTime == 0) {
+            return 0;
+        }
         return winFileTime / 10000 + EPOCH_OFFSET;
     }
 

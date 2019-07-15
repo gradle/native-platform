@@ -160,12 +160,6 @@ jlong lastModifiedNanos(LARGE_INTEGER* time) {
     return ((jlong)time->HighPart << 32) | time->LowPart;
 }
 
-typedef struct file_stat {
-    int fileType;
-    LONG64 lastModified;
-    LONG64 size;
-} file_stat_t;
-
 //
 // Retrieves the file attributes for the file specified by |pathStr|.
 // If |followLink| is true, symbolic link targets are resolved.
@@ -251,7 +245,7 @@ DWORD get_file_stat(wchar_t* pathStr, jboolean followLink, file_stat_t* pFileSta
     } else if (fileTagInfo.FileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
         pFileStat->fileType = FILE_TYPE_DIRECTORY;
     } else {
-        pFileStat->size = ((LONG64)fileInfo.nFileSizeHigh << 32) | fileInfo.nFileSizeLow;
+        pFileStat->size = ((jlong)fileInfo.nFileSizeHigh << 32) | fileInfo.nFileSizeLow;
         pFileStat->fileType = FILE_TYPE_FILE;
     }
     return ERROR_SUCCESS;
@@ -572,10 +566,8 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_readdir(JNIEn
             DWORD errorCode = get_file_stat(childPathStr, true, &fileInfo);
             free(childPathStr);
             if (errorCode != ERROR_SUCCESS) {
-                // If we can't dereference the symbolic link, create a "missing file" entry
-                fileInfo.fileType = FILE_TYPE_MISSING;
-                fileInfo.size = 0;
-                fileInfo.lastModified = 0;
+                mark_failed_with_errno(env, "could not stat directory entry", result);
+                break;
             }
         } else {
             fileInfo.fileType = isSymLink ?

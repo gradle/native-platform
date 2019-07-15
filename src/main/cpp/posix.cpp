@@ -82,28 +82,28 @@ jlong toMillis(struct timespec t) {
     return (jlong)(t.tv_sec) * 1000 + (jlong)(t.tv_nsec) / 1000000;
 }
 
-void unpackStat(struct stat* fileInfo, jint* type, jlong* size, jlong* lastModified) {
-    switch (fileInfo->st_mode & S_IFMT) {
+void unpackStat(struct stat* source, file_stat_t* result) {
+    switch (source->st_mode & S_IFMT) {
         case S_IFREG:
-            *type = FILE_TYPE_FILE;
-            *size = fileInfo->st_size;
+            result->fileType = FILE_TYPE_FILE;
+            result->size = source->st_size;
             break;
         case S_IFDIR:
-            *type = FILE_TYPE_DIRECTORY;
-            *size = 0;
+            result->fileType = FILE_TYPE_DIRECTORY;
+            result->size = 0;
             break;
         case S_IFLNK:
-            *type = FILE_TYPE_SYMLINK;
-            *size = 0;
+            result->fileType = FILE_TYPE_SYMLINK;
+            result->size = 0;
             break;
         default:
-            *type = FILE_TYPE_OTHER;
-            *size = 0;
+            result->fileType = FILE_TYPE_OTHER;
+            result->size = 0;
     }
 #ifdef __linux__
-    *lastModified = toMillis(fileInfo->st_mtim);
+    result->lastModified = toMillis(source->st_mtim);
 #else
-    *lastModified = toMillis(fileInfo->st_mtimespec);
+    result->lastModified = toMillis(source->st_mtimespec);
 #endif
 }
 
@@ -136,18 +136,16 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *en
     if (retval != 0) {
         env->CallVoidMethod(dest, mid, FILE_TYPE_MISSING, (jint)0, (jint)0, (jint)0, (jlong)0, (jlong)0, (jint)0);
     } else {
-        jint type;
-        jlong size;
-        jlong lastModified;
-        unpackStat(&fileInfo, &type, &size, &lastModified);
+        file_stat_t fileResult;
+        unpackStat(&fileInfo, &fileResult);
         env->CallVoidMethod(dest,
                             mid,
-                            type,
+                            fileResult.fileType,
                             (jint)0777 & fileInfo.st_mode,
                             (jint)fileInfo.st_uid,
                             (jint)fileInfo.st_gid,
-                            size,
-                            lastModified,
+                            fileResult.size,
+                            fileResult.lastModified,
                             (jint)fileInfo.st_blksize);
     }
 }
@@ -200,18 +198,21 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_readdir(JNIEnv 
             retval = lstat(childPath, &fileInfo);
         }
         free(childPath);
+        file_stat fileResult;
         if (retval != 0) {
-            mark_failed_with_errno(env, "could not stat file", result);
-            break;
+            if (!followLink || errno != ENOENT) {
+                mark_failed_with_errno(env, "could not stat file", result);
+                break;
+            }
+            fileResult.fileType = FILE_TYPE_MISSING;
+            fileResult.size = 0;
+            fileResult.lastModified = 0;
+        } else {
+            unpackStat(&fileInfo, &fileResult);
         }
 
-        jint type;
-        jlong size;
-        jlong lastModified;
-        unpackStat(&fileInfo, &type, &size, &lastModified);
-
         jstring childName = char_to_java(env, entry.d_name, result);
-        env->CallVoidMethod(contents, mid, childName, type, size, lastModified);
+        env->CallVoidMethod(contents, mid, childName, fileResult.fileType, fileResult.size, fileResult.lastModified);
     }
 
     closedir(dir);
