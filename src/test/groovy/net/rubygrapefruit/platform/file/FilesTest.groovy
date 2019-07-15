@@ -99,6 +99,79 @@ class FilesTest extends AbstractFilesTest {
         fileName << names
     }
 
+    @IgnoreIf({ !FilesTest.supportsSymbolicLinks() })
+    def "can stat a directory symbolic link"() {
+        // We can't run this test with long paths on Windows, because the createDirectorySymbolicLink
+        // and createFileSymbolicLink methods use the "mklink" command on that platform, and it is currently
+        // limited to 260 character paths.
+        assumeFalse(Platform.current().windows && fileName.size() > 260)
+
+        def dir = tmpDir.newFolder()
+        def testFile = new File(dir, fileName)
+        testFile.mkdirs()
+        def testFileAttributes = attributes(testFile)
+
+        def testLink = new File(dir, fileName + ".link")
+        createDirectorySymbolicLink(testLink, testFile.name)
+        def testLinkAttributes = attributes(testLink)
+
+        when:
+        def statLink = files.stat(testLink, false)
+        def statFile = files.stat(testLink, true)
+
+        then:
+        statLink.type == FileInfo.Type.Symlink
+        statLink.size == 0
+        assertTimestampMatches(statLink.lastModifiedTime, testLinkAttributes.lastModifiedTime().toMillis())
+        // Note java.io.File.lastModified() follows symbolic links, so the following assertions is not verified
+        //assertTimestampMatches(statLink.lastModifiedTime, testLink.lastModified())
+
+        statFile.type == FileInfo.Type.Directory
+        statFile.size == 0
+        assertTimestampMatches(statFile.lastModifiedTime, testFileAttributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(statFile.lastModifiedTime, testFile.lastModified())
+
+        where:
+        fileName << names
+    }
+
+    @IgnoreIf({ !FilesTest.supportsSymbolicLinks() })
+    def "can stat a file symbolic link"() {
+        // We can't run this test with long paths on Windows, because the createDirectorySymbolicLink
+        // and createFileSymbolicLink methods use the "mklink" command on that platform, and it is currently
+        // limited to 260 character paths.
+        assumeFalse(Platform.current().windows && fileName.size() > 260)
+
+        def dir = tmpDir.newFolder()
+        def testFile = new File(dir, fileName)
+        testFile.parentFile.mkdirs()
+        testFile.text = 'hi'
+        def testFileAttributes = attributes(testFile)
+
+        def testLink = new File(dir, fileName + ".link")
+        createFileSymbolicLink(testLink, testFile.name)
+        def testLinkAttributes = attributes(testLink)
+
+        when:
+        def statLink = files.stat(testLink, false)
+        def statFile = files.stat(testLink, true)
+
+        then:
+        statLink.type == FileInfo.Type.Symlink
+        statLink.size == 0
+        assertTimestampMatches(statLink.lastModifiedTime, testLinkAttributes.lastModifiedTime().toMillis())
+        // Note java.io.File.lastModified() follows symbolic links, so the following assertions is not verified
+        //assertTimestampMatches(statLink.lastModifiedTime, testLink.lastModified())
+
+        statFile.type == FileInfo.Type.File
+        statFile.size == 2
+        assertTimestampMatches(statFile.lastModifiedTime, testFileAttributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(statFile.lastModifiedTime, testFile.lastModified())
+
+        where:
+        fileName << names
+    }
+
     def "follow links has no effect for stat of a directory"() {
         def testFile = tmpDir.newFolder("test.txt")
         def attributes = attributes(testFile)
@@ -336,6 +409,114 @@ class FilesTest extends AbstractFilesTest {
         fileEntry.size == 8
         assertTimestampMatches(fileEntry.lastModifiedTime, childFileAttributes.lastModifiedTime().toMillis())
         assertTimestampMatches(fileEntry.lastModifiedTime, childFile.lastModified())
+
+        where:
+        fileName << names
+    }
+
+    @IgnoreIf({ !FilesTest.supportsSymbolicLinks() })
+    def "can list contents of a directory with symbolic links"() {
+        // We can't run this test with long paths on Windows, because the createDirectorySymbolicLink
+        // and createFileSymbolicLink methods use the "mklink" command on that platform, and it is currently
+        // limited to 260 character paths.
+        assumeFalse(Platform.current().windows && fileName.size() > 260)
+
+        def dir = tmpDir.newFolder()
+        def testFile = new File(dir, fileName)
+        testFile.mkdirs()
+
+        def childDir = new File(testFile, testFile.name + ".a")
+        childDir.mkdirs()
+        def childDirAttributes = attributes(childDir)
+        def childFile = new File(testFile, testFile.name + ".b")
+        childFile.text = 'contents'
+        def childFileAttributes = attributes(childFile)
+
+        def childLink = new File(testFile, testFile.name + ".link")
+        createFileSymbolicLink(childLink, childFile.name)
+        def childLinkAttributes = attributes(childLink)
+
+        when:
+        def files = files.listDir(testFile, false)
+
+        then:
+        files.size() == 3
+        files.sort { it.name }
+
+        def dirEntry = files[0]
+        dirEntry.type == FileInfo.Type.Directory
+        dirEntry.name == childDir.name
+        dirEntry.size == 0L
+        assertTimestampMatches(dirEntry.lastModifiedTime, childDirAttributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(dirEntry.lastModifiedTime, childDir.lastModified())
+
+        def fileEntry = files[1]
+        fileEntry.type == FileInfo.Type.File
+        fileEntry.name == childFile.name
+        fileEntry.size == 8
+        assertTimestampMatches(fileEntry.lastModifiedTime, childFileAttributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(fileEntry.lastModifiedTime, childFile.lastModified())
+
+        def linkEntry = files[2]
+        linkEntry.type == FileInfo.Type.Symlink
+        linkEntry.name == childLink.name
+        linkEntry.size == 0
+        assertTimestampMatches(linkEntry.lastModifiedTime, childLinkAttributes.lastModifiedTime().toMillis())
+        // Note java.io.File.lastModified() follows symbolic links, so the following assertions is not verified
+        //assertTimestampMatches(linkEntry.lastModifiedTime, childLink.lastModified())
+
+        where:
+        fileName << names
+    }
+
+    @IgnoreIf({ !FilesTest.supportsSymbolicLinks() })
+    def "can list contents of a directory with symbolic links and follow links option"() {
+        // We can't run this test with long paths on Windows, because the createDirectorySymbolicLink
+        // and createFileSymbolicLink methods use the "mklink" command on that platform, and it is currently
+        // limited to 260 character paths.
+        assumeFalse(Platform.current().windows && fileName.size() > 260)
+
+        def dir = tmpDir.newFolder()
+        def testFile = new File(dir, fileName)
+        testFile.mkdirs()
+
+        def childDir = new File(testFile, testFile.name + ".a")
+        childDir.mkdirs()
+        def childDirAttributes = attributes(childDir)
+        def childFile = new File(testFile, testFile.name + ".b")
+        childFile.text = 'contents'
+        def childFileAttributes = attributes(childFile)
+
+        def childLink = new File(testFile, testFile.name + ".link")
+        createFileSymbolicLink(childLink, childFile.name)
+
+        when:
+        def files = files.listDir(testFile, true)
+
+        then:
+        files.size() == 3
+        files.sort { it.name }
+
+        def dirEntry = files[0]
+        dirEntry.type == FileInfo.Type.Directory
+        dirEntry.name == childDir.name
+        dirEntry.size == 0L
+        assertTimestampMatches(dirEntry.lastModifiedTime, childDirAttributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(dirEntry.lastModifiedTime, childDir.lastModified())
+
+        def fileEntry = files[1]
+        fileEntry.type == FileInfo.Type.File
+        fileEntry.name == childFile.name
+        fileEntry.size == 8
+        assertTimestampMatches(fileEntry.lastModifiedTime, childFileAttributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(fileEntry.lastModifiedTime, childFile.lastModified())
+
+        def linkEntry = files[2]
+        linkEntry.type == FileInfo.Type.File
+        linkEntry.name == childLink.name
+        linkEntry.size == fileEntry.size
+        assertTimestampMatches(linkEntry.lastModifiedTime, childFileAttributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(linkEntry.lastModifiedTime, childFile.lastModified())
 
         where:
         fileName << names

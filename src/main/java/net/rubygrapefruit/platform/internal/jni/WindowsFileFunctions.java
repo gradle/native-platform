@@ -21,7 +21,7 @@ import net.rubygrapefruit.platform.internal.FunctionResult;
 import net.rubygrapefruit.platform.internal.WindowsFileStat;
 
 public class WindowsFileFunctions {
-    public static native void stat(String file, WindowsFileStat stat, FunctionResult result);
+    public static native void stat(String file, boolean followLink, WindowsFileStat stat, FunctionResult result);
 
-    public static native void readdir(String path, DirList dirList, FunctionResult result);
+    public static native void readdir(String path, boolean followLink, DirList dirList, FunctionResult result);
 }

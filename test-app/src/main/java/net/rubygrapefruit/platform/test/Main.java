@@ -41,7 +41,9 @@ public class Main {
         optionParser.accepts("cache-dir", "The directory to cache native libraries in").withRequiredArg();
         optionParser.accepts("ansi", "Force the use of ANSI escape sequences for terminal output");
         optionParser.accepts("stat", "Display details about the specified file or directory").withRequiredArg();
+        optionParser.accepts("stat-L", "Display details about the specified file or directory, following symbolic links").withRequiredArg();
         optionParser.accepts("ls", "Display contents of the specified directory").withRequiredArg();
+        optionParser.accepts("ls-L", "Display contents of the specified directory, following symbolic links").withRequiredArg();
         optionParser.accepts("watch", "Watches for changes to the specified file or directory").withRequiredArg();
         optionParser.accepts("machine", "Display details about the current machine");
         optionParser.accepts("terminal", "Display details about the terminal");
@@ -69,8 +71,18 @@ public class Main {
             return;
         }
 
+        if (result.has("stat-L")) {
+            statFollowLinks((String) result.valueOf("stat-L"));
+            return;
+        }
+
         if (result.has("ls")) {
             ls((String) result.valueOf("ls"));
+            return;
+        }
+
+        if (result.has("ls-L")) {
+            lsFollowLinks((String) result.valueOf("ls-L"));
             return;
         }
 
@@ -376,10 +388,18 @@ public class Main {
     }
 
     private static void ls(String path) {
+        ls(path, false);
+    }
+
+    private static void lsFollowLinks(String path) {
+        ls(path, true);
+    }
+
+    private static void ls(String path, boolean followLinks) {
         File dir = new File(path);
 
         Files files = Native.get(Files.class);
-        List<? extends DirEntry> entries = files.listDir(dir);
+        List<? extends DirEntry> entries = files.listDir(dir, followLinks);
         for (DirEntry entry : entries) {
             System.out.println();
             System.out.println("* Name: " + entry.getName());
@@ -389,10 +409,18 @@ public class Main {
     }
 
     private static void stat(String path) {
+        stat(path, false);
+    }
+
+    private static void statFollowLinks(String path) {
+        stat(path, true);
+    }
+
+    private static void stat(String path, boolean linkTarget) {
         File file = new File(path);
 
         Files files = Native.get(Files.class);
-        FileInfo stat = files.stat(file);
+        FileInfo stat = files.stat(file, linkTarget);
         System.out.println();
         System.out.println("* File: " + file);
         System.out.println("* Type: " + stat.getType());

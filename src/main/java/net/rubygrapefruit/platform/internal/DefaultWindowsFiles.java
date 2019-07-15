@@ -28,30 +28,30 @@ import java.util.List;
 
 public class DefaultWindowsFiles extends AbstractFiles implements WindowsFiles {
     public WindowsFileInfo stat(File file) throws NativeException {
+        return stat(file, false);
+    }
+
+    public WindowsFileInfo stat(File file, boolean linkTarget) throws NativeException {
         FunctionResult result = new FunctionResult();
         WindowsFileStat stat = new WindowsFileStat(file.getPath());
-        WindowsFileFunctions.stat(file.getPath(), stat, result);
+        WindowsFileFunctions.stat(file.getPath(), linkTarget, stat, result);
         if (result.isFailed()) {
             throw new NativeException(String.format("Could not get file details of %s: %s", file, result.getMessage()));
         }
         return stat;
     }
 
-    public FileInfo stat(File file, boolean linkTarget) throws NativeException {
-        return stat(file);
-    }
-
-    public List<? extends DirEntry> listDir(File dir) throws NativeException {
+    public List<? extends DirEntry> listDir(File dir, boolean linkTarget) throws NativeException {
         FunctionResult result = new FunctionResult();
         WindowsDirList dirList = new WindowsDirList();
-        WindowsFileFunctions.readdir(dir.getPath() + "\\*", dirList, result);
+        WindowsFileFunctions.readdir(dir.getPath(), linkTarget, dirList, result);
         if (result.isFailed()) {
             throw listDirFailure(dir, result);
         }
         return dirList.files;
     }
 
-    public List<? extends DirEntry> listDir(File dir, boolean linkTarget) throws NativeException {
-        return listDir(dir);
+    public List<? extends DirEntry> listDir(File dir) throws NativeException {
+        return listDir(dir, false);
     }
 }
