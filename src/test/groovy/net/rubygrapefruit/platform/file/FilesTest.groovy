@@ -584,6 +584,7 @@ abstract class FilesTest extends AbstractFilesTest {
         e.message == "Could not list directory $testFile as it is not a directory."
     }
 
+    @Unroll
     def "cannot list contents of missing file"() {
         def testFile = new File(tmpDir.newFolder(), fileName)
 

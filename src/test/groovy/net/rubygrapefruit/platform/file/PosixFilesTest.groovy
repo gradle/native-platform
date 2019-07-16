@@ -4,6 +4,7 @@ import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.NativeException
 import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.IgnoreIf
+import spock.lang.Unroll
 
 import java.nio.file.LinkOption
 import java.nio.file.attribute.PosixFileAttributeView
@@ -143,9 +144,11 @@ class PosixFilesTest extends FilesTest {
         chmod(testDir, [OWNER_READ, OWNER_WRITE])
     }
 
+    @Unroll
     def "stat follows symlinks to parent directory"() {
         def parentDir = tmpDir.newFolder()
         def testFile = new File(parentDir, fileName)
+        testFile.parentFile.mkdirs()
         testFile.text = "content"
         def link = new File(tmpDir.newFolder(), "link")
 
@@ -159,7 +162,7 @@ class PosixFilesTest extends FilesTest {
         assertIsFile(stat, testFile)
 
         where:
-        fileName << ["test.txt", "test\u03b1\u2295.txt"]
+        fileName << names
     }
 
     def "directory listing follows symlinks to dir"() {
@@ -202,6 +205,7 @@ class PosixFilesTest extends FilesTest {
         [OWNER_READ]    | _
     }
 
+    @Unroll
     def "can set mode on a file"() {
         def testFile = tmpDir.newFile(fileName)
 
@@ -218,6 +222,7 @@ class PosixFilesTest extends FilesTest {
         fileMode << [0777, 0740, 0644]
     }
 
+    @Unroll
     def "can set mode on a directory"() {
         def testFile = tmpDir.newFolder(fileName)
 
@@ -256,10 +261,12 @@ class PosixFilesTest extends FilesTest {
         e.message == "Could not get UNIX mode on $testFile: file does not exist."
     }
 
+    @Unroll
     def "can create symbolic link"() {
-        def testFile = new File(tmpDir.root, "test.txt")
+        def testFile = new File(tmpDir.root, name)
+        testFile.parentFile.mkdirs()
         testFile.text = "hi"
-        def symlinkFile = new File(tmpDir.root, "symlink")
+        def symlinkFile = new File(tmpDir.root, name + ".link")
 
         when:
         files.symlink(symlinkFile, testFile.name)
@@ -268,16 +275,24 @@ class PosixFilesTest extends FilesTest {
         symlinkFile.file
         symlinkFile.text == "hi"
         symlinkFile.canonicalFile == testFile.canonicalFile
+
+        where:
+        name << names
     }
 
+    @Unroll
     def "can read symbolic link"() {
-        def symlinkFile = new File(tmpDir.root, "symlink")
+        def symlinkFile = new File(tmpDir.root, name)
+        symlinkFile.parentFile.mkdirs()
 
         when:
-        files.symlink(symlinkFile, "target")
+        files.symlink(symlinkFile, name)
 
         then:
-        files.readLink(symlinkFile) == "target"
+        files.readLink(symlinkFile) == name
+
+        where:
+        name << names
     }
 
     def "cannot read a symlink that does not exist"() {
@@ -300,20 +315,6 @@ class PosixFilesTest extends FilesTest {
         then:
         NativeException e = thrown()
         e.message == "Could not read symlink $symlinkFile: could not readlink (errno 22: Invalid argument)"
-    }
-
-    def "can create and read symlink with unicode in its name"() {
-        def testFile = new File(tmpDir.root, "target\u03b2\u2295")
-        testFile.text = 'hi'
-        def symlinkFile = new File(tmpDir.root, "symlink\u03b2\u2296")
-
-        when:
-        files.symlink(symlinkFile, testFile.name)
-
-        then:
-        files.readLink(symlinkFile) == testFile.name
-        symlinkFile.file
-        symlinkFile.canonicalFile == testFile.canonicalFile
     }
 
     @Override
