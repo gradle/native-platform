@@ -21,10 +21,11 @@ import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import spock.lang.IgnoreIf
 import spock.lang.Shared
+import spock.lang.Unroll
 
 import static org.junit.Assume.assumeFalse
 
-class FilesTest extends AbstractFilesTest {
+abstract class FilesTest extends AbstractFilesTest {
     @Shared
     def names = [
             "test.txt",
@@ -33,72 +34,130 @@ class FilesTest extends AbstractFilesTest {
             // Long name
             (0..25).inject("") { s, v -> s + "/1234567890" }
     ]
-    @Rule TemporaryFolder tmpDir
+    @Rule
+    TemporaryFolder tmpDir
     final def files = Native.get(Files.class)
+
+    void assertIsFile(FileInfo stat, File file) {
+        assert stat.type == FileInfo.Type.File
+        assert stat.size == file.length()
+        def attributes = attributes(file)
+        assertTimestampMatches(stat.lastModifiedTime, attributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(stat.lastModifiedTime, file.lastModified())
+    }
+
+    void assertIsFile(DirEntry entry, File file, String name = file.name) {
+        assert entry.type == FileInfo.Type.File
+        assert entry.name == name
+        assert entry.size == file.length()
+        def attributes = attributes(file)
+        assertTimestampMatches(entry.lastModifiedTime, attributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(entry.lastModifiedTime, file.lastModified())
+    }
+
+    void assertIsDirectory(FileInfo stat, File file) {
+        assert stat.type == FileInfo.Type.Directory
+        assert stat.size == 0
+        def attributes = attributes(file)
+        assertTimestampMatches(stat.lastModifiedTime, attributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(stat.lastModifiedTime, file.lastModified())
+    }
+
+    void assertIsDirectory(DirEntry entry, File file) {
+        assert entry.type == FileInfo.Type.Directory
+        assert entry.name == file.name
+        assert entry.size == 0
+        def attributes = attributes(file)
+        assertTimestampMatches(entry.lastModifiedTime, attributes.lastModifiedTime().toMillis())
+        assertTimestampMatches(entry.lastModifiedTime, file.lastModified())
+    }
+
+    void assertIsSymlink(FileInfo stat, File file) {
+        assert stat.type == FileInfo.Type.Symlink
+        assert stat.size == 0
+        def attributes = attributes(file)
+        assertTimestampMatches(stat.lastModifiedTime, attributes.lastModifiedTime().toMillis())
+        // Can't check `file.lastModified()` as it follows symlinks
+    }
+
+    void assertIsSymlink(DirEntry entry, File file) {
+        assert entry.type == FileInfo.Type.Symlink
+        assert entry.name == file.name
+        assert entry.size == 0
+        def attributes = attributes(file)
+        assertTimestampMatches(entry.lastModifiedTime, attributes.lastModifiedTime().toMillis())
+        // Can't check `file.lastModified()` as it follows symlinks
+    }
+
+    void assertIsMissing(FileInfo stat) {
+        assert stat.type == FileInfo.Type.Missing
+        assert stat.size == 0
+        assert stat.lastModifiedTime == 0
+    }
+
+    void assertIsMissing(DirEntry entry, String name) {
+        assert entry.type == FileInfo.Type.Missing
+        assert entry.name == name
+        assert entry.size == 0
+        assert entry.lastModifiedTime == 0
+    }
 
     def "caches file instance"() {
         expect:
         Native.get(Files.class) == files
     }
 
+    @Unroll
     def "can stat a file"() {
         def dir = tmpDir.newFolder()
         def testFile = new File(dir, fileName)
         testFile.parentFile.mkdirs()
         testFile.text = 'hi'
-        def attributes = attributes(testFile)
 
         when:
         def stat = files.stat(testFile)
 
         then:
-        stat.type == FileInfo.Type.File
+        assertIsFile(stat, testFile)
         stat.size == 2
-        assertTimestampMatches(stat.lastModifiedTime, attributes.lastModifiedTime().toMillis())
-        assertTimestampMatches(stat.lastModifiedTime, testFile.lastModified())
 
         where:
         fileName << names
     }
 
+    @Unroll
     def "follow links has no effect for stat of a file"() {
         def testFile = tmpDir.newFile("test.txt")
         testFile.text = 'hi'
-        def attributes = attributes(testFile)
 
         when:
         def stat = files.stat(testFile, followLinks)
 
         then:
-        stat.type == FileInfo.Type.File
-        stat.size == 2
-        assertTimestampMatches(stat.lastModifiedTime, attributes.lastModifiedTime().toMillis())
-        assertTimestampMatches(stat.lastModifiedTime, testFile.lastModified())
+        assertIsFile(stat, testFile)
 
         where:
         followLinks << [true, false]
     }
 
+    @Unroll
     def "can stat a directory"() {
         def dir = tmpDir.newFolder()
-        def testFile = new File(dir, fileName)
-        testFile.mkdirs()
-        def attributes = attributes(testFile)
+        def testDir = new File(dir, fileName)
+        testDir.mkdirs()
 
         when:
-        def stat = files.stat(testFile)
+        def stat = files.stat(testDir)
 
         then:
-        stat.type == FileInfo.Type.Directory
-        stat.size == 0
-        assertTimestampMatches(stat.lastModifiedTime, attributes.lastModifiedTime().toMillis())
-        assertTimestampMatches(stat.lastModifiedTime, testFile.lastModified())
+        assertIsDirectory(stat, testDir)
 
         where:
         fileName << names
     }
 
     @IgnoreIf({ !FilesTest.supportsSymbolicLinks() })
+    @Unroll
     def "can stat a directory symbolic link"() {
         // We can't run this test with long paths on Windows, because the createDirectorySymbolicLink
         // and createFileSymbolicLink methods use the "mklink" command on that platform, and it is currently
@@ -106,35 +165,26 @@ class FilesTest extends AbstractFilesTest {
         assumeFalse(Platform.current().windows && fileName.size() > 260)
 
         def dir = tmpDir.newFolder()
-        def testFile = new File(dir, fileName)
-        testFile.mkdirs()
-        def testFileAttributes = attributes(testFile)
+        def testDir = new File(dir, fileName)
+        testDir.mkdirs()
 
         def testLink = new File(dir, fileName + ".link")
-        createDirectorySymbolicLink(testLink, testFile.name)
-        def testLinkAttributes = attributes(testLink)
+        createDirectorySymbolicLink(testLink, testDir.name)
 
         when:
         def statLink = files.stat(testLink, false)
         def statFile = files.stat(testLink, true)
 
         then:
-        statLink.type == FileInfo.Type.Symlink
-        statLink.size == 0
-        assertTimestampMatches(statLink.lastModifiedTime, testLinkAttributes.lastModifiedTime().toMillis())
-        // Note java.io.File.lastModified() follows symbolic links, so the following assertions is not verified
-        //assertTimestampMatches(statLink.lastModifiedTime, testLink.lastModified())
-
-        statFile.type == FileInfo.Type.Directory
-        statFile.size == 0
-        assertTimestampMatches(statFile.lastModifiedTime, testFileAttributes.lastModifiedTime().toMillis())
-        assertTimestampMatches(statFile.lastModifiedTime, testFile.lastModified())
+        assertIsSymlink(statLink, testLink)
+        assertIsDirectory(statFile, testDir)
 
         where:
         fileName << names
     }
 
     @IgnoreIf({ !FilesTest.supportsSymbolicLinks() })
+    @Unroll
     def "can stat a file symbolic link"() {
         // We can't run this test with long paths on Windows, because the createDirectorySymbolicLink
         // and createFileSymbolicLink methods use the "mklink" command on that platform, and it is currently
@@ -145,33 +195,24 @@ class FilesTest extends AbstractFilesTest {
         def testFile = new File(dir, fileName)
         testFile.parentFile.mkdirs()
         testFile.text = 'hi'
-        def testFileAttributes = attributes(testFile)
 
         def testLink = new File(dir, fileName + ".link")
         createFileSymbolicLink(testLink, testFile.name)
-        def testLinkAttributes = attributes(testLink)
 
         when:
         def statLink = files.stat(testLink, false)
         def statFile = files.stat(testLink, true)
 
         then:
-        statLink.type == FileInfo.Type.Symlink
-        statLink.size == 0
-        assertTimestampMatches(statLink.lastModifiedTime, testLinkAttributes.lastModifiedTime().toMillis())
-        // Note java.io.File.lastModified() follows symbolic links, so the following assertions is not verified
-        //assertTimestampMatches(statLink.lastModifiedTime, testLink.lastModified())
-
-        statFile.type == FileInfo.Type.File
-        statFile.size == 2
-        assertTimestampMatches(statFile.lastModifiedTime, testFileAttributes.lastModifiedTime().toMillis())
-        assertTimestampMatches(statFile.lastModifiedTime, testFile.lastModified())
+        assertIsSymlink(statLink, testLink)
+        assertIsFile(statFile, testFile)
 
         where:
         fileName << names
     }
 
     @IgnoreIf({ !FilesTest.supportsSymbolicLinks() })
+    @Unroll
     def "can stat a missing symbolic link"() {
         // We can't run this test with long paths on Windows, because the createDirectorySymbolicLink
         // and createFileSymbolicLink methods use the "mklink" command on that platform, and it is currently
@@ -184,44 +225,34 @@ class FilesTest extends AbstractFilesTest {
         def testLink = new File(dir, fileName + ".link")
         testLink.parentFile.mkdirs()
         createFileSymbolicLink(testLink, testFile.name)
-        def testLinkAttributes = attributes(testLink)
 
         when:
         def statLink = files.stat(testLink, false)
         def statFile = files.stat(testLink, true)
 
         then:
-        statLink.type == FileInfo.Type.Symlink
-        statLink.size == 0
-        assertTimestampMatches(statLink.lastModifiedTime, testLinkAttributes.lastModifiedTime().toMillis())
-        // Note java.io.File.lastModified() follows symbolic links, so the following assertions is not verified
-        //assertTimestampMatches(statLink.lastModifiedTime, testLink.lastModified())
-
-        statFile.type == FileInfo.Type.Missing
-        statFile.size == 0
-        statFile.lastModifiedTime == 0
+        assertIsSymlink(statLink, testLink)
+        assertIsMissing(statFile)
 
         where:
         fileName << names
     }
 
+    @Unroll
     def "follow links has no effect for stat of a directory"() {
-        def testFile = tmpDir.newFolder("test.txt")
-        def attributes = attributes(testFile)
+        def testDir = tmpDir.newFolder("test.txt")
 
         when:
-        def stat = files.stat(testFile, followLinks)
+        def stat = files.stat(testDir, followLinks)
 
         then:
-        stat.type == FileInfo.Type.Directory
-        stat.size == 0
-        assertTimestampMatches(stat.lastModifiedTime, attributes.lastModifiedTime().toMillis())
-        assertTimestampMatches(stat.lastModifiedTime, testFile.lastModified())
+        assertIsDirectory(stat, testDir)
 
         where:
         followLinks << [true, false]
     }
 
+    @Unroll
     def "can stat the file system roots reported by JVM"() {
         expect:
         def stat = files.stat(file)
@@ -232,6 +263,7 @@ class FilesTest extends AbstractFilesTest {
         file << File.listRoots()
     }
 
+    @Unroll
     def "can stat the file system roots reported by OS"() {
         expect:
         def stat
@@ -248,6 +280,7 @@ class FilesTest extends AbstractFilesTest {
         fileSystem << Native.get(FileSystems.class).fileSystems
     }
 
+    @Unroll
     def "can stat a missing file"() {
         def testFile = new File(tmpDir.root, fileName)
 
@@ -255,14 +288,13 @@ class FilesTest extends AbstractFilesTest {
         def stat = files.stat(testFile)
 
         then:
-        stat.type == FileInfo.Type.Missing
-        stat.size == 0
-        stat.lastModifiedTime == 0
+        assertIsMissing(stat)
 
         where:
         fileName << names
     }
 
+    @Unroll
     def "can stat a missing file when something in the path matches an existing file"() {
         def testDir = tmpDir.newFile(dirName)
         def testFile = new File(testDir, fileName)
@@ -271,9 +303,7 @@ class FilesTest extends AbstractFilesTest {
         def stat = files.stat(testFile)
 
         then:
-        stat.type == FileInfo.Type.Missing
-        stat.size == 0
-        stat.lastModifiedTime == 0
+        assertIsMissing(stat)
 
         where:
         dirName                | fileName
@@ -282,6 +312,7 @@ class FilesTest extends AbstractFilesTest {
         "test-dir1"            | "test-dir2/test-file"
     }
 
+    @Unroll
     def "follow links has no effect for stat of a missing file"() {
         def testFile = new File(tmpDir.root, "nested/missing")
 
@@ -289,9 +320,7 @@ class FilesTest extends AbstractFilesTest {
         def stat = files.stat(testFile, followLinks)
 
         then:
-        stat.type == FileInfo.Type.Missing
-        stat.size == 0
-        stat.lastModifiedTime == 0
+        assertIsMissing(stat)
 
         where:
         followLinks << [true, false]
@@ -383,18 +412,7 @@ class FilesTest extends AbstractFilesTest {
         stat.type == FileInfo.Type.Directory
     }
 
-    @IgnoreIf({ !Platform.current().windows })
-    def "can stat file using UNC path"() {
-        def file = tmpDir.newFile()
-        def testFile = new File('\\\\localhost\\' + file.absolutePath.charAt(0) + '$\\' + file.absolutePath.substring(2))
-
-        when:
-        def stat = files.stat(testFile)
-
-        then:
-        stat.type == FileInfo.Type.File
-    }
-
+    @Unroll
     def "can list contents of an empty directory"() {
         def dir = tmpDir.newFolder()
         def testFile = new File(dir, fileName)
@@ -410,44 +428,37 @@ class FilesTest extends AbstractFilesTest {
         fileName << names
     }
 
+    @Unroll
     def "can list contents of a directory"() {
         def dir = tmpDir.newFolder()
-        def testFile = new File(dir, fileName)
-        testFile.mkdirs()
+        def testDir = new File(dir, fileName)
+        testDir.mkdirs()
 
-        def childDir = new File(testFile, testFile.name + ".a")
+        def childDir = new File(testDir, testDir.name + ".a")
         childDir.mkdirs()
-        def childDirAttributes = attributes(childDir)
-        def childFile = new File(testFile, testFile.name + ".b")
+        def childFile = new File(testDir, testDir.name + ".b")
         childFile.text = 'contents'
-        def childFileAttributes = attributes(childFile)
 
         when:
-        def files = files.listDir(testFile)
+        def files = files.listDir(testDir)
 
         then:
         files.size() == 2
         files.sort { it.name }
 
         def dirEntry = files[0]
-        dirEntry.type == FileInfo.Type.Directory
-        dirEntry.name == childDir.name
-        dirEntry.size == 0L
-        assertTimestampMatches(dirEntry.lastModifiedTime, childDirAttributes.lastModifiedTime().toMillis())
-        assertTimestampMatches(dirEntry.lastModifiedTime, childDir.lastModified())
+        assertIsDirectory(dirEntry, childDir)
 
         def fileEntry = files[1]
-        fileEntry.type == FileInfo.Type.File
-        fileEntry.name == childFile.name
+        assertIsFile(fileEntry, childFile)
         fileEntry.size == 8
-        assertTimestampMatches(fileEntry.lastModifiedTime, childFileAttributes.lastModifiedTime().toMillis())
-        assertTimestampMatches(fileEntry.lastModifiedTime, childFile.lastModified())
 
         where:
         fileName << names
     }
 
     @IgnoreIf({ !FilesTest.supportsSymbolicLinks() })
+    @Unroll
     def "can list contents of a directory with symbolic links"() {
         // We can't run this test with long paths on Windows, because the createDirectorySymbolicLink
         // and createFileSymbolicLink methods use the "mklink" command on that platform, and it is currently
@@ -460,18 +471,14 @@ class FilesTest extends AbstractFilesTest {
 
         def childDir = new File(testFile, testFile.name + ".a")
         childDir.mkdirs()
-        def childDirAttributes = attributes(childDir)
         def childFile = new File(testFile, testFile.name + ".b")
         childFile.text = 'contents'
-        def childFileAttributes = attributes(childFile)
 
         def childLink = new File(testFile, testFile.name + ".link")
         createFileSymbolicLink(childLink, childFile.name)
-        def childLinkAttributes = attributes(childLink)
 
         def childMissingLink = new File(testFile, testFile.name + ".missing.link")
         createFileSymbolicLink(childMissingLink, "missing")
-        def childMissingLinkAttributes = attributes(childMissingLink)
 
         when:
         def files = files.listDir(testFile, false)
@@ -481,38 +488,23 @@ class FilesTest extends AbstractFilesTest {
         files.sort { it.name }
 
         def dirEntry = files[0]
-        dirEntry.type == FileInfo.Type.Directory
-        dirEntry.name == childDir.name
-        dirEntry.size == 0L
-        assertTimestampMatches(dirEntry.lastModifiedTime, childDirAttributes.lastModifiedTime().toMillis())
-        assertTimestampMatches(dirEntry.lastModifiedTime, childDir.lastModified())
+        assertIsDirectory(dirEntry, childDir)
 
         def fileEntry = files[1]
-        fileEntry.type == FileInfo.Type.File
-        fileEntry.name == childFile.name
-        fileEntry.size == 8
-        assertTimestampMatches(fileEntry.lastModifiedTime, childFileAttributes.lastModifiedTime().toMillis())
-        assertTimestampMatches(fileEntry.lastModifiedTime, childFile.lastModified())
+        assertIsFile(fileEntry, childFile)
 
         def linkEntry = files[2]
-        linkEntry.type == FileInfo.Type.Symlink
-        linkEntry.name == childLink.name
-        linkEntry.size == 0
-        assertTimestampMatches(linkEntry.lastModifiedTime, childLinkAttributes.lastModifiedTime().toMillis())
-        // Note java.io.File.lastModified() follows symbolic links, so the following assertions is not verified
-        //assertTimestampMatches(linkEntry.lastModifiedTime, childLink.lastModified())
+        assertIsSymlink(linkEntry, childLink)
 
         def missingEntry = files[3]
-        missingEntry.type == FileInfo.Type.Symlink
-        missingEntry.name == childMissingLink.name
-        missingEntry.size == 0
-        assertTimestampMatches(missingEntry.lastModifiedTime, childMissingLinkAttributes.lastModifiedTime().toMillis())
+        assertIsSymlink(missingEntry, childMissingLink)
 
         where:
         fileName << names
     }
 
     @IgnoreIf({ !FilesTest.supportsSymbolicLinks() })
+    @Unroll
     def "can list contents of a directory with symbolic links and follow links option"() {
         // We can't run this test with long paths on Windows, because the createDirectorySymbolicLink
         // and createFileSymbolicLink methods use the "mklink" command on that platform, and it is currently
@@ -525,10 +517,8 @@ class FilesTest extends AbstractFilesTest {
 
         def childDir = new File(testFile, testFile.name + ".a")
         childDir.mkdirs()
-        def childDirAttributes = attributes(childDir)
         def childFile = new File(testFile, testFile.name + ".b")
         childFile.text = 'contents'
-        def childFileAttributes = attributes(childFile)
 
         def childLink = new File(testFile, testFile.name + ".link")
         createFileSymbolicLink(childLink, childFile.name)
@@ -544,31 +534,16 @@ class FilesTest extends AbstractFilesTest {
         files.sort { it.name }
 
         def dirEntry = files[0]
-        dirEntry.type == FileInfo.Type.Directory
-        dirEntry.name == childDir.name
-        dirEntry.size == 0L
-        assertTimestampMatches(dirEntry.lastModifiedTime, childDirAttributes.lastModifiedTime().toMillis())
-        assertTimestampMatches(dirEntry.lastModifiedTime, childDir.lastModified())
+        assertIsDirectory(dirEntry, childDir)
 
         def fileEntry = files[1]
-        fileEntry.type == FileInfo.Type.File
-        fileEntry.name == childFile.name
-        fileEntry.size == 8
-        assertTimestampMatches(fileEntry.lastModifiedTime, childFileAttributes.lastModifiedTime().toMillis())
-        assertTimestampMatches(fileEntry.lastModifiedTime, childFile.lastModified())
+        assertIsFile(fileEntry, childFile)
 
         def linkEntry = files[2]
-        linkEntry.type == FileInfo.Type.File
-        linkEntry.name == childLink.name
-        linkEntry.size == fileEntry.size
-        assertTimestampMatches(linkEntry.lastModifiedTime, childFileAttributes.lastModifiedTime().toMillis())
-        assertTimestampMatches(linkEntry.lastModifiedTime, childFile.lastModified())
+        assertIsFile(linkEntry, childFile, childLink.name)
 
         def missingEntry = files[3]
-        missingEntry.type == FileInfo.Type.Missing
-        missingEntry.name == childMissingLink.name
-        missingEntry.size == 0
-        missingEntry.lastModifiedTime == 0
+        assertIsMissing(missingEntry, childMissingLink.name)
 
         where:
         fileName << names
@@ -578,10 +553,8 @@ class FilesTest extends AbstractFilesTest {
         def testFile = tmpDir.newFolder("test.dir")
         def childDir = new File(testFile, "dir.a")
         childDir.mkdirs()
-        def childDirAttributes = attributes(childDir)
         def childFile = new File(testFile, "file.b")
         childFile.text = 'contents'
-        def childFileAttributes = attributes(childFile)
 
         when:
         def files = files.listDir(testFile, followLinks)
@@ -591,18 +564,10 @@ class FilesTest extends AbstractFilesTest {
         files.sort { it.name }
 
         def dirEntry = files[0]
-        dirEntry.type == FileInfo.Type.Directory
-        dirEntry.name == childDir.name
-        dirEntry.size == 0L
-        assertTimestampMatches(dirEntry.lastModifiedTime, childDirAttributes.lastModifiedTime().toMillis())
-        assertTimestampMatches(dirEntry.lastModifiedTime, childDir.lastModified())
+        assertIsDirectory(dirEntry, childDir)
 
         def fileEntry = files[1]
-        fileEntry.type == FileInfo.Type.File
-        fileEntry.name == childFile.name
-        fileEntry.size == 8
-        assertTimestampMatches(fileEntry.lastModifiedTime, childFileAttributes.lastModifiedTime().toMillis())
-        assertTimestampMatches(fileEntry.lastModifiedTime, childFile.lastModified())
+        assertIsFile(fileEntry, childFile)
 
         where:
         followLinks << [true, false]

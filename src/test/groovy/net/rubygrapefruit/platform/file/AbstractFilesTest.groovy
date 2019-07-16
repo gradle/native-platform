@@ -23,6 +23,8 @@ import java.nio.file.LinkOption
 import java.nio.file.Paths
 import java.nio.file.attribute.BasicFileAttributeView
 import java.nio.file.attribute.BasicFileAttributes
+import java.nio.file.attribute.PosixFileAttributes
+import static java.nio.file.attribute.PosixFilePermission.*
 
 class AbstractFilesTest extends Specification {
     BasicFileAttributes attributes(File file) {
@@ -38,6 +40,17 @@ class AbstractFilesTest extends Specification {
 
     void assertTimestampMatches(long statTime, long javaTime) {
         assert maybeRoundToNearestSecond(statTime) == maybeRoundToNearestSecond(javaTime)
+    }
+
+    int mode(PosixFileAttributes attributes) {
+        int mode = 0
+        [OWNER_READ, OWNER_WRITE, OWNER_EXECUTE, GROUP_READ, GROUP_WRITE, GROUP_EXECUTE, OTHERS_READ, OTHERS_WRITE, OTHERS_EXECUTE].each {
+            mode = mode << 1
+            if (attributes.permissions().contains(it)) {
+                mode |= 1
+            }
+        }
+        return mode
     }
 
     static boolean supportsSymbolicLinks() {
