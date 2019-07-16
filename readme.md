@@ -49,7 +49,7 @@ See [Process](src/main/java/net/rubygrapefruit/platform/Process.java)
 ### File systems
 
 * Query and set UNIX file mode.
-* Create and read symbolic links.
+* Create and read symbolic links on UNIX and Windows.
 * Query UNIX file uid and gid.
 * Query file type, size and timestamps.
 * Query directory contents.
@@ -83,6 +83,7 @@ Currently ported to OS X, Linux, FreeBSD and Windows. Support for Solaris is a w
 * OS X, version 10.9 and later (x86_64)
 * Fedora 23 and later (amd64, i386).
 * Ubuntu 8.04 and later (amd64, i386).
+* Ubuntu 18.04 and later (aarch64).
 * FreeBSD 8.4 and later (amd64, i386).
 * Windows XP and later (amd64, i386). Console integration works with cmd.exe, powershell, ConEmu, Mintty from Cygwin, Mintty from Msys (includes Git for Windows).
 
@@ -122,6 +123,7 @@ Some sample code to use the terminal:
 
 ### Next version
 
+* Support for symlinks on Windows. Thanks to [Renaud Paquay](https://github.com/rpaquay).
 * Fixed handling of long paths on Windows. Thanks to [Renaud Paquay](https://github.com/rpaquay).
 * Support for Linux on aarch64. Thanks to [Amey](https://github.com/ameyp). 
 
