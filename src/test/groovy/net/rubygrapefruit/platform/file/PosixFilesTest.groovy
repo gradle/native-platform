@@ -218,7 +218,7 @@ class PosixFilesTest extends FilesTest {
         files.stat(testFile).mode == fileMode
 
         where:
-        fileName << ["test.txt", "test\u03b1\u2295.txt", "test2.txt"]
+        fileName << maybeWithUnicde(["test.txt", "test\u03b1\u2295.txt", "test2.txt"])
         fileMode << [0777, 0740, 0644]
     }
 
@@ -235,7 +235,7 @@ class PosixFilesTest extends FilesTest {
         files.stat(testFile).mode == fileMode
 
         where:
-        fileName << ["test-dir", "test\u03b1\u2295-dir", "test2.txt"]
+        fileName << maybeWithUnicde(["test-dir", "test\u03b1\u2295-dir", "test2.txt"])
         fileMode << [0777, 0740, 0644]
     }
 

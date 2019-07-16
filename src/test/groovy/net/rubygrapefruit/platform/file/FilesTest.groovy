@@ -27,13 +27,13 @@ import static org.junit.Assume.assumeFalse
 
 abstract class FilesTest extends AbstractFilesTest {
     @Shared
-    def names = [
+    def names = maybeWithUnicde([
             "test.txt",
             "test\u03b1\u2295.txt",
             "nested/test",
             // Long name
             (0..25).inject("") { s, v -> s + "/1234567890" }
-    ]
+    ])
     @Rule
     TemporaryFolder tmpDir
     final def files = Native.get(Files.class)
@@ -295,7 +295,7 @@ abstract class FilesTest extends AbstractFilesTest {
     }
 
     @Unroll
-    def "can stat a missing file when something in the path matches an existing file"() {
+    def "can stat a missing file when something in the path matches an existing file = #dirName"() {
         def testDir = tmpDir.newFile(dirName)
         def testFile = new File(testDir, fileName)
 
@@ -306,10 +306,10 @@ abstract class FilesTest extends AbstractFilesTest {
         assertIsMissing(stat)
 
         where:
-        dirName                | fileName
-        "test-dir"             | "test-file"
-        "test\u03b1\u2295-dir" | "test-file"
-        "test-dir1"            | "test-dir2/test-file"
+        dirName                                 | fileName
+        "test-dir"                              | "test-file"
+        maybeWithUnicde("test\u03b1\u2295-dir") | "test-file"
+        "test-dir1"                             | "test-dir2/test-file"
     }
 
     @Unroll
