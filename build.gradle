@@ -126,10 +126,6 @@ model {
             architecture "aarch64"
             operatingSystem "linux"
         }
-        linux_aarch64_ncurses6 {
-            architecture "aarch64"
-            operatingSystem "linux"
-        }
         windows_i386 {
             architecture "i386"
             operatingSystem "windows"
