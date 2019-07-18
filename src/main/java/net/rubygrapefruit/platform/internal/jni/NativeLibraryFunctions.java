@@ -21,7 +21,7 @@ import net.rubygrapefruit.platform.internal.MutableSystemInfo;
 import net.rubygrapefruit.platform.terminal.Terminals;
 
 public class NativeLibraryFunctions {
-    public static final int VERSION = 30;
+    public static final int VERSION = 31;
 
     public static final int STDOUT = Terminals.Output.Stdout.ordinal();
     public static final int STDERR = Terminals.Output.Stderr.ordinal();

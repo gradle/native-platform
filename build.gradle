@@ -16,7 +16,7 @@ allprojects {
     group = 'net.rubygrapefruit'
 
     versions {
-        nextVersion = '0.18'
+        nextVersion = '0.19'
         nextSnapshot = '1'
     }
 

@@ -97,7 +97,7 @@ this:
     }
 
     dependencies {
-        compile "net.rubygrapefruit:native-platform:0.17"
+        compile "net.rubygrapefruit:native-platform:0.18"
     }
 
 You can also download [here](https://bintray.com/adammurdoch/maven/net.rubygrapefruit%3Anative-platform-test)
@@ -122,6 +122,8 @@ Some sample code to use the terminal:
 ## Changes
 
 ### Next version
+
+### 0.18
 
 * Support for symlinks on Windows. Thanks to [Renaud Paquay](https://github.com/rpaquay).
 * Fixed handling of long paths on Windows. Thanks to [Renaud Paquay](https://github.com/rpaquay).
