@@ -31,10 +31,6 @@ import java.nio.CharBuffer;
 import java.util.List;
 
 public class DefaultWindowsFiles extends AbstractFiles implements WindowsFiles {
-    private static final int FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400;
-    private static final int FILE_ATTRIBUTE_DIRECTORY = 0x00000010;
-    private static final int IO_REPARSE_TAG_SYMLINK = 0xA000000C;
-
     private DirectoryLister directoryLister;
 
     public WindowsFileInfo stat(File file) throws NativeException {
@@ -79,14 +75,18 @@ public class DefaultWindowsFiles extends AbstractFiles implements WindowsFiles {
     }
 
     private class FastLister implements DirectoryLister {
-        static final int SIZEOF_WCHAR = 2;
-        static final int OFFSETOF_NEXT_ENTRY_OFFSET = 0;
-        static final int OFFSETOF_LAST_WRITE_TIME = 24;
-        static final int OFFSETOF_END_OF_FILE = 40;
-        static final int OFFSETOF_FILE_ATTRIBUTES = 56;
-        static final int OFFSETOF_FILENAME_LENGTH = 60;
-        static final int OFFSETOF_EA_SIZE = 64;
-        static final int OFFSETOF_FILENAME = 80;
+        private static final int FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400;
+        private static final int FILE_ATTRIBUTE_DIRECTORY = 0x00000010;
+        private static final int IO_REPARSE_TAG_SYMLINK = 0xA000000C;
+
+        private static final int SIZEOF_WCHAR = 2;
+        private static final int OFFSETOF_NEXT_ENTRY_OFFSET = 0;
+        private static final int OFFSETOF_LAST_WRITE_TIME = 24;
+        private static final int OFFSETOF_END_OF_FILE = 40;
+        private static final int OFFSETOF_FILE_ATTRIBUTES = 56;
+        private static final int OFFSETOF_FILENAME_LENGTH = 60;
+        private static final int OFFSETOF_EA_SIZE = 64;
+        private static final int OFFSETOF_FILENAME = 80;
 
         /**
          * We use a thread local context to store a weak reference to a {@link NtQueryDirectoryFileContext}

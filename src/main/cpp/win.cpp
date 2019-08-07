@@ -604,7 +604,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_readdir(JNIEn
 }
 
 //
-// Returns "true" is the various fastReaddirXxx calls are supported on this platform.
+// Returns "true" if the various fastReaddirXxx calls are supported on this platform.
 //
 JNIEXPORT jboolean JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_fastReaddirIsSupported(JNIEnv *env, jclass target) {
@@ -642,7 +642,8 @@ NTSTATUS invokeNtQueryDirectoryFile(HANDLE handle, BYTE* buffer, ULONG bufferSiz
 #endif
 
 //
-// Returns a DirectByteBuffer pointing to a |fast_readdir_handle| structure on success
+// Opens a directory for file enumeration and returns a handle to a |fast_readdir_handle| structure
+// on success. The handle must be released by calling "xxx_fastReaddirClose" when done.
 // Returns NULL on failure (and sets error message in |result|).
 //
 JNIEXPORT jlong JNICALL
@@ -679,7 +680,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_fastReaddirOp
 }
 
 //
-// Releases all native resources associted to the passed in |handle| (a pointer to |fast_readdir_handle_t|).
+// Releases all native resources associated with |handle|, a pointer to |fast_readdir_handle|.
 //
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_fastReaddirClose(JNIEnv *env, jclass target, jlong handle) {
