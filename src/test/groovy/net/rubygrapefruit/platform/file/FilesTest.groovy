@@ -41,6 +41,7 @@ abstract class FilesTest extends AbstractFilesTest {
     void assertIsFile(FileInfo stat, File file) {
         assert stat.type == FileInfo.Type.File
         assert stat.size == file.length()
+        assert stat.key != null
         def attributes = attributes(file)
         assertTimestampMatches(stat.lastModifiedTime, attributes.lastModifiedTime().toMillis())
         assertTimestampMatches(stat.lastModifiedTime, file.lastModified())
@@ -50,6 +51,7 @@ abstract class FilesTest extends AbstractFilesTest {
         assert entry.type == FileInfo.Type.File
         assert entry.name == name
         assert entry.size == file.length()
+        assert entry.key != null
         def attributes = attributes(file)
         assertTimestampMatches(entry.lastModifiedTime, attributes.lastModifiedTime().toMillis())
         assertTimestampMatches(entry.lastModifiedTime, file.lastModified())
@@ -58,6 +60,7 @@ abstract class FilesTest extends AbstractFilesTest {
     void assertIsDirectory(FileInfo stat, File file) {
         assert stat.type == FileInfo.Type.Directory
         assert stat.size == 0
+        assert stat.key != null
         def attributes = attributes(file)
         assertTimestampMatches(stat.lastModifiedTime, attributes.lastModifiedTime().toMillis())
         assertTimestampMatches(stat.lastModifiedTime, file.lastModified())
@@ -67,6 +70,7 @@ abstract class FilesTest extends AbstractFilesTest {
         assert entry.type == FileInfo.Type.Directory
         assert entry.name == file.name
         assert entry.size == 0
+        assert entry.key != null
         def attributes = attributes(file)
         assertTimestampMatches(entry.lastModifiedTime, attributes.lastModifiedTime().toMillis())
         assertTimestampMatches(entry.lastModifiedTime, file.lastModified())
@@ -75,6 +79,7 @@ abstract class FilesTest extends AbstractFilesTest {
     void assertIsSymlink(FileInfo stat, File file) {
         assert stat.type == FileInfo.Type.Symlink
         assert stat.size == 0
+        assert stat.key != null
         def attributes = attributes(file)
         assertTimestampMatches(stat.lastModifiedTime, attributes.lastModifiedTime().toMillis())
         // Can't check `file.lastModified()` as it follows symlinks
@@ -84,6 +89,7 @@ abstract class FilesTest extends AbstractFilesTest {
         assert entry.type == FileInfo.Type.Symlink
         assert entry.name == file.name
         assert entry.size == 0
+        assert entry.key != null
         def attributes = attributes(file)
         assertTimestampMatches(entry.lastModifiedTime, attributes.lastModifiedTime().toMillis())
         // Can't check `file.lastModified()` as it follows symlinks
@@ -93,6 +99,7 @@ abstract class FilesTest extends AbstractFilesTest {
         assert stat.type == FileInfo.Type.Missing
         assert stat.size == 0
         assert stat.lastModifiedTime == 0
+        assert stat.key == null
     }
 
     void assertIsMissing(DirEntry entry, String name) {
@@ -100,6 +107,7 @@ abstract class FilesTest extends AbstractFilesTest {
         assert entry.name == name
         assert entry.size == 0
         assert entry.lastModifiedTime == 0
+        assert entry.key == null
     }
 
     def "caches file instance"() {
@@ -495,6 +503,7 @@ abstract class FilesTest extends AbstractFilesTest {
 
         def linkEntry = files[2]
         assertIsSymlink(linkEntry, childLink)
+        assert linkEntry.key != fileEntry.key
 
         def missingEntry = files[3]
         assertIsSymlink(missingEntry, childMissingLink)
@@ -541,6 +550,7 @@ abstract class FilesTest extends AbstractFilesTest {
 
         def linkEntry = files[2]
         assertIsFile(linkEntry, childFile, childLink.name)
+        assert linkEntry.key == fileEntry.key
 
         def missingEntry = files[3]
         assertIsMissing(missingEntry, childMissingLink.name)

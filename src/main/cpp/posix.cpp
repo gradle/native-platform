@@ -105,14 +105,14 @@ void unpackStat(struct stat* source, file_stat_t* result) {
 #else
     result->lastModified = toMillis(source->st_mtimespec);
 #endif
-    result->volumeId = 0;
-    result->fileId = 0;
+    result->volumeId = (jint)source->st_dev;
+    result->fileId = (jlong)source->st_ino;
 }
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *env, jclass target, jstring path, jboolean followLink, jobject dest, jobject result) {
     jclass destClass = env->GetObjectClass(dest);
-    jmethodID mid = env->GetMethodID(destClass, "details", "(IIIIJJI)V");
+    jmethodID mid = env->GetMethodID(destClass, "details", "(IIIIJJIIJ)V");
     if (mid == NULL) {
         mark_failed_with_message(env, "could not find method", result);
         return;
@@ -136,7 +136,7 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *en
     }
 
     if (retval != 0) {
-        env->CallVoidMethod(dest, mid, FILE_TYPE_MISSING, (jint)0, (jint)0, (jint)0, (jlong)0, (jlong)0, (jint)0);
+        env->CallVoidMethod(dest, mid, FILE_TYPE_MISSING, (jint)0, (jint)0, (jint)0, (jlong)0, (jlong)0, (jint)0, (jint)0, (jlong)0);
     } else {
         file_stat_t fileResult;
         unpackStat(&fileInfo, &fileResult);
@@ -148,14 +148,16 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv *en
                             (jint)fileInfo.st_gid,
                             fileResult.size,
                             fileResult.lastModified,
-                            (jint)fileInfo.st_blksize);
+                            (jint)fileInfo.st_blksize,
+                            fileResult.volumeId,
+                            fileResult.fileId);
     }
 }
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_readdir(JNIEnv *env, jclass target, jstring path, jboolean followLink, jobject contents, jobject result) {
     jclass contentsClass = env->GetObjectClass(contents);
-    jmethodID mid = env->GetMethodID(contentsClass, "addFile", "(Ljava/lang/String;IJJ)V");
+    jmethodID mid = env->GetMethodID(contentsClass, "addFile", "(Ljava/lang/String;IJJIJ)V");
     if (mid == NULL) {
         mark_failed_with_message(env, "could not find method", result);
         return;
@@ -216,7 +218,8 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_readdir(JNIEnv 
         }
 
         jstring childName = char_to_java(env, entry.d_name, result);
-        env->CallVoidMethod(contents, mid, childName, fileResult.fileType, fileResult.size, fileResult.lastModified);
+        env->CallVoidMethod(contents, mid, childName, fileResult.fileType, fileResult.size, fileResult.lastModified,
+                            fileResult.volumeId, fileResult.fileId);
     }
 
     closedir(dir);

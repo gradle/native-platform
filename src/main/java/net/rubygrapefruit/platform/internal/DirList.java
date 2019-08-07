@@ -28,16 +28,18 @@ public class DirList {
     // Called from native code
     @SuppressWarnings("UnusedDeclaration")
     public void addFile(String name, int type, long size, long lastModified) {
-        addFile(name, FileInfo.Type.values()[type], size, lastModified);
+        addFile(name, type, size, lastModified, 0 ,0);
     }
 
-    void addFile(String name, FileInfo.Type type, long size, long lastModified) {
-        DefaultDirEntry fileStat = new DefaultDirEntry(name, type, size, lastModified);
-        addEntry(fileStat);
+    // Called from native code
+    @SuppressWarnings("UnusedDeclaration")
+    public void addFile(String name, int type, long size, long lastModified, int volumeId, long fileId) {
+        addFile(name, FileInfo.Type.values()[type], size, lastModified, volumeId, fileId);
     }
 
-    void addEntry(DirEntry entry) {
-        files.add(entry);
+    void addFile(String name, FileInfo.Type type, long size, long lastModified, int volumeId, long fileId) {
+        DefaultDirEntry fileStat = new DefaultDirEntry(name, type, size, lastModified, volumeId, fileId);
+        files.add(fileStat);
     }
 
     protected static class DefaultDirEntry implements DirEntry {
@@ -45,12 +47,18 @@ public class DirList {
         private final Type type;
         private final long size;
         private final long lastModified;
+        private final int volumeId;
+        private final long fileId;
+        // Lazily initialized to avoid extra allocation if not needed
+        private volatile FileKey key;
 
-        DefaultDirEntry(String name, Type type, long size, long lastModified) {
+        DefaultDirEntry(String name, Type type, long size, long lastModified, int volumeId, long fileId) {
             this.name = name;
             this.type = type;
             this.size = size;
             this.lastModified = lastModified;
+            this.volumeId = volumeId;
+            this.fileId = fileId;
         }
 
         @Override
@@ -75,7 +83,18 @@ public class DirList {
         }
 
         public Object getKey() {
-            return null;
+            if (volumeId == 0 && fileId == 0) {
+                return null;
+            }
+            if (key == null) {
+                synchronized (this) {
+                    if (key == null) {
+                        key = new FileKey(volumeId, fileId);
+                    }
+                }
+            }
+            return key;
         }
+
     }
 }

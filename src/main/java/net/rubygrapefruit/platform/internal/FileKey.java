@@ -1,10 +1,10 @@
 package net.rubygrapefruit.platform.internal;
 
-final class WindowsFileKey {
+final class FileKey {
     private final int volumeId;
     private final long fileId;
 
-    WindowsFileKey(int volumeId, long fileId) {
+    FileKey(int volumeId, long fileId) {
         this.volumeId = volumeId;
         this.fileId = fileId;
     }
@@ -18,10 +18,10 @@ final class WindowsFileKey {
     public boolean equals(Object obj) {
         if (obj == this)
             return true;
-        if (!(obj instanceof WindowsFileKey))
+        if (!(obj instanceof FileKey))
             return false;
 
-        WindowsFileKey other = (WindowsFileKey) obj;
+        FileKey other = (FileKey) obj;
         return (this.volumeId == other.volumeId) &&
                 (this.fileId == other.fileId);
     }
@@ -36,4 +36,5 @@ final class WindowsFileKey {
                 .append(')');
         return sb.toString();
     }
+
 }
