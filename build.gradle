@@ -251,7 +251,11 @@ model {
                 if (targetPlatform.operatingSystem.linux && !targetPlatform.name.contains("curses${ncursesVersion}")) {
                     buildable = false
                 }
-                linker.args "-lcurses"
+                if (targetPlatform.operatingSystem.linux && ncursesVersion != "5") {
+                    linker.args "-lncursesw"
+                } else {
+                    linker.args "-lcurses"
+                }
             }
         }
 

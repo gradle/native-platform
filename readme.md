@@ -123,6 +123,10 @@ Some sample code to use the terminal:
 
 ### Next version
 
+### 0.19
+
+* Fix terminal integration on Arch linux.  
+
 ### 0.18
 
 * Support for symlinks on Windows. Thanks to [Renaud Paquay](https://github.com/rpaquay).
