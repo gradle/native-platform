@@ -48,6 +48,8 @@ Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getSystemIn
     env->SetObjectField(info, osVersionField, char_to_java(env, machine_info.release, result));
     jfieldID machineArchitectureField = env->GetFieldID(infoClass, "machineArchitecture", "Ljava/lang/String;");
     env->SetObjectField(info, machineArchitectureField, char_to_java(env, machine_info.machine, result));
+    jfieldID hostnameField = env->GetFieldID(infoClass, "hostname", "Ljava/lang/String;");
+    env->SetObjectField(info, hostnameField, char_to_java(env, machine_info.nodename, result));
 }
 
 JNIEXPORT void JNICALL

@@ -24,6 +24,7 @@ public class MutableSystemInfo implements SystemInfo {
     public String osName;
     public String osVersion;
     public String machineArchitecture;
+    public String hostname;
 
     public String getKernelName() {
         return osName;
@@ -35,6 +36,10 @@ public class MutableSystemInfo implements SystemInfo {
 
     public String getArchitectureName() {
         return machineArchitecture;
+    }
+
+    public String getHostname() {
+        return hostname;
     }
 
     public Architecture getArchitecture() {

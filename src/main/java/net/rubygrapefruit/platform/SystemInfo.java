@@ -46,4 +46,10 @@ public interface SystemInfo extends NativeIntegration {
      */
     @ThreadSafe
     Architecture getArchitecture();
+
+    /**
+     * Returns the machine hostname, as reported by the operating system.
+     */
+    @ThreadSafe
+    String getHostname();
 }

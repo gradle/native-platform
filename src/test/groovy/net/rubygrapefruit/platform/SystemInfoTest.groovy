@@ -35,5 +35,6 @@ class SystemInfoTest extends Specification {
         systemInfo.kernelVersion
         systemInfo.architectureName
         systemInfo.architecture
+        systemInfo.hostname
     }
 }
