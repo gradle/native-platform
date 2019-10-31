@@ -275,11 +275,19 @@ Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getSystemIn
     } else {
         arch = env->NewStringUTF("unknown");
     }
+    
+    jstring hostname = NULL;
+    DWORD cnSize = MAX_COMPUTERNAME_LENGTH + 1;
+    wchar_t* computerName = (wchar_t*)malloc(sizeof(wchar_t) * cnSize);
+    if (GetComputerNameW(computerName, &cnSize)) {
+        hostname = wchar_to_java(env, computerName, cnSize, result);
+    }
+    free(computerName);
 
-    jmethodID method = env->GetMethodID(infoClass, "windows", "(IIIZLjava/lang/String;)V");
+    jmethodID method = env->GetMethodID(infoClass, "windows", "(IIIZLjava/lang/String;Ljava/lang/String;)V");
     env->CallVoidMethod(info, method, versionInfo.dwMajorVersion, versionInfo.dwMinorVersion,
                         versionInfo.dwBuildNumber, versionInfo.wProductType == VER_NT_WORKSTATION,
-                        arch);
+                        arch, hostname);
 }
 
 /*

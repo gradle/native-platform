@@ -57,10 +57,11 @@ public class MutableSystemInfo implements SystemInfo {
     }
 
     // Called from native code
-    void windows(int major, int minor, int build, boolean workstation, String arch) {
+    void windows(int major, int minor, int build, boolean workstation, String arch, String host) {
         osName = toWindowsVersionName(major, minor, workstation);
         osVersion = String.format("%s.%s (build %s)", major, minor, build);
         machineArchitecture = arch;
+        hostname = host;
     }
 
     private String toWindowsVersionName(int major, int minor, boolean workstation) {
