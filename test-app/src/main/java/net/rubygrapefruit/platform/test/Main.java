@@ -323,6 +323,7 @@ public class Main {
 
         SystemInfo systemInfo = Native.get(SystemInfo.class);
         System.out.println("* OS (Kernel): " + systemInfo.getKernelName() + ' ' + systemInfo.getKernelVersion() + ' ' + systemInfo.getArchitectureName() + " (" + systemInfo.getArchitecture() + ")");
+        System.out.println("* Hostname: " + systemInfo.getHostname());
 
         Process process = Native.get(Process.class);
         System.out.println("* PID: " + process.getProcessId());

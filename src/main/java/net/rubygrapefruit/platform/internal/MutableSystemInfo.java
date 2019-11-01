@@ -24,6 +24,7 @@ public class MutableSystemInfo implements SystemInfo {
     public String osName;
     public String osVersion;
     public String machineArchitecture;
+    public String hostname;
 
     public String getKernelName() {
         return osName;
@@ -35,6 +36,10 @@ public class MutableSystemInfo implements SystemInfo {
 
     public String getArchitectureName() {
         return machineArchitecture;
+    }
+
+    public String getHostname() {
+        return hostname;
     }
 
     public Architecture getArchitecture() {
@@ -52,10 +57,11 @@ public class MutableSystemInfo implements SystemInfo {
     }
 
     // Called from native code
-    void windows(int major, int minor, int build, boolean workstation, String arch) {
+    void windows(int major, int minor, int build, boolean workstation, String arch, String host) {
         osName = toWindowsVersionName(major, minor, workstation);
         osVersion = String.format("%s.%s (build %s)", major, minor, build);
         machineArchitecture = arch;
+        hostname = host;
     }
 
     private String toWindowsVersionName(int major, int minor, boolean workstation) {

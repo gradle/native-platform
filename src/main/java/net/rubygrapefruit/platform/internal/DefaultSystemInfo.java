@@ -47,4 +47,8 @@ public class DefaultSystemInfo implements SystemInfo {
     public Architecture getArchitecture() {
         return systemInfo.getArchitecture();
     }
+
+    public String getHostname() {
+        return systemInfo.getHostname();
+    }
 }
