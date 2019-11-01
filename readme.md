@@ -101,7 +101,9 @@ this:
         compile "net.rubygrapefruit:native-platform:0.19"
     }
 
-You can also download [here](https://bintray.com/adammurdoch/maven/net.rubygrapefruit%3Anative-platform-test)
+You can also download the Jars from [bintray](https://bintray.com/adammurdoch/maven/net.rubygrapefruit%3Anative-platform)
+
+A test application is also available from [bintray](https://bintray.com/adammurdoch/maven/net.rubygrapefruit%3Anative-platform-test)
 
 Some sample code to use the terminal:
 
