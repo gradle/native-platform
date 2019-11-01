@@ -33,6 +33,7 @@ See [Prompter](src/main/java/net/rubygrapefruit/platform/prompts/Prompter.java)
 
 * Query kernel name and version.
 * Query machine architecture.
+* Query hostname.
 * Query total and available memory (OS X only).
 
 See [SystemInfo](src/main/java/net/rubygrapefruit/platform/SystemInfo.java)
@@ -123,9 +124,9 @@ Some sample code to use the terminal:
 
 ### Next version
 
-### 0.19
-
-* Fix terminal integration on Arch linux.  
+* Added `SystemInfo.getHostname()`. Thanks to [Tom Dunstan](https://github.com/tomdcc)
+* Fixed terminal integration on Arch linux.  
+* Fixed terminal integration on Amazon linux 2 aarch64.  
 
 ### 0.18
 
