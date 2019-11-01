@@ -62,7 +62,7 @@ See [Files](src/main/java/net/rubygrapefruit/platform/Files.java)
 * Query file system type.
 * Query file system device name.
 * Query whether a file system is local or remote.
-* Query whether a file system is case sensitive and case preserving.
+* Query whether a file system is case-sensitive and case preserving.
 
 See [FileSystems](src/main/java/net/rubygrapefruit/platform/FileSystems.java)
 
@@ -98,7 +98,7 @@ this:
     }
 
     dependencies {
-        compile "net.rubygrapefruit:native-platform:0.18"
+        compile "net.rubygrapefruit:native-platform:0.19"
     }
 
 You can also download [here](https://bintray.com/adammurdoch/maven/net.rubygrapefruit%3Anative-platform-test)
@@ -123,6 +123,8 @@ Some sample code to use the terminal:
 ## Changes
 
 ### Next version
+
+### 0.19
 
 * Added `SystemInfo.getHostname()`. Thanks to [Tom Dunstan](https://github.com/tomdcc)
 * Fixed terminal integration on Arch linux.  
@@ -282,7 +284,7 @@ You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 # Releasing
 
 1. Check the version number in `build.gradle`.
-2. Check that the native interface version has been incremented since last release, when changes have been made to native code.
+2. Check that the native interface version has been incremented since last release, when changes have been made to native code. (`git diff <tag> src/shared/headers/generic.h`)
 3. Build each variant.
     1. Checkout tag.
     2. `./gradlew clean :test :uploadJni -Prelease -PbintrayUserName=<> -PbintrayApiKey=<>`.
