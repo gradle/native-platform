@@ -5,20 +5,21 @@ plugins {
     id 'cpp'
 }
 
+apply plugin: ReleasePlugin
+
+versions {
+    nextVersion = '0.20'
+    nextSnapshot = '1'
+}
+
 allprojects {
     apply plugin: 'java'
-    apply plugin: ReleasePlugin
 
     repositories {
         jcenter()
     }
 
     group = 'net.rubygrapefruit'
-
-    versions {
-        nextVersion = '0.20'
-        nextSnapshot = '1'
-    }
 
     sourceCompatibility = 1.5
     targetCompatibility = 1.5
