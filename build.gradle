@@ -29,6 +29,8 @@ dependencies {
     testCompile 'org.spockframework:spock-core:1.0-groovy-2.4'
 }
 
+boolean onlyPrimaryVariants = project.hasProperty("onlyPrimaryVariants")
+
 def nativeHeadersDir = file("$buildDir/nativeHeaders")
 
 task nativeHeaders {
@@ -294,6 +296,12 @@ model {
             }
 
             binaries.withType(SharedLibraryBinarySpec) { binary ->
+                def targetOs = binary.targetPlatform.operatingSystem
+                def targetArch = binary.targetPlatform.architecture
+                def includeVariant = !onlyPrimaryVariants || targetOs.windows || targetOs.macOsX || (targetOs.linux && targetArch.name == "x86-64" && !targetPlatform.name.contains("ncurses6"))
+                if (!includeVariant) {
+                    return
+                }
                 def variantName = targetPlatform.name.replace('_', '-')
                 variantNames << variantName
 
