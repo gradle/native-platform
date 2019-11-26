@@ -1,7 +1,5 @@
-import org.gradle.api.Action;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
-import org.gradle.api.artifacts.repositories.MavenArtifactRepository;
 import org.gradle.authentication.http.BasicAuthentication;
 
 import java.time.ZoneOffset;
@@ -16,28 +14,32 @@ import java.util.stream.Collectors;
  * Takes care of adding tasks and configurations to build developer distributions and releases.
  */
 public class ReleasePlugin implements Plugin<Project> {
+    public static final String SNAPSHOT_REPOSITORY_URL = "https://repo.gradle.org/gradle/ext-snapshots-local";
+    private static final String RELEASES_REPOSITORY_URL = "https://dl.bintray.com/adammurdoch/maven";
+
     private static final DateTimeFormatter SNAPSHOT_TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmssZ", Locale.US).withZone(ZoneOffset.UTC);
 
     @Override
     public void apply(final Project project) {
         project.getPlugins().apply(UploadPlugin.class);
+        project.getPlugins().apply(PublishSnapshotPlugin.class);
 
         VersionDetails.BuildType buildType = determineBuildType(project);
         VersionDetails versions = project.getExtensions().create("versions", VersionDetails.class, buildType);
         project.setVersion(new VersionCalculator(versions, buildType));
 
-        // Use authenticated bintray repo while building a test distribution during snapshot/release
+        // Use authenticated snapshot/bintray repo while building a test distribution during snapshot/release
         final BintrayCredentials credentials = project.getExtensions().getByType(BintrayCredentials.class);
         if (versions.isUseRepo()) {
-//            credentials.assertPresent();
-            project.getRepositories().maven(new Action<MavenArtifactRepository>() {
-                @Override
-                public void execute(MavenArtifactRepository repo) {
-                    repo.setUrl("https://dl.bintray.com/adammurdoch/maven");
-                    repo.getCredentials().setUsername(credentials.getUserName());
-                    repo.getCredentials().setPassword(credentials.getApiKey());
-                    repo.getAuthentication().create("basic", BasicAuthentication.class);
-                }
+            credentials.assertPresent();
+            String repositoryUrl = buildType == VersionDetails.BuildType.Snapshot
+                    ? SNAPSHOT_REPOSITORY_URL
+                    : RELEASES_REPOSITORY_URL;
+            project.getRepositories().maven(repo -> {
+                repo.setUrl(repositoryUrl);
+                repo.getCredentials().setUsername(credentials.getUserName());
+                repo.getCredentials().setPassword(credentials.getApiKey());
+                repo.getAuthentication().create("basic", BasicAuthentication.class);
             });
         }
     }

@@ -17,7 +17,7 @@ public class UploadTask extends BintrayTask {
         dependsOn(new Callable<Task>() {
             @Override
             public Task call() {
-                return getProject().getTasks().getByName("publish" + capitalize(publication.getName()) + "PublicationToMavenRepository");
+                return getProject().getTasks().getByName(BasePublishPlugin.publishTaskName(publication, "Maven"));
             }
         });
     }
@@ -73,11 +73,5 @@ public class UploadTask extends BintrayTask {
 
     private URI uploadUrl(String groupId, String artifactId, String mavenPath) throws URISyntaxException {
         return new URI("https://api.bintray.com/maven/adammurdoch/maven/" + groupId + ":" + artifactId + "/" + mavenPath);
-    }
-
-    static String capitalize(String name) {
-        StringBuilder builder = new StringBuilder(name);
-        builder.setCharAt(0, Character.toUpperCase(builder.charAt(0)));
-        return builder.toString();
     }
 }
