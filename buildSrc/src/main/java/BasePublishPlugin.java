@@ -1,7 +1,6 @@
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.publish.Publication;
-import org.gradle.api.publish.maven.MavenPublication;
 
 public class BasePublishPlugin implements Plugin<Project> {
     @Override
@@ -16,7 +15,7 @@ public class BasePublishPlugin implements Plugin<Project> {
         }
     }
 
-    public static String publishTaskName(MavenPublication publication, String repository) {
+    public static String publishTaskName(Publication publication, String repository) {
         return "publish" + capitalize(publication.getName()) + "PublicationTo" + repository + "Repository";
     }
 

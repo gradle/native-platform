@@ -2,6 +2,7 @@ import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository;
+import org.gradle.api.publish.Publication;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.internal.ErroringAction;
@@ -33,19 +34,12 @@ public class UploadPlugin implements Plugin<Project> {
                 UpdatePackageMetadataTask update = project.getTasks().create("updatePackage" + capitalizedPublicationName, UpdatePackageMetadataTask.class);
                 update.setPublication(publication);
 
-                UploadTask upload = project.getTasks().create("uploadPackage" + capitalizedPublicationName, UploadTask.class);
+                UploadTask upload = project.getTasks().create(uploadTaskName(publication), UploadTask.class);
                 upload.setGroup("Upload");
                 upload.setDescription("Upload publication " + publication.getName());
                 upload.setLocalRepoDir(repoDir);
                 upload.setPublication(publication);
                 upload.dependsOn(update);
-                if (!BasePublishPlugin.isMainPublication(publication)) {
-                    Task uploadLifecycle = project.getTasks().maybeCreate("uploadJni");
-                    uploadLifecycle.setGroup("Upload");
-                    uploadLifecycle.setDescription("Upload all JNI publications");
-                    uploadLifecycle.dependsOn(upload);
-                }
-
             });
         });
         project.getGradle().getTaskGraph().whenReady(graph -> {
@@ -58,5 +52,9 @@ public class UploadPlugin implements Plugin<Project> {
                 }
             }
         });
+    }
+
+    public static String uploadTaskName(Publication publication) {
+        return "uploadPackage" + BasePublishPlugin.capitalize(publication.getName());
     }
 }

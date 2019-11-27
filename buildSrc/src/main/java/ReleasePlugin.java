@@ -1,5 +1,9 @@
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.Task;
+import org.gradle.api.publish.PublishingExtension;
+import org.gradle.api.publish.maven.MavenPublication;
+import org.gradle.api.tasks.TaskProvider;
 import org.gradle.authentication.http.BasicAuthentication;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,7 +65,33 @@ public class ReleasePlugin implements Plugin<Project> {
                     repo.getAuthentication().create("basic", BasicAuthentication.class);
                 });
             }
+
+            addUploadLifecycleTasks(subproject, buildType);
         });
+    }
+
+    private void addUploadLifecycleTasks(Project project, VersionDetails.BuildType buildType) {
+        Task uploadMainLifecycle = project.getTasks().maybeCreate("uploadMain");
+        uploadMainLifecycle.setGroup("Upload");
+        uploadMainLifecycle.setDescription("Upload Main publication");
+
+        Task uploadJniLifecycle = project.getTasks().maybeCreate("uploadJni");
+        uploadJniLifecycle.setGroup("Upload");
+        uploadJniLifecycle.setDescription("Upload all JNI publications");
+
+        project.getExtensions().configure(
+                PublishingExtension.class,
+                extension -> extension.getPublications().withType(MavenPublication.class, publication -> {
+                    String uploadTaskName = buildType == VersionDetails.BuildType.Snapshot
+                            ? PublishSnapshotPlugin.uploadTaskName(publication)
+                            : UploadPlugin.uploadTaskName(publication);
+                    TaskProvider<Task> uploadTask = project.getTasks().named(uploadTaskName);
+                    if (BasePublishPlugin.isMainPublication(publication)) {
+                        uploadMainLifecycle.dependsOn(uploadTask);
+                    } else {
+                        uploadJniLifecycle.dependsOn(uploadTask);
+                    }
+                }));
     }
 
     private void writeBuildTimestamp(String buildTimestamp, Project project) {
