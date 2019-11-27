@@ -3,7 +3,7 @@ import javax.inject.Inject;
 public class VersionDetails {
 
     public enum BuildType {
-        Dev, Milestone, Release
+        Dev, Snapshot, Milestone, Release
     }
 
     private String nextVersion;
