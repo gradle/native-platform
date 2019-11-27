@@ -27,8 +27,8 @@ dependencies {
 
 task sourceZip(type: Zip) {
     from sourceSets.main.allSource
-    classifier = 'sources'
-    extension = 'jar'
+    archiveClassifier = 'sources'
+    archiveExtension = 'jar'
 }
 
 publishing {

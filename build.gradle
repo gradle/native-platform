@@ -26,8 +26,8 @@ allprojects {
 }
 
 dependencies {
-    testCompile 'org.codehaus.groovy:groovy-all:2.4.1'
-    testCompile 'org.spockframework:spock-core:1.0-groovy-2.4'
+    testImplementation 'org.codehaus.groovy:groovy-all:2.4.1'
+    testImplementation 'org.spockframework:spock-core:1.0-groovy-2.4'
 }
 
 boolean onlyPrimaryVariants = project.hasProperty("onlyPrimaryVariants")
@@ -314,10 +314,10 @@ model {
                 def nativeJar = project.tasks.findByName(taskName)
                 if (nativeJar == null) {
                     nativeJar = project.tasks.create(taskName, Jar) {
-                        baseName = "native-platform-$variantName"
+                        archiveBaseName = "native-platform-$variantName"
                     }
                     artifacts {
-                        runtime nativeJar
+                        runtimeElements nativeJar
                     }
                     publishing {
                         publications {
@@ -330,7 +330,7 @@ model {
                                     classifier = "javadoc"
                                 }
                                 groupId = project.group
-                                artifactId = nativeJar.baseName
+                                artifactId = nativeJar.archiveBaseName.get()
                                 version = project.version
                             }
                         }
@@ -356,7 +356,7 @@ publishing {
     publications {
         main(MavenPublication) {
             groupId = project.group
-            artifactId = jar.baseName
+            artifactId = jar.archiveBaseName.get()
             version = project.version
             artifact jar
             artifact sourceZip
