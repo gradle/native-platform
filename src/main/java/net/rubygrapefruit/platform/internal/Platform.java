@@ -19,9 +19,7 @@ package net.rubygrapefruit.platform.internal;
 import net.rubygrapefruit.platform.*;
 import net.rubygrapefruit.platform.Process;
 import net.rubygrapefruit.platform.file.*;
-import net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions;
-import net.rubygrapefruit.platform.internal.jni.PosixTypeFunctions;
-import net.rubygrapefruit.platform.internal.jni.TerminfoFunctions;
+import net.rubygrapefruit.platform.internal.jni.*;
 import net.rubygrapefruit.platform.memory.Memory;
 import net.rubygrapefruit.platform.memory.OsxMemory;
 import net.rubygrapefruit.platform.terminal.Terminals;
@@ -342,6 +340,9 @@ public abstract class Platform {
             }
             if (type.equals(Memory.class)) {
                 return type.cast(new DefaultMemory());
+            }
+            if (type.equals(DefaultOsxFileEventFunctions.class)) {
+                return type.cast(new DefaultOsxFileEventFunctions());
             }
             return super.get(type, nativeLibraryLoader);
         }
