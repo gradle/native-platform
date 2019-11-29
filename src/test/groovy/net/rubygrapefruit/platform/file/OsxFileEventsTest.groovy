@@ -34,20 +34,20 @@ class OsxFileEventsTest extends Specification {
 
     def "caches file events instance"() {
         expect:
-        Native.get(DefaultOsxFileEventFunctions.class) == fileEvents
+        Native.get(DefaultOsxFileEventFunctions.class) is fileEvents
     }
 
     def "can open and close watch on a directory without receiving any events"() {
         given:
         def dir = tmpDir.newFolder()
-        fileEvents.addRecursiveWatch(dir)
-        DefaultOsxFileEventFunctions.WatcherThread watcher = fileEvents.startWatch()
+        fileEvents.addRecursiveWatch(dir.absolutePath)
+        DefaultOsxFileEventFunctions.ChangeCollector collector = fileEvents.startWatch()
         new File(dir, "a.txt").createNewFile();
-        Thread.sleep(1000);
-        def fi = fileEvents.stopWatch(watcher);
-        print(fi)
+        Thread.sleep(20)
+
+        def changes = fileEvents.stopWatch(collector);
 
         expect:
-        1 == 1
+        changes == [dir.canonicalPath + "/"]
     }
 }
