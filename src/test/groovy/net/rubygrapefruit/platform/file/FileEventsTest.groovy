@@ -20,6 +20,7 @@ import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.ResourceClosedException
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
+import spock.lang.Ignore
 import spock.lang.Specification
 import spock.lang.Timeout
 
@@ -72,6 +73,7 @@ class FileEventsTest extends Specification {
         e.message == 'This file watch has been closed.'
     }
 
+    @Ignore("We don't need threads anymore")
     def "thread blocked waiting for event receives closed exception on close"() {
         given:
         def dir = tmpDir.newFolder()
