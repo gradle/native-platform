@@ -17,12 +17,15 @@
 package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.Native
+import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.DefaultOsxFileEventFunctions
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
+import spock.lang.IgnoreIf
 import spock.lang.Specification
 import spock.lang.Timeout
 
+@IgnoreIf({ !Platform.current().macOs })
 @Timeout(20)
 class OsxFileEventsTest extends Specification {
     @Rule
