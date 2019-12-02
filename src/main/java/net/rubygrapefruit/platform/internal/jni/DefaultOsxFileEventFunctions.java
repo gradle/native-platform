@@ -5,8 +5,10 @@ import net.rubygrapefruit.platform.NativeIntegration;
 import net.rubygrapefruit.platform.internal.FunctionResult;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class DefaultOsxFileEventFunctions implements NativeIntegration {
@@ -35,8 +37,17 @@ public class DefaultOsxFileEventFunctions implements NativeIntegration {
         }
 
         private List<String> getAllChanges() {
-            ArrayList<String> result =  new ArrayList<String>(globalQueue);
-            globalQueue.clear();
+            Set<String> seen =  new HashSet<String>((int) (globalQueue.size() / 0.75f) + 1, 0.75f);
+            List<String> result = new ArrayList<String>(globalQueue.size());
+            while (true) {
+                String path = globalQueue.poll();
+                if (path == null) {
+                    break;
+                }
+                if (seen.add(path)) {
+                    result.add(path);
+                }
+            }
             return result;
         }
     }
