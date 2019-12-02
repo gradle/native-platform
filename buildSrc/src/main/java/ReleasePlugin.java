@@ -41,9 +41,7 @@ public class ReleasePlugin implements Plugin<Project> {
         VersionDetails.BuildType buildType = determineBuildType(project);
         VersionDetails versions = project.getExtensions().create("versions", VersionDetails.class, buildType);
         String buildTimestamp = determineBuildTimestamp(project);
-        if (buildType == VersionDetails.BuildType.Snapshot) {
-            writeBuildTimestamp(buildTimestamp, project);
-        }
+        writeBuildTimestamp(buildTimestamp, project);
 
         project.allprojects(subproject -> {
             subproject.getPlugins().apply(UploadPlugin.class);
