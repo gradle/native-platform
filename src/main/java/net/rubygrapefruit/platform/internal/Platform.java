@@ -16,9 +16,17 @@
 
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.*;
+import net.rubygrapefruit.platform.NativeException;
+import net.rubygrapefruit.platform.NativeIntegration;
+import net.rubygrapefruit.platform.NativeIntegrationUnavailableException;
 import net.rubygrapefruit.platform.Process;
-import net.rubygrapefruit.platform.file.*;
+import net.rubygrapefruit.platform.ProcessLauncher;
+import net.rubygrapefruit.platform.SystemInfo;
+import net.rubygrapefruit.platform.WindowsRegistry;
+import net.rubygrapefruit.platform.file.FileSystems;
+import net.rubygrapefruit.platform.file.Files;
+import net.rubygrapefruit.platform.file.PosixFiles;
+import net.rubygrapefruit.platform.file.WindowsFiles;
 import net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions;
 import net.rubygrapefruit.platform.internal.jni.PosixTypeFunctions;
 import net.rubygrapefruit.platform.internal.jni.TerminfoFunctions;
@@ -168,9 +176,6 @@ public abstract class Platform {
             if (type.equals(WindowsRegistry.class)) {
                 return type.cast(new DefaultWindowsRegistry());
             }
-            if (type.equals(FileEvents.class)) {
-                return type.cast(new DefaultFileEvents());
-            }
             return super.get(type, nativeLibraryLoader);
         }
     }
@@ -230,9 +235,6 @@ public abstract class Platform {
             }
             if (type.equals(FileSystems.class)) {
                 return type.cast(new PosixFileSystems());
-            }
-            if (type.equals(FileEvents.class)) {
-                return type.cast(new DefaultFileEvents());
             }
             if (type.equals(MutableTypeInfo.class)) {
                 MutableTypeInfo typeInfo = new MutableTypeInfo();

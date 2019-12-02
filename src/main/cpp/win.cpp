@@ -477,49 +477,6 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
     free(fileSystemName);
 }
 
-typedef struct watch_details {
-    HANDLE watch_handle;
-} watch_details_t;
-
-JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_createWatch(JNIEnv *env, jclass target, jstring path, jobject result) {
-    wchar_t* pathStr = java_to_wchar_path(env, path, result);
-    HANDLE h = FindFirstChangeNotificationW(pathStr, FALSE, FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE);
-    free(pathStr);
-    if (h == INVALID_HANDLE_VALUE) {
-        mark_failed_with_errno(env, "could not open change notification", result);
-        return NULL;
-    }
-    watch_details_t* details = (watch_details_t*)malloc(sizeof(watch_details_t));
-    details->watch_handle = h;
-    return env->NewDirectByteBuffer(details, sizeof(watch_details_t));
-}
-
-JNIEXPORT jboolean JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_waitForNextEvent(JNIEnv *env, jclass target, jobject handle, jobject result) {
-    watch_details_t* details = (watch_details_t*)env->GetDirectBufferAddress(handle);
-    if (WaitForSingleObject(details->watch_handle, INFINITE) == WAIT_FAILED) {
-        mark_failed_with_errno(env, "could not wait for change notification", result);
-        return JNI_FALSE;
-    }
-    if (!FindNextChangeNotification(details->watch_handle)) {
-        if (GetLastError() == ERROR_INVALID_HANDLE) {
-            // Assumed closed
-            return JNI_FALSE;
-        }
-        mark_failed_with_errno(env, "could not schedule next change notification", result);
-        return JNI_FALSE;
-    }
-    return JNI_TRUE;
-}
-
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_FileEventFunctions_closeWatch(JNIEnv *env, jclass target, jobject handle, jobject result) {
-    watch_details_t* details = (watch_details_t*)env->GetDirectBufferAddress(handle);
-    FindCloseChangeNotification(details->watch_handle);
-    free(details);
-}
-
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_stat(JNIEnv *env, jclass target, jstring path, jboolean followLink, jobject dest, jobject result) {
     jclass destClass = env->GetObjectClass(dest);

@@ -44,7 +44,6 @@ public class Main {
         optionParser.accepts("stat-L", "Display details about the specified file or directory, following symbolic links").withRequiredArg();
         optionParser.accepts("ls", "Display contents of the specified directory").withRequiredArg();
         optionParser.accepts("ls-L", "Display contents of the specified directory, following symbolic links").withRequiredArg();
-        optionParser.accepts("watch", "Watches for changes to the specified file or directory").withRequiredArg();
         optionParser.accepts("machine", "Display details about the current machine");
         optionParser.accepts("terminal", "Display details about the terminal");
         optionParser.accepts("input", "Reads input from the terminal");
@@ -83,11 +82,6 @@ public class Main {
 
         if (result.has("ls-L")) {
             lsFollowLinks((String) result.valueOf("ls-L"));
-            return;
-        }
-
-        if (result.has("watch")) {
-            watch((String) result.valueOf("watch"));
             return;
         }
 
@@ -351,41 +345,6 @@ public class Main {
         }
 
         System.out.println();
-    }
-
-    private static void watch(String path) {
-        File file = new File(path);
-        final FileWatch watch = Native.get(FileEvents.class).startWatch(file);
-        try {
-            System.out.println("Waiting - type ctrl-d to exit ...");
-            Thread watcher = new Thread() {
-                @Override
-                public void run() {
-                    try {
-                        while (true) {
-                            watch.nextChange();
-                            System.out.println("Change detected.");
-                        }
-                    } catch (ResourceClosedException e) {
-                        // Expected
-                    }
-                }
-            };
-            watcher.start();
-            while (true) {
-                int ch = System.in.read();
-                if (ch < 0) {
-                    break;
-                }
-            }
-            watch.close();
-            watcher.join();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        } finally {
-            watch.close();
-        }
-        System.out.println("Done");
     }
 
     private static void ls(String path) {
