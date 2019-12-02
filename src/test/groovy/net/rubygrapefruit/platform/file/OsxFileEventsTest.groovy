@@ -19,6 +19,7 @@ package net.rubygrapefruit.platform.file
 import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.DefaultOsxFileEventFunctions
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import spock.lang.IgnoreIf
@@ -37,17 +38,45 @@ class OsxFileEventsTest extends Specification {
         Native.get(DefaultOsxFileEventFunctions.class) is fileEvents
     }
 
+    @Ignore("Doesn't yet work")
     def "can open and close watch on a directory without receiving any events"() {
+        def collector = fileEvents.startWatch()
+
+        when:
+        def changes = fileEvents.stopWatch(collector);
+
+        then:
+        changes.empty
+    }
+
+    def "can open and close watch on a directory receiving an event"() {
         given:
         def dir = tmpDir.newFolder()
         fileEvents.addRecursiveWatch(dir.absolutePath)
-        DefaultOsxFileEventFunctions.ChangeCollector collector = fileEvents.startWatch()
+        def collector = fileEvents.startWatch()
         new File(dir, "a.txt").createNewFile();
         Thread.sleep(20)
 
+        when:
         def changes = fileEvents.stopWatch(collector);
 
-        expect:
+        then:
+        changes == [dir.canonicalPath + "/"]
+    }
+
+    def "can open and close watch on a directory receiving multiple events"() {
+        given:
+        def dir = tmpDir.newFolder()
+        fileEvents.addRecursiveWatch(dir.absolutePath)
+        def collector = fileEvents.startWatch()
+        new File(dir, "a.txt").createNewFile();
+        new File(dir, "b.txt").createNewFile();
+        Thread.sleep(20)
+
+        when:
+        def changes = fileEvents.stopWatch(collector);
+
+        then:
         changes == [dir.canonicalPath + "/"]
     }
 }
