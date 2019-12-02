@@ -17,7 +17,7 @@ public class DefaultOsxFileEventFunctions implements NativeIntegration {
         FunctionResult result = new FunctionResult();
         OsxFileEventFunctions.createWatch(path, result);
         if (result.isFailed()) {
-            throw new NativeException("Failed to start watching " + path);
+            throw new NativeException("Failed to start watching " + path + ". Reason: " + result.getMessage());
         }
         return true;
     }
@@ -57,7 +57,7 @@ public class DefaultOsxFileEventFunctions implements NativeIntegration {
         FunctionResult result = new FunctionResult();
         OsxFileEventFunctions.startWatch(collector, result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not get OSX memory info: %s", result.getMessage()));
+            throw new NativeException("Failed to start collecting changes. Reason: " + result.getMessage());
         }
         return collector;
     }
@@ -66,7 +66,7 @@ public class DefaultOsxFileEventFunctions implements NativeIntegration {
         FunctionResult result = new FunctionResult();
         OsxFileEventFunctions.stopWatch(result);
         if (result.isFailed()) {
-            throw new NativeException(String.format("Could not get OSX memory info: %s", result.getMessage()));
+            throw new NativeException("Failed to get changed files. Reason: " + result.getMessage());
         }
         return collector.getAllChanges();
     }
