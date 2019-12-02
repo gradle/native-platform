@@ -8,3 +8,4 @@
 */build
 /out
 build-receipt.properties
+hs_err_pid*.log
