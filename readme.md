@@ -66,10 +66,6 @@ See [Files](src/main/java/net/rubygrapefruit/platform/Files.java)
 
 See [FileSystems](src/main/java/net/rubygrapefruit/platform/FileSystems.java)
 
-* Watch for changes to a directory. Implementation is currently limited to watching on a single directory.
-
-See [FileEvents](src/main/java/net/rubygrapefruit/platform/FileEvents.java)
-
 ### Windows registry
 
 * Query registry value.
@@ -125,6 +121,8 @@ Some sample code to use the terminal:
 ## Changes
 
 ### Next version
+
+* Removed `FileEvents` API for watching the file system for changes.
 
 ### 0.19
 
