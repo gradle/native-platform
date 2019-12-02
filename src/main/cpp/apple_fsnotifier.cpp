@@ -129,7 +129,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_stopWatch(JN
 
     for (int i = 0; i < CFArrayGetCount(rootsToWatch); i++) {
         void *value = (char *)CFArrayGetValueAtIndex(rootsToWatch, i);
-        free(value);
+        CFRelease(value);
     }
     CFRelease(rootsToWatch);
     rootsToWatch = NULL;
