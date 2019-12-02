@@ -78,6 +78,7 @@ static void callback(ConstFSEventStreamRef streamRef,
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_createWatch(JNIEnv *env, jclass target, jstring path, jobject result) {
     if (rootsToWatch == NULL) {
+        printf("\nVFS native: Roots are NULL, initializing them.");
         rootsToWatch = CFArrayCreateMutable(NULL, 0, NULL);
     }
     CFStringRef stringPath = CFStringCreateWithCString(NULL, java_to_char(env, path, result), kCFStringEncodingUTF8);
@@ -127,6 +128,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_stopWatch(JN
     // if there were no roots to watch, there are no resources to release
     if (rootsToWatch == NULL) return;
 
+    printf("\nVFS native: stopping the watch, releasing resources.");
     for (int i = 0; i < CFArrayGetCount(rootsToWatch); i++) {
         void *value = (char *)CFArrayGetValueAtIndex(rootsToWatch, i);
         CFRelease(value);
