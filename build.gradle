@@ -47,7 +47,6 @@ task nativeHeaders {
             'net.rubygrapefruit.platform.internal.jni.WindowsHandleFunctions',
             'net.rubygrapefruit.platform.internal.jni.WindowsRegistryFunctions',
             'net.rubygrapefruit.platform.internal.jni.WindowsFileFunctions',
-            'net.rubygrapefruit.platform.internal.jni.FileEventFunctions',
             'net.rubygrapefruit.platform.internal.jni.PosixTypeFunctions',
             'net.rubygrapefruit.platform.internal.jni.MemoryFunctions',
             'net.rubygrapefruit.platform.internal.jni.OsxMemoryFunctions',
