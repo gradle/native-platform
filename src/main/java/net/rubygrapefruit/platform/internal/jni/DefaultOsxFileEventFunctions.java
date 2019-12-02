@@ -35,7 +35,9 @@ public class DefaultOsxFileEventFunctions implements NativeIntegration {
         }
 
         private List<String> getAllChanges() {
-            return new ArrayList<String>(globalQueue);
+            ArrayList<String> result =  new ArrayList<String>(globalQueue);
+            globalQueue.clear();
+            return result;
         }
     }
 

@@ -17,7 +17,6 @@
 #include <strings.h>
 #include <sys/mount.h>
 
-
 CFMutableArrayRef rootsToWatch;
 FSEventStreamRef watcherStream;
 pthread_t watcherThread;
@@ -40,9 +39,7 @@ static void reportEvent(const char *event, char *path) {
     JNIEnv* env;
     int getEnvStat = jvm->GetEnv((void **)&env, JNI_VERSION_1_6);
     if (getEnvStat == JNI_EDETACHED) {
-        printf("~~~~ GetEnv: not attached");
         if (jvm->AttachCurrentThread((void **) &env, NULL) != 0) {
-            printf("~~~~ Failed to attach");
         }
     } else if (getEnvStat == JNI_OK) {
         //
@@ -52,9 +49,7 @@ static void reportEvent(const char *event, char *path) {
 
     jclass callback_class = env->GetObjectClass(watcherCallback);
     jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(Ljava/lang/String;)V");
-    if (!methodCallback) printf("No method found");
     env->CallVoidMethod(watcherCallback, methodCallback, env->NewStringUTF(path));
-    printf("~~~~ Reporting the change%s.\n", path);
 }
 
 static void callback(ConstFSEventStreamRef streamRef,
@@ -87,7 +82,6 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_createWatch(
     }
     CFStringRef stringPath = CFStringCreateWithCString(NULL, java_to_char(env, path, result), kCFStringEncodingUTF8);
     CFArrayAppendValue(rootsToWatch, stringPath);
-    printf("Adding a root\n");
 }
 
 static void *EventProcessingThread(void *data) {
@@ -95,13 +89,16 @@ static void *EventProcessingThread(void *data) {
     threadLoop = CFRunLoopGetCurrent();
     FSEventStreamScheduleWithRunLoop(stream, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
     FSEventStreamStart(stream);
-    printf("~~~~ Thread spinning.\n");
     CFRunLoopRun();
     return NULL;
 }
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatch(JNIEnv *env, jclass target, jobject javaCallback, jobject result) {
+    if (rootsToWatch == NULL) {
+        // nothing to watch, just return
+        return;
+    }
     CFAbsoluteTime latency = 0.3;  // Latency in seconds
 
     watcherCallback = env->NewGlobalRef(javaCallback);
@@ -127,17 +124,24 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatch(J
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_stopWatch(JNIEnv *env, jclass target, jobject result) {
+    // if there were no roots to watch, there are no resources to release
+    if (rootsToWatch == NULL) return;
+
     for (int i = 0; i < CFArrayGetCount(rootsToWatch); i++) {
         void *value = (char *)CFArrayGetValueAtIndex(rootsToWatch, i);
         free(value);
     }
     CFRelease(rootsToWatch);
+    rootsToWatch = NULL;
+
     FSEventStreamStop(watcherStream);
+    watcherStream = NULL;
     CFRunLoopStop(threadLoop);
+    threadLoop = NULL;
     env->DeleteGlobalRef(watcherCallback);
-    printf("~~~~ deleting watcher callback.\n");
+    watcherCallback = NULL;
     pthread_join(watcherThread, NULL);
-    printf("~~~~ joined watcher thread \n");
+    watcherThread = NULL;
 }
 
 #endif
