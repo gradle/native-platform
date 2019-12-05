@@ -18,13 +18,27 @@ package net.rubygrapefruit.platform.internal.jni;
 
 import net.rubygrapefruit.platform.internal.FunctionResult;
 
+import java.io.Closeable;
+import java.io.IOException;
+
 public class OsxFileEventFunctions {
-    public static native void startWatch(String[] path, double latency, ChangeCallback callback, FunctionResult result);
-    public static native void stopWatch(FunctionResult result);
+    public static native Watch startWatch(String[] path, double latency, ChangeCallback callback, FunctionResult result);
+    public static native void stopWatch(Object details, FunctionResult result);
 
     public interface ChangeCallback {
         // Invoked from native code
         @SuppressWarnings("unused")
         void pathChanged(String path);
+    }
+
+    public interface Watch extends Closeable {
+        Watch EMPTY = new Watch() {
+            @Override
+            public void close() {
+            }
+        };
+
+        @Override
+        void close();
     }
 }

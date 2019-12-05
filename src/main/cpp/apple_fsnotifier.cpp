@@ -23,6 +23,10 @@ JavaVM* jvm = NULL;
 CFRunLoopRef threadLoop = NULL;
 bool invalidStateDetected = false;
 
+typedef struct watch_details {
+    char* message;
+} watch_details_t;
+
 static void reportEvent(const char *event, char *path) {
     size_t len = 0;
     if (path != NULL) {
@@ -82,33 +86,33 @@ static void *EventProcessingThread(void *data) {
     return NULL;
 }
 
-JNIEXPORT void JNICALL
+JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatch(JNIEnv *env, jclass target, jobjectArray paths, CFAbsoluteTime latency, jobject javaCallback, jobject result) {
     if (rootsToWatch == NULL) {
         invalidStateDetected = false;
         rootsToWatch = CFArrayCreateMutable(NULL, 0, NULL);
         if (rootsToWatch == NULL) {
             mark_failed_with_errno(env, "Could not allocate array to store roots to watch.", result);
-            return;
+            return NULL;
         }
     }
     int count = env->GetArrayLength(paths);
     if (count == 0) {
         mark_failed_with_errno(env, "No paths given to watch.", result);
-        return;
+        return NULL;
     }
     for (int i = 0; i < count; i++) {
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
         char* pathString = java_to_char(env, path, result);
         if (pathString == NULL) {
             mark_failed_with_errno(env, "Could not allocate string to store root to watch.", result);
-            return;
+            return NULL;
         }
         CFStringRef stringPath = CFStringCreateWithCString(NULL, pathString, kCFStringEncodingUTF8);
         free(pathString);
         if (stringPath == NULL) {
             mark_failed_with_errno(env, "Could not create CFStringRef.", result);
-            return;
+            return NULL;
         }
         CFArrayAppendValue(rootsToWatch, stringPath);
     }
@@ -116,7 +120,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatch(J
     watcherCallback = env->NewGlobalRef(javaCallback);
     if (watcherCallback == NULL) {
         mark_failed_with_errno(env, "Could not create global reference for callback.", result);
-        return;
+        return NULL;
     }
 
     watcherStream = FSEventStreamCreate (
@@ -129,23 +133,33 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatch(J
                 kFSEventStreamCreateFlagNoDefer);
     if (watcherStream == NULL) {
          mark_failed_with_errno(env, "Could not create FSEventStreamCreate to track changes.", result);
-         return;
+         return NULL;
     }
 
     if (pthread_create(&watcherThread, NULL, EventProcessingThread, watcherStream) != 0) {
         mark_failed_with_errno(env, "Could not create file watcher thread.", result);
-        return;
+        return NULL;
     }
 
     int jvmStatus = env->GetJavaVM(&jvm);
     if (jvmStatus < 0) {
         mark_failed_with_errno(env, "Could not store jvm instance.", result);
-        return;
+        return NULL;
     }
+
+    jclass clsWatch = env->FindClass("net/rubygrapefruit/platform/internal/jni/DefaultOsxFileEventFunctions$WatchImpl");
+    jmethodID constructor = env->GetMethodID(clsWatch, "<init>", "(Ljava/lang/Object;)V");
+    watch_details_t* details = (watch_details_t*)malloc(sizeof(watch_details_t));
+    details->message = (char*) "alma";
+    return env->NewObject(clsWatch, constructor, env->NewDirectByteBuffer(details, sizeof(details)));
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_stopWatch(JNIEnv *env, jclass target, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_stopWatch(JNIEnv *env, jclass target, jobject detailsObj, jobject result) {
+    watch_details_t *details = (watch_details_t*) env->GetDirectBufferAddress(detailsObj);
+    printf("~~~~ Hello %s\n", details->message);
+    free(details);
+
     // if there were no roots to watch, there are no resources to release
     if (rootsToWatch == NULL) return;
     if (invalidStateDetected) {

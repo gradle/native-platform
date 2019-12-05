@@ -19,6 +19,7 @@ package net.rubygrapefruit.platform.file
 import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.DefaultOsxFileEventFunctions
+import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import spock.lang.IgnoreIf
@@ -31,6 +32,7 @@ class OsxFileEventsTest extends Specification {
     @Rule
     TemporaryFolder tmpDir
     final DefaultOsxFileEventFunctions fileEvents = Native.get(DefaultOsxFileEventFunctions.class)
+    OsxFileEventFunctions.Watch watch
 
     def "caches file events instance"() {
         expect:
@@ -152,7 +154,7 @@ class OsxFileEventsTest extends Specification {
 
     private List<String> startWatch(double latency = 0.3, String... paths) {
         def changes = []
-        fileEvents.startWatch(paths as List, latency) {
+        watch = fileEvents.startWatch(paths as List, latency) {
             println "> $it"
             changes.add(it)
         }
@@ -160,7 +162,7 @@ class OsxFileEventsTest extends Specification {
     }
 
     private void stopWatch() {
-        fileEvents.stopWatch()
+        watch.close()
     }
 
     // TODO: this is not great, as it leads to flaky tests. Figure out a better way.
