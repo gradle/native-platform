@@ -27,6 +27,7 @@ import net.rubygrapefruit.platform.file.FileSystems;
 import net.rubygrapefruit.platform.file.Files;
 import net.rubygrapefruit.platform.file.PosixFiles;
 import net.rubygrapefruit.platform.file.WindowsFiles;
+import net.rubygrapefruit.platform.internal.jni.DefaultOsxFileEventFunctions;
 import net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions;
 import net.rubygrapefruit.platform.internal.jni.PosixTypeFunctions;
 import net.rubygrapefruit.platform.internal.jni.TerminfoFunctions;
@@ -344,6 +345,9 @@ public abstract class Platform {
             }
             if (type.equals(Memory.class)) {
                 return type.cast(new DefaultMemory());
+            }
+            if (type.equals(DefaultOsxFileEventFunctions.class)) {
+                return type.cast(new DefaultOsxFileEventFunctions());
             }
             return super.get(type, nativeLibraryLoader);
         }

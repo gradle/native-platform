@@ -49,7 +49,8 @@ task nativeHeaders {
             'net.rubygrapefruit.platform.internal.jni.WindowsFileFunctions',
             'net.rubygrapefruit.platform.internal.jni.PosixTypeFunctions',
             'net.rubygrapefruit.platform.internal.jni.MemoryFunctions',
-            'net.rubygrapefruit.platform.internal.jni.OsxMemoryFunctions'
+            'net.rubygrapefruit.platform.internal.jni.OsxMemoryFunctions',
+            'net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions'
     ]
     inputs.files sourceSets.main.output
     inputs.property('classes', classes)
@@ -277,6 +278,7 @@ model {
                     cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/darwin"
                     cppCompiler.args '-mmacosx-version-min=10.9'
                     linker.args '-mmacosx-version-min=10.9'
+                    linker.args '-framework', 'CoreServices'
                 } else if (targetPlatform.operatingSystem.linux) {
                     cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
                     cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/linux"
