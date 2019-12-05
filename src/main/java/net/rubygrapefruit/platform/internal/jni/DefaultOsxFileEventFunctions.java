@@ -14,15 +14,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class DefaultOsxFileEventFunctions implements NativeIntegration {
 
-    public boolean addRecursiveWatch(String... paths) {
-        FunctionResult result = new FunctionResult();
-        OsxFileEventFunctions.createWatch(paths, result);
-        if (result.isFailed()) {
-            throw new NativeException("Failed to start watching " + Arrays.toString(paths) + ". Reason: " + result.getMessage());
-        }
-        return true;
-    }
-
     public static class ChangeCollector implements OsxFileEventFunctions.ChangeCallback {
         private Queue<String> globalQueue = new ConcurrentLinkedQueue<String>();
 
@@ -47,10 +38,12 @@ public class DefaultOsxFileEventFunctions implements NativeIntegration {
         }
     }
 
-    public ChangeCollector startWatch() {
+    public ChangeCollector startWatch(String... paths) {
         ChangeCollector collector = new ChangeCollector();
         FunctionResult result = new FunctionResult();
-        OsxFileEventFunctions.startWatch(collector, result);
+        if (paths.length > 0) {
+            OsxFileEventFunctions.startWatch(paths, collector, result);
+        }
         if (result.isFailed()) {
             throw new NativeException("Failed to start collecting changes. Reason: " + result.getMessage());
         }

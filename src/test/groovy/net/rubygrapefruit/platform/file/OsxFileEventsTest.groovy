@@ -50,8 +50,7 @@ class OsxFileEventsTest extends Specification {
     def "can open and close watch on a directory receiving an event"() {
         given:
         def dir = tmpDir.newFolder()
-        fileEvents.addRecursiveWatch(dir.absolutePath)
-        def collector = fileEvents.startWatch()
+        def collector = fileEvents.startWatch(dir.absolutePath)
         new File(dir, "a.txt").createNewFile();
         waitForFileSystem()
 
@@ -65,8 +64,7 @@ class OsxFileEventsTest extends Specification {
     def "can open and close watch on a directory receiving multiple events"() {
         given:
         def dir = tmpDir.newFolder()
-        fileEvents.addRecursiveWatch(dir.absolutePath)
-        def collector = fileEvents.startWatch()
+        def collector = fileEvents.startWatch(dir.absolutePath)
         new File(dir, "a.txt").createNewFile();
         new File(dir, "b.txt").createNewFile();
         waitForFileSystem()
@@ -82,8 +80,7 @@ class OsxFileEventsTest extends Specification {
         given:
         def dir1 = tmpDir.newFolder()
         def dir2 = tmpDir.newFolder()
-        fileEvents.addRecursiveWatch(dir1.absolutePath, dir2.absolutePath)
-        def collector = fileEvents.startWatch()
+        def collector = fileEvents.startWatch(dir1.absolutePath, dir2.absolutePath)
         new File(dir1, "a.txt").createNewFile();
         new File(dir2, "b.txt").createNewFile();
         waitForFileSystem()
@@ -98,8 +95,7 @@ class OsxFileEventsTest extends Specification {
     def "can be started once and stopped multiple times"() {
         given:
         def dir = tmpDir.newFolder()
-        fileEvents.addRecursiveWatch(dir.absolutePath)
-        def collector = fileEvents.startWatch()
+        def collector = fileEvents.startWatch(dir.absolutePath)
         new File(dir, "a.txt").createNewFile();
         waitForFileSystem()
 
@@ -119,8 +115,7 @@ class OsxFileEventsTest extends Specification {
     def "can be used multiple times"() {
         given:
         def dir = tmpDir.newFolder()
-        fileEvents.addRecursiveWatch(dir.absolutePath)
-        def collector = fileEvents.startWatch()
+        def collector = fileEvents.startWatch(dir.absolutePath)
         new File(dir, "a.txt").createNewFile();
         waitForFileSystem()
 
@@ -132,37 +127,13 @@ class OsxFileEventsTest extends Specification {
 
         when:
         dir = tmpDir.newFolder()
-        fileEvents.addRecursiveWatch(dir.absolutePath)
-        collector = fileEvents.startWatch()
+        collector = fileEvents.startWatch(dir.absolutePath)
         new File(dir, "a.txt").createNewFile();
         waitForFileSystem()
         changes = fileEvents.stopWatch(collector);
 
         then:
         changes == [dir.canonicalPath + "/"]
-    }
-
-    def "can watch multiple directories"() {
-        given:
-        def dir = tmpDir.newFolder()
-        def dirA = new File(dir, "a")
-        dirA.mkdirs()
-        def dirB = new File(dir, "b")
-        dirB.mkdirs()
-        fileEvents.addRecursiveWatch(dirA.absolutePath)
-        fileEvents.addRecursiveWatch(dirB.absolutePath)
-        waitForFileSystem()
-
-        def collector = fileEvents.startWatch()
-        new File(dirA, "a.txt").createNewFile();
-        new File(dirB, "b.txt").createNewFile();
-        waitForFileSystem()
-
-        when:
-        def changes = fileEvents.stopWatch(collector);
-
-        then:
-        changes == [dirA.canonicalPath + "/", dirB.canonicalPath + "/"]
     }
 
     // TODO: this is not great, as it leads to flaky tests. Figure out a better way.

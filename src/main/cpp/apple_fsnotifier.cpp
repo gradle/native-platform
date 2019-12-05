@@ -72,8 +72,18 @@ static void callback(ConstFSEventStreamRef streamRef,
     }
 }
 
+static void *EventProcessingThread(void *data) {
+    FSEventStreamRef stream = (FSEventStreamRef) data;
+    threadLoop = CFRunLoopGetCurrent();
+    FSEventStreamScheduleWithRunLoop(stream, threadLoop, kCFRunLoopDefaultMode);
+    FSEventStreamStart(stream);
+    // This triggers run loop for this thread, causing it to run until we explicitly stop it.
+    CFRunLoopRun();
+    return NULL;
+}
+
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_createWatch(JNIEnv *env, jclass target, jobjectArray paths, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatch(JNIEnv *env, jclass target, jobjectArray paths, jobject javaCallback, jobject result) {
     if (rootsToWatch == NULL) {
         invalidStateDetected = false;
         rootsToWatch = CFArrayCreateMutable(NULL, 0, NULL);
@@ -83,6 +93,10 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_createWatch(
         }
     }
     int count = env->GetArrayLength(paths);
+    if (count == 0) {
+        mark_failed_with_errno(env, "No paths given to watch.", result);
+        return;
+    }
     for (int i = 0; i < count; i++) {
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
         char* pathString = java_to_char(env, path, result);
@@ -98,24 +112,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_createWatch(
         }
         CFArrayAppendValue(rootsToWatch, stringPath);
     }
-}
 
-static void *EventProcessingThread(void *data) {
-    FSEventStreamRef stream = (FSEventStreamRef) data;
-    threadLoop = CFRunLoopGetCurrent();
-    FSEventStreamScheduleWithRunLoop(stream, threadLoop, kCFRunLoopDefaultMode);
-    FSEventStreamStart(stream);
-    // This triggers run loop for this thread, causing it to run until we explicitly stop it.
-    CFRunLoopRun();
-    return NULL;
-}
-
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatch(JNIEnv *env, jclass target, jobject javaCallback, jobject result) {
-    if (rootsToWatch == NULL) {
-        // nothing to watch, just return
-        return;
-    }
     CFAbsoluteTime latency = 0.3;  // Latency in seconds
 
     watcherCallback = env->NewGlobalRef(javaCallback);
