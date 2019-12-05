@@ -8,10 +8,10 @@ import java.util.Collection;
 
 public class DefaultOsxFileEventFunctions implements NativeIntegration {
 
-    public void startWatch(Collection<String> paths, OsxFileEventFunctions.ChangeCallback callback) {
+    public void startWatch(Collection<String> paths, double latency, OsxFileEventFunctions.ChangeCallback callback) {
         FunctionResult result = new FunctionResult();
         if (!paths.isEmpty()) {
-            OsxFileEventFunctions.startWatch(paths.toArray(new String[0]), callback, result);
+            OsxFileEventFunctions.startWatch(paths.toArray(new String[0]), latency, callback, result);
         }
         if (result.isFailed()) {
             throw new NativeException("Failed to start collecting changes. Reason: " + result.getMessage());

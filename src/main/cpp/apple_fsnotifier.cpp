@@ -83,7 +83,7 @@ static void *EventProcessingThread(void *data) {
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatch(JNIEnv *env, jclass target, jobjectArray paths, jobject javaCallback, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatch(JNIEnv *env, jclass target, jobjectArray paths, CFAbsoluteTime latency, jobject javaCallback, jobject result) {
     if (rootsToWatch == NULL) {
         invalidStateDetected = false;
         rootsToWatch = CFArrayCreateMutable(NULL, 0, NULL);
@@ -112,8 +112,6 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatch(J
         }
         CFArrayAppendValue(rootsToWatch, stringPath);
     }
-
-    CFAbsoluteTime latency = 0.3;  // Latency in seconds
 
     watcherCallback = env->NewGlobalRef(javaCallback);
     if (watcherCallback == NULL) {

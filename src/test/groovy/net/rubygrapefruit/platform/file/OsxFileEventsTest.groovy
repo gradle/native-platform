@@ -64,16 +64,31 @@ class OsxFileEventsTest extends Specification {
     }
 
     def "can open and close watch on a directory receiving multiple events"() {
+        def latency = 0.5
         given:
         def dir = tmpDir.newFolder()
-        def changes = startWatch(dir.absolutePath)
+        def changes = startWatch(latency, dir.absolutePath)
 
         when:
         new File(dir, "a.txt").createNewFile()
-        new File(dir, "b.txt").createNewFile()
         waitForFileSystem()
 
         then:
+        changes == [dir.canonicalPath + "/"]
+
+        when: "directory changed almost immediately again"
+        new File(dir, "b.txt").createNewFile()
+        waitForFileSystem()
+
+        then: "change is not reported"
+        changes == [dir.canonicalPath + "/"]
+
+        when: "directory is changed after latency period"
+        Thread.sleep((long) (latency * 1000 + 100))
+        new File(dir, "c.txt").createNewFile()
+        waitForFileSystem()
+
+        then: "change is reported"
         changes == [dir.canonicalPath + "/", dir.canonicalPath + "/"]
 
         cleanup:
@@ -101,27 +116,14 @@ class OsxFileEventsTest extends Specification {
     def "can be started once and stopped multiple times"() {
         given:
         def dir = tmpDir.newFolder()
-        def changes = startWatch(dir.absolutePath)
-
-        when:
-        new File(dir, "a.txt").createNewFile()
-        waitForFileSystem()
-
-        then:
-        changes == [dir.canonicalPath + "/"]
-
-        when:
-        changes.clear()
-        stopWatch()
-
-        then:
-        changes.empty
+        startWatch(dir.absolutePath)
 
         when:
         stopWatch()
+        stopWatch()
 
         then:
-        changes.empty
+        noExceptionThrown()
     }
 
     def "can be used multiple times"() {
@@ -148,9 +150,12 @@ class OsxFileEventsTest extends Specification {
         changes == [dir.canonicalPath + "/"]
     }
 
-    private List<String> startWatch(String... paths) {
+    private List<String> startWatch(double latency = 0.3, String... paths) {
         def changes = []
-        fileEvents.startWatch(paths as List, { changes.add(it) })
+        fileEvents.startWatch(paths as List, latency) {
+            println "> $it"
+            changes.add(it)
+        }
         return changes
     }
 
