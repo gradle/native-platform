@@ -73,7 +73,7 @@ static void callback(ConstFSEventStreamRef streamRef,
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_createWatch(JNIEnv *env, jclass target, jstring path, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_createWatch(JNIEnv *env, jclass target, jobjectArray paths, jobject result) {
     if (rootsToWatch == NULL) {
         invalidStateDetected = false;
         rootsToWatch = CFArrayCreateMutable(NULL, 0, NULL);
@@ -82,17 +82,22 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_createWatch(
             return;
         }
     }
-    char* pathString = java_to_char(env, path, result);
-    if (pathString == NULL) {
-        return;
+    int count = env->GetArrayLength(paths);
+    for (int i = 0; i < count; i++) {
+        jstring path = (jstring) env->GetObjectArrayElement(paths, i);
+        char* pathString = java_to_char(env, path, result);
+        if (pathString == NULL) {
+            mark_failed_with_errno(env, "Could not allocate string to store root to watch.", result);
+            return;
+        }
+        CFStringRef stringPath = CFStringCreateWithCString(NULL, pathString, kCFStringEncodingUTF8);
+        free(pathString);
+        if (stringPath == NULL) {
+            mark_failed_with_errno(env, "Could not create CFStringRef.", result);
+            return;
+        }
+        CFArrayAppendValue(rootsToWatch, stringPath);
     }
-    CFStringRef stringPath = CFStringCreateWithCString(NULL, pathString, kCFStringEncodingUTF8);
-    free(pathString);
-    if (stringPath == NULL) {
-        mark_failed_with_errno(env, "Could not create CFStringRef.", result);
-        return;
-    }
-    CFArrayAppendValue(rootsToWatch, stringPath);
 }
 
 static void *EventProcessingThread(void *data) {

@@ -5,6 +5,7 @@ import net.rubygrapefruit.platform.NativeIntegration;
 import net.rubygrapefruit.platform.internal.FunctionResult;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Queue;
@@ -13,11 +14,11 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class DefaultOsxFileEventFunctions implements NativeIntegration {
 
-    public boolean addRecursiveWatch(String path) {
+    public boolean addRecursiveWatch(String... paths) {
         FunctionResult result = new FunctionResult();
-        OsxFileEventFunctions.createWatch(path, result);
+        OsxFileEventFunctions.createWatch(paths, result);
         if (result.isFailed()) {
-            throw new NativeException("Failed to start watching " + path + ". Reason: " + result.getMessage());
+            throw new NativeException("Failed to start watching " + Arrays.toString(paths) + ". Reason: " + result.getMessage());
         }
         return true;
     }

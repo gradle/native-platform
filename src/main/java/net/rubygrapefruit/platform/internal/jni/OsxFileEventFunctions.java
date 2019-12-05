@@ -19,7 +19,7 @@ package net.rubygrapefruit.platform.internal.jni;
 import net.rubygrapefruit.platform.internal.FunctionResult;
 
 public class OsxFileEventFunctions {
-    public static native void createWatch(String path, FunctionResult result);
+    public static native void createWatch(String[] path, FunctionResult result);
     public static native void startWatch(DefaultOsxFileEventFunctions.ChangeCallback callback, FunctionResult result);
     public static native void stopWatch(FunctionResult result);
 }

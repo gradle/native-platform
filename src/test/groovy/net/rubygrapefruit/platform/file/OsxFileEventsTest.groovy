@@ -78,6 +78,23 @@ class OsxFileEventsTest extends Specification {
         changes == [dir.canonicalPath + "/"]
     }
 
+    def "can open and close watch on multiple directories receiving multiple events"() {
+        given:
+        def dir1 = tmpDir.newFolder()
+        def dir2 = tmpDir.newFolder()
+        fileEvents.addRecursiveWatch(dir1.absolutePath, dir2.absolutePath)
+        def collector = fileEvents.startWatch()
+        new File(dir1, "a.txt").createNewFile();
+        new File(dir2, "b.txt").createNewFile();
+        waitForFileSystem()
+
+        when:
+        def changes = fileEvents.stopWatch(collector);
+
+        then:
+        changes == [dir1.canonicalPath + "/", dir2.canonicalPath + "/"]
+    }
+
     def "can be started once and stopped multiple times"() {
         given:
         def dir = tmpDir.newFolder()
