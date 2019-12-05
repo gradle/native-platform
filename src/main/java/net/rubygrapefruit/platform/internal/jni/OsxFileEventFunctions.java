@@ -20,6 +20,12 @@ import net.rubygrapefruit.platform.internal.FunctionResult;
 
 public class OsxFileEventFunctions {
     public static native void createWatch(String[] path, FunctionResult result);
-    public static native void startWatch(DefaultOsxFileEventFunctions.ChangeCallback callback, FunctionResult result);
+    public static native void startWatch(ChangeCallback callback, FunctionResult result);
     public static native void stopWatch(FunctionResult result);
+
+    interface ChangeCallback {
+        // Invoked from native code
+        @SuppressWarnings("unused")
+        void pathChanged(String path);
+    }
 }

@@ -23,13 +23,7 @@ public class DefaultOsxFileEventFunctions implements NativeIntegration {
         return true;
     }
 
-    interface ChangeCallback {
-        @SuppressWarnings("unused")
-        // invoked from native code
-        void pathChanged(String path);
-    }
-
-    public static class ChangeCollector implements ChangeCallback {
+    public static class ChangeCollector implements OsxFileEventFunctions.ChangeCallback {
         private Queue<String> globalQueue = new ConcurrentLinkedQueue<String>();
 
         public void pathChanged(String path) {
