@@ -14,7 +14,6 @@
 #include <pthread.h>
 #include <strings.h>
 
-CFMutableArrayRef rootsToWatch = NULL;
 FSEventStreamRef watcherStream = NULL;
 pthread_t watcherThread = NULL;
 // store the callback object, as we need to invoke it once file change is detected.
@@ -24,7 +23,7 @@ CFRunLoopRef threadLoop = NULL;
 bool invalidStateDetected = false;
 
 typedef struct watch_details {
-    char* message;
+    CFMutableArrayRef rootsToWatch;
 } watch_details_t;
 
 static void reportEvent(const char *event, char *path) {
@@ -88,13 +87,11 @@ static void *EventProcessingThread(void *data) {
 
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatch(JNIEnv *env, jclass target, jobjectArray paths, CFAbsoluteTime latency, jobject javaCallback, jobject result) {
+    invalidStateDetected = false;
+    CFMutableArrayRef rootsToWatch = CFArrayCreateMutable(NULL, 0, NULL);
     if (rootsToWatch == NULL) {
-        invalidStateDetected = false;
-        rootsToWatch = CFArrayCreateMutable(NULL, 0, NULL);
-        if (rootsToWatch == NULL) {
-            mark_failed_with_errno(env, "Could not allocate array to store roots to watch.", result);
-            return NULL;
-        }
+        mark_failed_with_errno(env, "Could not allocate array to store roots to watch.", result);
+        return NULL;
     }
     int count = env->GetArrayLength(paths);
     if (count == 0) {
@@ -150,14 +147,14 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatch(J
     jclass clsWatch = env->FindClass("net/rubygrapefruit/platform/internal/jni/DefaultOsxFileEventFunctions$WatchImpl");
     jmethodID constructor = env->GetMethodID(clsWatch, "<init>", "(Ljava/lang/Object;)V");
     watch_details_t* details = (watch_details_t*)malloc(sizeof(watch_details_t));
-    details->message = (char*) "alma";
+    details->rootsToWatch = rootsToWatch;
     return env->NewObject(clsWatch, constructor, env->NewDirectByteBuffer(details, sizeof(details)));
 }
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_stopWatch(JNIEnv *env, jclass target, jobject detailsObj, jobject result) {
     watch_details_t *details = (watch_details_t*) env->GetDirectBufferAddress(detailsObj);
-    printf("~~~~ Hello %s\n", details->message);
+    CFMutableArrayRef rootsToWatch = details->rootsToWatch;
     free(details);
 
     // if there were no roots to watch, there are no resources to release
