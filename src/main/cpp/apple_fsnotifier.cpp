@@ -141,6 +141,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatch(J
         return NULL;
     }
 
+    // TODO Should this be somewhere global?
     int jvmStatus = env->GetJavaVM(&jvm);
     if (jvmStatus < 0) {
         mark_failed_with_errno(env, "Could not store jvm instance.", result);
@@ -177,6 +178,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_stopWatch(JN
         const void *value = CFArrayGetValueAtIndex(rootsToWatch, i);
         CFRelease(value);
     }
+    // TODO Can we release these earlier?
     CFRelease(rootsToWatch);
     rootsToWatch = NULL;
 
@@ -186,6 +188,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_stopWatch(JN
     // TODO: consider using FSEventStreamFlushSync to flush all pending events.
     watcherStream = NULL;
 
+    // TODO Shouldn't we stop this first and then release the rest?
     CFRunLoopStop(threadLoop);
     threadLoop = NULL;
 
