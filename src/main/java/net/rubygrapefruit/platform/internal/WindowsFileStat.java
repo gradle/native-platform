@@ -23,15 +23,27 @@ public class WindowsFileStat implements WindowsFileInfo {
     private Type type;
     private long size;
     private long lastModified;
+    private int volumeId;
+    private long fileId;
+    // Lazily initialized to avoid extra allocation if not needed
+    private volatile FileKey key;
 
     public WindowsFileStat(String path) {
         this.path = path;
     }
 
+    // Called from native code
     public void details(int type, long size, long lastModifiedWinTime) {
+        details(type, size,lastModifiedWinTime, 0, 0);
+    }
+
+    // Called from native code
+    public void details(int type, long size, long lastModifiedWinTime, int volumeId, long fileId) {
         this.type = Type.values()[type];
         this.size = size;
         this.lastModified = WindowsFileTime.toJavaTime(lastModifiedWinTime);
+        this.volumeId = volumeId;
+        this.fileId = fileId;
     }
 
     @Override
@@ -49,5 +61,27 @@ public class WindowsFileStat implements WindowsFileInfo {
 
     public long getLastModifiedTime() {
         return lastModified;
+    }
+
+    public int getVolumeId() {
+        return volumeId;
+    }
+
+    public long getFileId() {
+        return fileId;
+    }
+
+    public Object getKey() {
+        if (volumeId == 0 && fileId == 0) {
+            return null;
+        }
+        if (key == null) {
+            synchronized (this) {
+                if (key == null) {
+                    key = new FileKey(volumeId, fileId);
+                }
+            }
+        }
+        return key;
     }
 }

@@ -286,6 +286,9 @@ model {
                 } else if (targetPlatform.operatingSystem.windows) {
                     if (name.contains("_min")) {
                         cppCompiler.define "WINDOWS_MIN"
+                    } else {
+                        // For NtQueryDirectoryFile
+                        linker.args "ntdll.lib"
                     }
                     cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
                     cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"

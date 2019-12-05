@@ -21,6 +21,9 @@
 #include <windows.h>
 #include <Shlwapi.h>
 #include <wchar.h>
+#ifndef WINDOWS_MIN
+#include "ntifs_min.h"
+#endif
 
 #define ALL_COLORS (FOREGROUND_BLUE|FOREGROUND_RED|FOREGROUND_GREEN)
 
@@ -31,8 +34,18 @@ void mark_failed_with_errno(JNIEnv *env, const char* message, jobject result) {
     mark_failed_with_code(env, message, GetLastError(), NULL, result);
 }
 
+#ifndef WINDOWS_MIN
+/*
+ * Marks the given result as failed, using a NTSTATUS error code
+ */
+void mark_failed_with_ntstatus(JNIEnv *env, const char* message, NTSTATUS status, jobject result) {
+    ULONG win32ErrorCode = RtlNtStatusToDosError(status);
+    mark_failed_with_code(env, message, win32ErrorCode, NULL, result);
+}
+#endif
+
 int map_error_code(int error_code) {
-    if (error_code == ERROR_PATH_NOT_FOUND) {
+    if (error_code == ERROR_FILE_NOT_FOUND || error_code == ERROR_PATH_NOT_FOUND) {
         return FAILURE_NO_SUCH_FILE;
     }
     if (error_code == ERROR_DIRECTORY) {
@@ -81,6 +94,7 @@ bool is_path_absolute_unc(wchar_t* path, int path_len) {
 
 //
 // Returns a UTF-16 string that is the concatenation of |prefix| and |path|.
+// The string must be deallocated with a call to free().
 //
 wchar_t* add_prefix(wchar_t* path, int path_len, wchar_t* prefix) {
     int prefix_len = wcslen(prefix);
@@ -156,10 +170,6 @@ jlong lastModifiedNanos(FILETIME* time) {
     return ((jlong)time->dwHighDateTime << 32) | time->dwLowDateTime;
 }
 
-jlong lastModifiedNanos(LARGE_INTEGER* time) {
-    return ((jlong)time->HighPart << 32) | time->LowPart;
-}
-
 //
 // Retrieves the file attributes for the file specified by |pathStr|.
 // If |followLink| is true, symbolic link targets are resolved.
@@ -179,11 +189,15 @@ DWORD get_file_stat(wchar_t* pathStr, jboolean followLink, file_stat_t* pFileSta
             pFileStat->lastModified = 0;
             pFileStat->size = 0;
             pFileStat->fileType = FILE_TYPE_MISSING;
+            pFileStat->volumeId = 0;
+            pFileStat->fileId = 0;
             return ERROR_SUCCESS;
         }
         return error;
     }
     pFileStat->lastModified = lastModifiedNanos(&attr.ftLastWriteTime);
+    pFileStat->volumeId = 0;
+    pFileStat->fileId = 0;
     if (attr.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
         pFileStat->size = 0;
         pFileStat->fileType = FILE_TYPE_DIRECTORY;
@@ -213,6 +227,8 @@ DWORD get_file_stat(wchar_t* pathStr, jboolean followLink, file_stat_t* pFileSta
             pFileStat->lastModified = 0;
             pFileStat->size = 0;
             pFileStat->fileType = FILE_TYPE_MISSING;
+            pFileStat->volumeId = 0;
+            pFileStat->fileId = 0;
             return ERROR_SUCCESS;
         }
         return error;
@@ -240,6 +256,8 @@ DWORD get_file_stat(wchar_t* pathStr, jboolean followLink, file_stat_t* pFileSta
 
     pFileStat->lastModified = lastModifiedNanos(&fileInfo.ftLastWriteTime);
     pFileStat->size = 0;
+    pFileStat->volumeId = fileInfo.dwVolumeSerialNumber;
+    pFileStat->fileId = ((LONGLONG)fileInfo.nFileIndexHigh << 32) | fileInfo.nFileIndexLow;
     if (is_file_symlink(fileTagInfo.FileAttributes, fileTagInfo.ReparseTag)) {
         pFileStat->fileType = FILE_TYPE_SYMLINK;
     } else if (fileTagInfo.FileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
@@ -479,12 +497,21 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_stat(JNIEnv *env, jclass target, jstring path, jboolean followLink, jobject dest, jobject result) {
+#ifdef WINDOWS_MIN
     jclass destClass = env->GetObjectClass(dest);
     jmethodID mid = env->GetMethodID(destClass, "details", "(IJJ)V");
     if (mid == NULL) {
         mark_failed_with_message(env, "could not find method", result);
         return;
     }
+#else
+    jclass destClass = env->GetObjectClass(dest);
+    jmethodID mid = env->GetMethodID(destClass, "details", "(IJJIJ)V");
+    if (mid == NULL) {
+        mark_failed_with_message(env, "could not find method", result);
+        return;
+    }
+#endif
 
     wchar_t* pathStr = java_to_wchar_path(env, path, result);
     file_stat_t fileStat;
@@ -494,7 +521,12 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_stat(JNIEnv *
         mark_failed_with_code(env, "could not file attributes", errorCode, NULL, result);
         return;
     }
+
+#ifdef WINDOWS_MIN
     env->CallVoidMethod(dest, mid, fileStat.fileType, fileStat.size, fileStat.lastModified);
+#else
+    env->CallVoidMethod(dest, mid, fileStat.fileType, fileStat.size, fileStat.lastModified, fileStat.volumeId, fileStat.fileId);
+#endif
 }
 
 JNIEXPORT void JNICALL
@@ -542,6 +574,8 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_readdir(JNIEn
                     FILE_TYPE_FILE;
             fileInfo.lastModified = lastModifiedNanos(&entry.ftLastWriteTime);
             fileInfo.size = ((jlong)entry.nFileSizeHigh << 32) | entry.nFileSizeLow;
+            fileInfo.volumeId = 0;
+            fileInfo.fileId = 0;
         }
 
         // Add entry
@@ -556,6 +590,168 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_readdir(JNIEn
 
     free(patternStr);
     FindClose(dirHandle);
+}
+
+//
+// Returns "true" if the various fastReaddirXxx calls are supported on this platform.
+//
+JNIEXPORT jboolean JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_fastReaddirIsSupported(JNIEnv *env, jclass target) {
+#ifdef WINDOWS_MIN
+    return JNI_FALSE;
+#else
+    return JNI_TRUE;
+#endif
+}
+
+#ifndef WINDOWS_MIN
+typedef struct fast_readdir_handle {
+    HANDLE handle;
+    wchar_t* pathStr;
+    ULONG volumeSerialNumber;
+} readdir_fast_handle_t;
+#endif
+
+#ifndef WINDOWS_MIN
+NTSTATUS invokeNtQueryDirectoryFile(HANDLE handle, BYTE* buffer, ULONG bufferSize) {
+    IO_STATUS_BLOCK ioStatusBlock;
+
+    return NtQueryDirectoryFile(
+        handle, // FileHandle
+        NULL, // Event
+        NULL, // ApcRoutine
+        NULL, // ApcContext
+        &ioStatusBlock, // IoStatusBlock
+        buffer, // FileInformation
+        bufferSize, // Length
+        FileIdFullDirectoryInformation, // FileInformationClass
+        FALSE, // ReturnSingleEntry
+        NULL, // FileName
+        FALSE); // RestartScan
+}
+#endif
+
+//
+// Opens a directory for file enumeration and returns a handle to a |fast_readdir_handle| structure
+// on success. The handle must be released by calling "xxx_fastReaddirClose" when done.
+// Returns NULL on failure (and sets error message in |result|).
+//
+JNIEXPORT jlong JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_fastReaddirOpen(JNIEnv *env, jclass target, jstring path, jobject result) {
+#ifdef WINDOWS_MIN
+    mark_failed_with_code(env, "Operation not supported", ERROR_CALL_NOT_IMPLEMENTED, NULL, result);
+    return NULL;
+#else
+    // Open file for directory listing
+    wchar_t* pathStr = java_to_wchar_path(env, path, result);
+    if (pathStr == NULL) {
+        mark_failed_with_code(env, "Out of native memory", ERROR_OUTOFMEMORY, NULL, result);
+        return NULL;
+    }
+    HANDLE handle = CreateFileW(pathStr, FILE_LIST_DIRECTORY,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+    if (handle == INVALID_HANDLE_VALUE) {
+        mark_failed_with_errno(env, "could not open directory", result);
+        free(pathStr);
+        return NULL;
+    }
+
+    // This call allows retrieving the volume ID of this directory (and all its entries)
+    BY_HANDLE_FILE_INFORMATION fileInfo;
+    BOOL ok = GetFileInformationByHandle(handle, &fileInfo);
+    if (!ok) {
+        mark_failed_with_errno(env, "could not open directory", result);
+        free(pathStr);
+        CloseHandle(handle);
+        return NULL;
+    }
+
+    readdir_fast_handle_t* readdirHandle = (readdir_fast_handle_t*)LocalAlloc(LPTR, sizeof(readdir_fast_handle_t));
+    if (readdirHandle == NULL) {
+        mark_failed_with_code(env, "Out of native memory", ERROR_OUTOFMEMORY, NULL, result);
+        CloseHandle(handle);
+        free(pathStr);
+        return NULL;
+    }
+    readdirHandle->handle = handle;
+    readdirHandle->pathStr = pathStr;
+    readdirHandle->volumeSerialNumber = fileInfo.dwVolumeSerialNumber;
+    return (jlong)readdirHandle;
+#endif
+}
+
+//
+// Releases all native resources associated with |handle|, a pointer to |fast_readdir_handle|.
+//
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_fastReaddirClose(JNIEnv *env, jclass target, jlong handle) {
+#ifdef WINDOWS_MIN
+    // Not supported
+#else
+    readdir_fast_handle_t* readdirHandle = (readdir_fast_handle_t*)handle;
+    CloseHandle(readdirHandle->handle);
+    free(readdirHandle->pathStr);
+    LocalFree(readdirHandle);
+#endif
+}
+
+//
+// Returns the volume id of the directory opened by fastReaddirOpen
+//
+JNIEXPORT jint JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_fastReaddirGetVolumeId(JNIEnv *env, jclass target, jlong handle, jobject result) {
+#ifdef WINDOWS_MIN
+    mark_failed_with_code(env, "Operation not supported", ERROR_CALL_NOT_IMPLEMENTED, NULL, result);
+    return 0;
+#else
+    readdir_fast_handle_t* readdirHandle = (readdir_fast_handle_t*)handle;
+    return readdirHandle->volumeSerialNumber;
+#endif
+}
+
+//
+// Reads the next batch of entries from the directory.
+// Returns JNI_TRUE on success and if there are more entries found
+// Returns JNI_FALSE and sets an error to |result| if there is an error
+// Returns JNI_FALSE if there are no more entries
+//
+JNIEXPORT jboolean JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_fastReaddirNext(JNIEnv *env, jclass target, jlong handle, jobject buffer, jobject result) {
+#ifdef WINDOWS_MIN
+    mark_failed_with_code(env, "Operation not supported", ERROR_CALL_NOT_IMPLEMENTED, NULL, result);
+    return JNI_FALSE;
+#else
+    readdir_fast_handle_t* readdirHandle = (readdir_fast_handle_t*)handle;
+
+    BYTE* entryBuffer = (BYTE*)env->GetDirectBufferAddress(buffer);
+    ULONG entryBufferSize = (ULONG)env->GetDirectBufferCapacity(buffer);
+
+    NTSTATUS status = invokeNtQueryDirectoryFile(readdirHandle->handle, entryBuffer, entryBufferSize);
+    if (!NT_SUCCESS(status)) {
+        // Normal completion: no more files in directory
+        if (status == STATUS_NO_MORE_FILES) {
+            return JNI_FALSE;
+        }
+
+        /*
+         * NtQueryDirectoryFile returns STATUS_INVALID_PARAMETER when
+         * asked to enumerate an invalid directory (ie it is a file
+         * instead of a directory).  Verify that is the actual cause
+         * of the error.
+         */
+        if (status == STATUS_INVALID_PARAMETER) {
+            DWORD attributes = GetFileAttributesW(readdirHandle->pathStr);
+            if ((attributes & FILE_ATTRIBUTE_DIRECTORY) == 0) {
+                status = STATUS_NOT_A_DIRECTORY;
+            }
+        }
+        mark_failed_with_ntstatus(env, "Error reading directory entries", status, result);
+        return JNI_FALSE;
+    }
+
+    return JNI_TRUE;
+#endif
 }
 
 /*

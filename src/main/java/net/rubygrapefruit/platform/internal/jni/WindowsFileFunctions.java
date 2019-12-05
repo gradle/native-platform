@@ -20,8 +20,17 @@ import net.rubygrapefruit.platform.internal.DirList;
 import net.rubygrapefruit.platform.internal.FunctionResult;
 import net.rubygrapefruit.platform.internal.WindowsFileStat;
 
+import java.nio.ByteBuffer;
+
+@SuppressWarnings("SpellCheckingInspection")
 public class WindowsFileFunctions {
     public static native void stat(String file, boolean followLink, WindowsFileStat stat, FunctionResult result);
 
     public static native void readdir(String path, boolean followLink, DirList dirList, FunctionResult result);
+
+    public static native boolean fastReaddirIsSupported();
+    public static native long fastReaddirOpen(String path, FunctionResult result);
+    public static native void fastReaddirClose(long handle);
+    public static native int fastReaddirGetVolumeId(long handle, FunctionResult result);
+    public static native boolean fastReaddirNext(long handle, ByteBuffer buffer, FunctionResult result);
 }

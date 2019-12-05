@@ -16,11 +16,18 @@
 
 package net.rubygrapefruit.platform.internal;
 
+import net.rubygrapefruit.platform.file.FileInfo;
+import net.rubygrapefruit.platform.file.WindowsFileInfo;
+
 public class WindowsDirList extends DirList {
     // Called from native code
     @SuppressWarnings("UnusedDeclaration")
     @Override
     public void addFile(String name, int type, long size, long lastModified) {
-        super.addFile(name, type, size, WindowsFileTime.toJavaTime(lastModified));
+        addFile(name, FileInfo.Type.values()[type], size, WindowsFileTime.toJavaTime(lastModified), 0, 0);
+    }
+
+    void addFile(String name, WindowsFileInfo fileInfo) {
+        addFile(name, fileInfo.getType(), fileInfo.getSize(), fileInfo.getLastModifiedTime(), fileInfo.getVolumeId(), fileInfo.getFileId());
     }
 }

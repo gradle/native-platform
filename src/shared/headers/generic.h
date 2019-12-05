@@ -110,6 +110,8 @@ typedef struct file_stat {
     jint fileType;
     jlong lastModified;
     jlong size;
+    jint volumeId;
+    jlong fileId;
 } file_stat_t;
 
 #ifdef __cplusplus

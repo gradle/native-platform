@@ -27,12 +27,17 @@ public class FileStat implements PosixFileInfo {
     private long size;
     private long modificationTime;
     private long blockSize;
+    private int volumeId;
+    private long fileId;
+    // Lazily initialized to avoid extra allocation if not needed
+    private volatile FileKey key;
 
     public FileStat(String path) {
         this.path = path;
     }
 
-    public void details(int type, int mode, int uid, int gid, long size, long modificationTime, int blockSize) {
+    // Called from native code
+    public void details(int type, int mode, int uid, int gid, long size, long modificationTime, int blockSize, int volumeId, long fileId) {
         this.type = Type.values()[type];
         this.mode = mode;
         this.uid = uid;
@@ -40,6 +45,8 @@ public class FileStat implements PosixFileInfo {
         this.size = size;
         this.modificationTime = modificationTime;
         this.blockSize = blockSize;
+        this.volumeId = volumeId;
+        this.fileId = fileId;
     }
 
     @Override
@@ -73,5 +80,27 @@ public class FileStat implements PosixFileInfo {
 
     public long getLastModifiedTime() {
         return modificationTime;
+    }
+
+    public Object getKey() {
+        if (volumeId == 0 && fileId == 0) {
+            return null;
+        }
+        if (key == null) {
+            synchronized (this) {
+                if (key == null) {
+                    key = new FileKey(volumeId, fileId);
+                }
+            }
+        }
+        return key;
+    }
+
+    public int getVolumeId() {
+        return volumeId;
+    }
+
+    public long getFileId() {
+        return fileId;
     }
 }
