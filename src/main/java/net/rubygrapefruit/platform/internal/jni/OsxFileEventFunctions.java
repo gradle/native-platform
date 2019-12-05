@@ -22,7 +22,7 @@ public class OsxFileEventFunctions {
     public static native void startWatch(String[] path, ChangeCallback callback, FunctionResult result);
     public static native void stopWatch(FunctionResult result);
 
-    interface ChangeCallback {
+    public interface ChangeCallback {
         // Invoked from native code
         @SuppressWarnings("unused")
         void pathChanged(String path);

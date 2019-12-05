@@ -38,102 +38,124 @@ class OsxFileEventsTest extends Specification {
     }
 
     def "can open and close watch on a directory without receiving any events"() {
-        def collector = fileEvents.startWatch()
+        def changes = startWatch()
 
-        when:
-        def changes = fileEvents.stopWatch(collector);
-
-        then:
+        expect:
         changes.empty
+
+        cleanup:
+        stopWatch()
     }
 
     def "can open and close watch on a directory receiving an event"() {
         given:
         def dir = tmpDir.newFolder()
-        def collector = fileEvents.startWatch(dir.absolutePath)
-        new File(dir, "a.txt").createNewFile();
-        waitForFileSystem()
+        def changes = startWatch(dir.absolutePath)
 
         when:
-        def changes = fileEvents.stopWatch(collector);
+        new File(dir, "a.txt").createNewFile()
+        waitForFileSystem()
 
         then:
         changes == [dir.canonicalPath + "/"]
+
+        cleanup:
+        stopWatch()
     }
 
     def "can open and close watch on a directory receiving multiple events"() {
         given:
         def dir = tmpDir.newFolder()
-        def collector = fileEvents.startWatch(dir.absolutePath)
-        new File(dir, "a.txt").createNewFile();
-        new File(dir, "b.txt").createNewFile();
-        waitForFileSystem()
+        def changes = startWatch(dir.absolutePath)
 
         when:
-        def changes = fileEvents.stopWatch(collector);
+        new File(dir, "a.txt").createNewFile()
+        new File(dir, "b.txt").createNewFile()
+        waitForFileSystem()
 
         then:
-        changes == [dir.canonicalPath + "/"]
+        changes == [dir.canonicalPath + "/", dir.canonicalPath + "/"]
+
+        cleanup:
+        stopWatch()
     }
 
     def "can open and close watch on multiple directories receiving multiple events"() {
         given:
         def dir1 = tmpDir.newFolder()
         def dir2 = tmpDir.newFolder()
-        def collector = fileEvents.startWatch(dir1.absolutePath, dir2.absolutePath)
-        new File(dir1, "a.txt").createNewFile();
-        new File(dir2, "b.txt").createNewFile();
-        waitForFileSystem()
+        def changes = startWatch(dir1.absolutePath, dir2.absolutePath)
 
         when:
-        def changes = fileEvents.stopWatch(collector);
+        new File(dir1, "a.txt").createNewFile()
+        new File(dir2, "b.txt").createNewFile()
+        waitForFileSystem()
 
         then:
         changes == [dir1.canonicalPath + "/", dir2.canonicalPath + "/"]
+
+        cleanup:
+        stopWatch()
     }
 
     def "can be started once and stopped multiple times"() {
         given:
         def dir = tmpDir.newFolder()
-        def collector = fileEvents.startWatch(dir.absolutePath)
-        new File(dir, "a.txt").createNewFile();
-        waitForFileSystem()
+        def changes = startWatch(dir.absolutePath)
 
         when:
-        def changes = fileEvents.stopWatch(collector);
+        new File(dir, "a.txt").createNewFile()
+        waitForFileSystem()
 
         then:
         changes == [dir.canonicalPath + "/"]
 
         when:
-        changes = fileEvents.stopWatch(collector);
+        changes.clear()
+        stopWatch()
 
         then:
-        changes == []
+        changes.empty
+
+        when:
+        stopWatch()
+
+        then:
+        changes.empty
     }
 
     def "can be used multiple times"() {
         given:
         def dir = tmpDir.newFolder()
-        def collector = fileEvents.startWatch(dir.absolutePath)
-        new File(dir, "a.txt").createNewFile();
-        waitForFileSystem()
+        def changes = startWatch(dir.absolutePath)
 
         when:
-        def changes = fileEvents.stopWatch(collector);
+        new File(dir, "a.txt").createNewFile()
+        waitForFileSystem()
+        stopWatch()
 
         then:
         changes == [dir.canonicalPath + "/"]
 
         when:
         dir = tmpDir.newFolder()
-        collector = fileEvents.startWatch(dir.absolutePath)
-        new File(dir, "a.txt").createNewFile();
+        changes = startWatch(dir.absolutePath)
+        new File(dir, "a.txt").createNewFile()
         waitForFileSystem()
-        changes = fileEvents.stopWatch(collector);
+        stopWatch()
 
         then:
         changes == [dir.canonicalPath + "/"]
+    }
+
+    private List<String> startWatch(String... paths) {
+        def changes = []
+        fileEvents.startWatch(paths as List, { changes.add(it) })
+        return changes
+    }
+
+    private void stopWatch() {
+        fileEvents.stopWatch()
     }
 
     // TODO: this is not great, as it leads to flaky tests. Figure out a better way.
