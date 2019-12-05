@@ -14,7 +14,6 @@
 #include <pthread.h>
 #include <strings.h>
 
-FSEventStreamRef watcherStream = NULL;
 pthread_t watcherThread = NULL;
 // store the callback object, as we need to invoke it once file change is detected.
 jobject watcherCallback = NULL;
@@ -24,6 +23,7 @@ bool invalidStateDetected = false;
 
 typedef struct watch_details {
     CFMutableArrayRef rootsToWatch;
+    FSEventStreamRef watcherStream;
 } watch_details_t;
 
 static void reportEvent(const char *event, char *path) {
@@ -120,7 +120,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatch(J
         return NULL;
     }
 
-    watcherStream = FSEventStreamCreate (
+    FSEventStreamRef watcherStream = FSEventStreamCreate (
                 NULL,
                 &callback,
                 NULL,
@@ -148,6 +148,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatch(J
     jmethodID constructor = env->GetMethodID(clsWatch, "<init>", "(Ljava/lang/Object;)V");
     watch_details_t* details = (watch_details_t*)malloc(sizeof(watch_details_t));
     details->rootsToWatch = rootsToWatch;
+    details->watcherStream = watcherStream;
     return env->NewObject(clsWatch, constructor, env->NewDirectByteBuffer(details, sizeof(details)));
 }
 
@@ -155,6 +156,7 @@ JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_stopWatch(JNIEnv *env, jclass target, jobject detailsObj, jobject result) {
     watch_details_t *details = (watch_details_t*) env->GetDirectBufferAddress(detailsObj);
     CFMutableArrayRef rootsToWatch = details->rootsToWatch;
+    FSEventStreamRef watcherStream = details->watcherStream;
     free(details);
 
     // if there were no roots to watch, there are no resources to release
