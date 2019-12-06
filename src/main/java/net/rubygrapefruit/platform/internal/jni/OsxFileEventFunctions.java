@@ -26,27 +26,31 @@ import java.util.Collection;
 
 public class OsxFileEventFunctions implements NativeIntegration {
 
-    public FileWatcher startWatch(Collection<String> paths, double latency, FileWatcherCallback callback) {
+    public FileWatcher startWatching(Collection<String> paths, double latency, FileWatcherCallback callback) {
         if (paths.isEmpty()) {
             return FileWatcher.EMPTY;
         }
         FunctionResult result = new FunctionResult();
-        FileWatcher watch = startWatch(paths.toArray(new String[0]), latency, callback, result);
+        FileWatcher watch = startWatching(paths.toArray(new String[0]), latency, callback, result);
         if (result.isFailed()) {
             throw new NativeException("Failed to start watch. Reason: " + result.getMessage());
         }
         return watch;
     }
 
-    private static native FileWatcher startWatch(String[] paths, double latency, FileWatcherCallback callback, FunctionResult result);
+    private static native FileWatcher startWatching(String[] paths, double latency, FileWatcherCallback callback, FunctionResult result);
     private static native void stopWatch(Object details, FunctionResult result);
 
     // Created from native code
     @SuppressWarnings("unused")
-    private static class WatchImpl implements FileWatcher {
+    private static class WatcherImpl implements FileWatcher {
+        /**
+         * Details is a Java object wrapper around whatever data the native implementation
+         * needs to keep track of.
+         */
         private Object details;
 
-        public WatchImpl(Object details) {
+        public WatcherImpl(Object details) {
             this.details = details;
         }
 

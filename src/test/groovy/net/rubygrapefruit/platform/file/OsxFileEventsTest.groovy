@@ -21,11 +21,11 @@ import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 import spock.lang.Specification
 import spock.lang.Timeout
 
-@IgnoreIf({ !Platform.current().macOs })
+@Requires({ Platform.current().macOs })
 @Timeout(20)
 class OsxFileEventsTest extends Specification {
     @Rule
@@ -153,7 +153,7 @@ class OsxFileEventsTest extends Specification {
 
     private List<String> startWatch(double latency = 0.3, String... paths) {
         def changes = []
-        watch = fileEvents.startWatch(paths as List, latency) {
+        watch = fileEvents.startWatching(paths as List, latency) {
             println "> $it"
             changes.add(it)
         }

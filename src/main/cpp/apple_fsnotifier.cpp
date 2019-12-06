@@ -88,7 +88,7 @@ static void *EventProcessingThread(void *data) {
 }
 
 JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatch(JNIEnv *env, jclass target, jobjectArray paths, CFAbsoluteTime latency, jobject javaCallback, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatching(JNIEnv *env, jclass target, jobjectArray paths, CFAbsoluteTime latency, jobject javaCallback, jobject result) {
     invalidStateDetected = false;
     CFMutableArrayRef rootsToWatch = CFArrayCreateMutable(NULL, 0, NULL);
     if (rootsToWatch == NULL) {
@@ -153,7 +153,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatch(J
         return NULL;
     }
 
-    jclass clsWatch = env->FindClass("net/rubygrapefruit/platform/internal/jni/OsxFileEventFunctions$WatchImpl");
+    jclass clsWatch = env->FindClass("net/rubygrapefruit/platform/internal/jni/OsxFileEventFunctions$WatcherImpl");
     jmethodID constructor = env->GetMethodID(clsWatch, "<init>", "(Ljava/lang/Object;)V");
     return env->NewObject(clsWatch, constructor, env->NewDirectByteBuffer(details, sizeof(details)));
 }
