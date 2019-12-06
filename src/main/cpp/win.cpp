@@ -1140,14 +1140,12 @@ JavaVM* jvm = NULL;
 typedef struct watch_details {
     HANDLE watchHandle;
     HANDLE threadHandle;
-    jstring path;
+    wchar_t* pathStr;
     jobject watcherCallback;
 } watch_details_t;
 
 DWORD WINAPI EventProcessingThread(LPVOID data) {
     watch_details_t *details = (watch_details_t*) data;
-    printf("~~~~ Hello %d\n", details->threadHandle);
-    /*
     while (TRUE) {
         if (WaitForSingleObject(details->watchHandle, INFINITE) == WAIT_FAILED) {
             // TODO Error handling
@@ -1175,13 +1173,15 @@ DWORD WINAPI EventProcessingThread(LPVOID data) {
         } else if (getEnvStat == JNI_EVERSION) {
             // TODO Error handling
             // invalidStateDetected = true;
+            break;
         }
 
-        jclass callback_class = env->GetObjectClass(details->watcherCallback);
-        jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(Ljava/lang/String;)V");
-        env->CallVoidMethod(details->watcherCallback, methodCallback, details->path);
+        printf("~~~~ Changes: %ls\n", details->pathStr);
+
+        // jclass callback_class = env->GetObjectClass(details->watcherCallback);
+        // jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(Ljava/lang/String;)V");
+        // env->CallVoidMethod(details->watcherCallback, methodCallback, details->path);
     }
-    */
     return 0;
 }
 
@@ -1193,7 +1193,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
         TRUE,
         FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE
     );
-    free(pathStr);
+    // free(pathStr);
     if (watchHandle == INVALID_HANDLE_VALUE) {
         mark_failed_with_errno(env, "could not open change notification", result);
         return NULL;
@@ -1208,7 +1208,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
 
     watch_details_t* details = (watch_details_t*)malloc(sizeof(watch_details_t));
     details->watchHandle = watchHandle;
-    details->path = path;
+    details->pathStr = pathStr;
     details->watcherCallback = javaCallback;
 
     details->threadHandle = CreateThread(
@@ -1228,6 +1228,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_stopWatch(JNIEnv *env, jclass target, jobject detailsObj, jobject result) {
     watch_details_t* details = (watch_details_t*)env->GetDirectBufferAddress(detailsObj);
+    free(details->pathStr);
     FindCloseChangeNotification(details->watchHandle);
     CloseHandle(details->threadHandle);
     free(details);
