@@ -16,28 +16,16 @@
 
 package net.rubygrapefruit.platform.internal.jni;
 
+import net.rubygrapefruit.platform.file.FileWatcher;
 import net.rubygrapefruit.platform.internal.FunctionResult;
 
-import java.io.Closeable;
-
 public class OsxFileEventFunctions {
-    public static native Watch startWatch(String[] path, double latency, ChangeCallback callback, FunctionResult result);
+    public static native FileWatcher startWatch(String[] path, double latency, ChangeCallback callback, FunctionResult result);
     public static native void stopWatch(Object details, FunctionResult result);
 
     public interface ChangeCallback {
         // Invoked from native code
         @SuppressWarnings("unused")
         void pathChanged(String path);
-    }
-
-    public interface Watch extends Closeable {
-        Watch EMPTY = new Watch() {
-            @Override
-            public void close() {
-            }
-        };
-
-        @Override
-        void close();
     }
 }

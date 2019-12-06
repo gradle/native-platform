@@ -19,7 +19,6 @@ package net.rubygrapefruit.platform.file
 import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.DefaultOsxFileEventFunctions
-import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import spock.lang.IgnoreIf
@@ -32,7 +31,7 @@ class OsxFileEventsTest extends Specification {
     @Rule
     TemporaryFolder tmpDir
     final DefaultOsxFileEventFunctions fileEvents = Native.get(DefaultOsxFileEventFunctions.class)
-    OsxFileEventFunctions.Watch watch
+    FileWatcher watch
 
     def "caches file events instance"() {
         expect:
