@@ -136,7 +136,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatch(J
          return NULL;
     }
 
-    jclass clsWatch = env->FindClass("net/rubygrapefruit/platform/internal/jni/DefaultOsxFileEventFunctions$WatchImpl");
+    jclass clsWatch = env->FindClass("net/rubygrapefruit/platform/internal/jni/OsxFileEventFunctions$WatchImpl");
     jmethodID constructor = env->GetMethodID(clsWatch, "<init>", "(Ljava/lang/Object;)V");
     watch_details_t* details = (watch_details_t*)malloc(sizeof(watch_details_t));
     details->rootsToWatch = rootsToWatch;
