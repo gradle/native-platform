@@ -1133,4 +1133,104 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsRegistryFunctions_getValueN
     return true;
 }
 
+// File watching
+
+JavaVM* jvm = NULL;
+
+typedef struct watch_details {
+    HANDLE watchHandle;
+    HANDLE threadHandle;
+    jstring path;
+    jobject watcherCallback;
+} watch_details_t;
+
+DWORD WINAPI EventProcessingThread(LPVOID data) {
+    watch_details_t *details = (watch_details_t*) data;
+    printf("~~~~ Hello %d\n", details->threadHandle);
+    /*
+    while (TRUE) {
+        if (WaitForSingleObject(details->watchHandle, INFINITE) == WAIT_FAILED) {
+            // TODO Error handling
+            // mark_failed_with_errno(env, "could not wait for change notification", result);
+            break;
+        }
+        if (!FindNextChangeNotification(details->watchHandle)) {
+            if (GetLastError() == ERROR_INVALID_HANDLE) {
+                // Assumed closed
+                break;
+            }
+            // TODO Error handling
+            // mark_failed_with_errno(env, "could not schedule next change notification", result);
+            break;
+        }
+
+        JNIEnv* env;
+        int getEnvStat = jvm->GetEnv((void **)&env, JNI_VERSION_1_6);
+        if (getEnvStat == JNI_EDETACHED) {
+            if (jvm->AttachCurrentThread((void **) &env, NULL) != JNI_OK) {
+                // TODO Error handling
+                // invalidStateDetected = true;
+                break;
+            }
+        } else if (getEnvStat == JNI_EVERSION) {
+            // TODO Error handling
+            // invalidStateDetected = true;
+        }
+
+        jclass callback_class = env->GetObjectClass(details->watcherCallback);
+        jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(Ljava/lang/String;)V");
+        env->CallVoidMethod(details->watcherCallback, methodCallback, details->path);
+    }
+    */
+    return 0;
+}
+
+JNIEXPORT jobject JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatch(JNIEnv *env, jclass target, jstring path, jobject javaCallback, jobject result) {
+    wchar_t* pathStr = java_to_wchar_path(env, path, result);
+    HANDLE watchHandle = FindFirstChangeNotificationW(
+        pathStr,
+        TRUE,
+        FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE
+    );
+    free(pathStr);
+    if (watchHandle == INVALID_HANDLE_VALUE) {
+        mark_failed_with_errno(env, "could not open change notification", result);
+        return NULL;
+    }
+
+    // TODO Should this be somewhere global?
+    int jvmStatus = env->GetJavaVM(&jvm);
+    if (jvmStatus < 0) {
+        mark_failed_with_errno(env, "Could not store jvm instance.", result);
+        return NULL;
+    }
+
+    watch_details_t* details = (watch_details_t*)malloc(sizeof(watch_details_t));
+    details->watchHandle = watchHandle;
+    details->path = path;
+    details->watcherCallback = javaCallback;
+
+    details->threadHandle = CreateThread(
+        NULL,                   // default security attributes
+        0,                      // use default stack size
+        EventProcessingThread,  // thread function name
+        details,                // argument to thread function
+        0,                      // use default creation flags
+        NULL                    // the thread identifier
+    );
+
+    jclass clsWatch = env->FindClass("net/rubygrapefruit/platform/internal/jni/WindowsFileEventFunctions$WatchImpl");
+    jmethodID constructor = env->GetMethodID(clsWatch, "<init>", "(Ljava/lang/Object;)V");
+    return env->NewObject(clsWatch, constructor, env->NewDirectByteBuffer(details, sizeof(details)));
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_stopWatch(JNIEnv *env, jclass target, jobject detailsObj, jobject result) {
+    watch_details_t* details = (watch_details_t*)env->GetDirectBufferAddress(detailsObj);
+    FindCloseChangeNotification(details->watchHandle);
+    CloseHandle(details->threadHandle);
+    free(details);
+}
+
 #endif
