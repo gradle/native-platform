@@ -3,13 +3,14 @@ package net.rubygrapefruit.platform.internal.jni;
 import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.NativeIntegration;
 import net.rubygrapefruit.platform.file.FileWatcher;
+import net.rubygrapefruit.platform.file.FileWatcherCallback;
 import net.rubygrapefruit.platform.internal.FunctionResult;
 
 import java.util.Collection;
 
 public class DefaultOsxFileEventFunctions implements NativeIntegration {
 
-    public FileWatcher startWatch(Collection<String> paths, double latency, OsxFileEventFunctions.ChangeCallback callback) {
+    public FileWatcher startWatch(Collection<String> paths, double latency, FileWatcherCallback callback) {
         if (paths.isEmpty()) {
             return FileWatcher.EMPTY;
         }
@@ -21,6 +22,8 @@ public class DefaultOsxFileEventFunctions implements NativeIntegration {
         return watch;
     }
 
+    // Created from native code
+    @SuppressWarnings("unused")
     public static class WatchImpl implements FileWatcher {
         private Object details;
 

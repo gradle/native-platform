@@ -17,15 +17,10 @@
 package net.rubygrapefruit.platform.internal.jni;
 
 import net.rubygrapefruit.platform.file.FileWatcher;
+import net.rubygrapefruit.platform.file.FileWatcherCallback;
 import net.rubygrapefruit.platform.internal.FunctionResult;
 
 public class OsxFileEventFunctions {
-    public static native FileWatcher startWatch(String[] path, double latency, ChangeCallback callback, FunctionResult result);
+    public static native FileWatcher startWatch(String[] path, double latency, FileWatcherCallback callback, FunctionResult result);
     public static native void stopWatch(Object details, FunctionResult result);
-
-    public interface ChangeCallback {
-        // Invoked from native code
-        @SuppressWarnings("unused")
-        void pathChanged(String path);
-    }
 }
