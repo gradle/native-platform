@@ -19,7 +19,6 @@ package net.rubygrapefruit.platform.internal.jni;
 import net.rubygrapefruit.platform.internal.FunctionResult;
 
 import java.io.Closeable;
-import java.io.IOException;
 
 public class OsxFileEventFunctions {
     public static native Watch startWatch(String[] path, double latency, ChangeCallback callback, FunctionResult result);
