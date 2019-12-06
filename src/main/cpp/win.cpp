@@ -1141,7 +1141,6 @@ typedef struct watch_details {
     HANDLE watchHandle;
     HANDLE threadHandle;
     jstring path;
-    wchar_t* pathStr;
     jobject watcherCallback;
 } watch_details_t;
 
@@ -1180,7 +1179,9 @@ DWORD WINAPI EventProcessingThread(LPVOID data) {
             break;
         }
 
-        printf("~~~~ Changes: %ls\n", details->pathStr);
+        wchar_t* pathStr = java_to_wchar_path(env, details->path, NULL);
+        printf("~~~~ Changes: %ls\n", pathStr);
+        free(pathStr);
 
         jclass callback_class = env->GetObjectClass(details->watcherCallback);
         jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(Ljava/lang/String;)V");
@@ -1213,7 +1214,6 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
     watch_details_t* details = (watch_details_t*)malloc(sizeof(watch_details_t));
     details->watchHandle = watchHandle;
     details->path = (jstring) env->NewGlobalRef(path);
-    details->pathStr = pathStr;
     details->watcherCallback = env->NewGlobalRef(javaCallback);
 
     details->threadHandle = CreateThread(
@@ -1233,7 +1233,6 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_stopWatch(JNIEnv *env, jclass target, jobject detailsObj, jobject result) {
     watch_details_t* details = (watch_details_t*)env->GetDirectBufferAddress(detailsObj);
-    free(details->pathStr);
     env->DeleteGlobalRef(details->path);
     env->DeleteGlobalRef(details->watcherCallback);
     FindCloseChangeNotification(details->watchHandle);
