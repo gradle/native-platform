@@ -15,7 +15,6 @@
 #include <strings.h>
 
 JavaVM* jvm = NULL;
-CFRunLoopRef threadLoop = NULL;
 bool invalidStateDetected = false;
 
 typedef struct watch_details {
@@ -23,6 +22,7 @@ typedef struct watch_details {
     FSEventStreamRef watcherStream;
     pthread_t watcherThread;
     jobject watcherCallback;
+    CFRunLoopRef threadLoop;
 } watch_details_t;
 
 static void reportEvent(const char *event, char *path, jobject watcherCallback) {
@@ -77,10 +77,11 @@ static void callback(ConstFSEventStreamRef streamRef,
 }
 
 static void *EventProcessingThread(void *data) {
-    FSEventStreamRef stream = (FSEventStreamRef) data;
-    threadLoop = CFRunLoopGetCurrent();
-    FSEventStreamScheduleWithRunLoop(stream, threadLoop, kCFRunLoopDefaultMode);
-    FSEventStreamStart(stream);
+    watch_details_t *details = (watch_details_t*) data;
+    CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
+    FSEventStreamScheduleWithRunLoop(details->watcherStream, threadLoop, kCFRunLoopDefaultMode);
+    FSEventStreamStart(details->watcherStream);
+    details->threadLoop = threadLoop;
     // This triggers run loop for this thread, causing it to run until we explicitly stop it.
     CFRunLoopRun();
     return NULL;
@@ -135,8 +136,14 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatch(J
          return NULL;
     }
 
-    pthread_t watcherThread = NULL;
-    if (pthread_create(&watcherThread, NULL, EventProcessingThread, watcherStream) != 0) {
+    jclass clsWatch = env->FindClass("net/rubygrapefruit/platform/internal/jni/DefaultOsxFileEventFunctions$WatchImpl");
+    jmethodID constructor = env->GetMethodID(clsWatch, "<init>", "(Ljava/lang/Object;)V");
+    watch_details_t* details = (watch_details_t*)malloc(sizeof(watch_details_t));
+    details->rootsToWatch = rootsToWatch;
+    details->watcherStream = watcherStream;
+    details->watcherCallback = watcherCallback;
+
+    if (pthread_create(&(details->watcherThread), NULL, EventProcessingThread, details) != 0) {
         mark_failed_with_errno(env, "Could not create file watcher thread.", result);
         return NULL;
     }
@@ -148,13 +155,6 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatch(J
         return NULL;
     }
 
-    jclass clsWatch = env->FindClass("net/rubygrapefruit/platform/internal/jni/DefaultOsxFileEventFunctions$WatchImpl");
-    jmethodID constructor = env->GetMethodID(clsWatch, "<init>", "(Ljava/lang/Object;)V");
-    watch_details_t* details = (watch_details_t*)malloc(sizeof(watch_details_t));
-    details->rootsToWatch = rootsToWatch;
-    details->watcherStream = watcherStream;
-    details->watcherThread = watcherThread;
-    details->watcherCallback = watcherCallback;
     return env->NewObject(clsWatch, constructor, env->NewDirectByteBuffer(details, sizeof(details)));
 }
 
@@ -165,6 +165,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_stopWatch(JN
     FSEventStreamRef watcherStream = details->watcherStream;
     pthread_t watcherThread = details->watcherThread;
     jobject watcherCallback = details->watcherCallback;
+    CFRunLoopRef threadLoop = details->threadLoop;
     free(details);
 
     // if there were no roots to watch, there are no resources to release
