@@ -58,39 +58,31 @@ class WindowsFileEventsTest extends Specification {
         waitForFileSystem()
 
         then:
-        changes == [dir.canonicalPath + "/"]
+        changes == [dir]
 
         cleanup:
         stopWatch()
     }
 
     def "can open and close watch on a directory receiving multiple events"() {
-        def latency = 0.5
         given:
         def dir = tmpDir.newFolder()
-        def changes = startWatch(latency, dir.absolutePath)
+        def changes = startWatch(dir.absolutePath)
 
         when:
         new File(dir, "a.txt").createNewFile()
         waitForFileSystem()
 
         then:
-        changes == [dir.canonicalPath + "/"]
-
-        when: "directory changed almost immediately again"
-        new File(dir, "b.txt").createNewFile()
-        waitForFileSystem()
-
-        then: "change is not reported"
-        changes == [dir.canonicalPath + "/"]
+        changes == [dir]
 
         when: "directory is changed after latency period"
-        Thread.sleep((long) (latency * 1000 + 100))
+        Thread.sleep(1000)
         new File(dir, "c.txt").createNewFile()
         waitForFileSystem()
 
         then: "change is reported"
-        changes == [dir.canonicalPath + "/", dir.canonicalPath + "/"]
+        changes == [dir, dir]
 
         cleanup:
         stopWatch()
@@ -108,7 +100,7 @@ class WindowsFileEventsTest extends Specification {
         waitForFileSystem()
 
         then:
-        changes == [dir1.canonicalPath + "/", dir2.canonicalPath + "/"]
+        changes == [dir1, dir2]
 
         cleanup:
         stopWatch()
@@ -138,7 +130,7 @@ class WindowsFileEventsTest extends Specification {
         stopWatch()
 
         then:
-        changes == [dir.canonicalPath + "/"]
+        changes == [dir]
 
         when:
         dir = tmpDir.newFolder()
@@ -148,14 +140,14 @@ class WindowsFileEventsTest extends Specification {
         stopWatch()
 
         then:
-        changes == [dir.canonicalPath + "/"]
+        changes == [dir]
     }
 
-    private List<String> startWatch(String... paths) {
+    private List<File> startWatch(String... paths) {
         def changes = []
         watch = fileEvents.startWatch(paths as List) {
             println "> $it"
-            changes.add(it)
+            changes.add(new File(it).canonicalFile)
         }
         return changes
     }
