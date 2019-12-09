@@ -23,15 +23,24 @@ import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import spock.lang.Requires
 import spock.lang.Specification
-import spock.lang.Timeout
+import spock.util.concurrent.AsyncConditions
 
 @Requires({ Platform.current().macOs })
-@Timeout(20)
 class OsxFileEventsTest extends Specification {
     @Rule
     TemporaryFolder tmpDir
     final OsxFileEventFunctions fileEvents = Native.get(OsxFileEventFunctions.class)
     FileWatcher watcher
+    def callback = new TestCallback()
+    File dir
+
+    def setup() {
+        dir = tmpDir.newFolder()
+    }
+
+    def cleanup() {
+        stopWatcher()
+    }
 
     def "caches file events instance"() {
         expect:
@@ -39,89 +48,78 @@ class OsxFileEventsTest extends Specification {
     }
 
     def "can open and close watcher on a directory without receiving any events"() {
-        def changes = startWatcher()
+        when:
+        startWatcher(dir)
 
-        expect:
-        changes.empty
-
-        cleanup:
-        stopWatcher()
+        then:
+        0 * _
     }
 
     def "can open and close watcher on a directory receiving an event"() {
         given:
-        def dir = tmpDir.newFolder()
-        def changes = startWatcher(dir.absolutePath)
+        startWatcher(dir)
 
         when:
+        def expectedChanges = expectThat pathChanged(dir)
         new File(dir, "a.txt").createNewFile()
-        waitForFileSystem()
 
         then:
-        changes == [dir.canonicalPath + "/"]
-
-        cleanup:
-        stopWatcher()
+        expectedChanges.await()
     }
 
     def "can open and close watcher on a directory receiving multiple events"() {
-        def latency = 0.5
         given:
-        def dir = tmpDir.newFolder()
-        def changes = startWatcher(latency, dir.absolutePath)
+        def latency = 0.3
+        startWatcher(latency, dir)
 
         when:
+        def expectedChanges = expectThat pathChanged(dir)
         new File(dir, "a.txt").createNewFile()
-        waitForFileSystem()
 
         then:
-        changes == [dir.canonicalPath + "/"]
+        expectedChanges.await()
 
-        when: "directory changed almost immediately again"
-        new File(dir, "b.txt").createNewFile()
-        waitForFileSystem()
-
-        then: "change is not reported"
-        changes == [dir.canonicalPath + "/"]
-
-        when: "directory is changed after latency period"
+        when:
+        expectedChanges = expectThat pathChanged(dir)
         Thread.sleep((long) (latency * 1000 + 100))
-        new File(dir, "c.txt").createNewFile()
-        waitForFileSystem()
+        new File(dir, "b.txt").createNewFile()
 
-        then: "change is reported"
-        changes == [dir.canonicalPath + "/", dir.canonicalPath + "/"]
-
-        cleanup:
-        stopWatcher()
+        then:
+        expectedChanges.await()
     }
 
     def "can open and close watcher on multiple directories receiving multiple events"() {
         given:
-        def dir1 = tmpDir.newFolder()
+        def latency = 0.3
         def dir2 = tmpDir.newFolder()
-        def changes = startWatcher(dir1.absolutePath, dir2.absolutePath)
+
+        println "-> $dir"
+        println "-> $dir2"
+
+        startWatcher(latency, dir2, dir)
 
         when:
-        new File(dir1, "a.txt").createNewFile()
-        new File(dir2, "b.txt").createNewFile()
-        waitForFileSystem()
+        def expectedChanges = expectThat pathChanged(dir)
+        new File(dir, "a.txt").createNewFile()
 
         then:
-        changes == [dir1.canonicalPath + "/", dir2.canonicalPath + "/"]
+        expectedChanges.await()
 
-        cleanup:
-        stopWatcher()
+        when:
+        expectedChanges = expectThat pathChanged(dir2)
+        new File(dir2, "b.txt").createNewFile()
+
+        then:
+        expectedChanges.await()
     }
 
     def "can be started once and stopped multiple times"() {
         given:
-        def dir = tmpDir.newFolder()
-        startWatcher(dir.absolutePath)
+        startWatcher(dir)
 
         when:
-        stopWatcher()
-        stopWatcher()
+        watcher.close()
+        watcher.close()
 
         then:
         noExceptionThrown()
@@ -129,43 +127,60 @@ class OsxFileEventsTest extends Specification {
 
     def "can be used multiple times"() {
         given:
-        def dir = tmpDir.newFolder()
-        def changes = startWatcher(dir.absolutePath)
+        startWatcher(dir)
 
         when:
+        def expectedChanges = expectThat pathChanged(dir)
         new File(dir, "a.txt").createNewFile()
-        waitForFileSystem()
-        stopWatcher()
 
         then:
-        changes == [dir.canonicalPath + "/"]
+        expectedChanges.await()
+        stopWatcher()
 
         when:
-        dir = tmpDir.newFolder()
-        changes = startWatcher(dir.absolutePath)
-        new File(dir, "a.txt").createNewFile()
-        waitForFileSystem()
-        stopWatcher()
+        startWatcher(dir)
+        expectedChanges = expectThat pathChanged(dir)
+        new File(dir, "b.txt").createNewFile()
 
         then:
-        changes == [dir.canonicalPath + "/"]
+        expectedChanges.await()
     }
 
-    private List<String> startWatcher(double latency = 0.3, String... paths) {
-        def changes = []
-        watcher = fileEvents.startWatching(paths as List, latency) {
-            println "> $it"
-            changes.add(it)
-        }
-        return changes
+    private void startWatcher(double latency = 0.3, File... roots) {
+        watcher = fileEvents.startWatching(roots*.absolutePath.toList(), latency, callback)
     }
-
     private void stopWatcher() {
-        watcher.close()
+        watcher?.close()
     }
 
-    // TODO: this is not great, as it leads to flaky tests. Figure out a better way.
-    private static void waitForFileSystem() {
-        Thread.sleep(20)
+    private AsyncConditions expectThat(FileWatcherCallback delegateCallback) {
+        return callback.expectCallback(delegateCallback)
+    }
+
+    private FileWatcherCallback pathChanged(File path) {
+        return { changedPath ->
+            assert changedPath == path.canonicalPath + "/"
+        }
+    }
+
+    private static class TestCallback implements FileWatcherCallback {
+        private AsyncConditions conds
+        private FileWatcherCallback delegateCallback
+
+        AsyncConditions expectCallback(FileWatcherCallback delegateCallback) {
+            this.conds = new AsyncConditions()
+            this.delegateCallback = delegateCallback
+            return conds
+        }
+
+        @Override
+        void pathChanged(String path) {
+            assert conds != null
+            conds.evaluate {
+                delegateCallback.pathChanged(path)
+            }
+            conds = null
+            delegateCallback = null
+        }
     }
 }
