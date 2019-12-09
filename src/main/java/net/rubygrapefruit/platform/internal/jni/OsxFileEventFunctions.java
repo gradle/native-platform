@@ -16,10 +16,55 @@
 
 package net.rubygrapefruit.platform.internal.jni;
 
+import net.rubygrapefruit.platform.NativeException;
+import net.rubygrapefruit.platform.NativeIntegration;
+import net.rubygrapefruit.platform.file.FileWatcher;
+import net.rubygrapefruit.platform.file.FileWatcherCallback;
 import net.rubygrapefruit.platform.internal.FunctionResult;
 
-public class OsxFileEventFunctions {
-    public static native void createWatch(String path, FunctionResult result);
-    public static native void startWatch(DefaultOsxFileEventFunctions.ChangeCallback callback, FunctionResult result);
-    public static native void stopWatch(FunctionResult result);
+import java.util.Collection;
+
+public class OsxFileEventFunctions implements NativeIntegration {
+
+    public FileWatcher startWatching(Collection<String> paths, double latency, FileWatcherCallback callback) {
+        if (paths.isEmpty()) {
+            return FileWatcher.EMPTY;
+        }
+        FunctionResult result = new FunctionResult();
+        FileWatcher watcher = startWatching(paths.toArray(new String[0]), latency, callback, result);
+        if (result.isFailed()) {
+            throw new NativeException("Failed to start watching. Reason: " + result.getMessage());
+        }
+        return watcher;
+    }
+
+    private static native FileWatcher startWatching(String[] paths, double latency, FileWatcherCallback callback, FunctionResult result);
+    private static native void stopWatching(Object details, FunctionResult result);
+
+    // Created from native code
+    @SuppressWarnings("unused")
+    private static class WatcherImpl implements FileWatcher {
+        /**
+         * Details is a Java object wrapper around whatever data the native implementation
+         * needs to keep track of.
+         */
+        private Object details;
+
+        public WatcherImpl(Object details) {
+            this.details = details;
+        }
+
+        @Override
+        public void close() {
+            if (details == null) {
+                return;
+            }
+            FunctionResult result = new FunctionResult();
+            stopWatching(details, result);
+            details = null;
+            if (result.isFailed()) {
+                throw new NativeException("Failed to stop watching. Reason: " + result.getMessage());
+            }
+        }
+    }
 }

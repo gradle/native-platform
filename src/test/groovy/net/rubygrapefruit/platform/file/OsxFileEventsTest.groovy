@@ -18,138 +18,166 @@ package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.internal.Platform
-import net.rubygrapefruit.platform.internal.jni.DefaultOsxFileEventFunctions
+import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 import spock.lang.Specification
-import spock.lang.Timeout
+import spock.util.concurrent.AsyncConditions
 
-@IgnoreIf({ !Platform.current().macOs })
-@Timeout(20)
+@Requires({ Platform.current().macOs })
 class OsxFileEventsTest extends Specification {
     @Rule
     TemporaryFolder tmpDir
-    final DefaultOsxFileEventFunctions fileEvents = Native.get(DefaultOsxFileEventFunctions.class)
+    final OsxFileEventFunctions fileEvents = Native.get(OsxFileEventFunctions.class)
+    FileWatcher watcher
+    def callback = new TestCallback()
+    File dir
+
+    def setup() {
+        dir = tmpDir.newFolder()
+    }
+
+    def cleanup() {
+        stopWatcher()
+    }
 
     def "caches file events instance"() {
         expect:
-        Native.get(DefaultOsxFileEventFunctions.class) is fileEvents
+        Native.get(OsxFileEventFunctions.class) is fileEvents
     }
 
-    def "can open and close watch on a directory without receiving any events"() {
-        def collector = fileEvents.startWatch()
-
+    def "can open and close watcher on a directory without receiving any events"() {
         when:
-        def changes = fileEvents.stopWatch(collector);
+        startWatcher(dir)
 
         then:
-        changes.empty
+        0 * _
     }
 
-    def "can open and close watch on a directory receiving an event"() {
+    def "can open and close watcher on a directory receiving an event"() {
         given:
-        def dir = tmpDir.newFolder()
-        fileEvents.addRecursiveWatch(dir.absolutePath)
-        def collector = fileEvents.startWatch()
-        new File(dir, "a.txt").createNewFile();
-        waitForFileSystem()
+        startWatcher(dir)
 
         when:
-        def changes = fileEvents.stopWatch(collector);
+        def expectedChanges = expectThat pathChanged(dir)
+        new File(dir, "a.txt").createNewFile()
 
         then:
-        changes == [dir.canonicalPath + "/"]
+        expectedChanges.await()
     }
 
-    def "can open and close watch on a directory receiving multiple events"() {
+    def "can open and close watcher on a directory receiving multiple events"() {
         given:
-        def dir = tmpDir.newFolder()
-        fileEvents.addRecursiveWatch(dir.absolutePath)
-        def collector = fileEvents.startWatch()
-        new File(dir, "a.txt").createNewFile();
-        new File(dir, "b.txt").createNewFile();
-        waitForFileSystem()
+        def latency = 0.3
+        startWatcher(latency, dir)
 
         when:
-        def changes = fileEvents.stopWatch(collector);
+        def expectedChanges = expectThat pathChanged(dir)
+        new File(dir, "a.txt").createNewFile()
 
         then:
-        changes == [dir.canonicalPath + "/"]
+        expectedChanges.await()
+
+        when:
+        expectedChanges = expectThat pathChanged(dir)
+        Thread.sleep((long) (latency * 1000 + 100))
+        new File(dir, "b.txt").createNewFile()
+
+        then:
+        expectedChanges.await()
+    }
+
+    def "can open and close watcher on multiple directories receiving multiple events"() {
+        given:
+        def latency = 0.3
+        def dir2 = tmpDir.newFolder()
+
+        startWatcher(latency, dir2, dir)
+
+        when:
+        def expectedChanges = expectThat pathChanged(dir)
+        new File(dir, "a.txt").createNewFile()
+
+        then:
+        expectedChanges.await()
+
+        when:
+        expectedChanges = expectThat pathChanged(dir2)
+        new File(dir2, "b.txt").createNewFile()
+
+        then:
+        expectedChanges.await()
     }
 
     def "can be started once and stopped multiple times"() {
         given:
-        def dir = tmpDir.newFolder()
-        fileEvents.addRecursiveWatch(dir.absolutePath)
-        def collector = fileEvents.startWatch()
-        new File(dir, "a.txt").createNewFile();
-        waitForFileSystem()
+        startWatcher(dir)
 
         when:
-        def changes = fileEvents.stopWatch(collector);
+        watcher.close()
+        watcher.close()
 
         then:
-        changes == [dir.canonicalPath + "/"]
-
-        when:
-        changes = fileEvents.stopWatch(collector);
-
-        then:
-        changes == []
+        noExceptionThrown()
     }
 
     def "can be used multiple times"() {
         given:
-        def dir = tmpDir.newFolder()
-        fileEvents.addRecursiveWatch(dir.absolutePath)
-        def collector = fileEvents.startWatch()
-        new File(dir, "a.txt").createNewFile();
-        waitForFileSystem()
+        startWatcher(dir)
 
         when:
-        def changes = fileEvents.stopWatch(collector);
+        def expectedChanges = expectThat pathChanged(dir)
+        new File(dir, "a.txt").createNewFile()
 
         then:
-        changes == [dir.canonicalPath + "/"]
+        expectedChanges.await()
+        stopWatcher()
 
         when:
-        dir = tmpDir.newFolder()
-        fileEvents.addRecursiveWatch(dir.absolutePath)
-        collector = fileEvents.startWatch()
-        new File(dir, "a.txt").createNewFile();
-        waitForFileSystem()
-        changes = fileEvents.stopWatch(collector);
+        startWatcher(dir)
+        expectedChanges = expectThat pathChanged(dir)
+        new File(dir, "b.txt").createNewFile()
 
         then:
-        changes == [dir.canonicalPath + "/"]
+        expectedChanges.await()
     }
 
-    def "can watch multiple directories"() {
-        given:
-        def dir = tmpDir.newFolder()
-        def dirA = new File(dir, "a")
-        dirA.mkdirs()
-        def dirB = new File(dir, "b")
-        dirB.mkdirs()
-        fileEvents.addRecursiveWatch(dirA.absolutePath)
-        fileEvents.addRecursiveWatch(dirB.absolutePath)
-        waitForFileSystem()
-
-        def collector = fileEvents.startWatch()
-        new File(dirA, "a.txt").createNewFile();
-        new File(dirB, "b.txt").createNewFile();
-        waitForFileSystem()
-
-        when:
-        def changes = fileEvents.stopWatch(collector);
-
-        then:
-        changes == [dirA.canonicalPath + "/", dirB.canonicalPath + "/"]
+    private void startWatcher(double latency = 0.3, File... roots) {
+        watcher = fileEvents.startWatching(roots*.absolutePath.toList(), latency, callback)
+    }
+    private void stopWatcher() {
+        watcher?.close()
     }
 
-    // TODO: this is not great, as it leads to flaky tests. Figure out a better way.
-    private static void waitForFileSystem() {
-        Thread.sleep(20)
+    private AsyncConditions expectThat(FileWatcherCallback delegateCallback) {
+        return callback.expectCallback(delegateCallback)
+    }
+
+    private FileWatcherCallback pathChanged(File path) {
+        return { changedPath ->
+            assert changedPath == path.canonicalPath + "/"
+        }
+    }
+
+    private static class TestCallback implements FileWatcherCallback {
+        private AsyncConditions conds
+        private FileWatcherCallback delegateCallback
+
+        AsyncConditions expectCallback(FileWatcherCallback delegateCallback) {
+            this.conds = new AsyncConditions()
+            this.delegateCallback = delegateCallback
+            return conds
+        }
+
+        @Override
+        void pathChanged(String path) {
+            assert conds != null
+            conds.evaluate {
+                delegateCallback.pathChanged(path)
+            }
+            conds = null
+            delegateCallback = null
+        }
     }
 }
