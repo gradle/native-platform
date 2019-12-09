@@ -31,15 +31,15 @@ public class OsxFileEventFunctions implements NativeIntegration {
             return FileWatcher.EMPTY;
         }
         FunctionResult result = new FunctionResult();
-        FileWatcher watch = startWatching(paths.toArray(new String[0]), latency, callback, result);
+        FileWatcher watcher = startWatching(paths.toArray(new String[0]), latency, callback, result);
         if (result.isFailed()) {
-            throw new NativeException("Failed to start watch. Reason: " + result.getMessage());
+            throw new NativeException("Failed to start watching. Reason: " + result.getMessage());
         }
-        return watch;
+        return watcher;
     }
 
     private static native FileWatcher startWatching(String[] paths, double latency, FileWatcherCallback callback, FunctionResult result);
-    private static native void stopWatch(Object details, FunctionResult result);
+    private static native void stopWatching(Object details, FunctionResult result);
 
     // Created from native code
     @SuppressWarnings("unused")
@@ -60,10 +60,10 @@ public class OsxFileEventFunctions implements NativeIntegration {
                 return;
             }
             FunctionResult result = new FunctionResult();
-            stopWatch(details, result);
+            stopWatching(details, result);
             details = null;
             if (result.isFailed()) {
-                throw new NativeException("Failed to stop watch. Reason: " + result.getMessage());
+                throw new NativeException("Failed to stop watching. Reason: " + result.getMessage());
             }
         }
     }

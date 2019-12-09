@@ -153,13 +153,13 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
         return NULL;
     }
 
-    jclass clsWatch = env->FindClass("net/rubygrapefruit/platform/internal/jni/OsxFileEventFunctions$WatcherImpl");
-    jmethodID constructor = env->GetMethodID(clsWatch, "<init>", "(Ljava/lang/Object;)V");
-    return env->NewObject(clsWatch, constructor, env->NewDirectByteBuffer(details, sizeof(details)));
+    jclass clsWatcher = env->FindClass("net/rubygrapefruit/platform/internal/jni/OsxFileEventFunctions$WatcherImpl");
+    jmethodID constructor = env->GetMethodID(clsWatcher, "<init>", "(Ljava/lang/Object;)V");
+    return env->NewObject(clsWatcher, constructor, env->NewDirectByteBuffer(details, sizeof(details)));
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_stopWatch(JNIEnv *env, jclass target, jobject detailsObj, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_stopWatching(JNIEnv *env, jclass target, jobject detailsObj, jobject result) {
     watch_details_t *details = (watch_details_t*) env->GetDirectBufferAddress(detailsObj);
     CFMutableArrayRef rootsToWatch = details->rootsToWatch;
     FSEventStreamRef watcherStream = details->watcherStream;

@@ -31,27 +31,27 @@ class OsxFileEventsTest extends Specification {
     @Rule
     TemporaryFolder tmpDir
     final OsxFileEventFunctions fileEvents = Native.get(OsxFileEventFunctions.class)
-    FileWatcher watch
+    FileWatcher watcher
 
     def "caches file events instance"() {
         expect:
         Native.get(OsxFileEventFunctions.class) is fileEvents
     }
 
-    def "can open and close watch on a directory without receiving any events"() {
-        def changes = startWatch()
+    def "can open and close watcher on a directory without receiving any events"() {
+        def changes = startWatcher()
 
         expect:
         changes.empty
 
         cleanup:
-        stopWatch()
+        stopWatcher()
     }
 
-    def "can open and close watch on a directory receiving an event"() {
+    def "can open and close watcher on a directory receiving an event"() {
         given:
         def dir = tmpDir.newFolder()
-        def changes = startWatch(dir.absolutePath)
+        def changes = startWatcher(dir.absolutePath)
 
         when:
         new File(dir, "a.txt").createNewFile()
@@ -61,14 +61,14 @@ class OsxFileEventsTest extends Specification {
         changes == [dir.canonicalPath + "/"]
 
         cleanup:
-        stopWatch()
+        stopWatcher()
     }
 
-    def "can open and close watch on a directory receiving multiple events"() {
+    def "can open and close watcher on a directory receiving multiple events"() {
         def latency = 0.5
         given:
         def dir = tmpDir.newFolder()
-        def changes = startWatch(latency, dir.absolutePath)
+        def changes = startWatcher(latency, dir.absolutePath)
 
         when:
         new File(dir, "a.txt").createNewFile()
@@ -93,14 +93,14 @@ class OsxFileEventsTest extends Specification {
         changes == [dir.canonicalPath + "/", dir.canonicalPath + "/"]
 
         cleanup:
-        stopWatch()
+        stopWatcher()
     }
 
-    def "can open and close watch on multiple directories receiving multiple events"() {
+    def "can open and close watcher on multiple directories receiving multiple events"() {
         given:
         def dir1 = tmpDir.newFolder()
         def dir2 = tmpDir.newFolder()
-        def changes = startWatch(dir1.absolutePath, dir2.absolutePath)
+        def changes = startWatcher(dir1.absolutePath, dir2.absolutePath)
 
         when:
         new File(dir1, "a.txt").createNewFile()
@@ -111,17 +111,17 @@ class OsxFileEventsTest extends Specification {
         changes == [dir1.canonicalPath + "/", dir2.canonicalPath + "/"]
 
         cleanup:
-        stopWatch()
+        stopWatcher()
     }
 
     def "can be started once and stopped multiple times"() {
         given:
         def dir = tmpDir.newFolder()
-        startWatch(dir.absolutePath)
+        startWatcher(dir.absolutePath)
 
         when:
-        stopWatch()
-        stopWatch()
+        stopWatcher()
+        stopWatcher()
 
         then:
         noExceptionThrown()
@@ -130,38 +130,38 @@ class OsxFileEventsTest extends Specification {
     def "can be used multiple times"() {
         given:
         def dir = tmpDir.newFolder()
-        def changes = startWatch(dir.absolutePath)
+        def changes = startWatcher(dir.absolutePath)
 
         when:
         new File(dir, "a.txt").createNewFile()
         waitForFileSystem()
-        stopWatch()
+        stopWatcher()
 
         then:
         changes == [dir.canonicalPath + "/"]
 
         when:
         dir = tmpDir.newFolder()
-        changes = startWatch(dir.absolutePath)
+        changes = startWatcher(dir.absolutePath)
         new File(dir, "a.txt").createNewFile()
         waitForFileSystem()
-        stopWatch()
+        stopWatcher()
 
         then:
         changes == [dir.canonicalPath + "/"]
     }
 
-    private List<String> startWatch(double latency = 0.3, String... paths) {
+    private List<String> startWatcher(double latency = 0.3, String... paths) {
         def changes = []
-        watch = fileEvents.startWatching(paths as List, latency) {
+        watcher = fileEvents.startWatching(paths as List, latency) {
             println "> $it"
             changes.add(it)
         }
         return changes
     }
 
-    private void stopWatch() {
-        watch.close()
+    private void stopWatcher() {
+        watcher.close()
     }
 
     // TODO: this is not great, as it leads to flaky tests. Figure out a better way.
