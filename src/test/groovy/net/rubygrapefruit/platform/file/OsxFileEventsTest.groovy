@@ -93,9 +93,6 @@ class OsxFileEventsTest extends Specification {
         def latency = 0.3
         def dir2 = tmpDir.newFolder()
 
-        println "-> $dir"
-        println "-> $dir2"
-
         startWatcher(latency, dir2, dir)
 
         when:
