@@ -12,7 +12,7 @@ JavaVM* jvm = NULL;
 typedef struct watch_details {
     HANDLE threadHandle;
     HANDLE stopEventHandle;
-    char drivePath[4];
+    wchar_t drivePath[4];
     int watchedPathCount;
     wchar_t **watchedPaths;
     jobject watcherCallback;
@@ -38,10 +38,8 @@ void handlePathChanged(watch_details_t *details, FILE_NOTIFY_INFORMATION *info) 
     //     return;  // unknown event
     // }
 
-    wchar_t drivePath[4];
-    mbstowcs(drivePath, details->drivePath, 3);
     int pathLen = info->FileNameLength / sizeof(wchar_t);
-    wchar_t *changedPath = add_prefix(info->FileName, pathLen, drivePath);
+    wchar_t *changedPath = add_prefix(info->FileName, pathLen, details->drivePath);
     printf("~~~~ Changed: %ls\n", changedPath);
 
     bool watching = false;
@@ -90,9 +88,7 @@ DWORD WINAPI EventProcessingThread(LPVOID data) {
     memset(&overlapped, 0, sizeof(overlapped));
     overlapped.hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 
-    const char *drivePath = details->drivePath;
-    // TODO Use wide char version
-    HANDLE hDrive = CreateFileA(drivePath, GENERIC_READ, CREATE_SHARE, NULL, OPEN_EXISTING, CREATE_FLAGS, NULL);
+    HANDLE hDrive = CreateFileW(details->drivePath, GENERIC_READ, CREATE_SHARE, NULL, OPEN_EXISTING, CREATE_FLAGS, NULL);
 
     char buffer[EVENT_BUFFER_SIZE];
     HANDLE handles[2] = {details->stopEventHandle, overlapped.hEvent};
@@ -171,14 +167,14 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
         printf("~~~~ Watching root %ls\n", watchedPath);
         watchedPaths[i] = watchedPath;
     }
-    char drivePath[4] = {toupper(watchedPaths[0][0]), ':', '\\', '\0'};
+    wchar_t drivePath[4] = {towupper(watchedPaths[0][0]), L':', L'\\', L'\0'};
 
     watch_details_t* details = (watch_details_t*)malloc(sizeof(watch_details_t));
     details->watcherCallback = env->NewGlobalRef(javaCallback);
     details->stopEventHandle = CreateEvent(NULL, FALSE, FALSE, NULL);
     details->watchedPathCount = watchedPathCount;
     details->watchedPaths = watchedPaths;
-    strcpy_s(details->drivePath, 4, drivePath);
+    wcscpy_s(details->drivePath, 4, drivePath);
     details->threadHandle = CreateThread(
         NULL,                   // default security attributes
         0,                      // use default stack size
