@@ -25,9 +25,11 @@ abstract class AbstractFileEventsTest extends Specification {
     TemporaryFolder tmpDir
     def callback = new TestCallback()
     File dir
+    File fileInDir
 
     def setup() {
         dir = tmpDir.newFolder()
+        fileInDir = new File(dir, "a.txt")
     }
 
     def cleanup() {
@@ -47,8 +49,8 @@ abstract class AbstractFileEventsTest extends Specification {
         startWatcher(dir)
 
         when:
-        def expectedChanges = expectThat pathChanges(dir)
-        new File(dir, "a.txt").createNewFile()
+        def expectedChanges = expectThat pathChangeIsDetected(fileInDir)
+        fileInDir.createNewFile()
 
         then:
         expectedChanges.await()
@@ -56,19 +58,20 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can open and close watcher on a directory receiving multiple events"() {
         given:
+        def otherFileInDir = new File(dir, "b.txt")
         startWatcher(dir)
 
         when:
-        def expectedChanges = expectThat pathChanges(dir)
-        new File(dir, "a.txt").createNewFile()
+        def expectedChanges = expectThat pathChangeIsDetected(fileInDir)
+        fileInDir.createNewFile()
 
         then:
         expectedChanges.await()
 
         when:
-        expectedChanges = expectThat pathChanges(dir)
+        expectedChanges = expectThat pathChangeIsDetected(otherFileInDir)
         waitForChangeEventLatency()
-        new File(dir, "b.txt").createNewFile()
+        otherFileInDir.createNewFile()
 
         then:
         expectedChanges.await()
@@ -76,20 +79,21 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can open and close watcher on multiple directories receiving multiple events"() {
         given:
-        def dir2 = tmpDir.newFolder()
+        def otherDir = tmpDir.newFolder()
+        def fileInOtherDir = new File(otherDir, "b.txt")
 
-        startWatcher(dir, dir2)
+        startWatcher(dir, otherDir)
 
         when:
-        def expectedChanges = expectThat pathChanges(dir)
-        new File(dir, "a.txt").createNewFile()
+        def expectedChanges = expectThat pathChangeIsDetected(fileInDir)
+        fileInDir.createNewFile()
 
         then:
         expectedChanges.await()
 
         when:
-        expectedChanges = expectThat pathChanges(dir2)
-        new File(dir2, "b.txt").createNewFile()
+        expectedChanges = expectThat pathChangeIsDetected(fileInOtherDir)
+        fileInOtherDir.createNewFile()
 
         then:
         expectedChanges.await()
@@ -111,11 +115,12 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can be used multiple times"() {
         given:
+        def otherFileInDir = new File(dir, "b.txt")
         startWatcher(dir)
 
         when:
-        def expectedChanges = expectThat pathChanges(dir)
-        new File(dir, "a.txt").createNewFile()
+        def expectedChanges = expectThat pathChangeIsDetected(fileInDir)
+        fileInDir.createNewFile()
 
         then:
         expectedChanges.await()
@@ -123,8 +128,24 @@ abstract class AbstractFileEventsTest extends Specification {
 
         when:
         startWatcher(dir)
-        expectedChanges = expectThat pathChanges(dir)
-        new File(dir, "b.txt").createNewFile()
+        expectedChanges = expectThat pathChangeIsDetected(otherFileInDir)
+        otherFileInDir.createNewFile()
+
+        then:
+        expectedChanges.await()
+    }
+
+
+    def "can receiving an event about a non-direct descendant change"() {
+        given:
+        def subDir = new File(dir, "sub-dir")
+        subDir.mkdirs()
+        def fileInSubDir = new File(subDir, "a.txt")
+        startWatcher(dir)
+
+        when:
+        def expectedChanges = expectThat pathChangeIsDetected(fileInSubDir)
+        fileInSubDir.createNewFile()
 
         then:
         expectedChanges.await()
@@ -138,9 +159,9 @@ abstract class AbstractFileEventsTest extends Specification {
         return callback.expectCallback(delegateCallback)
     }
 
-    private static FileWatcherCallback pathChanges(File path) {
+    private FileWatcherCallback pathChangeIsDetected(File path) {
         return { changedPath ->
-            String expected = path.canonicalPath
+            String expected = resolveExpectedChange(path.canonicalFile)
             String actual
             try {
                 actual = new File(changedPath).canonicalPath
@@ -150,6 +171,8 @@ abstract class AbstractFileEventsTest extends Specification {
             assert expected == actual
         }
     }
+
+    protected abstract String resolveExpectedChange(File change)
 
     private static class TestCallback implements FileWatcherCallback {
         private AsyncConditions conditions
