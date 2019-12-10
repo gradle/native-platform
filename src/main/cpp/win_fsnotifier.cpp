@@ -418,37 +418,33 @@ void handlePathChanged(watch_details_t *details, FILE_NOTIFY_INFORMATION *info) 
         return;  // unknown event
     }
 
-    char utfBuffer[4 * MAX_PATH + 1];
-    int wcsLen = info->FileNameLength / sizeof(wchar_t);
-    int converted = WideCharToMultiByte(CP_UTF8, 0, info->FileName, wcsLen, utfBuffer, sizeof(utfBuffer), NULL, NULL);
-    utfBuffer[converted] = '\0';
+    JNIEnv* env;
+    int getEnvStat = jvm->GetEnv((void **)&env, JNI_VERSION_1_6);
+    if (getEnvStat == JNI_EDETACHED) {
+        int attachThreadStat = jvm->AttachCurrentThread((void **) &env, NULL);
+        if (attachThreadStat != JNI_OK) {
+            printf("~~~~ Problem with AttachCurrentThread: %d\n", attachThreadStat);
+            // TODO Error handling
+            return;
+        }
+    } else if (getEnvStat == JNI_EVERSION) {
+        printf("~~~~ Problem with GetEnv: %d\n", getEnvStat);
+        // TODO Error handling
+        return;
+    }
 
-    printf("> Changed: %s\%s\n", details->drivePath, utfBuffer);
+    wchar_t drivePath[4];
+    mbstowcs(drivePath, details->drivePath, 3);
+    int pathLen = info->FileNameLength / sizeof(wchar_t);
+    wchar_t *changedPath = add_prefix(info->FileName, pathLen, drivePath);
+    printf("~~~~ Changed: %ls\n", changedPath);
+    jstring changedPathJava = wchar_to_java(env, changedPath, pathLen + 3, NULL);
+    free(changedPath);
 
-    // JNIEnv* env;
-    // int getEnvStat = jvm->GetEnv((void **)&env, JNI_VERSION_1_6);
-    // if (getEnvStat == JNI_EDETACHED) {
-    //     int attachThreadStat = jvm->AttachCurrentThread((void **) &env, NULL);
-    //     if (attachThreadStat != JNI_OK) {
-    //         printf("~~~~ Problem with AttachCurrentThread: %d\n", attachThreadStat);
-    //         // TODO Error handling
-    //         // invalidStateDetected = true;
-    //         break;
-    //     }
-    // } else if (getEnvStat == JNI_EVERSION) {
-    //     printf("~~~~ Problem with GetEnv: %d\n", getEnvStat);
-    //     // TODO Error handling
-    //     // invalidStateDetected = true;
-    //     break;
-    // }
-    //
-    // wchar_t* pathStr = java_to_wchar_path(env, details->path, NULL);
-    // printf("~~~~ Changes: %ls\n", pathStr);
-    // free(pathStr);
-
-    // jclass callback_class = env->GetObjectClass(details->watcherCallback);
-    // jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(Ljava/lang/String;)V");
-    // env->CallVoidMethod(details->watcherCallback, methodCallback, details->path);    
+    jclass callback_class = env->GetObjectClass(details->watcherCallback);
+    jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(Ljava/lang/String;)V");
+    // TODO Do we need to add a global reference to the string here?
+    env->CallVoidMethod(details->watcherCallback, methodCallback, changedPathJava);
 }
 
 DWORD WINAPI EventProcessingThread(LPVOID data) {
