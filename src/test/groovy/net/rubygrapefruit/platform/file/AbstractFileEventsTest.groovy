@@ -100,6 +100,8 @@ abstract class AbstractFileEventsTest extends Specification {
         startWatcher(dir)
 
         when:
+        // TODO There's a race condition in starting the macOS watcher thread
+        Thread.sleep(100)
         watcher.close()
         watcher.close()
 

@@ -82,6 +82,7 @@ static void *EventProcessingThread(void *data) {
     FSEventStreamScheduleWithRunLoop(details->watcherStream, threadLoop, kCFRunLoopDefaultMode);
     FSEventStreamStart(details->watcherStream);
     details->threadLoop = threadLoop;
+    // TODO We should wait for this in the caller thread otherwise stopWatching() might crash
     // This triggers run loop for this thread, causing it to run until we explicitly stop it.
     CFRunLoopRun();
     return NULL;
