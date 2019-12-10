@@ -79,6 +79,21 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
+    def "does not receive events from unwatched directory"() {
+        given:
+        def siblingDir = tmpDir.newFolder()
+        def fileInSiblingDir = new File(siblingDir, "b.txt")
+        startWatcher(dir)
+
+        when:
+        def expectedChanges = expectThat pathChangeIsDetected(fileInDir)
+        fileInSiblingDir.createNewFile()
+        fileInDir.createNewFile()
+
+        then:
+        expectedChanges.await()
+    }
+
     @Requires({ Platform.current().macOs })
     def "can receive multiple events from sibling directories"() {
         given:

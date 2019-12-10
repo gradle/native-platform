@@ -37,6 +37,17 @@ void handlePathChanged(watch_details_t *details, FILE_NOTIFY_INFORMATION *info) 
     //     return;  // unknown event
     // }
 
+    wchar_t drivePath[4];
+    mbstowcs(drivePath, details->drivePath, 3);
+    int pathLen = info->FileNameLength / sizeof(wchar_t);
+    wchar_t *changedPath = add_prefix(info->FileName, pathLen, drivePath);
+    printf("~~~~ Changed: %ls\n", changedPath);
+
+    if (wcsncmp(details->watchedPath, changedPath, wcslen(details->watchedPath)) != 0) {
+        printf("~~~~ Ignoring because root is not watched\n");
+        return;
+    }
+
     JNIEnv* env;
     int getEnvStat = jvm->GetEnv((void **)&env, JNI_VERSION_1_6);
     if (getEnvStat == JNI_EDETACHED) {
@@ -52,11 +63,6 @@ void handlePathChanged(watch_details_t *details, FILE_NOTIFY_INFORMATION *info) 
         return;
     }
 
-    wchar_t drivePath[4];
-    mbstowcs(drivePath, details->drivePath, 3);
-    int pathLen = info->FileNameLength / sizeof(wchar_t);
-    wchar_t *changedPath = add_prefix(info->FileName, pathLen, drivePath);
-    printf("~~~~ Changed: %ls\n", changedPath);
     jstring changedPathJava = wchar_to_java(env, changedPath, pathLen + 3, NULL);
     free(changedPath);
 
@@ -135,13 +141,21 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
         return NULL;
     }
 
-    wchar_t* pathStr = java_to_wchar_path(env, path, result);
-    char drivePath[4] = {toupper(pathStr[0]), ':', '\\', '\0'};
+    wchar_t* watchedPath = java_to_wchar_path(env, path, result);
+    int pathStrLen = wcslen(watchedPath);
+    if (watchedPath[pathStrLen - 1] != L'\\') {
+        printf("~~~~ Appending \\ to watched root path %ls\n", watchedPath);
+        wchar_t* oldWatchedPath = watchedPath;
+        watchedPath = add_suffix(watchedPath, pathStrLen, L"\\");
+        free(oldWatchedPath);
+    }
+    printf("~~~~ Watching root %ls\n", watchedPath);
+    char drivePath[4] = {toupper(watchedPath[0]), ':', '\\', '\0'};
 
     watch_details_t* details = (watch_details_t*)malloc(sizeof(watch_details_t));
     details->watcherCallback = env->NewGlobalRef(javaCallback);
     details->stopEventHandle = CreateEvent(NULL, FALSE, FALSE, NULL);
-    details->watchedPath = pathStr;
+    details->watchedPath = watchedPath;
     strcpy_s(details->drivePath, 4, drivePath);
     details->threadHandle = CreateThread(
         NULL,                   // default security attributes
