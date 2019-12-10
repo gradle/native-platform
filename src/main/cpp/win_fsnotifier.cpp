@@ -40,7 +40,6 @@ void handlePathChanged(watch_details_t *details, FILE_NOTIFY_INFORMATION *info) 
 
     int pathLen = info->FileNameLength / sizeof(wchar_t);
     wchar_t *changedPath = add_prefix(info->FileName, pathLen, details->drivePath);
-    printf("~~~~ Changed: %ls\n", changedPath);
 
     bool watching = false;
     for (int i = 0; i < details->watchedPathCount; i++) {
@@ -51,9 +50,10 @@ void handlePathChanged(watch_details_t *details, FILE_NOTIFY_INFORMATION *info) 
         }
     }
     if (!watching) {
-        printf("~~~~ Ignoring because root is not watched\n");
+        printf("~~~~ Ignoring %ls (root is not watched)\n", changedPath);
         return;
     }
+    printf("~~~~ Changed: %ls\n", changedPath);
 
     JNIEnv* env;
     int getEnvStat = jvm->GetEnv((void **)&env, JNI_VERSION_1_6);
@@ -140,6 +140,8 @@ DWORD WINAPI EventProcessingThread(LPVOID data) {
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatching(JNIEnv *env, jclass target, jobjectArray paths, jobject javaCallback, jobject result) {
 
+    printf("\n~~~~ Configuring...\n");
+
     // TODO Should this be somewhere global?
     int jvmStatus = env->GetJavaVM(&jvm);
     if (jvmStatus < 0) {
@@ -159,12 +161,11 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
         wchar_t* watchedPath = java_to_wchar_path(env, path, result);
         int watchedPathLen = wcslen(watchedPath);
         if (watchedPath[watchedPathLen - 1] != L'\\') {
-            printf("~~~~ Appending \\ to watched root path %ls\n", watchedPath);
             wchar_t* oldWatchedPath = watchedPath;
             watchedPath = add_suffix(watchedPath, watchedPathLen, L"\\");
             free(oldWatchedPath);
         }
-        printf("~~~~ Watching root %ls\n", watchedPath);
+        printf("~~~~ Watching %ls\n", watchedPath);
         watchedPaths[i] = watchedPath;
     }
     wchar_t drivePath[4] = {towupper(watchedPaths[0][0]), L':', L'\\', L'\0'};

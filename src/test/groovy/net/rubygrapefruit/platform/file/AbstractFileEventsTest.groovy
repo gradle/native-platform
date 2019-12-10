@@ -30,7 +30,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def setup() {
         dir = tmpDir.newFolder()
-        fileInDir = new File(dir, "a.txt")
+        fileInDir = new File(dir, "watched.txt")
     }
 
     def cleanup() {
@@ -59,7 +59,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can receive multiple events from the same directory"() {
         given:
-        def otherFileInDir = new File(dir, "b.txt")
+        def otherFileInDir = new File(dir, "also-watched.txt")
         startWatcher(dir)
 
         when:
@@ -81,7 +81,7 @@ abstract class AbstractFileEventsTest extends Specification {
     def "does not receive events from unwatched directory"() {
         given:
         def siblingDir = tmpDir.newFolder()
-        def fileInSiblingDir = new File(siblingDir, "b.txt")
+        def fileInSiblingDir = new File(siblingDir, "unwatched.txt")
         startWatcher(dir)
 
         when:
@@ -93,10 +93,10 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
-    def "can receive multiple events from sibling directories"() {
+    def "can receive multiple events from multiple watched directories"() {
         given:
         def siblingDir = tmpDir.newFolder()
-        def fileInSiblingDir = new File(siblingDir, "b.txt")
+        def fileInSiblingDir = new File(siblingDir, "sibling-watched.txt")
 
         startWatcher(dir, siblingDir)
 
@@ -131,7 +131,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can be used multiple times"() {
         given:
-        def otherFileInDir = new File(dir, "b.txt")
+        def otherFileInDir = new File(dir, "also-watched.txt")
         startWatcher(dir)
 
         when:
@@ -156,7 +156,7 @@ abstract class AbstractFileEventsTest extends Specification {
         given:
         def subDir = new File(dir, "sub-dir")
         subDir.mkdirs()
-        def fileInSubDir = new File(subDir, "a.txt")
+        def fileInSubDir = new File(subDir, "watched-descendant.txt")
         startWatcher(dir)
 
         when:
