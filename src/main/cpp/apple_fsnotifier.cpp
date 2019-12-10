@@ -26,6 +26,7 @@ typedef struct watch_details {
 } watch_details_t;
 
 static void reportEvent(const char *event, char *path, jobject watcherCallback) {
+    // TODO What does this do?
     size_t len = 0;
     if (path != NULL) {
         len = strlen(path);
@@ -35,6 +36,8 @@ static void reportEvent(const char *event, char *path, jobject watcherCallback) 
             }
         }
     }
+
+    // TODO Extract this logic to some global function
     JNIEnv* env;
     int getEnvStat = jvm->GetEnv((void **)&env, JNI_VERSION_1_6);
     if (getEnvStat == JNI_EDETACHED) {
