@@ -460,7 +460,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
         TRUE,
         FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE
     );
-    // free(pathStr);
+    free(pathStr);
     if (watchHandle == INVALID_HANDLE_VALUE) {
         mark_failed_with_errno(env, "could not open change notification", result);
         return NULL;
