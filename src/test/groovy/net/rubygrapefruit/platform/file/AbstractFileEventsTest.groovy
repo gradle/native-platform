@@ -15,8 +15,10 @@
  */
 package net.rubygrapefruit.platform.file
 
+import net.rubygrapefruit.platform.internal.Platform
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
+import spock.lang.Requires
 import spock.lang.Specification
 import spock.util.concurrent.AsyncConditions
 
@@ -44,7 +46,7 @@ abstract class AbstractFileEventsTest extends Specification {
         noExceptionThrown()
     }
 
-    def "can open and close watcher on a directory receiving an event"() {
+    def "can receive an event"() {
         given:
         startWatcher(dir)
 
@@ -56,7 +58,7 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
-    def "can open and close watcher on a directory receiving multiple events"() {
+    def "can receive multiple events from the same directory"() {
         given:
         def otherFileInDir = new File(dir, "b.txt")
         startWatcher(dir)
@@ -77,12 +79,13 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
-    def "can open and close watcher on multiple directories receiving multiple events"() {
+    @Requires({ Platform.current().macOs })
+    def "can receive multiple events from sibling directories"() {
         given:
-        def otherDir = tmpDir.newFolder()
-        def fileInOtherDir = new File(otherDir, "b.txt")
+        def siblingDir = tmpDir.newFolder()
+        def fileInSiblingDir = new File(siblingDir, "b.txt")
 
-        startWatcher(dir, otherDir)
+        startWatcher(dir, siblingDir)
 
         when:
         def expectedChanges = expectThat pathChangeIsDetected(fileInDir)
@@ -92,8 +95,8 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
 
         when:
-        expectedChanges = expectThat pathChangeIsDetected(fileInOtherDir)
-        fileInOtherDir.createNewFile()
+        expectedChanges = expectThat pathChangeIsDetected(fileInSiblingDir)
+        fileInSiblingDir.createNewFile()
 
         then:
         expectedChanges.await()
@@ -136,7 +139,7 @@ abstract class AbstractFileEventsTest extends Specification {
     }
 
 
-    def "can receiving an event about a non-direct descendant change"() {
+    def "can receive event about a non-direct descendant change"() {
         given:
         def subDir = new File(dir, "sub-dir")
         subDir.mkdirs()
