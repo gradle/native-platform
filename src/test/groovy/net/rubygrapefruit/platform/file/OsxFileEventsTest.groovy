@@ -23,7 +23,7 @@ import spock.lang.Requires
 
 @Requires({ Platform.current().macOs })
 class OsxFileEventsTest extends AbstractFileEventsTest {
-    private static final LATENCY = 0.3
+    private static final LATENCY = 0.2
 
     final OsxFileEventFunctions fileEvents = Native.get(OsxFileEventFunctions.class)
     FileWatcher watcher
@@ -35,6 +35,8 @@ class OsxFileEventsTest extends AbstractFileEventsTest {
 
     @Override
     protected void startWatcher(File... roots) {
+        // Avoid setup operations to be reported
+        waitForChangeEventLatency()
         watcher = fileEvents.startWatching(roots*.absolutePath.toList(), LATENCY, callback)
     }
 
