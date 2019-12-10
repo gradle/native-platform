@@ -8,6 +8,7 @@
 
 jstring wchar_to_java(JNIEnv* env, const wchar_t* chars, size_t len, jobject result) {
     if (sizeof(wchar_t) != 2) {
+        // TODO We should check this somewhere else and ditch requiring a result parameter
         mark_failed_with_message(env, "unexpected size of wchar_t", result);
         return NULL;
     }
