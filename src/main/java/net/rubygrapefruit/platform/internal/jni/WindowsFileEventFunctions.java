@@ -26,7 +26,7 @@ import java.util.Collection;
 
 public class WindowsFileEventFunctions implements NativeIntegration {
 
-    public FileWatcher startWatch(Collection<String> paths, FileWatcherCallback callback) {
+    public FileWatcher startWatching(Collection<String> paths, FileWatcherCallback callback) {
         if (paths.isEmpty()) {
             return FileWatcher.EMPTY;
         }
@@ -43,10 +43,10 @@ public class WindowsFileEventFunctions implements NativeIntegration {
 
     // Created from native code
     @SuppressWarnings("unused")
-    private static class WatchImpl implements FileWatcher {
+    private static class WatcherImpl implements FileWatcher {
         private Object details;
 
-        public WatchImpl(Object details) {
+        public WatcherImpl(Object details) {
             this.details = details;
         }
 

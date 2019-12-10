@@ -35,7 +35,7 @@ class WindowsFileEventsTest extends AbstractFileEventsTest {
     protected void startWatcher(File... roots) {
         // Avoid setup operations to be reported
         waitForChangeEventLatency()
-        watcher = fileEvents.startWatch(roots*.absolutePath.toList(), callback)
+        watcher = fileEvents.startWatching(roots*.absolutePath.toList(), callback)
     }
 
     @Override

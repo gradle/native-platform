@@ -186,7 +186,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
     );
     SetThreadPriority(details->threadHandle, THREAD_PRIORITY_ABOVE_NORMAL);
 
-    jclass clsWatch = env->FindClass("net/rubygrapefruit/platform/internal/jni/WindowsFileEventFunctions$WatchImpl");
+    jclass clsWatch = env->FindClass("net/rubygrapefruit/platform/internal/jni/WindowsFileEventFunctions$WatcherImpl");
     jmethodID constructor = env->GetMethodID(clsWatch, "<init>", "(Ljava/lang/Object;)V");
     return env->NewObject(clsWatch, constructor, env->NewDirectByteBuffer(details, sizeof(details)));
 }
