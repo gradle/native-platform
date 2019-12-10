@@ -31,15 +31,15 @@ public class WindowsFileEventFunctions implements NativeIntegration {
             return FileWatcher.EMPTY;
         }
         FunctionResult result = new FunctionResult();
-        FileWatcher watch = startWatch(paths.toArray(new String[0])[0], callback, result);
+        FileWatcher watch = startWatching(paths.toArray(new String[0]), callback, result);
         if (result.isFailed()) {
             throw new NativeException("Failed to start watch. Reason: " + result.getMessage());
         }
         return watch;
     }
 
-    private static native FileWatcher startWatch(String path, FileWatcherCallback callback, FunctionResult result);
-    private static native void stopWatch(Object details, FunctionResult result);
+    private static native FileWatcher startWatching(String[] paths, FileWatcherCallback callback, FunctionResult result);
+    private static native void stopWatching(Object details, FunctionResult result);
 
     // Created from native code
     @SuppressWarnings("unused")
@@ -56,7 +56,7 @@ public class WindowsFileEventFunctions implements NativeIntegration {
                 return;
             }
             FunctionResult result = new FunctionResult();
-            stopWatch(details, result);
+            stopWatching(details, result);
             details = null;
             if (result.isFailed()) {
                 throw new NativeException("Failed to stop watch. Reason: " + result.getMessage());

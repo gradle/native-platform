@@ -132,7 +132,7 @@ DWORD WINAPI EventProcessingThread(LPVOID data) {
 }
 
 JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatch(JNIEnv *env, jclass target, jstring path, jobject javaCallback, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatching(JNIEnv *env, jclass target, jobjectArray paths, jobject javaCallback, jobject result) {
 
     // TODO Should this be somewhere global?
     int jvmStatus = env->GetJavaVM(&jvm);
@@ -141,12 +141,13 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
         return NULL;
     }
 
+    jstring path = (jstring) env->GetObjectArrayElement(paths, 0);
     wchar_t* watchedPath = java_to_wchar_path(env, path, result);
-    int pathStrLen = wcslen(watchedPath);
-    if (watchedPath[pathStrLen - 1] != L'\\') {
+    int watchedPathLen = wcslen(watchedPath);
+    if (watchedPath[watchedPathLen - 1] != L'\\') {
         printf("~~~~ Appending \\ to watched root path %ls\n", watchedPath);
         wchar_t* oldWatchedPath = watchedPath;
-        watchedPath = add_suffix(watchedPath, pathStrLen, L"\\");
+        watchedPath = add_suffix(watchedPath, watchedPathLen, L"\\");
         free(oldWatchedPath);
     }
     printf("~~~~ Watching root %ls\n", watchedPath);
@@ -173,7 +174,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_stopWatch(JNIEnv *env, jclass target, jobject detailsObj, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_stopWatching(JNIEnv *env, jclass target, jobject detailsObj, jobject result) {
     watch_details_t* details = (watch_details_t*)env->GetDirectBufferAddress(detailsObj);
     SetEvent(details->stopEventHandle);
     WaitForSingleObject(details->threadHandle, INFINITE);
