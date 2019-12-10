@@ -15,10 +15,9 @@
  */
 package net.rubygrapefruit.platform.file
 
-import net.rubygrapefruit.platform.internal.Platform
+
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
-import spock.lang.Requires
 import spock.lang.Specification
 import spock.util.concurrent.AsyncConditions
 
@@ -94,7 +93,6 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
-    @Requires({ Platform.current().macOs })
     def "can receive multiple events from sibling directories"() {
         given:
         def siblingDir = tmpDir.newFolder()

@@ -13,7 +13,8 @@ typedef struct watch_details {
     HANDLE threadHandle;
     HANDLE stopEventHandle;
     char drivePath[4];
-    wchar_t *watchedPath;
+    int watchedPathCount;
+    wchar_t **watchedPaths;
     jobject watcherCallback;
 } watch_details_t;
 
@@ -43,7 +44,15 @@ void handlePathChanged(watch_details_t *details, FILE_NOTIFY_INFORMATION *info) 
     wchar_t *changedPath = add_prefix(info->FileName, pathLen, drivePath);
     printf("~~~~ Changed: %ls\n", changedPath);
 
-    if (wcsncmp(details->watchedPath, changedPath, wcslen(details->watchedPath)) != 0) {
+    bool watching = false;
+    for (int i = 0; i < details->watchedPathCount; i++) {
+        wchar_t* watchedPath = details->watchedPaths[i];
+        if (wcsncmp(watchedPath, changedPath, wcslen(watchedPath)) == 0) {
+            watching = true;
+            break;
+        }
+    }
+    if (!watching) {
         printf("~~~~ Ignoring because root is not watched\n");
         return;
     }
@@ -82,6 +91,7 @@ DWORD WINAPI EventProcessingThread(LPVOID data) {
     overlapped.hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 
     const char *drivePath = details->drivePath;
+    // TODO Use wide char version
     HANDLE hDrive = CreateFileA(drivePath, GENERIC_READ, CREATE_SHARE, NULL, OPEN_EXISTING, CREATE_FLAGS, NULL);
 
     char buffer[EVENT_BUFFER_SIZE];
@@ -141,22 +151,33 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
         return NULL;
     }
 
-    jstring path = (jstring) env->GetObjectArrayElement(paths, 0);
-    wchar_t* watchedPath = java_to_wchar_path(env, path, result);
-    int watchedPathLen = wcslen(watchedPath);
-    if (watchedPath[watchedPathLen - 1] != L'\\') {
-        printf("~~~~ Appending \\ to watched root path %ls\n", watchedPath);
-        wchar_t* oldWatchedPath = watchedPath;
-        watchedPath = add_suffix(watchedPath, watchedPathLen, L"\\");
-        free(oldWatchedPath);
+    int watchedPathCount = env->GetArrayLength(paths);
+    if (watchedPathCount == 0) {
+        mark_failed_with_errno(env, "No paths given to watch.", result);
+        return NULL;
     }
-    printf("~~~~ Watching root %ls\n", watchedPath);
-    char drivePath[4] = {toupper(watchedPath[0]), ':', '\\', '\0'};
+
+    wchar_t **watchedPaths = (wchar_t**)malloc(watchedPathCount * sizeof(wchar_t*));
+    for (int i = 0; i < watchedPathCount; i++) {
+        jstring path = (jstring) env->GetObjectArrayElement(paths, i);
+        wchar_t* watchedPath = java_to_wchar_path(env, path, result);
+        int watchedPathLen = wcslen(watchedPath);
+        if (watchedPath[watchedPathLen - 1] != L'\\') {
+            printf("~~~~ Appending \\ to watched root path %ls\n", watchedPath);
+            wchar_t* oldWatchedPath = watchedPath;
+            watchedPath = add_suffix(watchedPath, watchedPathLen, L"\\");
+            free(oldWatchedPath);
+        }
+        printf("~~~~ Watching root %ls\n", watchedPath);
+        watchedPaths[i] = watchedPath;
+    }
+    char drivePath[4] = {toupper(watchedPaths[0][0]), ':', '\\', '\0'};
 
     watch_details_t* details = (watch_details_t*)malloc(sizeof(watch_details_t));
     details->watcherCallback = env->NewGlobalRef(javaCallback);
     details->stopEventHandle = CreateEvent(NULL, FALSE, FALSE, NULL);
-    details->watchedPath = watchedPath;
+    details->watchedPathCount = watchedPathCount;
+    details->watchedPaths = watchedPaths;
     strcpy_s(details->drivePath, 4, drivePath);
     details->threadHandle = CreateThread(
         NULL,                   // default security attributes
@@ -180,7 +201,10 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_stopWatc
     WaitForSingleObject(details->threadHandle, INFINITE);
     CloseHandle(details->threadHandle);
     CloseHandle(details->stopEventHandle);
-    free(details->watchedPath);
+    for (int i = 0; i < details->watchedPathCount; i++) {
+        free(details->watchedPaths[i]);
+    }
+    free(details->watchedPaths);
     env->DeleteGlobalRef(details->watcherCallback);
     free(details);
 }
