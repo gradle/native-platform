@@ -96,7 +96,7 @@ DWORD WINAPI EventProcessingThread(LPVOID data) {
         int rcDrive = ReadDirectoryChangesW(hDrive, buffer, sizeof(buffer), TRUE, EVENT_MASK, NULL, &overlapped, NULL);
         if (rcDrive == 0) {
             // TODO Error handling
-            printf("~~~~ Couldn't read directory: %d\n", rcDrive);
+            printf("~~~~ Couldn't read directory: %d - %d\n", rcDrive, GetLastError());
             break;
         }
 

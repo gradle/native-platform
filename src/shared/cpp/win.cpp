@@ -39,7 +39,7 @@ wchar_t* java_to_wchar_path(JNIEnv *env, jstring string, jobject result) {
 
     if (is_path_absolute_local(str, len)) {
         // Format: C:\... -> \\?\C:\...
-        wchar_t* str2 = add_prefix(str, len, L"\\\\\?\\");
+        wchar_t* str2 = add_prefix(str, len, L"\\\\?\\");
         free(str);
         return str2;
     } else if (is_path_absolute_unc(str, len)) {
