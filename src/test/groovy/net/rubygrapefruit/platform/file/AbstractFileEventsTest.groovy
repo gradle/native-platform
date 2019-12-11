@@ -20,6 +20,7 @@ import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import spock.lang.IgnoreIf
 import spock.lang.Specification
+import spock.lang.Unroll
 import spock.util.concurrent.AsyncConditions
 
 abstract class AbstractFileEventsTest extends Specification {
@@ -187,6 +188,32 @@ abstract class AbstractFileEventsTest extends Specification {
 
         then:
         expectedChanges.await()
+    }
+
+    @Unroll
+    def "can watch directory with #type characters"() {
+        given:
+        def subDir = new File(dir, path)
+        println "Watching (${subDir.canonicalPath.length()}) $subDir"
+        subDir.mkdirs()
+        def fileInSubDir = new File(subDir, path)
+        startWatcher(subDir)
+
+        when:
+        def expectedChanges = expectThat pathChangeIsDetected(fileInSubDir)
+        fileInSubDir.createNewFile()
+
+        then:
+        expectedChanges.await()
+
+        where:
+        type          | path
+        "ascii-only"  | "directory"
+        "chinese"     | "输入文件"
+        "hungarian"   | "Dezső"
+        "space"       | "test directory"
+        "zwnj"        | "test\u200cdirectory"
+        "url-quoted"  | "test%<directory>#2.txt"
     }
 
     protected abstract void startWatcher(File... roots)
