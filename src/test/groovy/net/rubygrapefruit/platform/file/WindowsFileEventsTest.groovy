@@ -19,9 +19,9 @@ package net.rubygrapefruit.platform.file
 import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 
-@IgnoreIf({ !Platform.current().windows })
+@Requires({ Platform.current().windows })
 class WindowsFileEventsTest extends AbstractFileEventsTest {
     final WindowsFileEventFunctions fileEvents = Native.get(WindowsFileEventFunctions.class)
     FileWatcher watcher
