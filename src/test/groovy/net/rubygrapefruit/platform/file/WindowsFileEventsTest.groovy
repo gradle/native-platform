@@ -18,26 +18,24 @@ package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.internal.Platform
-import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions
+import net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions
 import spock.lang.Requires
 
-@Requires({ Platform.current().macOs })
-class OsxFileEventsTest extends AbstractFileEventsTest {
-    private static final LATENCY = 0.2
-
-    final OsxFileEventFunctions fileEvents = Native.get(OsxFileEventFunctions.class)
+@Requires({ Platform.current().windows })
+class WindowsFileEventsTest extends AbstractFileEventsTest {
+    final WindowsFileEventFunctions fileEvents = Native.get(WindowsFileEventFunctions.class)
     FileWatcher watcher
 
     def "caches file events instance"() {
         expect:
-        Native.get(OsxFileEventFunctions.class) is fileEvents
+        Native.get(WindowsFileEventFunctions.class) is fileEvents
     }
 
     @Override
     protected void startWatcher(File... roots) {
         // Avoid setup operations to be reported
         waitForChangeEventLatency()
-        watcher = fileEvents.startWatching(roots*.absolutePath.toList(), LATENCY, callback)
+        watcher = fileEvents.startWatching(roots*.absolutePath.toList(), callback)
     }
 
     @Override
@@ -47,11 +45,11 @@ class OsxFileEventsTest extends AbstractFileEventsTest {
 
     @Override
     protected String resolveExpectedChange(File change) {
-        return change.parentFile.canonicalPath
+        return change.canonicalPath
     }
 
     @Override
     protected void waitForChangeEventLatency() {
-        Thread.sleep((long) (LATENCY * 1000 + 100))
+        Thread.sleep(1000)
     }
 }

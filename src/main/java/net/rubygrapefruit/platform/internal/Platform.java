@@ -31,6 +31,7 @@ import net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions;
 import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions;
 import net.rubygrapefruit.platform.internal.jni.PosixTypeFunctions;
 import net.rubygrapefruit.platform.internal.jni.TerminfoFunctions;
+import net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions;
 import net.rubygrapefruit.platform.memory.Memory;
 import net.rubygrapefruit.platform.memory.OsxMemory;
 import net.rubygrapefruit.platform.terminal.Terminals;
@@ -176,6 +177,9 @@ public abstract class Platform {
             }
             if (type.equals(WindowsRegistry.class)) {
                 return type.cast(new DefaultWindowsRegistry());
+            }
+            if (type.equals(WindowsFileEventFunctions.class)) {
+                return type.cast(new WindowsFileEventFunctions());
             }
             return super.get(type, nativeLibraryLoader);
         }
