@@ -177,7 +177,6 @@ abstract class AbstractFileEventsTest extends Specification {
         4.times {
             subDir = new File(subDir, "X" * 200)
         }
-        println "Watching (${subDir.canonicalPath.length()}) $subDir"
         subDir.mkdirs()
         def fileInSubDir = new File(subDir, "watched-descendant.txt")
         startWatcher(subDir)
@@ -194,7 +193,6 @@ abstract class AbstractFileEventsTest extends Specification {
     def "can watch directory with #type characters"() {
         given:
         def subDir = new File(dir, path)
-        println "Watching (${subDir.canonicalPath.length()}) $subDir"
         subDir.mkdirs()
         def fileInSubDir = new File(subDir, path)
         startWatcher(subDir)
