@@ -32,7 +32,22 @@ static jobject getTypeEnum(JNIEnv *env, const char *name) {
     return env->GetStaticObjectField(clsType, fieldId);
 }
 
-void reportEvent(JNIEnv *env, const char *type, wchar_t *changedPath, int changedPathLen, jobject watcherCallback) {
+void reportEvent(const char *type, wchar_t *changedPath, int changedPathLen, jobject watcherCallback) {
+    JNIEnv* env;
+    int getEnvStat = jvm->GetEnv((void **)&env, JNI_VERSION_1_6);
+    if (getEnvStat == JNI_EDETACHED) {
+        int attachThreadStat = jvm->AttachCurrentThread((void **) &env, NULL);
+        if (attachThreadStat != JNI_OK) {
+            printf("~~~~ Problem with AttachCurrentThread: %d\n", attachThreadStat);
+            // TODO Error handling
+            return;
+        }
+    } else if (getEnvStat == JNI_EVERSION) {
+        printf("~~~~ Problem with GetEnv: %d\n", getEnvStat);
+        // TODO Error handling
+        return;
+    }
+
     jstring changedPathJava = wchar_to_java(env, changedPath, changedPathLen, NULL);
     jclass callback_class = env->GetObjectClass(watcherCallback);
     jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(Lnet/rubygrapefruit/platform/file/FileWatcherCallback$Type;Ljava/lang/String;)V");
@@ -72,22 +87,7 @@ void handlePathChanged(watch_details_t *details, FILE_NOTIFY_INFORMATION *info) 
         return;
     }
 
-    JNIEnv* env;
-    int getEnvStat = jvm->GetEnv((void **)&env, JNI_VERSION_1_6);
-    if (getEnvStat == JNI_EDETACHED) {
-        int attachThreadStat = jvm->AttachCurrentThread((void **) &env, NULL);
-        if (attachThreadStat != JNI_OK) {
-            printf("~~~~ Problem with AttachCurrentThread: %d\n", attachThreadStat);
-            // TODO Error handling
-            return;
-        }
-    } else if (getEnvStat == JNI_EVERSION) {
-        printf("~~~~ Problem with GetEnv: %d\n", getEnvStat);
-        // TODO Error handling
-        return;
-    }
-
-    reportEvent(env, type, changedPath, changedPathLen, details->watcherCallback);
+    reportEvent(type, changedPath, changedPathLen, details->watcherCallback);
     free(changedPath);
 }
 
@@ -130,8 +130,8 @@ DWORD WINAPI EventProcessingThread(LPVOID data) {
                 if (WaitForSingleObject(details->stopEventHandle, 500) == WAIT_OBJECT_0)
                     break;
 
-                // Got a buffer overflow => current changes lost => send RECDIRTY on root
-                // TODO Signal overflow
+                // Got a buffer overflow => current changes lost => send INVALIDATE on root
+                reportEvent("INVALIDATE", details->drivePath, 3, details->watcherCallback);
             } else {
                 FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION *)buffer;
                 do {
