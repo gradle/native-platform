@@ -22,6 +22,7 @@ public interface FileWatcherCallback {
         ADDED,
         REMOVED,
         MODIFIED,
+        CHILDREN_CHANGED,
         DESCENDANTS_CHANGED
     }
 }

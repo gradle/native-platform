@@ -25,13 +25,13 @@ typedef struct watch_details {
     CFRunLoopRef threadLoop;
 } watch_details_t;
 
-static jobject getTypeEnum(JNIEnv *env, char *name) {
+static jobject getTypeEnum(JNIEnv *env, const char *name) {
     jclass clsType = env->FindClass("net/rubygrapefruit/platform/file/FileWatcherCallback$Type");
     jfieldID fieldId = env->GetStaticFieldID(clsType , name, "Lnet/rubygrapefruit/platform/file/FileWatcherCallback$Type;");
     return env->GetStaticObjectField(clsType, fieldId);
 }
 
-static void reportEvent(const char *event, char *path, jobject watcherCallback) {
+static void reportEvent(const char *type, char *path, jobject watcherCallback) {
     // TODO What does this do?
     size_t len = 0;
     if (path != NULL) {
@@ -56,8 +56,6 @@ static void reportEvent(const char *event, char *path, jobject watcherCallback) 
         return;
     }
 
-    char *type = "DESCENDANTS_CHANGED";
-
     printf("~~~~ Changed: %s %s\n", path, type);
 
     jclass callback_class = env->GetObjectClass(watcherCallback);
@@ -78,14 +76,30 @@ static void callback(ConstFSEventStreamRef streamRef,
 
     for (int i = 0; i < numEvents; i++) {
         // TODO[max] Lion has much more detailed flags we need accurately process. For now just reduce to SL events range.
-        FSEventStreamEventFlags flags = eventFlags[i] & 0xFF;
-        if ((flags & kFSEventStreamEventFlagMustScanSubDirs) != 0) {
-            reportEvent("RECDIRTY", paths[i], watcherCallback);
-        } else if (flags != kFSEventStreamEventFlagNone) {
-            reportEvent("RESET", NULL, watcherCallback);
+        FSEventStreamEventFlags flags = eventFlags[i];
+        printf("~~~~ Event flags: 0x%x for %s\n", flags, paths[i]);
+        const char *type;
+        if (IS_SET(flags, kFSEventStreamEventFlagMustScanSubDirs)) {
+            type = "DESCENDANTS_CHANGED";
+        } else if (IS_SET(flags, kFSEventStreamEventFlagItemRenamed)) {
+            if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
+                type = "REMOVED";
+            } else {
+                type = "ADDED";
+            }
+        } else if (IS_SET(flags, kFSEventStreamEventFlagItemModified)) {
+            type = "MODIFIED";
+        } else if (IS_SET(flags, kFSEventStreamEventFlagItemRemoved)) {
+            type = "REMOVED";
+        } else if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
+            type = "ADDED";
+        } else if (IS_SET(flags, kFSEventStreamEventFlagNone)) {
+            type = "CHILDREN_CHANGED";
         } else {
-            reportEvent("DIRTY", paths[i], watcherCallback);
+            printf("~~~~ Ignoring event %s %x\n", paths[i], flags);
+            return;
         }
+        reportEvent(type, paths[i], watcherCallback);
     }
 }
 
@@ -154,7 +168,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
                 rootsToWatch,
                 kFSEventStreamEventIdSinceNow,
                 latency,
-                kFSEventStreamCreateFlagNoDefer);
+                kFSEventStreamCreateFlagNoDefer | kFSEventStreamCreateFlagFileEvents);
     if (watcherStream == NULL) {
          mark_failed_with_errno(env, "Could not create FSEventStreamCreate to track changes.", result);
          return NULL;

@@ -43,10 +43,6 @@ class WindowsFileEventsTest extends AbstractFileEventsTest {
         watcher?.close()
     }
 
-    @Override
-    protected FileEvent resolveExpectedChange(FileWatcherCallback.Type type, File changedFile) {
-        return new FileEvent(type, changedFile.canonicalFile)
-    }
 
     @Override
     protected void waitForChangeEventLatency() {
