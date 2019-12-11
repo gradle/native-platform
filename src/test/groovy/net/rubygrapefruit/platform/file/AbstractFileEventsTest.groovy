@@ -16,6 +16,7 @@
 package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.internal.Platform
+import org.junit.Assume
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import spock.lang.IgnoreIf
@@ -191,6 +192,8 @@ abstract class AbstractFileEventsTest extends Specification {
 
     @Unroll
     def "can watch directory with #type characters"() {
+        Assume.assumeTrue(supported)
+
         given:
         def subDir = new File(dir, path)
         subDir.mkdirs()
@@ -205,13 +208,13 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
 
         where:
-        type          | path
-        "ascii-only"  | "directory"
-        "chinese"     | "输入文件"
-        "hungarian"   | "Dezső"
-        "space"       | "test directory"
-        "zwnj"        | "test\u200cdirectory"
-        "url-quoted"  | "test%<directory>#2.txt"
+        type         | path                     | supported
+        "ASCII-only" | "directory"              | true
+        "Chinese"    | "输入文件"                   | true
+        "Hungarian"  | "Dezső"                  | true
+        "space"      | "test directory"         | true
+        "zwnj"       | "test\u200cdirectory"    | true
+        "URL-quoted" | "test%<directory>#2.txt" | !Platform.current().windows
     }
 
     protected abstract void startWatcher(File... roots)
@@ -223,6 +226,7 @@ abstract class AbstractFileEventsTest extends Specification {
     }
 
     private FileWatcherCallback pathChangeIsDetected(File path) {
+        println "> Expecting ${path.canonicalPath}"
         return { changedPath ->
             String expected = resolveExpectedChange(path.canonicalFile)
             String actual
