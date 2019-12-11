@@ -48,13 +48,83 @@ abstract class AbstractFileEventsTest extends Specification {
         noExceptionThrown()
     }
 
-    def "can receive an event"() {
+    def "can detect file created"() {
         given:
         startWatcher(dir)
 
         when:
         def expectedChanges = expectThat pathChangeIsDetected(fileInDir)
         fileInDir.createNewFile()
+
+        then:
+        expectedChanges.await()
+    }
+
+    def "can detect file deleted"() {
+        given:
+        fileInDir.createNewFile()
+        startWatcher(dir)
+
+        when:
+        def expectedChanges = expectThat pathChangeIsDetected(fileInDir)
+        fileInDir.delete()
+
+        then:
+        expectedChanges.await()
+    }
+
+    def "can detect file modified"() {
+        given:
+        fileInDir.createNewFile()
+        startWatcher(dir)
+
+        when:
+        def expectedChanges = expectThat pathChangeIsDetected(fileInDir)
+        fileInDir << "change"
+
+        then:
+        expectedChanges.await()
+    }
+
+    def "can detect file renamed"() {
+        given:
+        fileInDir.createNewFile()
+        def renamedFileInDir = new File(dir, "renamed.txt")
+        startWatcher(dir)
+
+        when:
+        def expectedChanges = expectThat pathChangeIsDetected(fileInDir)
+        fileInDir.renameTo(renamedFileInDir)
+
+        then:
+        expectedChanges.await()
+    }
+
+    def "can detect file moved out"() {
+        given:
+        def siblingDir = tmpDir.newFolder()
+        fileInDir.createNewFile()
+        def fileInSiblingDir = new File(siblingDir, "renamed.txt")
+        startWatcher(dir)
+
+        when:
+        def expectedChanges = expectThat pathChangeIsDetected(fileInDir)
+        fileInDir.renameTo(fileInSiblingDir)
+
+        then:
+        expectedChanges.await()
+    }
+
+    def "can detect file moved in"() {
+        given:
+        def siblingDir = tmpDir.newFolder()
+        def fileInSiblingDir = new File(siblingDir, "renamed.txt")
+        fileInSiblingDir.createNewFile()
+        startWatcher(dir)
+
+        when:
+        def expectedChanges = expectThat pathChangeIsDetected(fileInDir)
+        fileInSiblingDir.renameTo(fileInDir)
 
         then:
         expectedChanges.await()
