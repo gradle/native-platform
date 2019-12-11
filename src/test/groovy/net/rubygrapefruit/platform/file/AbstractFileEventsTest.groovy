@@ -167,6 +167,25 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
+    def "can watch directory with long path"() {
+        given:
+        def subDir = new File(dir, "long-path")
+        4.times {
+            subDir = new File(subDir, "X" * 200)
+        }
+        println "Watching (${subDir.canonicalPath.length()}) $subDir"
+        subDir.mkdirs()
+        def fileInSubDir = new File(subDir, "watched-descendant.txt")
+        startWatcher(subDir)
+
+        when:
+        def expectedChanges = expectThat pathChangeIsDetected(fileInSubDir)
+        fileInSubDir.createNewFile()
+
+        then:
+        expectedChanges.await()
+    }
+
     protected abstract void startWatcher(File... roots)
 
     protected abstract void stopWatcher()
