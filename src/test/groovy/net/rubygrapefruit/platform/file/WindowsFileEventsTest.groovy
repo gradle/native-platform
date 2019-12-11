@@ -17,6 +17,7 @@
 package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.Native
+import net.rubygrapefruit.platform.NativeException
 import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions
 import spock.lang.Requires
@@ -29,6 +30,17 @@ class WindowsFileEventsTest extends AbstractFileEventsTest {
     def "caches file events instance"() {
         expect:
         Native.get(WindowsFileEventFunctions.class) is fileEvents
+    }
+
+    def "cannot watch long paths"() {
+        given:
+        def longPath = new File(dir, "X" * 240).canonicalPath
+        when:
+        fileEvents.startWatching([longPath]) {}
+
+        then:
+        def ex = thrown NativeException
+        ex.message == "Failed to start watch. Reason: Cannot watch long paths for now."
     }
 
     @Override

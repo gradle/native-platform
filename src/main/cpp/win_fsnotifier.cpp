@@ -168,10 +168,21 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
     }
 
     wchar_t **watchedPaths = (wchar_t**)malloc(watchedPathCount * sizeof(wchar_t*));
+    wchar_t driveLetter = L'\0';
     for (int i = 0; i < watchedPathCount; i++) {
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
         wchar_t* watchedPath = java_to_wchar_path(env, path, result);
         int watchedPathLen = wcslen(watchedPath);
+        if (watchedPathLen > 240 || watchedPath[0] == L'\\') {
+            mark_failed_with_errno(env, "Cannot watch long paths for now.", result);
+            return NULL;
+        }
+        if (driveLetter == L'\0') {
+            driveLetter = watchedPath[0];
+        } else if (driveLetter != watchedPath[0]) {
+            mark_failed_with_errno(env, "Cannot watch multiple drives for now.", result);
+            return NULL;
+        }
         if (watchedPath[watchedPathLen - 1] != L'\\') {
             wchar_t* oldWatchedPath = watchedPath;
             watchedPath = add_suffix(watchedPath, watchedPathLen, L"\\");
