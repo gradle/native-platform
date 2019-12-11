@@ -44,8 +44,8 @@ class WindowsFileEventsTest extends AbstractFileEventsTest {
     }
 
     @Override
-    protected String resolveExpectedChange(File change) {
-        return change.canonicalPath
+    protected FileEvent resolveExpectedChange(FileWatcherCallback.Type type, File changedFile) {
+        return new FileEvent(type, changedFile.canonicalFile)
     }
 
     @Override

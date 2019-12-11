@@ -25,6 +25,12 @@ typedef struct watch_details {
     CFRunLoopRef threadLoop;
 } watch_details_t;
 
+static jobject getTypeEnum(JNIEnv *env, char *name) {
+    jclass clsType = env->FindClass("net/rubygrapefruit/platform/file/FileWatcherCallback$Type");
+    jfieldID fieldId = env->GetStaticFieldID(clsType , name, "Lnet/rubygrapefruit/platform/file/FileWatcherCallback$Type;");
+    return env->GetStaticObjectField(clsType, fieldId);
+}
+
 static void reportEvent(const char *event, char *path, jobject watcherCallback) {
     // TODO What does this do?
     size_t len = 0;
@@ -50,11 +56,13 @@ static void reportEvent(const char *event, char *path, jobject watcherCallback) 
         return;
     }
 
-    printf("~~~~ Changed: %s\n", path);
+    char *type = "DESCENDANTS_CHANGED";
+
+    printf("~~~~ Changed: %s %s\n", path, type);
 
     jclass callback_class = env->GetObjectClass(watcherCallback);
-    jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(Ljava/lang/String;)V");
-    env->CallVoidMethod(watcherCallback, methodCallback, env->NewStringUTF(path));
+    jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(Lnet/rubygrapefruit/platform/file/FileWatcherCallback$Type;Ljava/lang/String;)V");
+    env->CallVoidMethod(watcherCallback, methodCallback, getTypeEnum(env, type), env->NewStringUTF(path));
 }
 
 static void callback(ConstFSEventStreamRef streamRef,

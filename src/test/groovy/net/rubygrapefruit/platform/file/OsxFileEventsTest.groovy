@@ -21,6 +21,8 @@ import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions
 import spock.lang.Requires
 
+import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.DESCENDANTS_CHANGED
+
 @Requires({ Platform.current().macOs })
 class OsxFileEventsTest extends AbstractFileEventsTest {
     private static final LATENCY = 0.2
@@ -46,8 +48,8 @@ class OsxFileEventsTest extends AbstractFileEventsTest {
     }
 
     @Override
-    protected String resolveExpectedChange(File change) {
-        return change.parentFile.canonicalPath
+    protected FileEvent resolveExpectedChange(FileWatcherCallback.Type type, File changedFile) {
+        return new FileEvent(DESCENDANTS_CHANGED, changedFile.parentFile.canonicalFile)
     }
 
     @Override
