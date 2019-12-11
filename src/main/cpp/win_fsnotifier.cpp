@@ -26,20 +26,27 @@ typedef struct watch_details {
 #define EVENT_MASK (FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | \
                     FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE)
 
-void handlePathChanged(watch_details_t *details, FILE_NOTIFY_INFORMATION *info) {
-    // const char *event;
-    // if (info->Action == FILE_ACTION_ADDED || info->Action == FILE_ACTION_RENAMED_OLD_NAME) {
-    //     event = "CREATE";
-    // } else if (info->Action == FILE_ACTION_REMOVED || info->Action == FILE_ACTION_RENAMED_OLD_NAME) {
-    //     event = "DELETE";
-    // } else if (info->Action == FILE_ACTION_MODIFIED) {
-    //     event = "CHANGE";
-    // } else {
-    //     return;  // unknown event
-    // }
+static jobject getTypeEnum(JNIEnv *env, const char *name) {
+    jclass clsType = env->FindClass("net/rubygrapefruit/platform/file/FileWatcherCallback$Type");
+    jfieldID fieldId = env->GetStaticFieldID(clsType , name, "Lnet/rubygrapefruit/platform/file/FileWatcherCallback$Type;");
+    return env->GetStaticObjectField(clsType, fieldId);
+}
 
+void handlePathChanged(watch_details_t *details, FILE_NOTIFY_INFORMATION *info) {
     int pathLen = info->FileNameLength / sizeof(wchar_t);
     wchar_t *changedPath = add_prefix(info->FileName, pathLen, details->drivePath);
+
+    const char *type;
+    if (info->Action == FILE_ACTION_ADDED || info->Action == FILE_ACTION_RENAMED_NEW_NAME) {
+        type = "ADDED";
+    } else if (info->Action == FILE_ACTION_REMOVED || info->Action == FILE_ACTION_RENAMED_OLD_NAME) {
+        type = "REMOVED";
+    } else if (info->Action == FILE_ACTION_MODIFIED) {
+        type = "MODIFIED";
+    } else {
+        wprintf(L"~~~~ Ignoring %ls (unknown event %d)\n", changedPath, info->Action);
+        return;
+    }
 
     bool watching = false;
     for (int i = 0; i < details->watchedPathCount; i++) {
@@ -74,9 +81,9 @@ void handlePathChanged(watch_details_t *details, FILE_NOTIFY_INFORMATION *info) 
     free(changedPath);
 
     jclass callback_class = env->GetObjectClass(details->watcherCallback);
-    jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(Ljava/lang/String;)V");
+    jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(Lnet/rubygrapefruit/platform/file/FileWatcherCallback$Type;Ljava/lang/String;)V");
     // TODO Do we need to add a global reference to the string here?
-    env->CallVoidMethod(details->watcherCallback, methodCallback, changedPathJava);
+    env->CallVoidMethod(details->watcherCallback, methodCallback, getTypeEnum(env, type), changedPathJava);
 }
 
 DWORD WINAPI EventProcessingThread(LPVOID data) {
