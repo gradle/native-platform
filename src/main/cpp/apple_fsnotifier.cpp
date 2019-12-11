@@ -50,6 +50,8 @@ static void reportEvent(const char *event, char *path, jobject watcherCallback) 
         return;
     }
 
+    printf("~~~~ Changed: %s\n", path);
+
     jclass callback_class = env->GetObjectClass(watcherCallback);
     jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(Ljava/lang/String;)V");
     env->CallVoidMethod(watcherCallback, methodCallback, env->NewStringUTF(path));
@@ -81,6 +83,9 @@ static void callback(ConstFSEventStreamRef streamRef,
 
 static void *EventProcessingThread(void *data) {
     watch_details_t *details = (watch_details_t*) data;
+
+    printf("~~~~ Starting thread\n");
+
     CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
     FSEventStreamScheduleWithRunLoop(details->watcherStream, threadLoop, kCFRunLoopDefaultMode);
     FSEventStreamStart(details->watcherStream);
@@ -88,11 +93,17 @@ static void *EventProcessingThread(void *data) {
     // TODO We should wait for this in the caller thread otherwise stopWatching() might crash
     // This triggers run loop for this thread, causing it to run until we explicitly stop it.
     CFRunLoopRun();
+
+    printf("~~~~ Stopping thread\n");
+
     return NULL;
 }
 
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatching(JNIEnv *env, jclass target, jobjectArray paths, CFAbsoluteTime latency, jobject javaCallback, jobject result) {
+
+    printf("\n~~~~ Configuring...\n");
+
     invalidStateDetected = false;
     CFMutableArrayRef rootsToWatch = CFArrayCreateMutable(NULL, 0, NULL);
     if (rootsToWatch == NULL) {
@@ -106,13 +117,14 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
     }
     for (int i = 0; i < count; i++) {
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
-        char* pathString = java_to_char(env, path, result);
-        if (pathString == NULL) {
+        char* watchedPath = java_to_char(env, path, result);
+        printf("~~~~ Watching %s\n", watchedPath);
+        if (watchedPath == NULL) {
             mark_failed_with_errno(env, "Could not allocate string to store root to watch.", result);
             return NULL;
         }
-        CFStringRef stringPath = CFStringCreateWithCString(NULL, pathString, kCFStringEncodingUTF8);
-        free(pathString);
+        CFStringRef stringPath = CFStringCreateWithCString(NULL, watchedPath, kCFStringEncodingUTF8);
+        free(watchedPath);
         if (stringPath == NULL) {
             mark_failed_with_errno(env, "Could not create CFStringRef.", result);
             return NULL;
