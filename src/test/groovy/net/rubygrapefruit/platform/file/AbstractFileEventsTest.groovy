@@ -66,10 +66,13 @@ abstract class AbstractFileEventsTest extends Specification {
         given:
         def removedFile = new File(dir, "removed.txt")
         removedFile.createNewFile()
+        def expectedEvents = Platform.current().windows
+            ? [modified(removedFile), removed(removedFile)]
+            : [removed(removedFile)]
         startWatcher(dir)
 
         when:
-        def expectedChanges = expectEvents removed(removedFile)
+        def expectedChanges = expectEvents expectedEvents
         removedFile.delete()
 
         then:
@@ -95,10 +98,13 @@ abstract class AbstractFileEventsTest extends Specification {
         def sourceFile = new File(dir, "source.txt")
         def targetFile = new File(dir, "target.txt")
         sourceFile.createNewFile()
+        def expectedEvents = Platform.current().windows
+            ? [removed(sourceFile)]
+            : [removed(sourceFile), created(targetFile)]
         startWatcher(dir)
 
         when:
-        def expectedChanges = expectEvents(removed(sourceFile), created(targetFile))
+        def expectedChanges = expectEvents expectedEvents
         sourceFile.renameTo(targetFile)
 
         then:
@@ -325,6 +331,10 @@ abstract class AbstractFileEventsTest extends Specification {
     protected abstract void stopWatcher()
 
     private AsyncConditions expectEvents(FileEvent... events) {
+        expectEvents(events as List)
+    }
+
+    private AsyncConditions expectEvents(List<FileEvent> events) {
         return callback.expect(events)
     }
 
@@ -344,12 +354,12 @@ abstract class AbstractFileEventsTest extends Specification {
         private AsyncConditions conditions
         private Collection<FileEvent> expectedEvents
 
-        AsyncConditions expect(FileEvent... events) {
+        AsyncConditions expect(List<FileEvent> events) {
             events.each { event ->
                 println "> Expecting $event"
             }
             this.conditions = new AsyncConditions()
-            this.expectedEvents = new ArrayList<>(events as List)
+            this.expectedEvents = new ArrayList<>(events)
             return conditions
         }
 

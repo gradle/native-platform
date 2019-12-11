@@ -36,16 +36,18 @@ void handlePathChanged(watch_details_t *details, FILE_NOTIFY_INFORMATION *info) 
     int pathLen = info->FileNameLength / sizeof(wchar_t);
     wchar_t *changedPath = add_prefix(info->FileName, pathLen, details->drivePath);
 
+    wprintf(L"~~~~ Changed: 0x%x %ls\n", info->Action, changedPath);
+
     const char *type;
     if (info->Action == FILE_ACTION_ADDED || info->Action == FILE_ACTION_RENAMED_NEW_NAME) {
-        type = "ADDED";
+        type = "CREATED";
     } else if (info->Action == FILE_ACTION_REMOVED || info->Action == FILE_ACTION_RENAMED_OLD_NAME) {
         type = "REMOVED";
     } else if (info->Action == FILE_ACTION_MODIFIED) {
         type = "MODIFIED";
     } else {
-        wprintf(L"~~~~ Ignoring %ls (unknown event %d)\n", changedPath, info->Action);
-        return;
+        wprintf(L"~~~~ Unknown event 0x%x for %ls\n", info->Action, changedPath);
+        type = "UNKNOWN";
     }
 
     bool watching = false;
@@ -60,7 +62,6 @@ void handlePathChanged(watch_details_t *details, FILE_NOTIFY_INFORMATION *info) 
         wprintf(L"~~~~ Ignoring %ls (root is not watched)\n", changedPath);
         return;
     }
-    wprintf(L"~~~~ Changed: %ls\n", changedPath);
 
     JNIEnv* env;
     int getEnvStat = jvm->GetEnv((void **)&env, JNI_VERSION_1_6);
