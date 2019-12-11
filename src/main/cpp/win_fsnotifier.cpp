@@ -50,10 +50,10 @@ void handlePathChanged(watch_details_t *details, FILE_NOTIFY_INFORMATION *info) 
         }
     }
     if (!watching) {
-        printf("~~~~ Ignoring %ls (root is not watched)\n", changedPath);
+        wprintf(L"~~~~ Ignoring %ls (root is not watched)\n", changedPath);
         return;
     }
-    printf("~~~~ Changed: %ls\n", changedPath);
+    wprintf(L"~~~~ Changed: %ls\n", changedPath);
 
     JNIEnv* env;
     int getEnvStat = jvm->GetEnv((void **)&env, JNI_VERSION_1_6);
@@ -165,7 +165,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
             watchedPath = add_suffix(watchedPath, watchedPathLen, L"\\");
             free(oldWatchedPath);
         }
-        printf("~~~~ Watching %ls\n", watchedPath);
+        wprintf(L"~~~~ Watching %ls\n", watchedPath);
         watchedPaths[i] = watchedPath;
     }
     wchar_t drivePath[4] = {towupper(watchedPaths[0][0]), L':', L'\\', L'\0'};
