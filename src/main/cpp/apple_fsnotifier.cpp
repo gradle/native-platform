@@ -25,7 +25,13 @@ typedef struct watch_details {
     CFRunLoopRef threadLoop;
 } watch_details_t;
 
-static void reportEvent(const char *event, char *path, jobject watcherCallback) {
+static jobject getTypeEnum(JNIEnv *env, const char *name) {
+    jclass clsType = env->FindClass("net/rubygrapefruit/platform/file/FileWatcherCallback$Type");
+    jfieldID fieldId = env->GetStaticFieldID(clsType , name, "Lnet/rubygrapefruit/platform/file/FileWatcherCallback$Type;");
+    return env->GetStaticObjectField(clsType, fieldId);
+}
+
+static void reportEvent(const char *type, char *path, jobject watcherCallback) {
     // TODO What does this do?
     size_t len = 0;
     if (path != NULL) {
@@ -50,11 +56,11 @@ static void reportEvent(const char *event, char *path, jobject watcherCallback) 
         return;
     }
 
-    printf("~~~~ Changed: %s\n", path);
+    printf("~~~~ Changed: %s %s\n", path, type);
 
     jclass callback_class = env->GetObjectClass(watcherCallback);
-    jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(Ljava/lang/String;)V");
-    env->CallVoidMethod(watcherCallback, methodCallback, env->NewStringUTF(path));
+    jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(Lnet/rubygrapefruit/platform/file/FileWatcherCallback$Type;Ljava/lang/String;)V");
+    env->CallVoidMethod(watcherCallback, methodCallback, getTypeEnum(env, type), env->NewStringUTF(path));
 }
 
 static void callback(ConstFSEventStreamRef streamRef,
@@ -69,15 +75,29 @@ static void callback(ConstFSEventStreamRef streamRef,
     jobject watcherCallback = (jobject) clientCallBackInfo;
 
     for (int i = 0; i < numEvents; i++) {
-        // TODO[max] Lion has much more detailed flags we need accurately process. For now just reduce to SL events range.
-        FSEventStreamEventFlags flags = eventFlags[i] & 0xFF;
-        if ((flags & kFSEventStreamEventFlagMustScanSubDirs) != 0) {
-            reportEvent("RECDIRTY", paths[i], watcherCallback);
-        } else if (flags != kFSEventStreamEventFlagNone) {
-            reportEvent("RESET", NULL, watcherCallback);
+        FSEventStreamEventFlags flags = eventFlags[i];
+        printf("~~~~ Event flags: 0x%x for %s\n", flags, paths[i]);
+        const char *type;
+        if (IS_SET(flags, kFSEventStreamEventFlagMustScanSubDirs)) {
+            type = "INVALIDATE";
+        } else if (IS_SET(flags, kFSEventStreamEventFlagItemRenamed)) {
+            if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
+                type = "REMOVED";
+            } else {
+                type = "CREATED";
+            }
+        } else if (IS_SET(flags, kFSEventStreamEventFlagItemModified)) {
+            type = "MODIFIED";
+        } else if (IS_SET(flags, kFSEventStreamEventFlagItemRemoved)) {
+            type = "REMOVED";
+        } else if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
+            type = "CREATED";
         } else {
-            reportEvent("DIRTY", paths[i], watcherCallback);
+            printf("~~~~ Unknwon event %s for %x\n", paths[i], flags);
+            type = "UNKNOWN";
+            return;
         }
+        reportEvent(type, paths[i], watcherCallback);
     }
 }
 
@@ -146,7 +166,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
                 rootsToWatch,
                 kFSEventStreamEventIdSinceNow,
                 latency,
-                kFSEventStreamCreateFlagNoDefer);
+                kFSEventStreamCreateFlagNoDefer | kFSEventStreamCreateFlagFileEvents);
     if (watcherStream == NULL) {
          mark_failed_with_errno(env, "Could not create FSEventStreamCreate to track changes.", result);
          return NULL;

@@ -26,35 +26,13 @@ typedef struct watch_details {
 #define EVENT_MASK (FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | \
                     FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE)
 
-void handlePathChanged(watch_details_t *details, FILE_NOTIFY_INFORMATION *info) {
-    // const char *event;
-    // if (info->Action == FILE_ACTION_ADDED || info->Action == FILE_ACTION_RENAMED_OLD_NAME) {
-    //     event = "CREATE";
-    // } else if (info->Action == FILE_ACTION_REMOVED || info->Action == FILE_ACTION_RENAMED_OLD_NAME) {
-    //     event = "DELETE";
-    // } else if (info->Action == FILE_ACTION_MODIFIED) {
-    //     event = "CHANGE";
-    // } else {
-    //     return;  // unknown event
-    // }
+static jobject getTypeEnum(JNIEnv *env, const char *name) {
+    jclass clsType = env->FindClass("net/rubygrapefruit/platform/file/FileWatcherCallback$Type");
+    jfieldID fieldId = env->GetStaticFieldID(clsType , name, "Lnet/rubygrapefruit/platform/file/FileWatcherCallback$Type;");
+    return env->GetStaticObjectField(clsType, fieldId);
+}
 
-    int pathLen = info->FileNameLength / sizeof(wchar_t);
-    wchar_t *changedPath = add_prefix(info->FileName, pathLen, details->drivePath);
-
-    bool watching = false;
-    for (int i = 0; i < details->watchedPathCount; i++) {
-        wchar_t* watchedPath = details->watchedPaths[i];
-        if (wcsncmp(watchedPath, changedPath, wcslen(watchedPath)) == 0) {
-            watching = true;
-            break;
-        }
-    }
-    if (!watching) {
-        printf("~~~~ Ignoring %ls (root is not watched)\n", changedPath);
-        return;
-    }
-    printf("~~~~ Changed: %ls\n", changedPath);
-
+void reportEvent(const char *type, wchar_t *changedPath, int changedPathLen, jobject watcherCallback) {
     JNIEnv* env;
     int getEnvStat = jvm->GetEnv((void **)&env, JNI_VERSION_1_6);
     if (getEnvStat == JNI_EDETACHED) {
@@ -70,13 +48,47 @@ void handlePathChanged(watch_details_t *details, FILE_NOTIFY_INFORMATION *info) 
         return;
     }
 
-    jstring changedPathJava = wchar_to_java(env, changedPath, pathLen + 3, NULL);
-    free(changedPath);
-
-    jclass callback_class = env->GetObjectClass(details->watcherCallback);
-    jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(Ljava/lang/String;)V");
+    jstring changedPathJava = wchar_to_java(env, changedPath, changedPathLen, NULL);
+    jclass callback_class = env->GetObjectClass(watcherCallback);
+    jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(Lnet/rubygrapefruit/platform/file/FileWatcherCallback$Type;Ljava/lang/String;)V");
     // TODO Do we need to add a global reference to the string here?
-    env->CallVoidMethod(details->watcherCallback, methodCallback, changedPathJava);
+    env->CallVoidMethod(watcherCallback, methodCallback, getTypeEnum(env, type), changedPathJava);
+}
+
+void handlePathChanged(watch_details_t *details, FILE_NOTIFY_INFORMATION *info) {
+    int pathLen = info->FileNameLength / sizeof(wchar_t);
+    wchar_t *changedPath = add_prefix(info->FileName, pathLen, details->drivePath);
+    int changedPathLen = pathLen + 3;
+
+    wprintf(L"~~~~ Changed: 0x%x %ls\n", info->Action, changedPath);
+
+    const char *type;
+    if (info->Action == FILE_ACTION_ADDED || info->Action == FILE_ACTION_RENAMED_NEW_NAME) {
+        type = "CREATED";
+    } else if (info->Action == FILE_ACTION_REMOVED || info->Action == FILE_ACTION_RENAMED_OLD_NAME) {
+        type = "REMOVED";
+    } else if (info->Action == FILE_ACTION_MODIFIED) {
+        type = "MODIFIED";
+    } else {
+        wprintf(L"~~~~ Unknown event 0x%x for %ls\n", info->Action, changedPath);
+        type = "UNKNOWN";
+    }
+
+    bool watching = false;
+    for (int i = 0; i < details->watchedPathCount; i++) {
+        wchar_t* watchedPath = details->watchedPaths[i];
+        if (wcsncmp(watchedPath, changedPath, wcslen(watchedPath)) == 0) {
+            watching = true;
+            break;
+        }
+    }
+    if (!watching) {
+        wprintf(L"~~~~ Ignoring %ls (root is not watched)\n", changedPath);
+        return;
+    }
+
+    reportEvent(type, changedPath, changedPathLen, details->watcherCallback);
+    free(changedPath);
 }
 
 DWORD WINAPI EventProcessingThread(LPVOID data) {
@@ -118,8 +130,8 @@ DWORD WINAPI EventProcessingThread(LPVOID data) {
                 if (WaitForSingleObject(details->stopEventHandle, 500) == WAIT_OBJECT_0)
                     break;
 
-                // Got a buffer overflow => current changes lost => send RECDIRTY on root
-                // TODO Signal overflow
+                // Got a buffer overflow => current changes lost => send INVALIDATE on root
+                reportEvent("INVALIDATE", details->drivePath, 3, details->watcherCallback);
             } else {
                 FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION *)buffer;
                 do {
@@ -156,16 +168,27 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
     }
 
     wchar_t **watchedPaths = (wchar_t**)malloc(watchedPathCount * sizeof(wchar_t*));
+    wchar_t driveLetter = L'\0';
     for (int i = 0; i < watchedPathCount; i++) {
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
         wchar_t* watchedPath = java_to_wchar_path(env, path, result);
         int watchedPathLen = wcslen(watchedPath);
+        if (watchedPathLen > 240 || watchedPath[0] == L'\\') {
+            mark_failed_with_errno(env, "Cannot watch long paths for now.", result);
+            return NULL;
+        }
+        if (driveLetter == L'\0') {
+            driveLetter = watchedPath[0];
+        } else if (driveLetter != watchedPath[0]) {
+            mark_failed_with_errno(env, "Cannot watch multiple drives for now.", result);
+            return NULL;
+        }
         if (watchedPath[watchedPathLen - 1] != L'\\') {
             wchar_t* oldWatchedPath = watchedPath;
             watchedPath = add_suffix(watchedPath, watchedPathLen, L"\\");
             free(oldWatchedPath);
         }
-        printf("~~~~ Watching %ls\n", watchedPath);
+        wprintf(L"~~~~ Watching %ls\n", watchedPath);
         watchedPaths[i] = watchedPath;
     }
     wchar_t drivePath[4] = {towupper(watchedPaths[0][0]), L':', L'\\', L'\0'};

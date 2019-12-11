@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-#define NATIVE_VERSION 33
+#define NATIVE_VERSION 34
 
 // Corresponds to NativeLibraryFunctions constants
 #define STDOUT_DESCRIPTOR 0
@@ -42,6 +42,8 @@ extern "C" {
 #define FAILURE_NO_SUCH_FILE 1
 #define FAILURE_NOT_A_DIRECTORY 2
 #define FAILURE_PERMISSIONS 3
+
+#define IS_SET(flags, flag) (((flags) & (flag)) == (flag))
 
 /*
  * Marks the given result as failed, using the given error message

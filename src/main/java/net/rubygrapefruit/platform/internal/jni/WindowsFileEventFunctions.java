@@ -23,6 +23,7 @@ import net.rubygrapefruit.platform.file.FileWatcherCallback;
 import net.rubygrapefruit.platform.internal.FunctionResult;
 
 import java.util.Collection;
+import java.util.List;
 
 public class WindowsFileEventFunctions implements NativeIntegration {
 
@@ -31,7 +32,8 @@ public class WindowsFileEventFunctions implements NativeIntegration {
             return FileWatcher.EMPTY;
         }
         FunctionResult result = new FunctionResult();
-        FileWatcher watch = startWatching(paths.toArray(new String[0]), callback, result);
+        List<String> canonicalPaths = CanonicalPathUtil.canonicalizeAbsolutePaths(paths);
+        FileWatcher watch = startWatching(canonicalPaths.toArray(new String[0]), callback, result);
         if (result.isFailed()) {
             throw new NativeException("Failed to start watch. Reason: " + result.getMessage());
         }

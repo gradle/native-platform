@@ -45,10 +45,6 @@ class OsxFileEventsTest extends AbstractFileEventsTest {
         watcher?.close()
     }
 
-    @Override
-    protected String resolveExpectedChange(File change) {
-        return change.parentFile.canonicalPath
-    }
 
     @Override
     protected void waitForChangeEventLatency() {
