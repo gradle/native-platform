@@ -188,6 +188,32 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
+    def "can receive events from directory with different casing"() {
+        def subDirLowercase = new File(dir, "watch-this")
+        def subDirUppercase = new File(dir, "WATCH-THIS")
+        def fileInLowercaseSubDir = new File(subDirLowercase, "lowercase.txt")
+        def fileInUppercaseSubDir = new File(subDirUppercase, "UPPERCASE.TXT")
+
+        subDirUppercase.mkdirs()
+
+        given:
+        startWatcher(subDirLowercase)
+
+        when:
+        def expectedChanges = expectThat pathChangeIsDetected(fileInLowercaseSubDir)
+        fileInLowercaseSubDir.createNewFile()
+
+        then:
+        expectedChanges.await()
+
+        when:
+        expectedChanges = expectThat pathChangeIsDetected(fileInUppercaseSubDir)
+        fileInUppercaseSubDir.createNewFile()
+
+        then:
+        expectedChanges.await()
+    }
+
     def "can be started once and stopped multiple times"() {
         given:
         startWatcher(dir)
