@@ -330,23 +330,23 @@ abstract class AbstractFileEventsTest extends Specification {
 
     protected abstract void stopWatcher()
 
-    private AsyncConditions expectEvents(FileEvent... events) {
+    protected AsyncConditions expectEvents(FileEvent... events) {
         expectEvents(events as List)
     }
 
-    private AsyncConditions expectEvents(List<FileEvent> events) {
+    protected AsyncConditions expectEvents(List<FileEvent> events) {
         return callback.expect(events)
     }
 
-    private static FileEvent created(File file) {
+    protected static FileEvent created(File file) {
         return new FileEvent(CREATED, file)
     }
 
-    private static FileEvent removed(File file) {
+    protected static FileEvent removed(File file) {
         return new FileEvent(REMOVED, file)
     }
 
-    private static FileEvent modified(File file) {
+    protected static FileEvent modified(File file) {
         return new FileEvent(MODIFIED, file)
     }
 
