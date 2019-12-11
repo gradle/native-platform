@@ -75,28 +75,26 @@ static void callback(ConstFSEventStreamRef streamRef,
     jobject watcherCallback = (jobject) clientCallBackInfo;
 
     for (int i = 0; i < numEvents; i++) {
-        // TODO[max] Lion has much more detailed flags we need accurately process. For now just reduce to SL events range.
         FSEventStreamEventFlags flags = eventFlags[i];
         printf("~~~~ Event flags: 0x%x for %s\n", flags, paths[i]);
         const char *type;
         if (IS_SET(flags, kFSEventStreamEventFlagMustScanSubDirs)) {
-            type = "DESCENDANTS_CHANGED";
+            type = "INVALIDATE";
         } else if (IS_SET(flags, kFSEventStreamEventFlagItemRenamed)) {
             if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
                 type = "REMOVED";
             } else {
-                type = "ADDED";
+                type = "CREATED";
             }
         } else if (IS_SET(flags, kFSEventStreamEventFlagItemModified)) {
             type = "MODIFIED";
         } else if (IS_SET(flags, kFSEventStreamEventFlagItemRemoved)) {
             type = "REMOVED";
         } else if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
-            type = "ADDED";
-        } else if (IS_SET(flags, kFSEventStreamEventFlagNone)) {
-            type = "CHILDREN_CHANGED";
+            type = "CREATED";
         } else {
-            printf("~~~~ Ignoring event %s %x\n", paths[i], flags);
+            printf("~~~~ Unknwon event %s for %x\n", paths[i], flags);
+            type = "UNKNOWN";
             return;
         }
         reportEvent(type, paths[i], watcherCallback);

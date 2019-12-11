@@ -11,18 +11,28 @@ public interface FileWatcherCallback {
     @SuppressWarnings("unused")
     void pathChanged(Type type, String path);
 
-    /**
-     * The file watcher has hit a wall and cannot report all changes, must invalidate everything.
-     */
-    // Invoked from native code
-    @SuppressWarnings("unused")
-    void overflow();
-
     enum Type {
-        ADDED,
+        /**
+         * An item with the given path has been created.
+         */
+        CREATED,
+        /**
+         * An item with the given path has been removed.
+         */
         REMOVED,
+        /**
+         * An item with the given path has been modified.
+         */
         MODIFIED,
-        CHILDREN_CHANGED,
-        DESCENDANTS_CHANGED
+        /**
+         * Some undisclosed changes happened under the given path,
+         * all information about descendants must be discarded.
+         */
+        INVALIDATE,
+        /**
+         * An unknown event happened to the given path or some of its descendants,
+         * discard all information about the file system.
+         */
+        UNKNOWN
     }
 }
