@@ -26,13 +26,7 @@ typedef struct watch_details {
 #define EVENT_MASK (FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | \
                     FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE)
 
-static jobject getTypeEnum(JNIEnv *env, const char *name) {
-    jclass clsType = env->FindClass("net/rubygrapefruit/platform/file/FileWatcherCallback$Type");
-    jfieldID fieldId = env->GetStaticFieldID(clsType , name, "Lnet/rubygrapefruit/platform/file/FileWatcherCallback$Type;");
-    return env->GetStaticObjectField(clsType, fieldId);
-}
-
-void reportEvent(const char *type, wchar_t *changedPath, int changedPathLen, jobject watcherCallback) {
+void reportEvent(jint type, wchar_t *changedPath, int changedPathLen, jobject watcherCallback) {
     JNIEnv* env;
     int getEnvStat = jvm->GetEnv((void **)&env, JNI_VERSION_1_6);
     if (getEnvStat == JNI_EDETACHED) {
@@ -50,9 +44,9 @@ void reportEvent(const char *type, wchar_t *changedPath, int changedPathLen, job
 
     jstring changedPathJava = wchar_to_java(env, changedPath, changedPathLen, NULL);
     jclass callback_class = env->GetObjectClass(watcherCallback);
-    jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(Lnet/rubygrapefruit/platform/file/FileWatcherCallback$Type;Ljava/lang/String;)V");
+    jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(ILjava/lang/String;)V");
     // TODO Do we need to add a global reference to the string here?
-    env->CallVoidMethod(watcherCallback, methodCallback, getTypeEnum(env, type), changedPathJava);
+    env->CallVoidMethod(watcherCallback, methodCallback, type, changedPathJava);
 }
 
 void handlePathChanged(watch_details_t *details, FILE_NOTIFY_INFORMATION *info) {
@@ -62,16 +56,16 @@ void handlePathChanged(watch_details_t *details, FILE_NOTIFY_INFORMATION *info) 
 
     wprintf(L"~~~~ Changed: 0x%x %ls\n", info->Action, changedPath);
 
-    const char *type;
+    jint type;
     if (info->Action == FILE_ACTION_ADDED || info->Action == FILE_ACTION_RENAMED_NEW_NAME) {
-        type = "CREATED";
+        type = FILE_EVENT_CREATED;
     } else if (info->Action == FILE_ACTION_REMOVED || info->Action == FILE_ACTION_RENAMED_OLD_NAME) {
-        type = "REMOVED";
+        type = FILE_EVENT_REMOVED;
     } else if (info->Action == FILE_ACTION_MODIFIED) {
-        type = "MODIFIED";
+        type = FILE_EVENT_MODIFIED;
     } else {
         wprintf(L"~~~~ Unknown event 0x%x for %ls\n", info->Action, changedPath);
-        type = "UNKNOWN";
+        type = FILE_EVENT_UNKNOWN;
     }
 
     bool watching = false;
@@ -131,7 +125,7 @@ DWORD WINAPI EventProcessingThread(LPVOID data) {
                     break;
 
                 // Got a buffer overflow => current changes lost => send INVALIDATE on root
-                reportEvent("INVALIDATE", details->drivePath, 3, details->watcherCallback);
+                reportEvent(FILE_EVENT_INVALIDATE, details->drivePath, 3, details->watcherCallback);
             } else {
                 FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION *)buffer;
                 do {
