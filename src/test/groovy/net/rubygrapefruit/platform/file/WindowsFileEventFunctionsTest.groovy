@@ -17,27 +17,37 @@
 package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.Native
+import net.rubygrapefruit.platform.NativeException
 import net.rubygrapefruit.platform.internal.Platform
-import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions
+import net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions
 import spock.lang.Requires
 
-@Requires({ Platform.current().macOs })
-class OsxFileEventsTest extends AbstractFileEventsTest {
-    private static final LATENCY = 0.2
-
-    final OsxFileEventFunctions fileEvents = Native.get(OsxFileEventFunctions.class)
+@Requires({ Platform.current().windows })
+class WindowsFileEventFunctionsTest extends AbstractFileEventsTest {
+    final WindowsFileEventFunctions fileEvents = Native.get(WindowsFileEventFunctions.class)
     FileWatcher watcher
 
     def "caches file events instance"() {
         expect:
-        Native.get(OsxFileEventFunctions.class) is fileEvents
+        Native.get(WindowsFileEventFunctions.class) is fileEvents
+    }
+
+    def "cannot watch long paths"() {
+        given:
+        def longPath = new File(dir, "X" * 240).canonicalPath
+        when:
+        fileEvents.startWatching([longPath]) {}
+
+        then:
+        def ex = thrown NativeException
+        ex.message == "Failed to start watching. Reason: Cannot watch long paths for now."
     }
 
     @Override
-    protected void startWatcher(File... roots) {
+    protected void startWatcher(FileWatcherCallback callback, File... roots) {
         // Avoid setup operations to be reported
         waitForChangeEventLatency()
-        watcher = fileEvents.startWatching(roots*.absolutePath.toList(), LATENCY, callback)
+        watcher = fileEvents.startWatching(roots*.absolutePath.toList(), callback)
     }
 
     @Override
@@ -45,9 +55,8 @@ class OsxFileEventsTest extends AbstractFileEventsTest {
         watcher?.close()
     }
 
-
     @Override
     protected void waitForChangeEventLatency() {
-        Thread.sleep((long) (LATENCY * 1000 + 100))
+        Thread.sleep(1000)
     }
 }

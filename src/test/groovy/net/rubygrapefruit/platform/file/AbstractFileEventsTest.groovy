@@ -20,6 +20,7 @@ import net.rubygrapefruit.platform.internal.Platform
 import org.junit.Assume
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
+import spock.lang.Ignore
 import spock.lang.IgnoreIf
 import spock.lang.Specification
 import spock.lang.Unroll
@@ -66,6 +67,7 @@ abstract class AbstractFileEventsTest extends Specification {
         given:
         def removedFile = new File(dir, "removed.txt")
         removedFile.createNewFile()
+        // TODO Why does Windows report the modification?
         def expectedEvents = Platform.current().windows
             ? [modified(removedFile), removed(removedFile)]
             : [removed(removedFile)]
@@ -98,6 +100,7 @@ abstract class AbstractFileEventsTest extends Specification {
         def sourceFile = new File(dir, "source.txt")
         def targetFile = new File(dir, "target.txt")
         sourceFile.createNewFile()
+        // TODO Why doesn't Windows report the creation of the target file?
         def expectedEvents = Platform.current().windows
             ? [removed(sourceFile)]
             : [removed(sourceFile), created(targetFile)]
@@ -227,6 +230,28 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
+    // TODO Handle exceptions happening in callbacks
+    @Ignore("Exceptions in callbacks are now silently ignored")
+    def "can handle exception in callback"() {
+        given:
+        def error = new RuntimeException("Error")
+        def createdFile = new File(dir, "created.txt")
+        def conditions = new AsyncConditions()
+        when:
+        startWatcher({ type, path ->
+            try {
+                throw error
+            } finally {
+                conditions.evaluate {}
+            }
+        }, dir)
+        createdFile.createNewFile()
+        conditions.await()
+
+        then:
+        noExceptionThrown()
+    }
+
     def "can be started once and stopped multiple times"() {
         given:
         startWatcher(dir)
@@ -326,7 +351,7 @@ abstract class AbstractFileEventsTest extends Specification {
         "URL-quoted" | "test%<directory>#2.txt" | !Platform.current().windows
     }
 
-    protected abstract void startWatcher(File... roots)
+    protected abstract void startWatcher(FileWatcherCallback callback = this.callback, File... roots)
 
     protected abstract void stopWatcher()
 

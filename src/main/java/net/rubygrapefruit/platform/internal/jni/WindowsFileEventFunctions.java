@@ -16,53 +16,67 @@
 
 package net.rubygrapefruit.platform.internal.jni;
 
-import net.rubygrapefruit.platform.NativeException;
-import net.rubygrapefruit.platform.NativeIntegration;
 import net.rubygrapefruit.platform.file.FileWatcher;
 import net.rubygrapefruit.platform.file.FileWatcherCallback;
 import net.rubygrapefruit.platform.internal.FunctionResult;
 
 import java.util.Collection;
-import java.util.List;
 
-public class WindowsFileEventFunctions implements NativeIntegration {
+public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
 
+    /**
+     * Start watching the given directory hierarchies.
+     *
+     * <h3>Remarks:</h3>
+     *
+     * <ul>
+     *     <li>Changes to any descendants to the given paths are reported.</li>
+     *
+     *     <li>Changes to the given paths themselves are not reported.</li>
+     *
+     *     <li>Changes are reported as <em>canonical</em> paths. This means:
+     *     <ul>
+     *         <li>When watching a path with a different case, the canonical one is used to report changes.</li>
+     *     </ul>
+     *
+     *     <li>Events arrive from a single background thread unique to the {@link FileWatcher}.</li>
+     *
+     *     <li>Removals are reported as a
+     *     {@link net.rubygrapefruit.platform.file.FileWatcherCallback.Type#MODIFIED MODIFIED} and a
+     *     {@link net.rubygrapefruit.platform.file.FileWatcherCallback.Type#REMOVED REMOVED} event.</li>
+     *
+     *     <li>Renames are reported as the source file being
+     *     {@link net.rubygrapefruit.platform.file.FileWatcherCallback.Type#REMOVED REMOVED}.
+     *     The creation of the target file is not reported.</li>
+     *
+     *     <li>Exceptions happening in the callback are currently silently ignored.</li>
+     * </ul>
+     */
+    // TODO What about symlinks?
+    // TODO What about SUBST drives?
     public FileWatcher startWatching(Collection<String> paths, FileWatcherCallback callback) {
-        if (paths.isEmpty()) {
-            return FileWatcher.EMPTY;
-        }
-        FunctionResult result = new FunctionResult();
-        List<String> canonicalPaths = CanonicalPathUtil.canonicalizeAbsolutePaths(paths);
-        FileWatcher watch = startWatching(canonicalPaths.toArray(new String[0]), callback, result);
-        if (result.isFailed()) {
-            throw new NativeException("Failed to start watch. Reason: " + result.getMessage());
-        }
-        return watch;
+        return createWatcher(paths, callback, new WatcherFactory() {
+            @Override
+            public FileWatcher createWatcher(String[] canonicalPaths, NativeFileWatcherCallback callback, FunctionResult result) {
+                return startWatching(canonicalPaths, callback, result);
+            }
+        });
     }
 
-    private static native FileWatcher startWatching(String[] paths, FileWatcherCallback callback, FunctionResult result);
+    private static native FileWatcher startWatching(String[] paths, NativeFileWatcherCallback callback, FunctionResult result);
+
     private static native void stopWatching(Object details, FunctionResult result);
 
     // Created from native code
     @SuppressWarnings("unused")
-    private static class WatcherImpl implements FileWatcher {
-        private Object details;
-
+    private static class WatcherImpl extends AbstractFileWatcher {
         public WatcherImpl(Object details) {
-            this.details = details;
+            super(details);
         }
 
         @Override
-        public void close() {
-            if (details == null) {
-                return;
-            }
-            FunctionResult result = new FunctionResult();
+        protected void stop(Object details, FunctionResult result) {
             stopWatching(details, result);
-            details = null;
-            if (result.isFailed()) {
-                throw new NativeException("Failed to stop watch. Reason: " + result.getMessage());
-            }
         }
     }
 }

@@ -17,37 +17,33 @@
 package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.Native
-import net.rubygrapefruit.platform.NativeException
 import net.rubygrapefruit.platform.internal.Platform
-import net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions
+import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions
 import spock.lang.Requires
 
-@Requires({ Platform.current().windows })
-class WindowsFileEventsTest extends AbstractFileEventsTest {
-    final WindowsFileEventFunctions fileEvents = Native.get(WindowsFileEventFunctions.class)
+import java.util.concurrent.TimeUnit
+
+@Requires({ Platform.current().macOs })
+class OsxFileEventFunctionsTest extends AbstractFileEventsTest {
+    private static final LATENCY_IN_MILLIS = 200
+
+    final OsxFileEventFunctions fileEvents = Native.get(OsxFileEventFunctions.class)
     FileWatcher watcher
 
     def "caches file events instance"() {
         expect:
-        Native.get(WindowsFileEventFunctions.class) is fileEvents
-    }
-
-    def "cannot watch long paths"() {
-        given:
-        def longPath = new File(dir, "X" * 240).canonicalPath
-        when:
-        fileEvents.startWatching([longPath]) {}
-
-        then:
-        def ex = thrown NativeException
-        ex.message == "Failed to start watch. Reason: Cannot watch long paths for now."
+        Native.get(OsxFileEventFunctions.class) is fileEvents
     }
 
     @Override
-    protected void startWatcher(File... roots) {
+    protected void startWatcher(FileWatcherCallback callback, File... roots) {
         // Avoid setup operations to be reported
         waitForChangeEventLatency()
-        watcher = fileEvents.startWatching(roots*.absolutePath.toList(), callback)
+        watcher = fileEvents.startWatching(
+            roots*.absolutePath.toList(),
+            LATENCY_IN_MILLIS, TimeUnit.MILLISECONDS,
+            callback
+        )
     }
 
     @Override
@@ -55,9 +51,8 @@ class WindowsFileEventsTest extends AbstractFileEventsTest {
         watcher?.close()
     }
 
-
     @Override
     protected void waitForChangeEventLatency() {
-        Thread.sleep(1000)
+        TimeUnit.MILLISECONDS.sleep(LATENCY_IN_MILLIS + 100)
     }
 }

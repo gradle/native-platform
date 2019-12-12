@@ -13,7 +13,8 @@ public interface FileWatcher extends Closeable {
     };
 
     /**
-     * Closes the watcher and releases any native resources.
+     * Stops watching and releases any native resources.
+     * No more calls to the associated {@link FileWatcherCallback} will happen after this method returns.
      */
     @Override
     void close() throws IOException;

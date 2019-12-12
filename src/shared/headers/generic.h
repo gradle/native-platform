@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-#define NATIVE_VERSION 34
+#define NATIVE_VERSION 35
 
 // Corresponds to NativeLibraryFunctions constants
 #define STDOUT_DESCRIPTOR 0
@@ -42,6 +42,13 @@ extern "C" {
 #define FAILURE_NO_SUCH_FILE 1
 #define FAILURE_NOT_A_DIRECTORY 2
 #define FAILURE_PERMISSIONS 3
+
+// Corresponds to values of FileWatcherCallback.Type
+#define FILE_EVENT_CREATED 0
+#define FILE_EVENT_REMOVED 1
+#define FILE_EVENT_MODIFIED 2
+#define FILE_EVENT_INVALIDATE 3
+#define FILE_EVENT_UNKNOWN 4
 
 #define IS_SET(flags, flag) (((flags) & (flag)) == (flag))
 
