@@ -27,6 +27,36 @@ import java.util.List;
 
 public class WindowsFileEventFunctions implements NativeIntegration {
 
+    /**
+     * Start watching the given directory hierarchies.
+     *
+     * <h3>Remarks:</h3>
+     *
+     * <ul>
+     *     <li>Changes to any descendants to the given paths are reported.</li>
+     *
+     *     <li>Changes to the given paths themselves are not reported.</li>
+     *
+     *     <li>Changes are reported as <em>canonical</em> paths. This means:
+     *     <ul>
+     *         <li>When watching a path with a different case, the canonical one is used to report changes.</li>
+     *     </ul>
+     *
+     *     <li>Events arrive from a single background thread unique to the {@link FileWatcher}.</li>
+     *
+     *     <li>Removals are reported as a
+     *     {@link net.rubygrapefruit.platform.file.FileWatcherCallback.Type#MODIFIED MODIFIED} and a
+     *     {@link net.rubygrapefruit.platform.file.FileWatcherCallback.Type#REMOVED REMOVED} event.</li>
+     *
+     *     <li>Renames are reported as the source file being
+     *     {@link net.rubygrapefruit.platform.file.FileWatcherCallback.Type#REMOVED REMOVED}.
+     *     The creation of the target file is not reported.</li>
+     *
+     *     <li>Exceptions happening in the callback are currently silently ignored.</li>
+     * </ul>
+     */
+    // TODO What about symlinks?
+    // TODO What about SUBST drives?
     public FileWatcher startWatching(Collection<String> paths, FileWatcherCallback callback) {
         if (paths.isEmpty()) {
             return FileWatcher.EMPTY;

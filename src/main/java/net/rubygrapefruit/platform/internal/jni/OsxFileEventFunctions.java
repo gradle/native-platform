@@ -27,6 +27,36 @@ import java.util.List;
 
 public class OsxFileEventFunctions implements NativeIntegration {
 
+    /**
+     * Start watching the given directory hierarchies.
+     *
+     * <h3>Remarks:</h3>
+     *
+     * <ul>
+     *     <li>Changes to any descendants to the given paths are reported.</li>
+     *
+     *     <li>Changes to the given paths themselves are not reported.</li>
+     *
+     *     <li>Changes are reported as <em>canonical</em> paths. This means:
+     *     <ul>
+     *         <li>When watching a path with a different case, the canonical one is used to report changes.</li>
+     *         <li>Symlinks are resolved and changes are reported against the resolved path.</li>
+     *     </ul>
+     *     </li>
+     *
+     *     <li>Events arrive from a single background thread unique to the {@link FileWatcher}.</li>
+     *
+     *     <li>Removals are reported as a single
+     *     {@link net.rubygrapefruit.platform.file.FileWatcherCallback.Type#REMOVED REMOVED} event.</li>
+     *
+     *     <li>Renames are reported as the source file being
+     *     {@link net.rubygrapefruit.platform.file.FileWatcherCallback.Type#REMOVED REMOVED}
+     *     and the target being
+     *     {@link net.rubygrapefruit.platform.file.FileWatcherCallback.Type#CREATED CREATED}.</li>
+     *
+     *     <li>Exceptions happening in the callback are currently silently ignored.</li>
+     * </ul>
+     */
     public FileWatcher startWatching(Collection<String> paths, double latency, FileWatcherCallback callback) {
         if (paths.isEmpty()) {
             return FileWatcher.EMPTY;
@@ -41,6 +71,7 @@ public class OsxFileEventFunctions implements NativeIntegration {
     }
 
     private static native FileWatcher startWatching(String[] paths, double latency, FileWatcherCallback callback, FunctionResult result);
+
     private static native void stopWatching(Object details, FunctionResult result);
 
     // Created from native code
