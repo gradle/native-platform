@@ -40,7 +40,7 @@ class WindowsFileEventFunctionsTest extends AbstractFileEventsTest {
 
         then:
         def ex = thrown NativeException
-        ex.message == "Failed to start watch. Reason: Cannot watch long paths for now."
+        ex.message == "Failed to start watching. Reason: Cannot watch long paths for now."
     }
 
     @Override
