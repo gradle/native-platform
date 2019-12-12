@@ -16,17 +16,14 @@
 
 package net.rubygrapefruit.platform.internal.jni;
 
-import net.rubygrapefruit.platform.NativeException;
-import net.rubygrapefruit.platform.NativeIntegration;
 import net.rubygrapefruit.platform.file.FileWatcher;
 import net.rubygrapefruit.platform.file.FileWatcherCallback;
 import net.rubygrapefruit.platform.internal.FunctionResult;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-public class OsxFileEventFunctions implements NativeIntegration {
+public class OsxFileEventFunctions extends AbstractFileEventFunctions {
 
     /**
      * Start watching the given directory hierarchies.
@@ -58,17 +55,13 @@ public class OsxFileEventFunctions implements NativeIntegration {
      *     <li>Exceptions happening in the callback are currently silently ignored.</li>
      * </ul>
      */
-    public FileWatcher startWatching(Collection<String> paths, long time, TimeUnit unit, FileWatcherCallback callback) {
-        if (paths.isEmpty()) {
-            return FileWatcher.EMPTY;
-        }
-        FunctionResult result = new FunctionResult();
-        List<String> canonicalPaths = CanonicalPathUtil.canonicalizeAbsolutePaths(paths);
-        FileWatcher watcher = startWatching(canonicalPaths.toArray(new String[0]), unit.toMillis(time), callback, result);
-        if (result.isFailed()) {
-            throw new NativeException("Failed to start watching. Reason: " + result.getMessage());
-        }
-        return watcher;
+    public FileWatcher startWatching(Collection<String> paths, final long time, final TimeUnit unit, final FileWatcherCallback callback) {
+        return createWatcher(paths, new WatcherFactory() {
+            @Override
+            public FileWatcher createWatcher(String[] canonicalPaths, FunctionResult result) {
+                return startWatching(canonicalPaths, unit.toMillis(time), callback, result);
+            }
+        });
     }
 
     private static native FileWatcher startWatching(String[] paths, long latencyInMillis, FileWatcherCallback callback, FunctionResult result);
@@ -77,28 +70,14 @@ public class OsxFileEventFunctions implements NativeIntegration {
 
     // Created from native code
     @SuppressWarnings("unused")
-    private static class WatcherImpl implements FileWatcher {
-        /**
-         * Details is a Java object wrapper around whatever data the native implementation
-         * needs to keep track of.
-         */
-        private Object details;
-
+    private static class WatcherImpl extends AbstractFileWatcher {
         public WatcherImpl(Object details) {
-            this.details = details;
+            super(details);
         }
 
         @Override
-        public void close() {
-            if (details == null) {
-                return;
-            }
-            FunctionResult result = new FunctionResult();
+        protected void stop(Object details, FunctionResult result) {
             stopWatching(details, result);
-            details = null;
-            if (result.isFailed()) {
-                throw new NativeException("Failed to stop watching. Reason: " + result.getMessage());
-            }
         }
     }
 }

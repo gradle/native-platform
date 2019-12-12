@@ -16,16 +16,13 @@
 
 package net.rubygrapefruit.platform.internal.jni;
 
-import net.rubygrapefruit.platform.NativeException;
-import net.rubygrapefruit.platform.NativeIntegration;
 import net.rubygrapefruit.platform.file.FileWatcher;
 import net.rubygrapefruit.platform.file.FileWatcherCallback;
 import net.rubygrapefruit.platform.internal.FunctionResult;
 
 import java.util.Collection;
-import java.util.List;
 
-public class WindowsFileEventFunctions implements NativeIntegration {
+public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
 
     /**
      * Start watching the given directory hierarchies.
@@ -57,42 +54,29 @@ public class WindowsFileEventFunctions implements NativeIntegration {
      */
     // TODO What about symlinks?
     // TODO What about SUBST drives?
-    public FileWatcher startWatching(Collection<String> paths, FileWatcherCallback callback) {
-        if (paths.isEmpty()) {
-            return FileWatcher.EMPTY;
-        }
-        FunctionResult result = new FunctionResult();
-        List<String> canonicalPaths = CanonicalPathUtil.canonicalizeAbsolutePaths(paths);
-        FileWatcher watch = startWatching(canonicalPaths.toArray(new String[0]), callback, result);
-        if (result.isFailed()) {
-            throw new NativeException("Failed to start watch. Reason: " + result.getMessage());
-        }
-        return watch;
+    public FileWatcher startWatching(Collection<String> paths, final FileWatcherCallback callback) {
+        return createWatcher(paths, new WatcherFactory() {
+            @Override
+            public FileWatcher createWatcher(String[] canonicalPaths, FunctionResult result) {
+                return startWatching(canonicalPaths, callback, result);
+            }
+        });
     }
 
     private static native FileWatcher startWatching(String[] paths, FileWatcherCallback callback, FunctionResult result);
+
     private static native void stopWatching(Object details, FunctionResult result);
 
     // Created from native code
     @SuppressWarnings("unused")
-    private static class WatcherImpl implements FileWatcher {
-        private Object details;
-
+    private static class WatcherImpl extends AbstractFileWatcher {
         public WatcherImpl(Object details) {
-            this.details = details;
+            super(details);
         }
 
         @Override
-        public void close() {
-            if (details == null) {
-                return;
-            }
-            FunctionResult result = new FunctionResult();
+        protected void stop(Object details, FunctionResult result) {
             stopWatching(details, result);
-            details = null;
-            if (result.isFailed()) {
-                throw new NativeException("Failed to stop watch. Reason: " + result.getMessage());
-            }
         }
     }
 }
