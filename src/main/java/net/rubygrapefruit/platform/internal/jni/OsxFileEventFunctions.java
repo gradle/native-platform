@@ -24,6 +24,7 @@ import net.rubygrapefruit.platform.internal.FunctionResult;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class OsxFileEventFunctions implements NativeIntegration {
 
@@ -57,20 +58,20 @@ public class OsxFileEventFunctions implements NativeIntegration {
      *     <li>Exceptions happening in the callback are currently silently ignored.</li>
      * </ul>
      */
-    public FileWatcher startWatching(Collection<String> paths, double latency, FileWatcherCallback callback) {
+    public FileWatcher startWatching(Collection<String> paths, long time, TimeUnit unit, FileWatcherCallback callback) {
         if (paths.isEmpty()) {
             return FileWatcher.EMPTY;
         }
         FunctionResult result = new FunctionResult();
         List<String> canonicalPaths = CanonicalPathUtil.canonicalizeAbsolutePaths(paths);
-        FileWatcher watcher = startWatching(canonicalPaths.toArray(new String[0]), latency, callback, result);
+        FileWatcher watcher = startWatching(canonicalPaths.toArray(new String[0]), unit.toMillis(time), callback, result);
         if (result.isFailed()) {
             throw new NativeException("Failed to start watching. Reason: " + result.getMessage());
         }
         return watcher;
     }
 
-    private static native FileWatcher startWatching(String[] paths, double latency, FileWatcherCallback callback, FunctionResult result);
+    private static native FileWatcher startWatching(String[] paths, long latencyInMillis, FileWatcherCallback callback, FunctionResult result);
 
     private static native void stopWatching(Object details, FunctionResult result);
 

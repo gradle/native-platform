@@ -21,9 +21,11 @@ import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions
 import spock.lang.Requires
 
+import java.util.concurrent.TimeUnit
+
 @Requires({ Platform.current().macOs })
 class OsxFileEventsTest extends AbstractFileEventsTest {
-    private static final LATENCY = 0.2
+    private static final LATENCY_IN_MILLIS = 200
 
     final OsxFileEventFunctions fileEvents = Native.get(OsxFileEventFunctions.class)
     FileWatcher watcher
@@ -37,7 +39,11 @@ class OsxFileEventsTest extends AbstractFileEventsTest {
     protected void startWatcher(FileWatcherCallback callback, File... roots) {
         // Avoid setup operations to be reported
         waitForChangeEventLatency()
-        watcher = fileEvents.startWatching(roots*.absolutePath.toList(), LATENCY, callback)
+        watcher = fileEvents.startWatching(
+            roots*.absolutePath.toList(),
+            LATENCY_IN_MILLIS, TimeUnit.MILLISECONDS,
+            callback
+        )
     }
 
     @Override
@@ -48,6 +54,6 @@ class OsxFileEventsTest extends AbstractFileEventsTest {
 
     @Override
     protected void waitForChangeEventLatency() {
-        Thread.sleep((long) (LATENCY * 1000 + 100))
+        TimeUnit.MILLISECONDS.sleep(LATENCY_IN_MILLIS + 100)
     }
 }

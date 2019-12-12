@@ -157,7 +157,7 @@ void freeDetails(JNIEnv *env, watch_details_t *details) {
 }
 
 JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatching(JNIEnv *env, jclass target, jobjectArray paths, CFAbsoluteTime latency, jobject javaCallback, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatching(JNIEnv *env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback, jobject result) {
 
     printf("\n~~~~ Configuring...\n");
 
@@ -208,7 +208,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
                 &context,
                 rootsToWatch,
                 kFSEventStreamEventIdSinceNow,
-                latency,
+                latencyInMillis / 1000.0,
                 kFSEventStreamCreateFlagNoDefer | kFSEventStreamCreateFlagFileEvents);
     if (details->watcherStream == NULL) {
         mark_failed_with_errno(env, "Could not create FSEventStreamCreate to track changes.", result);
