@@ -166,7 +166,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
         return NULL;
     }
 
-    watch_details_t* details = (watch_details_t*)malloc(sizeof(watch_details_t));
+    watch_details_t* details = (watch_details_t*) malloc(sizeof(watch_details_t));
     details->rootsToWatch = rootsToWatch;
     for (int i = 0; i < count; i++) {
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
