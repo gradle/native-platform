@@ -23,7 +23,7 @@ import net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions
 import spock.lang.Requires
 
 @Requires({ Platform.current().windows })
-class WindowsFileEventsTest extends AbstractFileEventsTest {
+class WindowsFileEventFunctionsTest extends AbstractFileEventsTest {
     final WindowsFileEventFunctions fileEvents = Native.get(WindowsFileEventFunctions.class)
     FileWatcher watcher
 
