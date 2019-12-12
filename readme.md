@@ -94,7 +94,7 @@ this:
     }
 
     dependencies {
-        compile "net.rubygrapefruit:native-platform:0.19"
+        compile "net.rubygrapefruit:native-platform:0.20"
     }
 
 You can also download the Jars from [bintray](https://bintray.com/adammurdoch/maven/net.rubygrapefruit%3Anative-platform)
@@ -120,7 +120,7 @@ Some sample code to use the terminal:
 
 ## Changes
 
-### Next version
+### 0.20
 
 * Removed `FileEvents` API for watching the file system for changes.
 

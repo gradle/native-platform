@@ -8,7 +8,7 @@ plugins {
 apply plugin: ReleasePlugin
 
 versions {
-    nextVersion = '0.20'
+    nextVersion = '0.21'
     nextSnapshot = '1'
 }
 
