@@ -119,6 +119,43 @@ static void *EventProcessingThread(void *data) {
     return NULL;
 }
 
+void freeDetails(JNIEnv *env, watch_details_t *details) {
+    CFMutableArrayRef rootsToWatch = details->rootsToWatch;
+    FSEventStreamRef watcherStream = details->watcherStream;
+    pthread_t watcherThread = details->watcherThread;
+    jobject watcherCallback = details->watcherCallback;
+    CFRunLoopRef threadLoop = details->threadLoop;
+    free(details);
+
+    if (threadLoop != NULL) {
+        CFRunLoopStop(threadLoop);
+    }
+
+    if (watcherThread != NULL) {
+        pthread_join(watcherThread, NULL);
+    }
+
+    if (rootsToWatch != NULL) {
+        for (int i = 0; i < CFArrayGetCount(rootsToWatch); i++) {
+            const void *value = CFArrayGetValueAtIndex(rootsToWatch, i);
+            CFRelease(value);
+        }
+        // TODO Can we release these earlier?
+        CFRelease(rootsToWatch);
+    }
+
+    if (watcherStream != NULL) {
+        FSEventStreamStop(watcherStream);
+        FSEventStreamInvalidate(watcherStream);
+        FSEventStreamRelease(watcherStream);
+        // TODO: consider using FSEventStreamFlushSync to flush all pending events.
+    }
+
+    if (watcherCallback != NULL) {
+        env->DeleteGlobalRef(watcherCallback);
+    }
+}
+
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatching(JNIEnv *env, jclass target, jobjectArray paths, CFAbsoluteTime latency, jobject javaCallback, jobject result) {
 
@@ -135,31 +172,37 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
         mark_failed_with_errno(env, "No paths given to watch.", result);
         return NULL;
     }
+
+    watch_details_t* details = (watch_details_t*)malloc(sizeof(watch_details_t));
+    details->rootsToWatch = rootsToWatch;
     for (int i = 0; i < count; i++) {
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
         char* watchedPath = java_to_char(env, path, result);
         printf("~~~~ Watching %s\n", watchedPath);
         if (watchedPath == NULL) {
             mark_failed_with_errno(env, "Could not allocate string to store root to watch.", result);
+            freeDetails(env, details);
             return NULL;
         }
         CFStringRef stringPath = CFStringCreateWithCString(NULL, watchedPath, kCFStringEncodingUTF8);
         free(watchedPath);
         if (stringPath == NULL) {
             mark_failed_with_errno(env, "Could not create CFStringRef.", result);
+            freeDetails(env, details);
             return NULL;
         }
         CFArrayAppendValue(rootsToWatch, stringPath);
     }
 
-    jobject watcherCallback = env->NewGlobalRef(javaCallback);
-    if (watcherCallback == NULL) {
+    details->watcherCallback = env->NewGlobalRef(javaCallback);
+    if (details->watcherCallback == NULL) {
         mark_failed_with_errno(env, "Could not create global reference for callback.", result);
+        freeDetails(env, details);
         return NULL;
     }
 
-    FSEventStreamContext context = {0, (void*) watcherCallback, NULL, NULL, NULL};
-    FSEventStreamRef watcherStream = FSEventStreamCreate (
+    FSEventStreamContext context = {0, (void*) details->watcherCallback, NULL, NULL, NULL};
+    details->watcherStream = FSEventStreamCreate (
                 NULL,
                 &callback,
                 &context,
@@ -167,18 +210,15 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
                 kFSEventStreamEventIdSinceNow,
                 latency,
                 kFSEventStreamCreateFlagNoDefer | kFSEventStreamCreateFlagFileEvents);
-    if (watcherStream == NULL) {
-         mark_failed_with_errno(env, "Could not create FSEventStreamCreate to track changes.", result);
-         return NULL;
+    if (details->watcherStream == NULL) {
+        mark_failed_with_errno(env, "Could not create FSEventStreamCreate to track changes.", result);
+        freeDetails(env, details);
+        return NULL;
     }
-
-    watch_details_t* details = (watch_details_t*)malloc(sizeof(watch_details_t));
-    details->rootsToWatch = rootsToWatch;
-    details->watcherStream = watcherStream;
-    details->watcherCallback = watcherCallback;
 
     if (pthread_create(&(details->watcherThread), NULL, EventProcessingThread, details) != 0) {
         mark_failed_with_errno(env, "Could not create file watcher thread.", result);
+        freeDetails(env, details);
         return NULL;
     }
 
@@ -186,6 +226,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
     int jvmStatus = env->GetJavaVM(&jvm);
     if (jvmStatus < 0) {
         mark_failed_with_errno(env, "Could not store jvm instance.", result);
+        freeDetails(env, details);
         return NULL;
     }
 
@@ -197,43 +238,13 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_stopWatching(JNIEnv *env, jclass target, jobject detailsObj, jobject result) {
     watch_details_t *details = (watch_details_t*) env->GetDirectBufferAddress(detailsObj);
-    CFMutableArrayRef rootsToWatch = details->rootsToWatch;
-    FSEventStreamRef watcherStream = details->watcherStream;
-    pthread_t watcherThread = details->watcherThread;
-    jobject watcherCallback = details->watcherCallback;
-    CFRunLoopRef threadLoop = details->threadLoop;
-    free(details);
 
-    // if there were no roots to watch, there are no resources to release
-    if (rootsToWatch == NULL) return;
     if (invalidStateDetected) {
         // report and reset flag, but try to clean up state as much as possible
         mark_failed_with_errno(env, "Watcher is in invalid state, reported changes may be incorrect.", result);
     }
 
-    for (int i = 0; i < CFArrayGetCount(rootsToWatch); i++) {
-        const void *value = CFArrayGetValueAtIndex(rootsToWatch, i);
-        CFRelease(value);
-    }
-    // TODO Can we release these earlier?
-    CFRelease(rootsToWatch);
-    rootsToWatch = NULL;
-
-    FSEventStreamStop(watcherStream);
-    FSEventStreamInvalidate(watcherStream);
-    FSEventStreamRelease(watcherStream);
-    // TODO: consider using FSEventStreamFlushSync to flush all pending events.
-    watcherStream = NULL;
-
-    // TODO Shouldn't we stop this first and then release the rest?
-    CFRunLoopStop(threadLoop);
-    threadLoop = NULL;
-
-    env->DeleteGlobalRef(watcherCallback);
-    watcherCallback = NULL;
-
-    pthread_join(watcherThread, NULL);
-    watcherThread = NULL;
+    freeDetails(env, details);
 }
 
 #endif
