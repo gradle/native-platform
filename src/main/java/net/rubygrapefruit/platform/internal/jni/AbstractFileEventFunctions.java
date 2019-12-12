@@ -3,6 +3,7 @@ package net.rubygrapefruit.platform.internal.jni;
 import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.NativeIntegration;
 import net.rubygrapefruit.platform.file.FileWatcher;
+import net.rubygrapefruit.platform.file.FileWatcherCallback;
 import net.rubygrapefruit.platform.internal.FunctionResult;
 
 import java.io.File;
@@ -12,13 +13,17 @@ import java.util.Collection;
 import java.util.List;
 
 public class AbstractFileEventFunctions implements NativeIntegration {
-    protected FileWatcher createWatcher(Collection<String> paths, WatcherFactory starter) {
+    protected FileWatcher createWatcher(Collection<String> paths, FileWatcherCallback callback, WatcherFactory starter) {
         if (paths.isEmpty()) {
             return FileWatcher.EMPTY;
         }
         FunctionResult result = new FunctionResult();
         List<String> canonicalPaths = canonicalizeAbsolutePaths(paths);
-        FileWatcher watcher = starter.createWatcher(canonicalPaths.toArray(new String[0]), result);
+        FileWatcher watcher = starter.createWatcher(
+            canonicalPaths.toArray(new String[0]),
+            new NativeFileWatcherCallback(callback),
+            result
+        );
         if (result.isFailed()) {
             throw new NativeException("Failed to start watching. Reason: " + result.getMessage());
         }
@@ -47,7 +52,7 @@ public class AbstractFileEventFunctions implements NativeIntegration {
     }
 
     protected interface WatcherFactory {
-        FileWatcher createWatcher(String[] canonicalPaths, FunctionResult result);
+        FileWatcher createWatcher(String[] canonicalPaths, NativeFileWatcherCallback callback, FunctionResult result);
     }
 
     protected static abstract class AbstractFileWatcher implements FileWatcher {
@@ -75,5 +80,17 @@ public class AbstractFileEventFunctions implements NativeIntegration {
         }
 
         protected abstract void stop(Object details, FunctionResult result);
+    }
+
+    protected static class NativeFileWatcherCallback {
+        private final FileWatcherCallback delegate;
+
+        public NativeFileWatcherCallback(FileWatcherCallback delegate) {
+            this.delegate = delegate;
+        }
+
+        public void pathChanged(int type, String path) {
+            delegate.pathChanged(FileWatcherCallback.Type.values()[type], path);
+        }
     }
 }

@@ -55,16 +55,16 @@ public class OsxFileEventFunctions extends AbstractFileEventFunctions {
      *     <li>Exceptions happening in the callback are currently silently ignored.</li>
      * </ul>
      */
-    public FileWatcher startWatching(Collection<String> paths, final long time, final TimeUnit unit, final FileWatcherCallback callback) {
-        return createWatcher(paths, new WatcherFactory() {
+    public FileWatcher startWatching(Collection<String> paths, final long time, final TimeUnit unit, FileWatcherCallback callback) {
+        return createWatcher(paths, callback, new WatcherFactory() {
             @Override
-            public FileWatcher createWatcher(String[] canonicalPaths, FunctionResult result) {
+            public FileWatcher createWatcher(String[] canonicalPaths, NativeFileWatcherCallback callback, FunctionResult result) {
                 return startWatching(canonicalPaths, unit.toMillis(time), callback, result);
             }
         });
     }
 
-    private static native FileWatcher startWatching(String[] paths, long latencyInMillis, FileWatcherCallback callback, FunctionResult result);
+    private static native FileWatcher startWatching(String[] paths, long latencyInMillis, NativeFileWatcherCallback callback, FunctionResult result);
 
     private static native void stopWatching(Object details, FunctionResult result);
 

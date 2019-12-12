@@ -25,13 +25,7 @@ typedef struct watch_details {
     CFRunLoopRef threadLoop;
 } watch_details_t;
 
-static jobject getTypeEnum(JNIEnv *env, const char *name) {
-    jclass clsType = env->FindClass("net/rubygrapefruit/platform/file/FileWatcherCallback$Type");
-    jfieldID fieldId = env->GetStaticFieldID(clsType , name, "Lnet/rubygrapefruit/platform/file/FileWatcherCallback$Type;");
-    return env->GetStaticObjectField(clsType, fieldId);
-}
-
-static void reportEvent(const char *type, char *path, jobject watcherCallback) {
+static void reportEvent(jint type, char *path, jobject watcherCallback) {
     // TODO What does this do?
     size_t len = 0;
     if (path != NULL) {
@@ -56,11 +50,11 @@ static void reportEvent(const char *type, char *path, jobject watcherCallback) {
         return;
     }
 
-    printf("~~~~ Changed: %s %s\n", path, type);
+    printf("~~~~ Changed: %s %d\n", path, type);
 
     jclass callback_class = env->GetObjectClass(watcherCallback);
-    jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(Lnet/rubygrapefruit/platform/file/FileWatcherCallback$Type;Ljava/lang/String;)V");
-    env->CallVoidMethod(watcherCallback, methodCallback, getTypeEnum(env, type), env->NewStringUTF(path));
+    jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(ILjava/lang/String;)V");
+    env->CallVoidMethod(watcherCallback, methodCallback, type, env->NewStringUTF(path));
 }
 
 static void callback(ConstFSEventStreamRef streamRef,
@@ -77,25 +71,24 @@ static void callback(ConstFSEventStreamRef streamRef,
     for (int i = 0; i < numEvents; i++) {
         FSEventStreamEventFlags flags = eventFlags[i];
         printf("~~~~ Event flags: 0x%x for %s\n", flags, paths[i]);
-        const char *type;
+        jint type;
         if (IS_SET(flags, kFSEventStreamEventFlagMustScanSubDirs)) {
-            type = "INVALIDATE";
+            type = FILE_EVENT_INVALIDATE;
         } else if (IS_SET(flags, kFSEventStreamEventFlagItemRenamed)) {
             if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
-                type = "REMOVED";
+                type = FILE_EVENT_REMOVED;
             } else {
-                type = "CREATED";
+                type = FILE_EVENT_CREATED;
             }
         } else if (IS_SET(flags, kFSEventStreamEventFlagItemModified)) {
-            type = "MODIFIED";
+            type = FILE_EVENT_MODIFIED;
         } else if (IS_SET(flags, kFSEventStreamEventFlagItemRemoved)) {
-            type = "REMOVED";
+            type = FILE_EVENT_REMOVED;
         } else if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
-            type = "CREATED";
+            type = FILE_EVENT_CREATED;
         } else {
-            printf("~~~~ Unknwon event %s for %x\n", paths[i], flags);
-            type = "UNKNOWN";
-            return;
+            printf("~~~~ Unknown event 0x%x for %s\n", flags, paths[i]);
+            type = FILE_EVENT_UNKNOWN;
         }
         reportEvent(type, paths[i], watcherCallback);
     }
