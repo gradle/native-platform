@@ -86,6 +86,9 @@ static void callback(ConstFSEventStreamRef streamRef,
             type = FILE_EVENT_REMOVED;
         } else if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
             type = FILE_EVENT_CREATED;
+        } else if (IS_SET(flags, kFSEventStreamEventFlagItemInodeMetaMod)) {
+            // File locked
+            type = FILE_EVENT_MODIFIED;
         } else {
             printf("~~~~ Unknown event 0x%x for %s\n", flags, paths[i]);
             type = FILE_EVENT_UNKNOWN;
