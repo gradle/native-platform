@@ -52,3 +52,8 @@ task download {
         }
     }
 }
+
+// Use System.in as input stream for the launched process to enable interactive input
+tasks.named("run", JavaExec) {
+    standardInput = System.in
+}
