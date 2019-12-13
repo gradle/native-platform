@@ -14,18 +14,19 @@
 #include <pthread.h>
 #include <strings.h>
 
-JavaVM* jvm = NULL;
 bool invalidStateDetected = false;
 
 typedef struct watch_details {
     CFMutableArrayRef rootsToWatch;
     FSEventStreamRef watcherStream;
     pthread_t watcherThread;
+    JavaVM *jvm;
+    JNIEnv *env;
     jobject watcherCallback;
     CFRunLoopRef threadLoop;
 } watch_details_t;
 
-static void reportEvent(jint type, char *path, jobject watcherCallback) {
+static void reportEvent(jint type, char *path, watch_details_t *details) {
     // TODO What does this do?
     size_t len = 0;
     if (path != NULL) {
@@ -37,21 +38,10 @@ static void reportEvent(jint type, char *path, jobject watcherCallback) {
         }
     }
 
-    // TODO Extract this logic to some global function
-    JNIEnv* env;
-    int getEnvStat = jvm->GetEnv((void **)&env, JNI_VERSION_1_6);
-    if (getEnvStat == JNI_EDETACHED) {
-        if (jvm->AttachCurrentThread((void **) &env, NULL) != JNI_OK) {
-            invalidStateDetected = true;
-            return;
-        }
-    } else if (getEnvStat == JNI_EVERSION) {
-        invalidStateDetected = true;
-        return;
-    }
-
     printf("~~~~ Changed: %s %d\n", path, type);
 
+    JNIEnv *env = details->env;
+    jobject watcherCallback = details->watcherCallback;
     jclass callback_class = env->GetObjectClass(watcherCallback);
     jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(ILjava/lang/String;)V");
     env->CallVoidMethod(watcherCallback, methodCallback, type, env->NewStringUTF(path));
@@ -66,7 +56,7 @@ static void callback(ConstFSEventStreamRef streamRef,
     if (invalidStateDetected) return;
     char **paths = (char**) eventPaths;
 
-    jobject watcherCallback = (jobject) clientCallBackInfo;
+    watch_details_t *details = (watch_details_t*) clientCallBackInfo;
 
     for (int i = 0; i < numEvents; i++) {
         FSEventStreamEventFlags flags = eventFlags[i];
@@ -93,7 +83,7 @@ static void callback(ConstFSEventStreamRef streamRef,
             printf("~~~~ Unknown event 0x%x for %s\n", flags, paths[i]);
             type = FILE_EVENT_UNKNOWN;
         }
-        reportEvent(type, paths[i], watcherCallback);
+        reportEvent(type, paths[i], details);
     }
 }
 
@@ -102,15 +92,34 @@ static void *EventProcessingThread(void *data) {
 
     printf("~~~~ Starting thread\n");
 
+    // TODO Extract this logic to some shared function
+    JavaVM* jvm = details->jvm;
+    jint statAttach = jvm->AttachCurrentThreadAsDaemon((void **) &(details->env), NULL);
+    if (statAttach != JNI_OK) {
+        printf("Failed to attach JNI to current thread: %d\n", statAttach);
+        invalidStateDetected = true;
+        return NULL;
+    }
+
     CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
     FSEventStreamScheduleWithRunLoop(details->watcherStream, threadLoop, kCFRunLoopDefaultMode);
     FSEventStreamStart(details->watcherStream);
     details->threadLoop = threadLoop;
-    // TODO We should wait for this in the caller thread otherwise stopWatching() might crash
+
+    // TODO We should wait for all this to finish in the caller thread otherwise stopWatching() might crash
+
     // This triggers run loop for this thread, causing it to run until we explicitly stop it.
     CFRunLoopRun();
 
     printf("~~~~ Stopping thread\n");
+
+    // TODO Extract this logic to some shared function
+    jint statDetach = jvm->DetachCurrentThread();
+    if (statDetach != JNI_OK) {
+        printf("Failed to detach JNI from current thread: %d\n", statAttach);
+        invalidStateDetected = true;
+        return NULL;
+    }
 
     return NULL;
 }
@@ -158,18 +167,29 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
     printf("\n~~~~ Configuring...\n");
 
     invalidStateDetected = false;
-    CFMutableArrayRef rootsToWatch = CFArrayCreateMutable(NULL, 0, NULL);
-    if (rootsToWatch == NULL) {
-        mark_failed_with_errno(env, "Could not allocate array to store roots to watch.", result);
+
+    JavaVM* jvm;
+    int jvmStatus = env->GetJavaVM(&jvm);
+    if (jvmStatus < 0) {
+        mark_failed_with_errno(env, "Could not store jvm instance.", result);
         return NULL;
     }
+
     int count = env->GetArrayLength(paths);
     if (count == 0) {
         mark_failed_with_errno(env, "No paths given to watch.", result);
         return NULL;
     }
 
+    CFMutableArrayRef rootsToWatch = CFArrayCreateMutable(NULL, 0, NULL);
+    if (rootsToWatch == NULL) {
+        mark_failed_with_errno(env, "Could not allocate array to store roots to watch.", result);
+        return NULL;
+    }
+
     watch_details_t* details = (watch_details_t*) malloc(sizeof(watch_details_t));
+    details->jvm = jvm;
+
     details->rootsToWatch = rootsToWatch;
     for (int i = 0; i < count; i++) {
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
@@ -197,7 +217,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
         return NULL;
     }
 
-    FSEventStreamContext context = {0, (void*) details->watcherCallback, NULL, NULL, NULL};
+    FSEventStreamContext context = {0, (void*) details, NULL, NULL, NULL};
     details->watcherStream = FSEventStreamCreate (
                 NULL,
                 &callback,
@@ -214,14 +234,6 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
 
     if (pthread_create(&(details->watcherThread), NULL, EventProcessingThread, details) != 0) {
         mark_failed_with_errno(env, "Could not create file watcher thread.", result);
-        freeDetails(env, details);
-        return NULL;
-    }
-
-    // TODO Should this be somewhere global?
-    int jvmStatus = env->GetJavaVM(&jvm);
-    if (jvmStatus < 0) {
-        mark_failed_with_errno(env, "Could not store jvm instance.", result);
         freeDetails(env, details);
         return NULL;
     }

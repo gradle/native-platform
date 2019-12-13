@@ -7,11 +7,11 @@
 #include "generic.h"
 #include "win.h"
 
-JavaVM* jvm = NULL;
-
 typedef struct watch_details {
     HANDLE threadHandle;
     HANDLE stopEventHandle;
+    JavaVM *jvm;
+    JNIEnv *env;
     wchar_t drivePath[4];
     int watchedPathCount;
     wchar_t **watchedPaths;
@@ -26,22 +26,9 @@ typedef struct watch_details {
 #define EVENT_MASK (FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | \
                     FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE)
 
-void reportEvent(jint type, wchar_t *changedPath, int changedPathLen, jobject watcherCallback) {
-    JNIEnv* env;
-    int getEnvStat = jvm->GetEnv((void **)&env, JNI_VERSION_1_6);
-    if (getEnvStat == JNI_EDETACHED) {
-        int attachThreadStat = jvm->AttachCurrentThread((void **) &env, NULL);
-        if (attachThreadStat != JNI_OK) {
-            printf("~~~~ Problem with AttachCurrentThread: %d\n", attachThreadStat);
-            // TODO Error handling
-            return;
-        }
-    } else if (getEnvStat == JNI_EVERSION) {
-        printf("~~~~ Problem with GetEnv: %d\n", getEnvStat);
-        // TODO Error handling
-        return;
-    }
-
+void reportEvent(jint type, wchar_t *changedPath, int changedPathLen, watch_details_t *details) {
+    JNIEnv *env = details->env;
+    jobject watcherCallback = details->watcherCallback;
     jstring changedPathJava = wchar_to_java(env, changedPath, changedPathLen, NULL);
     jclass callback_class = env->GetObjectClass(watcherCallback);
     jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(ILjava/lang/String;)V");
@@ -81,7 +68,7 @@ void handlePathChanged(watch_details_t *details, FILE_NOTIFY_INFORMATION *info) 
         return;
     }
 
-    reportEvent(type, changedPath, changedPathLen, details->watcherCallback);
+    reportEvent(type, changedPath, changedPathLen, details);
     free(changedPath);
 }
 
@@ -89,6 +76,14 @@ DWORD WINAPI EventProcessingThread(LPVOID data) {
     watch_details_t *details = (watch_details_t*) data;
 
     printf("~~~~ Starting thread\n");
+
+    // TODO Extract this logic to some shared function
+    JavaVM* jvm = details->jvm;
+    jint statAttach = jvm->AttachCurrentThreadAsDaemon((void **) &(details->env), NULL);
+    if (statAttach != JNI_OK) {
+        printf("Failed to attach JNI to current thread: %d\n", statAttach);
+        return 0;
+    }
 
     OVERLAPPED overlapped;
     memset(&overlapped, 0, sizeof(overlapped));
@@ -125,7 +120,7 @@ DWORD WINAPI EventProcessingThread(LPVOID data) {
                     break;
 
                 // Got a buffer overflow => current changes lost => send INVALIDATE on root
-                reportEvent(FILE_EVENT_INVALIDATE, details->drivePath, 3, details->watcherCallback);
+                reportEvent(FILE_EVENT_INVALIDATE, details->drivePath, 3, details);
             } else {
                 FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION *)buffer;
                 do {
@@ -140,6 +135,14 @@ DWORD WINAPI EventProcessingThread(LPVOID data) {
 
     CloseHandle(overlapped.hEvent);
     CloseHandle(hDrive);
+
+    // TODO Extract this logic to some shared function
+    jint statDetach = jvm->DetachCurrentThread();
+    if (statDetach != JNI_OK) {
+        printf("Failed to detach JNI from current thread: %d\n", statAttach);
+        return 0;
+    }
+
     return 0;
 }
 
@@ -148,9 +151,9 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
 
     printf("\n~~~~ Configuring...\n");
 
-    // TODO Should this be somewhere global?
+    JavaVM* jvm;
     int jvmStatus = env->GetJavaVM(&jvm);
-    if (jvmStatus < 0) {
+    if (jvmStatus != JNI_OK) {
         mark_failed_with_errno(env, "Could not store jvm instance.", result);
         return NULL;
     }
@@ -190,6 +193,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
     watch_details_t* details = (watch_details_t*)malloc(sizeof(watch_details_t));
     details->watcherCallback = env->NewGlobalRef(javaCallback);
     details->stopEventHandle = CreateEvent(NULL, FALSE, FALSE, NULL);
+    details->jvm = jvm;
     details->watchedPathCount = watchedPathCount;
     details->watchedPaths = watchedPaths;
     wcscpy_s(details->drivePath, 4, drivePath);
