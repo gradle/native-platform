@@ -25,7 +25,7 @@ typedef struct watch_details {
     CFRunLoopRef threadLoop;
 } watch_details_t;
 
-static void reportEvent(jint type, char *path, jobject watcherCallback) {
+static void reportEvent(jint type, char *path, watch_details_t *details) {
     // TODO What does this do?
     size_t len = 0;
     if (path != NULL) {
@@ -52,6 +52,7 @@ static void reportEvent(jint type, char *path, jobject watcherCallback) {
 
     printf("~~~~ Changed: %s %d\n", path, type);
 
+    jobject watcherCallback = details->watcherCallback;
     jclass callback_class = env->GetObjectClass(watcherCallback);
     jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(ILjava/lang/String;)V");
     env->CallVoidMethod(watcherCallback, methodCallback, type, env->NewStringUTF(path));
@@ -66,7 +67,7 @@ static void callback(ConstFSEventStreamRef streamRef,
     if (invalidStateDetected) return;
     char **paths = (char**) eventPaths;
 
-    jobject watcherCallback = (jobject) clientCallBackInfo;
+    watch_details_t *details = (watch_details_t*) clientCallBackInfo;
 
     for (int i = 0; i < numEvents; i++) {
         FSEventStreamEventFlags flags = eventFlags[i];
@@ -93,7 +94,7 @@ static void callback(ConstFSEventStreamRef streamRef,
             printf("~~~~ Unknown event 0x%x for %s\n", flags, paths[i]);
             type = FILE_EVENT_UNKNOWN;
         }
-        reportEvent(type, paths[i], watcherCallback);
+        reportEvent(type, paths[i], details);
     }
 }
 
@@ -197,7 +198,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
         return NULL;
     }
 
-    FSEventStreamContext context = {0, (void*) details->watcherCallback, NULL, NULL, NULL};
+    FSEventStreamContext context = {0, (void*) details, NULL, NULL, NULL};
     details->watcherStream = FSEventStreamCreate (
                 NULL,
                 &callback,
