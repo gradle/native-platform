@@ -167,21 +167,23 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
     printf("\n~~~~ Configuring...\n");
 
     invalidStateDetected = false;
-    CFMutableArrayRef rootsToWatch = CFArrayCreateMutable(NULL, 0, NULL);
-    if (rootsToWatch == NULL) {
-        mark_failed_with_errno(env, "Could not allocate array to store roots to watch.", result);
+
+    JavaVM* jvm;
+    int jvmStatus = env->GetJavaVM(&jvm);
+    if (jvmStatus < 0) {
+        mark_failed_with_errno(env, "Could not store jvm instance.", result);
         return NULL;
     }
+
     int count = env->GetArrayLength(paths);
     if (count == 0) {
         mark_failed_with_errno(env, "No paths given to watch.", result);
         return NULL;
     }
 
-    JavaVM* jvm;
-    int jvmStatus = env->GetJavaVM(&jvm);
-    if (jvmStatus < 0) {
-        mark_failed_with_errno(env, "Could not store jvm instance.", result);
+    CFMutableArrayRef rootsToWatch = CFArrayCreateMutable(NULL, 0, NULL);
+    if (rootsToWatch == NULL) {
+        mark_failed_with_errno(env, "Could not allocate array to store roots to watch.", result);
         return NULL;
     }
 
