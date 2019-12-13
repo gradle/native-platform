@@ -21,6 +21,7 @@ typedef struct watch_details {
     CFMutableArrayRef rootsToWatch;
     FSEventStreamRef watcherStream;
     pthread_t watcherThread;
+    JNIEnv *env;
     jobject watcherCallback;
     CFRunLoopRef threadLoop;
 } watch_details_t;
@@ -37,21 +38,9 @@ static void reportEvent(jint type, char *path, watch_details_t *details) {
         }
     }
 
-    // TODO Extract this logic to some global function
-    JNIEnv* env;
-    int getEnvStat = jvm->GetEnv((void **)&env, JNI_VERSION_1_6);
-    if (getEnvStat == JNI_EDETACHED) {
-        if (jvm->AttachCurrentThread((void **) &env, NULL) != JNI_OK) {
-            invalidStateDetected = true;
-            return;
-        }
-    } else if (getEnvStat == JNI_EVERSION) {
-        invalidStateDetected = true;
-        return;
-    }
-
     printf("~~~~ Changed: %s %d\n", path, type);
 
+    JNIEnv *env = details->env;
     jobject watcherCallback = details->watcherCallback;
     jclass callback_class = env->GetObjectClass(watcherCallback);
     jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(ILjava/lang/String;)V");
@@ -103,6 +92,14 @@ static void *EventProcessingThread(void *data) {
 
     printf("~~~~ Starting thread\n");
 
+    // TODO Extract this logic to some global function
+    jint statAttach = jvm->AttachCurrentThreadAsDaemon((void **) &(details->env), NULL);
+    if (statAttach != JNI_OK) {
+        printf("Failed to attach JNI to current thread: %d\n", statAttach);
+        invalidStateDetected = true;
+        return NULL;
+    }
+
     CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
     FSEventStreamScheduleWithRunLoop(details->watcherStream, threadLoop, kCFRunLoopDefaultMode);
     FSEventStreamStart(details->watcherStream);
@@ -112,6 +109,13 @@ static void *EventProcessingThread(void *data) {
     CFRunLoopRun();
 
     printf("~~~~ Stopping thread\n");
+
+    jint statDetach = jvm->DetachCurrentThread();
+    if (statDetach != JNI_OK) {
+        printf("Failed to detach JNI from current thread: %d\n", statAttach);
+        invalidStateDetected = true;
+        return NULL;
+    }
 
     return NULL;
 }
