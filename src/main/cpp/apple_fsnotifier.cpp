@@ -14,13 +14,13 @@
 #include <pthread.h>
 #include <strings.h>
 
-JavaVM* jvm = NULL;
 bool invalidStateDetected = false;
 
 typedef struct watch_details {
     CFMutableArrayRef rootsToWatch;
     FSEventStreamRef watcherStream;
     pthread_t watcherThread;
+    JavaVM* jvm;
     JNIEnv *env;
     jobject watcherCallback;
     CFRunLoopRef threadLoop;
@@ -92,7 +92,8 @@ static void *EventProcessingThread(void *data) {
 
     printf("~~~~ Starting thread\n");
 
-    // TODO Extract this logic to some global function
+    // TODO Extract this logic to some shared function
+    JavaVM* jvm = details->jvm;
     jint statAttach = jvm->AttachCurrentThreadAsDaemon((void **) &(details->env), NULL);
     if (statAttach != JNI_OK) {
         printf("Failed to attach JNI to current thread: %d\n", statAttach);
@@ -104,12 +105,15 @@ static void *EventProcessingThread(void *data) {
     FSEventStreamScheduleWithRunLoop(details->watcherStream, threadLoop, kCFRunLoopDefaultMode);
     FSEventStreamStart(details->watcherStream);
     details->threadLoop = threadLoop;
-    // TODO We should wait for this in the caller thread otherwise stopWatching() might crash
+
+    // TODO We should wait for all this to finish in the caller thread otherwise stopWatching() might crash
+
     // This triggers run loop for this thread, causing it to run until we explicitly stop it.
     CFRunLoopRun();
 
     printf("~~~~ Stopping thread\n");
 
+    // TODO Extract this logic to some shared function
     jint statDetach = jvm->DetachCurrentThread();
     if (statDetach != JNI_OK) {
         printf("Failed to detach JNI from current thread: %d\n", statAttach);
@@ -174,7 +178,16 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
         return NULL;
     }
 
+    JavaVM* jvm;
+    int jvmStatus = env->GetJavaVM(&jvm);
+    if (jvmStatus < 0) {
+        mark_failed_with_errno(env, "Could not store jvm instance.", result);
+        return NULL;
+    }
+
     watch_details_t* details = (watch_details_t*) malloc(sizeof(watch_details_t));
+    details->jvm = jvm;
+
     details->rootsToWatch = rootsToWatch;
     for (int i = 0; i < count; i++) {
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
@@ -219,14 +232,6 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
 
     if (pthread_create(&(details->watcherThread), NULL, EventProcessingThread, details) != 0) {
         mark_failed_with_errno(env, "Could not create file watcher thread.", result);
-        freeDetails(env, details);
-        return NULL;
-    }
-
-    // TODO Should this be somewhere global?
-    int jvmStatus = env->GetJavaVM(&jvm);
-    if (jvmStatus < 0) {
-        mark_failed_with_errno(env, "Could not store jvm instance.", result);
         freeDetails(env, details);
         return NULL;
     }
