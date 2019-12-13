@@ -20,7 +20,7 @@ typedef struct watch_details {
     CFMutableArrayRef rootsToWatch;
     FSEventStreamRef watcherStream;
     pthread_t watcherThread;
-    JavaVM* jvm;
+    JavaVM *jvm;
     JNIEnv *env;
     jobject watcherCallback;
     CFRunLoopRef threadLoop;
