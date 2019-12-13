@@ -19,21 +19,40 @@ package net.rubygrapefruit.platform.test;
 import joptsimple.OptionException;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
-import net.rubygrapefruit.platform.*;
+import net.rubygrapefruit.platform.Native;
+import net.rubygrapefruit.platform.NativeIntegrationUnavailableException;
 import net.rubygrapefruit.platform.Process;
-import net.rubygrapefruit.platform.file.*;
+import net.rubygrapefruit.platform.SystemInfo;
+import net.rubygrapefruit.platform.file.DirEntry;
+import net.rubygrapefruit.platform.file.FileInfo;
+import net.rubygrapefruit.platform.file.FileSystemInfo;
+import net.rubygrapefruit.platform.file.FileSystems;
+import net.rubygrapefruit.platform.file.FileWatcher;
+import net.rubygrapefruit.platform.file.FileWatcherCallback;
+import net.rubygrapefruit.platform.file.Files;
+import net.rubygrapefruit.platform.file.PosixFileInfo;
+import net.rubygrapefruit.platform.file.PosixFiles;
+import net.rubygrapefruit.platform.internal.Platform;
+import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions;
+import net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions;
 import net.rubygrapefruit.platform.memory.Memory;
 import net.rubygrapefruit.platform.memory.MemoryInfo;
 import net.rubygrapefruit.platform.prompts.Prompter;
-import net.rubygrapefruit.platform.terminal.*;
+import net.rubygrapefruit.platform.terminal.TerminalInput;
+import net.rubygrapefruit.platform.terminal.TerminalInputListener;
+import net.rubygrapefruit.platform.terminal.TerminalOutput;
+import net.rubygrapefruit.platform.terminal.TerminalSize;
+import net.rubygrapefruit.platform.terminal.Terminals;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class Main {
     public static void main(String[] args) throws IOException {
@@ -44,6 +63,7 @@ public class Main {
         optionParser.accepts("stat-L", "Display details about the specified file or directory, following symbolic links").withRequiredArg();
         optionParser.accepts("ls", "Display contents of the specified directory").withRequiredArg();
         optionParser.accepts("ls-L", "Display contents of the specified directory, following symbolic links").withRequiredArg();
+        optionParser.accepts("watch", "Watches for changes to the specified file or directory").withRequiredArg();
         optionParser.accepts("machine", "Display details about the current machine");
         optionParser.accepts("terminal", "Display details about the terminal");
         optionParser.accepts("input", "Reads input from the terminal");
@@ -82,6 +102,11 @@ public class Main {
 
         if (result.has("ls-L")) {
             lsFollowLinks((String) result.valueOf("ls-L"));
+            return;
+        }
+
+        if (result.has("watch")) {
+            watch((String) result.valueOf("watch"));
             return;
         }
 
@@ -345,6 +370,48 @@ public class Main {
         }
 
         System.out.println();
+    }
+
+    private static void watch(String path) {
+        FileWatcher watcher;
+        FileWatcherCallback callback = new FileWatcherCallback() {
+            public void pathChanged(Type type, String changedPath) {
+                System.out.printf("Change detected: %s / '%s'%n", type, changedPath);
+            }
+        };
+        if (Platform.current().isMacOs()) {
+            watcher = createMacOsFileWatcher(path, callback);
+        } else if (Platform.current().isWindows()) {
+            watcher = createWindowsFileWatcher(path, callback);
+        } else {
+            throw new RuntimeException("Only Windows and macOS are supported for file watching");
+        }
+        try {
+            System.out.println("Waiting - type ctrl-d to exit ...");
+            while (true) {
+                int ch = System.in.read();
+                if (ch < 0) {
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            try {
+                watcher.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        System.out.println("Done");
+    }
+
+    private static FileWatcher createMacOsFileWatcher(String path, FileWatcherCallback callback) {
+        return Native.get(OsxFileEventFunctions.class).startWatching(Collections.singletonList(path), 300, TimeUnit.MILLISECONDS, callback);
+    }
+
+    private static FileWatcher createWindowsFileWatcher(String path, FileWatcherCallback callback) {
+        return Native.get(WindowsFileEventFunctions.class).startWatching(Collections.singletonList(path), callback);
     }
 
     private static void ls(String path) {
