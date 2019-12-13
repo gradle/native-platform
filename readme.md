@@ -16,7 +16,7 @@ These bindings work for the UNIX terminal, the Windows console and Mintty from C
 * Query the terminal size. Not supported for Mintty
 * Change foreground color on the terminal.
 * Switch between bold and normal text mode on the terminal.
-* Switch between dim, bright and normal text intensity on the terminal. 
+* Switch between dim, bright and normal text intensity on the terminal.
 * Move terminal cursor up, down, left, right, start of line.
 * Clear to end of line.
 * Show and hide the cursor.
@@ -94,7 +94,7 @@ this:
     }
 
     dependencies {
-        compile "net.rubygrapefruit:native-platform:0.20"
+        compile "net.rubygrapefruit:native-platform:0.21"
     }
 
 You can also download the Jars from [bintray](https://bintray.com/adammurdoch/maven/net.rubygrapefruit%3Anative-platform)
@@ -120,6 +120,10 @@ Some sample code to use the terminal:
 
 ## Changes
 
+### 0.21
+
+* Some preparation for a new API to watch the file system for changes.
+
 ### 0.20
 
 * Removed `FileEvents` API for watching the file system for changes.
@@ -127,14 +131,14 @@ Some sample code to use the terminal:
 ### 0.19
 
 * Added `SystemInfo.getHostname()`. Thanks to [Tom Dunstan](https://github.com/tomdcc)
-* Fixed terminal integration on Arch linux.  
-* Fixed terminal integration on Amazon linux 2 aarch64.  
+* Fixed terminal integration on Arch linux.
+* Fixed terminal integration on Amazon linux 2 aarch64.
 
 ### 0.18
 
 * Support for symlinks on Windows. Thanks to [Renaud Paquay](https://github.com/rpaquay).
 * Fixed handling of long paths on Windows. Thanks to [Renaud Paquay](https://github.com/rpaquay).
-* Support for Linux on aarch64. Thanks to [Amey](https://github.com/ameyp). 
+* Support for Linux on aarch64. Thanks to [Amey](https://github.com/ameyp).
 
 ### 0.17
 
@@ -158,7 +162,7 @@ Some sample code to use the terminal:
 * Added methods to `TerminalOutput` to set foreground text color to its default value.
 * Added methods to `TerminalOutput` to set bright and dim foreground text intensity.
 * Added methods to `TerminalOutput` to write text to the terminal. Anything written to `System.out` or `System.err` is no longer automatically flushed before cursor or text attributes are changed.
-* Added `Prompter` utility class to display prompts on the terminal to ask the user various questions. 
+* Added `Prompter` utility class to display prompts on the terminal to ask the user various questions.
 * Moved releases to JCenter.
 
 ### 0.14
