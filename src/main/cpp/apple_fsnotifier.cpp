@@ -40,12 +40,7 @@ static void reportEvent(jint type, char *path, jobject watcherCallback) {
     // TODO Extract this logic to some global function
     JNIEnv* env;
     int getEnvStat = jvm->GetEnv((void **)&env, JNI_VERSION_1_6);
-    if (getEnvStat == JNI_EDETACHED) {
-        if (jvm->AttachCurrentThread((void **) &env, NULL) != JNI_OK) {
-            invalidStateDetected = true;
-            return;
-        }
-    } else if (getEnvStat == JNI_EVERSION) {
+    if (getEnvStat != JNI_OK) {
         invalidStateDetected = true;
         return;
     }
@@ -101,6 +96,17 @@ static void *EventProcessingThread(void *data) {
     watch_details_t *details = (watch_details_t*) data;
 
     printf("~~~~ Starting thread\n");
+    JNIEnv* env;
+    int getEnvStat = jvm->GetEnv((void **)&env, JNI_VERSION_1_6);
+    if (getEnvStat == JNI_EDETACHED) {
+        if (jvm->AttachCurrentThread((void **) &env, NULL) != JNI_OK) {
+            invalidStateDetected = true;
+            return NULL;
+        }
+    } else if (getEnvStat == JNI_EVERSION) {
+        invalidStateDetected = true;
+        return NULL;
+    }
 
     CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
     FSEventStreamScheduleWithRunLoop(details->watcherStream, threadLoop, kCFRunLoopDefaultMode);
@@ -111,6 +117,7 @@ static void *EventProcessingThread(void *data) {
     CFRunLoopRun();
 
     printf("~~~~ Stopping thread\n");
+    jvm->DetachCurrentThread();
 
     return NULL;
 }
