@@ -34,7 +34,7 @@ class WindowsFileEventFunctionsTest extends AbstractFileEventsTest {
 
     def "cannot watch long paths"() {
         given:
-        def longPath = new File(dir, "X" * 240).canonicalPath
+        def longPath = new File(rootDir, "X" * 240).canonicalPath
         when:
         fileEvents.startWatching([longPath]) {}
 
