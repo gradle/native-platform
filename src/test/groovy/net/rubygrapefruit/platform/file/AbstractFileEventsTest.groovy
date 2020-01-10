@@ -26,7 +26,9 @@ import spock.lang.Specification
 import spock.lang.Unroll
 import spock.util.concurrent.AsyncConditions
 
-import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.*
+import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
+import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
+import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 
 abstract class AbstractFileEventsTest extends Specification {
     @Rule
@@ -349,6 +351,33 @@ abstract class AbstractFileEventsTest extends Specification {
         "space"      | "test directory"         | true
         "zwnj"       | "test\u200cdirectory"    | true
         "URL-quoted" | "test%<directory>#2.txt" | !Platform.current().windows
+    }
+
+    @Unroll
+    def "can detect #removedAncestry removed"() {
+        given:
+        def parentDir = new File(rootDir, "parent")
+        def watchedDir = new File(parentDir, "removed")
+        watchedDir.mkdirs()
+        def removedFile = new File(watchedDir, "file.txt")
+        removedFile.createNewFile()
+        File removedDir = removedDirectory(watchedDir)
+
+        def expectedEvents = [removed(watchedDir)]
+        startWatcher(watchedDir)
+
+        when:
+        def expectedChanges = expectEvents expectedEvents
+        assert removedDir.deleteDir()
+
+        then:
+        expectedChanges.await()
+
+        where:
+        removedAncestry                     | removedDirectory
+        "watched directory"                 | { it }
+        "parent of watched directory"       | { it.parentFile }
+        "grand-parent of watched directory" | { it.parentFile.parentFile }
     }
 
     protected abstract void startWatcher(FileWatcherCallback callback = this.callback, File... roots)
