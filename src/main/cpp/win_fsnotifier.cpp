@@ -61,7 +61,6 @@ public:
 
 private:
     JavaVM *jvm;
-    JNIEnv *env;
     wchar_t drivePath[4];
     vector<wchar_t*>* watchedPaths;
     jobject watcherCallback;
@@ -73,6 +72,7 @@ private:
         printf("~~~~ Starting thread\n");
 
         // TODO Extract this logic to some shared function
+        JNIEnv *env;
         jint statAttach = jvm->AttachCurrentThreadAsDaemon((void **) &(env), NULL);
         if (statAttach != JNI_OK) {
             printf("Failed to attach JNI to current thread: %d\n", statAttach);
@@ -123,11 +123,11 @@ private:
                         break;
 
                     // Got a buffer overflow => current changes lost => send INVALIDATE on root
-                    reportEvent(FILE_EVENT_INVALIDATE, drivePath, 3);
+                    reportEvent(env, FILE_EVENT_INVALIDATE, drivePath, 3);
                 } else {
                     FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION *)buffer;
                     do {
-                        handlePathChanged(info);
+                        handlePathChanged(env, info);
                         info = (FILE_NOTIFY_INFORMATION *)((char *)info + info->NextEntryOffset);
                     } while (info->NextEntryOffset != 0);
                 }
@@ -149,7 +149,7 @@ private:
         return;
     }
 
-    void reportEvent(jint type, wchar_t *changedPath, int changedPathLen) {
+    void reportEvent(JNIEnv *env, jint type, wchar_t *changedPath, int changedPathLen) {
         jstring changedPathJava = wchar_to_java(env, changedPath, changedPathLen, NULL);
         jclass callback_class = env->GetObjectClass(watcherCallback);
         jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(ILjava/lang/String;)V");
@@ -157,7 +157,7 @@ private:
         env->CallVoidMethod(watcherCallback, methodCallback, type, changedPathJava);
     }
 
-    void handlePathChanged(FILE_NOTIFY_INFORMATION *info) {
+    void handlePathChanged(JNIEnv *env, FILE_NOTIFY_INFORMATION *info) {
         int pathLen = info->FileNameLength / sizeof(wchar_t);
         wchar_t *changedPath = add_prefix(info->FileName, pathLen, drivePath);
         int changedPathLen = pathLen + 3;
@@ -190,7 +190,7 @@ private:
             return;
         }
 
-        reportEvent(type, changedPath, changedPathLen);
+        reportEvent(env, type, changedPath, changedPathLen);
         free(changedPath);
     }
 };
