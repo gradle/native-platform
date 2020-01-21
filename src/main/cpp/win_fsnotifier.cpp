@@ -15,6 +15,24 @@ using namespace std;
 #define EVENT_MASK (FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | \
                     FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE)
 
+class WatchPoint {
+public:
+    WatchPoint(wchar_t *path) {
+        this->path = _wcsdup(path);
+    }
+
+    ~WatchPoint() {
+        free(this->path);
+    }
+
+    bool isAncestorOf(wchar_t *candidate) {
+        wprintf(L"~~~~ Checking if '%ls' starts with '%ls'\n", candidate, path);
+        return wcsncmp(path, candidate, wcslen(path)) == 0;
+    }
+private:
+    wchar_t *path;
+};
+
 class Server {
 public:
     Server(
@@ -22,12 +40,12 @@ public:
         JNIEnv *env,
         jobject watcherCallback,
         wchar_t drivePath[4],
-        vector<wchar_t*>* watchedPaths
+        vector<WatchPoint>* watchPoints
     ) {
         this->jvm = jvm;
         this->watcherCallback = env->NewGlobalRef(watcherCallback);
         this->stopEventHandle = CreateEvent(NULL, FALSE, FALSE, NULL);
-        this->watchedPaths = watchedPaths;
+        this->watchPoints = watchPoints;
         wcscpy_s(this->drivePath, 4, drivePath);
 
         this->threadHandle = CreateThread(
@@ -46,10 +64,7 @@ public:
         WaitForSingleObject(this->threadHandle, INFINITE);
         CloseHandle(this->threadHandle);
         CloseHandle(this->stopEventHandle);
-        for (auto watchedPath : *watchedPaths) {
-            free(watchedPath);
-        }
-        delete watchedPaths;
+        delete watchPoints;
         env->DeleteGlobalRef(this->watcherCallback);
     }
 
@@ -62,7 +77,7 @@ public:
 private:
     JavaVM *jvm;
     wchar_t drivePath[4];
-    vector<wchar_t*>* watchedPaths;
+    vector<WatchPoint>* watchPoints;
     jobject watcherCallback;
 
     HANDLE stopEventHandle;
@@ -177,9 +192,8 @@ private:
         }
 
         bool watching = false;
-        for (auto watchedPath : *watchedPaths) {
-            wprintf(L"~~~~ Checking if '%ls' starts with '%ls'\n", changedPath, watchedPath);
-            if (wcsncmp(watchedPath, changedPath, wcslen(watchedPath)) == 0) {
+        for (auto watchPoint : *watchPoints) {
+            if (watchPoint.isAncestorOf(changedPath)) {
                 watching = true;
                 break;
             }
@@ -206,36 +220,37 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
         return NULL;
     }
 
-    int watchedPathCount = env->GetArrayLength(paths);
-    if (watchedPathCount == 0) {
+    int watchPointCount = env->GetArrayLength(paths);
+    if (watchPointCount == 0) {
         mark_failed_with_errno(env, "No paths given to watch.", result);
         return NULL;
     }
 
-    vector<wchar_t*>* watchedPaths = new vector<wchar_t*>();
+    vector<WatchPoint>* watchPoints = new vector<WatchPoint>();
 
     wchar_t driveLetter = L'\0';
-    for (int i = 0; i < watchedPathCount; i++) {
+    for (int i = 0; i < watchPointCount; i++) {
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
-        wchar_t* watchedPath = java_to_wchar_path(env, path, result);
-        int watchedPathLen = wcslen(watchedPath);
-        if (watchedPathLen > 240 || watchedPath[0] == L'\\') {
+        wchar_t* watchPoint = java_to_wchar_path(env, path, result);
+        int watchPointLen = wcslen(watchPoint);
+        if (watchPointLen > 240 || watchPoint[0] == L'\\') {
             mark_failed_with_errno(env, "Cannot watch long paths for now.", result);
             return NULL;
         }
         if (driveLetter == L'\0') {
-            driveLetter = watchedPath[0];
-        } else if (driveLetter != watchedPath[0]) {
+            driveLetter = watchPoint[0];
+        } else if (driveLetter != watchPoint[0]) {
             mark_failed_with_errno(env, "Cannot watch multiple drives for now.", result);
             return NULL;
         }
-        if (watchedPath[watchedPathLen - 1] != L'\\') {
-            wchar_t* oldWatchedPath = watchedPath;
-            watchedPath = add_suffix(watchedPath, watchedPathLen, L"\\");
-            free(oldWatchedPath);
+        if (watchPoint[watchPointLen - 1] != L'\\') {
+            wchar_t* oldwatchPoint = watchPoint;
+            watchPoint = add_suffix(watchPoint, watchPointLen, L"\\");
+            free(oldwatchPoint);
         }
-        wprintf(L"~~~~ Watching %ls\n", watchedPath);
-        watchedPaths->push_back(watchedPath);
+        wprintf(L"~~~~ Watching %ls\n", watchPoint);
+        watchPoints->push_back(WatchPoint(watchPoint));
+        free(watchPoint);
     }
     wchar_t drivePath[4] = {towupper(driveLetter), L':', L'\\', L'\0'};
 
@@ -244,7 +259,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
         env,
         javaCallback,
         drivePath,
-        watchedPaths
+        watchPoints
     );
 
     jclass clsWatch = env->FindClass("net/rubygrapefruit/platform/internal/jni/WindowsFileEventFunctions$WatcherImpl");
