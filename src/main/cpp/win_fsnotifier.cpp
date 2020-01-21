@@ -16,15 +16,19 @@ using namespace std;
 #define EVENT_MASK (FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | \
                     FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE)
 
+jstring wstring_to_java(JNIEnv* env, const wstring &string) {
+    return env->NewString((jchar*) (string.c_str()), string.length());
+}
+
 class WatchPoint {
 public:
     WatchPoint(wchar_t *path) {
         this->path = path;
     }
 
-    bool isAncestorOf(wchar_t *candidate) {
-        wprintf(L"~~~~ Checking if '%ls' starts with '%ls'\n", candidate, path.c_str());
-        return path.compare(0, path.length(), candidate, path.length()) == 0;
+    bool isAncestorOf(const wstring &candidate) {
+        wprintf(L"~~~~ Checking if '%ls' starts with '%ls'\n", candidate.c_str(), path.c_str());
+        return path.compare(0, path.length(), candidate, 0, path.length()) == 0;
     }
 private:
     wstring path;
@@ -36,14 +40,14 @@ public:
         JavaVM *jvm,
         JNIEnv *env,
         jobject watcherCallback,
-        wchar_t drivePath[4],
+        wchar_t *drivePath,
         vector<WatchPoint> watchPoints
     ) {
         this->jvm = jvm;
         this->watcherCallback = env->NewGlobalRef(watcherCallback);
         this->stopEventHandle = CreateEvent(NULL, FALSE, FALSE, NULL);
         this->watchPoints = watchPoints;
-        wcscpy_s(this->drivePath, 4, drivePath);
+        this->drivePath = drivePath;
 
         this->threadHandle = CreateThread(
             NULL,                   // default security attributes
@@ -72,7 +76,7 @@ public:
 
 private:
     JavaVM *jvm;
-    wchar_t drivePath[4];
+    wstring drivePath;
     vector<WatchPoint> watchPoints;
     jobject watcherCallback;
 
@@ -94,7 +98,7 @@ private:
         memset(&overlapped, 0, sizeof(overlapped));
         overlapped.hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 
-        HANDLE hDrive = CreateFileW(drivePath, GENERIC_READ, CREATE_SHARE, NULL, OPEN_EXISTING, CREATE_FLAGS, NULL);
+        HANDLE hDrive = CreateFileW(drivePath.c_str(), GENERIC_READ, CREATE_SHARE, NULL, OPEN_EXISTING, CREATE_FLAGS, NULL);
 
         char buffer[EVENT_BUFFER_SIZE];
         HANDLE handles[2] = {stopEventHandle, overlapped.hEvent};
@@ -134,7 +138,7 @@ private:
                         break;
 
                     // Got a buffer overflow => current changes lost => send INVALIDATE on root
-                    reportEvent(env, FILE_EVENT_INVALIDATE, drivePath, 3);
+                    reportEvent(env, FILE_EVENT_INVALIDATE, drivePath);
                 } else {
                     FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION *)buffer;
                     do {
@@ -160,8 +164,8 @@ private:
         return;
     }
 
-    void reportEvent(JNIEnv *env, jint type, wchar_t *changedPath, int changedPathLen) {
-        jstring changedPathJava = wchar_to_java(env, changedPath, changedPathLen, NULL);
+    void reportEvent(JNIEnv *env, jint type, const wstring changedPath) {
+        jstring changedPathJava = wstring_to_java(env, changedPath);
         jclass callback_class = env->GetObjectClass(watcherCallback);
         jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(ILjava/lang/String;)V");
         // TODO Do we need to add a global reference to the string here?
@@ -169,11 +173,10 @@ private:
     }
 
     void handlePathChanged(JNIEnv *env, FILE_NOTIFY_INFORMATION *info) {
-        int pathLen = info->FileNameLength / sizeof(wchar_t);
-        wchar_t *changedPath = add_prefix(info->FileName, pathLen, drivePath);
-        int changedPathLen = pathLen + 3;
+        wstring changedPath = wstring(info->FileName, 0, info->FileNameLength / sizeof(wchar_t));
+        changedPath.insert(0, drivePath);
 
-        wprintf(L"~~~~ Changed: 0x%x %ls\n", info->Action, changedPath);
+        wprintf(L"~~~~ Changed: 0x%x %ls\n", info->Action, changedPath.c_str());
 
         jint type;
         if (info->Action == FILE_ACTION_ADDED || info->Action == FILE_ACTION_RENAMED_NEW_NAME) {
@@ -183,7 +186,7 @@ private:
         } else if (info->Action == FILE_ACTION_MODIFIED) {
             type = FILE_EVENT_MODIFIED;
         } else {
-            wprintf(L"~~~~ Unknown event 0x%x for %ls\n", info->Action, changedPath);
+            wprintf(L"~~~~ Unknown event 0x%x for %ls\n", info->Action, changedPath.c_str());
             type = FILE_EVENT_UNKNOWN;
         }
 
@@ -195,12 +198,11 @@ private:
             }
         }
         if (!watching) {
-            wprintf(L"~~~~ Ignoring %ls (root is not watched)\n", changedPath);
+            wprintf(L"~~~~ Ignoring %ls (root is not watched)\n", changedPath.c_str());
             return;
         }
 
-        reportEvent(env, type, changedPath, changedPathLen);
-        free(changedPath);
+        reportEvent(env, type, changedPath);
     }
 };
 
