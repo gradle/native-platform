@@ -3,6 +3,9 @@
 #include "native.h"
 #include "generic.h"
 #include "win.h"
+#include <vector>
+
+using namespace std;
 
 // TODO Find the right size for this
 #define EVENT_BUFFER_SIZE (16*1024)
@@ -19,13 +22,11 @@ public:
         JNIEnv *env,
         jobject watcherCallback,
         wchar_t drivePath[4],
-        int watchedPathCount,
-        wchar_t **watchedPaths
+        vector<wchar_t*>* watchedPaths
     ) {
         this->jvm = jvm;
         this->watcherCallback = env->NewGlobalRef(watcherCallback);
         this->stopEventHandle = CreateEvent(NULL, FALSE, FALSE, NULL);
-        this->watchedPathCount = watchedPathCount;
         this->watchedPaths = watchedPaths;
         wcscpy_s(this->drivePath, 4, drivePath);
 
@@ -45,10 +46,10 @@ public:
         WaitForSingleObject(this->threadHandle, INFINITE);
         CloseHandle(this->threadHandle);
         CloseHandle(this->stopEventHandle);
-        for (int i = 0; i < this->watchedPathCount; i++) {
-            free(this->watchedPaths[i]);
+        for (auto i = watchedPaths->begin(); i != watchedPaths->end(); i++) {
+            free(*i);
         }
-        free(this->watchedPaths);
+        delete watchedPaths;
         env->DeleteGlobalRef(this->watcherCallback);
     }
 
@@ -62,8 +63,7 @@ private:
     JavaVM *jvm;
     JNIEnv *env;
     wchar_t drivePath[4];
-    int watchedPathCount;
-    wchar_t **watchedPaths;
+    vector<wchar_t*>* watchedPaths;
     jobject watcherCallback;
 
     HANDLE stopEventHandle;
@@ -177,8 +177,8 @@ private:
         }
 
         bool watching = false;
-        for (int i = 0; i < watchedPathCount; i++) {
-            wchar_t* watchedPath = watchedPaths[i];
+        for (auto i = watchedPaths->begin(); i != watchedPaths->end(); i++) {
+            wchar_t *watchedPath = *i;
             wprintf(L"~~~~ Checking if '%ls' starts with '%ls'\n", changedPath, watchedPath);
             if (wcsncmp(watchedPath, changedPath, wcslen(watchedPath)) == 0) {
                 watching = true;
@@ -213,7 +213,8 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
         return NULL;
     }
 
-    wchar_t **watchedPaths = (wchar_t**)malloc(watchedPathCount * sizeof(wchar_t*));
+    vector<wchar_t*>* watchedPaths = new vector<wchar_t*>();
+
     wchar_t driveLetter = L'\0';
     for (int i = 0; i < watchedPathCount; i++) {
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
@@ -235,16 +236,15 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
             free(oldWatchedPath);
         }
         wprintf(L"~~~~ Watching %ls\n", watchedPath);
-        watchedPaths[i] = watchedPath;
+        watchedPaths->push_back(watchedPath);
     }
-    wchar_t drivePath[4] = {towupper(watchedPaths[0][0]), L':', L'\\', L'\0'};
+    wchar_t drivePath[4] = {towupper(driveLetter), L':', L'\\', L'\0'};
 
     Server* server = new Server(
         jvm,
         env,
         javaCallback,
         drivePath,
-        watchedPathCount,
         watchedPaths
     );
 
