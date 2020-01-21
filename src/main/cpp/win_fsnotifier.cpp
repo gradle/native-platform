@@ -1,6 +1,3 @@
-// Initial version copied from Initial version copied from https://github.com/JetBrains/intellij-community/blob/master/native/WinFsNotifier/fileWatcher3.c
-// Copyright 2000-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
-
 #ifdef _WIN32
 
 #include "native.h"
