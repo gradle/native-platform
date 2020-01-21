@@ -21,6 +21,8 @@ public:
         this->path = _wcsdup(path);
     }
 
+    WatchPoint(const WatchPoint &orig) : WatchPoint(orig.path) {}
+
     ~WatchPoint() {
         free(this->path);
     }
@@ -192,7 +194,7 @@ private:
         }
 
         bool watching = false;
-        for (auto watchPoint : *watchPoints) {
+        for (auto &watchPoint : *watchPoints) {
             if (watchPoint.isAncestorOf(changedPath)) {
                 watching = true;
                 break;
@@ -249,7 +251,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
             free(oldwatchPoint);
         }
         wprintf(L"~~~~ Watching %ls\n", watchPoint);
-        watchPoints->push_back(WatchPoint(watchPoint));
+        watchPoints->emplace_back(watchPoint);
         free(watchPoint);
     }
     wchar_t drivePath[4] = {towupper(driveLetter), L':', L'\\', L'\0'};
