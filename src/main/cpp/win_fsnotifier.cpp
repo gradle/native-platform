@@ -46,8 +46,8 @@ public:
         WaitForSingleObject(this->threadHandle, INFINITE);
         CloseHandle(this->threadHandle);
         CloseHandle(this->stopEventHandle);
-        for (auto i = watchedPaths->begin(); i != watchedPaths->end(); i++) {
-            free(*i);
+        for (auto watchedPath : *watchedPaths) {
+            free(watchedPath);
         }
         delete watchedPaths;
         env->DeleteGlobalRef(this->watcherCallback);
@@ -177,8 +177,7 @@ private:
         }
 
         bool watching = false;
-        for (auto i = watchedPaths->begin(); i != watchedPaths->end(); i++) {
-            wchar_t *watchedPath = *i;
+        for (auto watchedPath : *watchedPaths) {
             wprintf(L"~~~~ Checking if '%ls' starts with '%ls'\n", changedPath, watchedPath);
             if (wcsncmp(watchedPath, changedPath, wcslen(watchedPath)) == 0) {
                 watching = true;
