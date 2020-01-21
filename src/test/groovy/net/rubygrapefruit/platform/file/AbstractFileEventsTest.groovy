@@ -354,6 +354,7 @@ abstract class AbstractFileEventsTest extends Specification {
     }
 
     @Unroll
+    @IgnoreIf({ Platform.current().windows })
     def "can detect #removedAncestry removed"() {
         given:
         def parentDir = new File(rootDir, "parent")
