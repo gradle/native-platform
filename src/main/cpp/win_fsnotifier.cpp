@@ -24,7 +24,7 @@ public:
 
     bool isAncestorOf(wchar_t *candidate) {
         wprintf(L"~~~~ Checking if '%ls' starts with '%ls'\n", candidate, path.c_str());
-        return this->path.compare(0, path.length(), candidate, path.length()) == 0;
+        return path.compare(0, path.length(), candidate, path.length()) == 0;
     }
 private:
     wstring path;
@@ -37,7 +37,7 @@ public:
         JNIEnv *env,
         jobject watcherCallback,
         wchar_t drivePath[4],
-        vector<WatchPoint>* watchPoints
+        vector<WatchPoint> watchPoints
     ) {
         this->jvm = jvm;
         this->watcherCallback = env->NewGlobalRef(watcherCallback);
@@ -61,7 +61,6 @@ public:
         WaitForSingleObject(this->threadHandle, INFINITE);
         CloseHandle(this->threadHandle);
         CloseHandle(this->stopEventHandle);
-        delete watchPoints;
         env->DeleteGlobalRef(this->watcherCallback);
     }
 
@@ -74,7 +73,7 @@ public:
 private:
     JavaVM *jvm;
     wchar_t drivePath[4];
-    vector<WatchPoint>* watchPoints;
+    vector<WatchPoint> watchPoints;
     jobject watcherCallback;
 
     HANDLE stopEventHandle;
@@ -189,7 +188,7 @@ private:
         }
 
         bool watching = false;
-        for (auto &watchPoint : *watchPoints) {
+        for (auto &watchPoint : watchPoints) {
             if (watchPoint.isAncestorOf(changedPath)) {
                 watching = true;
                 break;
@@ -223,7 +222,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
         return NULL;
     }
 
-    vector<WatchPoint>* watchPoints = new vector<WatchPoint>();
+    vector<WatchPoint> watchPoints;
 
     wchar_t driveLetter = L'\0';
     for (int i = 0; i < watchPointCount; i++) {
@@ -246,7 +245,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
             free(oldwatchPoint);
         }
         wprintf(L"~~~~ Watching %ls\n", watchPoint);
-        watchPoints->emplace_back(watchPoint);
+        watchPoints.emplace_back(watchPoint);
         free(watchPoint);
     }
     wchar_t drivePath[4] = {towupper(driveLetter), L':', L'\\', L'\0'};
