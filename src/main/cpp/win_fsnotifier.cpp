@@ -21,10 +21,16 @@ public:
         this->path = _wcsdup(path);
     }
 
-    WatchPoint(const WatchPoint &orig) : WatchPoint(orig.path) {}
+    WatchPoint(const WatchPoint&) = delete;
+    WatchPoint(WatchPoint&& other) {
+        this->path = other.path;
+        other.path = nullptr;
+    }
 
     ~WatchPoint() {
-        free(this->path);
+        if (this->path != nullptr) {
+            free(this->path);
+        }
     }
 
     bool isAncestorOf(wchar_t *candidate) {
