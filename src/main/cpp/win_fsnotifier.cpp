@@ -3,6 +3,7 @@
 #include "native.h"
 #include "generic.h"
 #include "win.h"
+#include <process.h>
 #include <vector>
 #include <string>
 
@@ -49,7 +50,7 @@ public:
         this->watchPoints = watchPoints;
         this->drivePath = drivePath;
 
-        this->threadHandle = CreateThread(
+        this->threadHandle = (HANDLE)_beginthreadex(
             NULL,                   // default security attributes
             0,                      // use default stack size
             EventProcessingThread,  // thread function name
@@ -68,7 +69,7 @@ public:
         env->DeleteGlobalRef(this->watcherCallback);
     }
 
-    static DWORD WINAPI EventProcessingThread(LPVOID data) {
+    static unsigned __stdcall EventProcessingThread(void* data) {
         Server *server = (Server*) data;
         server->run();
         return 0;
