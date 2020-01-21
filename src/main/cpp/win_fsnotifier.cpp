@@ -4,6 +4,7 @@
 #include "generic.h"
 #include "win.h"
 #include <vector>
+#include <string>
 
 using namespace std;
 
@@ -18,27 +19,15 @@ using namespace std;
 class WatchPoint {
 public:
     WatchPoint(wchar_t *path) {
-        this->path = _wcsdup(path);
-    }
-
-    WatchPoint(const WatchPoint&) = delete;
-    WatchPoint(WatchPoint&& other) {
-        this->path = other.path;
-        other.path = nullptr;
-    }
-
-    ~WatchPoint() {
-        if (this->path != nullptr) {
-            free(this->path);
-        }
+        this->path = path;
     }
 
     bool isAncestorOf(wchar_t *candidate) {
-        wprintf(L"~~~~ Checking if '%ls' starts with '%ls'\n", candidate, path);
-        return wcsncmp(path, candidate, wcslen(path)) == 0;
+        wprintf(L"~~~~ Checking if '%ls' starts with '%ls'\n", candidate, path.c_str());
+        return this->path.compare(0, path.length(), candidate, path.length()) == 0;
     }
 private:
-    wchar_t *path;
+    wstring path;
 };
 
 class Server {
