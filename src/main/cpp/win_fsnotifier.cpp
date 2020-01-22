@@ -22,16 +22,18 @@ jstring wstring_to_java(JNIEnv* env, const wstring &string) {
     return env->NewString((jchar*) (string.c_str()), string.length());
 }
 
+class Server;
+class WatchPoint;
+
 class WatchPoint {
 public:
-    WatchPoint(Server *server, wchar_t *path) {
+    WatchPoint(Server *server, wstring path) {
         this->server = server;
         this->path = path;
-        this->buffer.resize(EVENT_BUFFER_SIZE);
         ZeroMemory(&this->overlapped, sizeof(OVERLAPPED));
         this->overlapped.hEvent = this;
         this->directoryHandle = CreateFileW(
-            path,				                // pointer to the file name
+            path.c_str(),                       // pointer to the file name
             GENERIC_READ,                       // access (read/write) mode
             CREATE_SHARE,                       // share mode
             NULL,                               // security descriptor
@@ -43,85 +45,19 @@ public:
         // TODO Error handling
     }
 
-    void close() {
-        CancelIo(directoryHandle);
-        CloseHandle(directoryHandle);
-    }
-
-    void listen() {
-        BOOL success = ReadDirectoryChangesW(
-            directoryHandle,			    	// handle to directory
-            &buffer[0],                         // read results buffer
-            buffer.size(),                      // length of buffer
-            TRUE,                               // monitoring option
-            EVENT_MASK,                         // filter conditions
-            NULL,                               // bytes returned
-            &overlapped,                        // overlapped buffer
-            &handleEvent                        // completion routine
-        );
-    }
+    void close();
+    void listen();
 
 private:
     Server *server;
     wstring path;
     HANDLE directoryHandle;
     OVERLAPPED overlapped;
-    vector<BYTE> buffer;
+    char buffer[EVENT_BUFFER_SIZE];
 
-    static void __stdcall handleEvent(DWORD errorCode, DWORD bytesTransfered, LPOVERLAPPED overlapped) {
-        WatchPoint* watchPoint = (WatchPoint*)overlapped->hEvent;
-
-        if (errorCode == ERROR_OPERATION_ABORTED){
-            watchPoint->server->reportFinished(*watchPoint);
-            delete watchPoint;
-            return;
-        }
-
-        if (bytesTransfered == 0) {
-            // don't send dirty too much, everything is changed anyway
-            // TODO Understand what this does
-            // if (WaitForSingleObject(stopEventHandle, 500) == WAIT_OBJECT_0)
-            //    break;
-
-            // Got a buffer overflow => current changes lost => send INVALIDATE on root
-            watchPoint->server->reportEvent(FILE_EVENT_INVALIDATE, watchPoint->path);
-        } else {
-            watchPoint->handlePathChanged();
-        }
-
-        // Get the new read issued as fast as possible. The documentation
-        // says that the original OVERLAPPED structure will not be used
-        // again once the completion routine is called.
-        watchPoint->listen();
-    }
-
-    void handlePathChanged() {
-        FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION *)buffer.data();
-        do {
-            info = (FILE_NOTIFY_INFORMATION *)((char *)info + info->NextEntryOffset);
-        } while (info->NextEntryOffset != 0);
-    }
-
-    void handlePathChanged(FILE_NOTIFY_INFORMATION *info) {
-        wstring changedPath = wstring(info->FileName, 0, info->FileNameLength / sizeof(wchar_t));
-        changedPath.insert(0, path);
-
-        wprintf(L"~~~~ Changed: 0x%x %ls\n", info->Action, changedPath.c_str());
-
-        jint type;
-        if (info->Action == FILE_ACTION_ADDED || info->Action == FILE_ACTION_RENAMED_NEW_NAME) {
-            type = FILE_EVENT_CREATED;
-        } else if (info->Action == FILE_ACTION_REMOVED || info->Action == FILE_ACTION_RENAMED_OLD_NAME) {
-            type = FILE_EVENT_REMOVED;
-        } else if (info->Action == FILE_ACTION_MODIFIED) {
-            type = FILE_EVENT_MODIFIED;
-        } else {
-            wprintf(L"~~~~ Unknown event 0x%x for %ls\n", info->Action, changedPath.c_str());
-            type = FILE_EVENT_UNKNOWN;
-        }
-
-        server->reportEvent(type, changedPath);
-    }
+    void handleEvent(DWORD errorCode, DWORD bytesTransfered);
+    void handlePathChanged(FILE_NOTIFY_INFORMATION *info);
+    friend static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransfered, LPOVERLAPPED overlapped);
 };
 
 class Server {
@@ -145,57 +81,19 @@ public:
         SetThreadPriority(this->threadHandle, THREAD_PRIORITY_ABOVE_NORMAL);
     }
 
-    void startWatching(wchar_t *path) {
-        StartWatchRequest request = { this, path };
-        QueueUserAPC(&startWatchCallback, threadHandle, ULONG_PTR (&request));
-    }
+    void startWatching(wchar_t *path);
+    void reportEvent(jint type, const wstring changedPath);
+    void reportFinished(const WatchPoint* watchPoint);
 
+    void close(JNIEnv *env);
+
+private:
     struct StartWatchRequest {
         Server *server;
         wstring path;
     };
+    friend static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg);
 
-	// Called by QueueUserAPC to add another directory.
-	static void __stdcall startWatchCallback(_In_ ULONG_PTR arg) {
-		StartWatchRequest *request = (StartWatchRequest*)arg;
-        WatchPoint watchPoint = request->server->watchPoints.emplace_back(request->server, request->path);
-        watchPoint.listen();
-	}
-
-    void reportFinished(const WatchPoint& watchPoint) {
-        watchPoints.remove(watchPoint);
-    }
-
-    void reportEvent(jint type, const wstring changedPath) {
-        JNIEnv* env = getThreadEnv();
-        jstring changedPathJava = wstring_to_java(env, changedPath);
-        jclass callback_class = env->GetObjectClass(watcherCallback);
-        jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(ILjava/lang/String;)V");
-        env->CallVoidMethod(watcherCallback, methodCallback, type, changedPathJava);
-    }
-
-    JNIEnv* getThreadEnv() {
-        JNIEnv* env;
-        jint ret = jvm->GetEnv((void **) &(env), NULL);
-        if (ret != JNI_OK) {
-            printf("Failed to attach JNI to current thread: %d\n", ret);
-            return NULL;
-        }
-        return env;
-    }
-
-    void close(JNIEnv *env) {
-        for (auto &watchPoint : watchPoints) {
-            watchPoint.close();
-        }
-        SetEvent(this->stopEventHandle);
-        WaitForSingleObject(this->threadHandle, INFINITE);
-        CloseHandle(this->threadHandle);
-        CloseHandle(this->stopEventHandle);
-        env->DeleteGlobalRef(this->watcherCallback);
-    }
-
-private:
     JavaVM *jvm;
     list<WatchPoint> watchPoints;
     jobject watcherCallback;
@@ -204,37 +102,157 @@ private:
     HANDLE threadHandle;
     bool terminate = false;
 
-    static unsigned CALLBACK EventProcessingThread(void* data) {
-        Server *server = (Server*) data;
-        server->run();
-        return 0;
-    }
-
-    void run() {
-        printf("~~~~ Starting thread\n");
-
-        // TODO Extract this logic to some shared function
-        JNIEnv* env;
-        jint statAttach = jvm->AttachCurrentThreadAsDaemon((void **) &(env), NULL);
-        if (statAttach != JNI_OK) {
-            printf("Failed to attach JNI to current thread: %d\n", statAttach);
-            return;
-        }
-
-        while (!terminate || watchPoints.size() > 0) {
-            SleepEx(INFINITE, true);
-        }
-
-        printf("~~~~ Stopping thread\n");
-
-        // TODO Extract this logic to some shared function
-        jint statDetach = jvm->DetachCurrentThread();
-        if (statDetach != JNI_OK) {
-            printf("Failed to detach JNI from current thread: %d\n", statAttach);
-            return;
-        }
-    }
+    friend static unsigned CALLBACK EventProcessingThread(void* data);
+    void run();
 };
+
+void WatchPoint::close() {
+    CancelIo(directoryHandle);
+    CloseHandle(directoryHandle);
+}
+
+void WatchPoint::listen() {
+    BOOL success = ReadDirectoryChangesW(
+        directoryHandle,                    // handle to directory
+        buffer,                             // read results buffer
+        sizeof(buffer),                     // length of buffer
+        TRUE,                               // monitoring option
+        EVENT_MASK,                         // filter conditions
+        NULL,                               // bytes returned
+        &overlapped,                        // overlapped buffer
+        &handleEventCallback                // completion routine
+    );
+}
+
+static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransfered, LPOVERLAPPED overlapped) {
+    WatchPoint* watchPoint = (WatchPoint*)overlapped->hEvent;
+    watchPoint->handleEvent(errorCode, bytesTransfered);
+}
+
+void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransfered) {
+    if (errorCode == ERROR_OPERATION_ABORTED){
+        server->reportFinished(this);
+        delete this;
+        return;
+    }
+
+    if (bytesTransfered == 0) {
+        // don't send dirty too much, everything is changed anyway
+        // TODO Understand what this does
+        // if (WaitForSingleObject(stopEventHandle, 500) == WAIT_OBJECT_0)
+        //    break;
+
+        // Got a buffer overflow => current changes lost => send INVALIDATE on root
+        server->reportEvent(FILE_EVENT_INVALIDATE, path);
+    } else {
+        FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION *)buffer;
+        do {
+            info = (FILE_NOTIFY_INFORMATION *)((char *)info + info->NextEntryOffset);
+        } while (info->NextEntryOffset != 0);
+    }
+
+    // Get the new read issued as fast as possible. The documentation
+    // says that the original OVERLAPPED structure will not be used
+    // again once the completion routine is called.
+    listen();
+}
+
+void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION *info) {
+    wstring changedPath = wstring(info->FileName, 0, info->FileNameLength / sizeof(wchar_t));
+    changedPath.insert(0, path);
+
+    wprintf(L"~~~~ Changed: 0x%x %ls\n", info->Action, changedPath.c_str());
+
+    jint type;
+    if (info->Action == FILE_ACTION_ADDED || info->Action == FILE_ACTION_RENAMED_NEW_NAME) {
+        type = FILE_EVENT_CREATED;
+    } else if (info->Action == FILE_ACTION_REMOVED || info->Action == FILE_ACTION_RENAMED_OLD_NAME) {
+        type = FILE_EVENT_REMOVED;
+    } else if (info->Action == FILE_ACTION_MODIFIED) {
+        type = FILE_EVENT_MODIFIED;
+    } else {
+        wprintf(L"~~~~ Unknown event 0x%x for %ls\n", info->Action, changedPath.c_str());
+        type = FILE_EVENT_UNKNOWN;
+    }
+
+    server->reportEvent(type, changedPath);
+}
+
+void Server::startWatching(wchar_t *path) {
+    Server::StartWatchRequest request = { this, path };
+    QueueUserAPC(&startWatchCallback, threadHandle, ULONG_PTR (&request));
+}
+
+// Called by QueueUserAPC to add another directory.
+static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg) {
+    Server::StartWatchRequest *request = (Server::StartWatchRequest*)arg;
+    request->server->watchPoints.emplace_back(request->server, request->path);
+    // watchPoint.listen();
+}
+
+void Server::reportFinished(const WatchPoint *watchPoint) {
+    // watchPoints.remove(*watchPoint);
+}
+
+static JNIEnv* getThreadEnv(JavaVM *jvm) {
+    JNIEnv* env;
+    jint ret = jvm->GetEnv((void **) &(env), NULL);
+    if (ret != JNI_OK) {
+        printf("Failed to attach JNI to current thread: %d\n", ret);
+        return NULL;
+    }
+    return env;
+}
+
+void Server::reportEvent(jint type, const wstring changedPath) {
+    JNIEnv* env = getThreadEnv(jvm);
+    jstring changedPathJava = wstring_to_java(env, changedPath);
+    jclass callback_class = env->GetObjectClass(watcherCallback);
+    jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(ILjava/lang/String;)V");
+    env->CallVoidMethod(watcherCallback, methodCallback, type, changedPathJava);
+}
+
+static unsigned CALLBACK EventProcessingThread(void* data) {
+    Server *server = (Server*) data;
+    server->run();
+    return 0;
+}
+
+void Server::run() {
+    printf("~~~~ Starting thread\n");
+
+    // TODO Extract this logic to some shared function
+    JNIEnv* env;
+    jint statAttach = jvm->AttachCurrentThreadAsDaemon((void **) &(env), NULL);
+    if (statAttach != JNI_OK) {
+        printf("Failed to attach JNI to current thread: %d\n", statAttach);
+        return;
+    }
+
+    while (!terminate || watchPoints.size() > 0) {
+        SleepEx(INFINITE, true);
+    }
+
+    printf("~~~~ Stopping thread\n");
+
+    // TODO Extract this logic to some shared function
+    jint statDetach = jvm->DetachCurrentThread();
+    if (statDetach != JNI_OK) {
+        printf("Failed to detach JNI from current thread: %d\n", statAttach);
+        return;
+    }
+}
+
+void Server::close(JNIEnv *env) {
+    for (auto &watchPoint : watchPoints) {
+        watchPoint.close();
+    }
+    SetEvent(this->stopEventHandle);
+    WaitForSingleObject(this->threadHandle, INFINITE);
+    CloseHandle(this->threadHandle);
+    CloseHandle(this->stopEventHandle);
+    env->DeleteGlobalRef(this->watcherCallback);
+}
 
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatching(JNIEnv *env, jclass target, jobjectArray paths, jobject javaCallback, jobject result) {
