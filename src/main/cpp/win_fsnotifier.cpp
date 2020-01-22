@@ -4,6 +4,7 @@
 #include "generic.h"
 #include "win.h"
 #include <process.h>
+#include <list>
 #include <vector>
 #include <string>
 
@@ -23,159 +24,87 @@ jstring wstring_to_java(JNIEnv* env, const wstring &string) {
 
 class WatchPoint {
 public:
-    WatchPoint(wchar_t *path) {
+    WatchPoint(Server *server, wchar_t *path) {
+        this->server = server;
         this->path = path;
-    }
-
-    bool isAncestorOf(const wstring &candidate) {
-        wprintf(L"~~~~ Checking if '%ls' starts with '%ls'\n", candidate.c_str(), path.c_str());
-        return path.compare(0, path.length(), candidate, 0, path.length()) == 0;
-    }
-private:
-    wstring path;
-};
-
-class Server {
-public:
-    Server(
-        JavaVM *jvm,
-        JNIEnv *env,
-        jobject watcherCallback,
-        wchar_t *drivePath,
-        vector<WatchPoint> watchPoints
-    ) {
-        this->jvm = jvm;
-        this->watcherCallback = env->NewGlobalRef(watcherCallback);
-        this->stopEventHandle = CreateEvent(NULL, FALSE, FALSE, NULL);
-        this->watchPoints = watchPoints;
-        this->drivePath = drivePath;
-
-        this->threadHandle = (HANDLE)_beginthreadex(
-            NULL,                   // default security attributes
-            0,                      // use default stack size
-            EventProcessingThread,  // thread function name
-            this,                   // argument to thread function
-            0,                      // use default creation flags
-            NULL                    // the thread identifier
+        this->buffer.resize(EVENT_BUFFER_SIZE);
+        ZeroMemory(&this->overlapped, sizeof(OVERLAPPED));
+        this->overlapped.hEvent = this;
+        this->directoryHandle = CreateFileW(
+            path,				                // pointer to the file name
+            GENERIC_READ,                       // access (read/write) mode
+            CREATE_SHARE,                       // share mode
+            NULL,                               // security descriptor
+            OPEN_EXISTING,                      // how to create
+            CREATE_FLAGS,                       // file attributes
+            NULL                                // file with attributes to copy
         );
-        SetThreadPriority(this->threadHandle, THREAD_PRIORITY_ABOVE_NORMAL);
+
+        // TODO Error handling
     }
 
-    void close(JNIEnv *env) {
-        SetEvent(this->stopEventHandle);
-        WaitForSingleObject(this->threadHandle, INFINITE);
-        CloseHandle(this->threadHandle);
-        CloseHandle(this->stopEventHandle);
-        env->DeleteGlobalRef(this->watcherCallback);
+    void close() {
+        CancelIo(directoryHandle);
+        CloseHandle(directoryHandle);
     }
 
-    static unsigned __stdcall EventProcessingThread(void* data) {
-        Server *server = (Server*) data;
-        server->run();
-        return 0;
+    void listen() {
+        BOOL success = ReadDirectoryChangesW(
+            directoryHandle,			    	// handle to directory
+            &buffer[0],                         // read results buffer
+            buffer.size(),                      // length of buffer
+            TRUE,                               // monitoring option
+            EVENT_MASK,                         // filter conditions
+            NULL,                               // bytes returned
+            &overlapped,                        // overlapped buffer
+            &handleEvent                        // completion routine
+        );
     }
 
 private:
-    JavaVM *jvm;
-    wstring drivePath;
-    vector<WatchPoint> watchPoints;
-    jobject watcherCallback;
+    Server *server;
+    wstring path;
+    HANDLE directoryHandle;
+    OVERLAPPED overlapped;
+    vector<BYTE> buffer;
 
-    HANDLE stopEventHandle;
-    HANDLE threadHandle;
+    static void __stdcall handleEvent(DWORD errorCode, DWORD bytesTransfered, LPOVERLAPPED overlapped) {
+        WatchPoint* watchPoint = (WatchPoint*)overlapped->hEvent;
 
-    void run() {
-        printf("~~~~ Starting thread\n");
-
-        // TODO Extract this logic to some shared function
-        JNIEnv *env;
-        jint statAttach = jvm->AttachCurrentThreadAsDaemon((void **) &(env), NULL);
-        if (statAttach != JNI_OK) {
-            printf("Failed to attach JNI to current thread: %d\n", statAttach);
+        if (errorCode == ERROR_OPERATION_ABORTED){
+            watchPoint->server->reportFinished(*watchPoint);
+            delete watchPoint;
             return;
         }
 
-        OVERLAPPED overlapped;
-        memset(&overlapped, 0, sizeof(overlapped));
-        overlapped.hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+        if (bytesTransfered == 0) {
+            // don't send dirty too much, everything is changed anyway
+            // TODO Understand what this does
+            // if (WaitForSingleObject(stopEventHandle, 500) == WAIT_OBJECT_0)
+            //    break;
 
-        HANDLE hDrive = CreateFileW(drivePath.c_str(), GENERIC_READ, CREATE_SHARE, NULL, OPEN_EXISTING, CREATE_FLAGS, NULL);
-
-        char buffer[EVENT_BUFFER_SIZE];
-        HANDLE handles[2] = {stopEventHandle, overlapped.hEvent};
-        while (true) {
-            int rcDrive = ReadDirectoryChangesW(
-                hDrive,
-                buffer,
-                sizeof(buffer),
-                TRUE,
-                EVENT_MASK,
-                NULL,
-                &overlapped,
-                NULL
-            );
-            if (rcDrive == 0) {
-                // TODO Error handling
-                printf("~~~~ Couldn't read directory: %d - %d\n", rcDrive, GetLastError());
-                break;
-            }
-
-            DWORD rc = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
-            if (rc == WAIT_OBJECT_0) {
-                break;
-            }
-            if (rc == WAIT_OBJECT_0 + 1) {
-                DWORD dwBytesReturned;
-                if (!GetOverlappedResult(hDrive, &overlapped, &dwBytesReturned, FALSE)) {
-                    // TODO Error handling
-                    printf("~~~~ Failed to wait\n");
-                    break;
-                }
-
-                if (dwBytesReturned == 0) {
-                    // don't send dirty too much, everything is changed anyway
-                    // TODO Understand what this does
-                    if (WaitForSingleObject(stopEventHandle, 500) == WAIT_OBJECT_0)
-                        break;
-
-                    // Got a buffer overflow => current changes lost => send INVALIDATE on root
-                    reportEvent(env, FILE_EVENT_INVALIDATE, drivePath);
-                } else {
-                    FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION *)buffer;
-                    do {
-                        handlePathChanged(env, info);
-                        info = (FILE_NOTIFY_INFORMATION *)((char *)info + info->NextEntryOffset);
-                    } while (info->NextEntryOffset != 0);
-                }
-            }
+            // Got a buffer overflow => current changes lost => send INVALIDATE on root
+            watchPoint->server->reportEvent(FILE_EVENT_INVALIDATE, watchPoint->path);
+        } else {
+            watchPoint->handlePathChanged();
         }
 
-        printf("~~~~ Stopping thread\n");
-
-        CloseHandle(overlapped.hEvent);
-        CloseHandle(hDrive);
-
-        // TODO Extract this logic to some shared function
-        jint statDetach = jvm->DetachCurrentThread();
-        if (statDetach != JNI_OK) {
-            printf("Failed to detach JNI from current thread: %d\n", statAttach);
-            return;
-        }
-
-        return;
+        // Get the new read issued as fast as possible. The documentation
+        // says that the original OVERLAPPED structure will not be used
+        // again once the completion routine is called.
+        watchPoint->listen();
     }
 
-    void reportEvent(JNIEnv *env, jint type, const wstring changedPath) {
-        jstring changedPathJava = wstring_to_java(env, changedPath);
-        jclass callback_class = env->GetObjectClass(watcherCallback);
-        jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(ILjava/lang/String;)V");
-        // TODO Do we need to add a global reference to the string here?
-        env->CallVoidMethod(watcherCallback, methodCallback, type, changedPathJava);
+    void handlePathChanged() {
+        FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION *)buffer.data();
+        do {
+            info = (FILE_NOTIFY_INFORMATION *)((char *)info + info->NextEntryOffset);
+        } while (info->NextEntryOffset != 0);
     }
 
-    void handlePathChanged(JNIEnv *env, FILE_NOTIFY_INFORMATION *info) {
+    void handlePathChanged(FILE_NOTIFY_INFORMATION *info) {
         wstring changedPath = wstring(info->FileName, 0, info->FileNameLength / sizeof(wchar_t));
-        changedPath.insert(0, drivePath);
+        changedPath.insert(0, path);
 
         wprintf(L"~~~~ Changed: 0x%x %ls\n", info->Action, changedPath.c_str());
 
@@ -191,19 +120,119 @@ private:
             type = FILE_EVENT_UNKNOWN;
         }
 
-        bool watching = false;
-        for (auto &watchPoint : watchPoints) {
-            if (watchPoint.isAncestorOf(changedPath)) {
-                watching = true;
-                break;
-            }
+        server->reportEvent(type, changedPath);
+    }
+};
+
+class Server {
+public:
+    Server(
+        JavaVM *jvm,
+        JNIEnv *env,
+        jobject watcherCallback
+    ) {
+        this->jvm = jvm;
+        this->watcherCallback = env->NewGlobalRef(watcherCallback);
+        this->stopEventHandle = CreateEvent(NULL, FALSE, FALSE, NULL);
+        this->threadHandle = (HANDLE)_beginthreadex(
+            NULL,                   // default security attributes
+            0,                      // use default stack size
+            EventProcessingThread,  // thread function name
+            this,                   // argument to thread function
+            0,                      // use default creation flags
+            NULL                    // the thread identifier
+        );
+        SetThreadPriority(this->threadHandle, THREAD_PRIORITY_ABOVE_NORMAL);
+    }
+
+    void startWatching(wchar_t *path) {
+        StartWatchRequest request = { this, path };
+        QueueUserAPC(&startWatchCallback, threadHandle, ULONG_PTR (&request));
+    }
+
+    struct StartWatchRequest {
+        Server *server;
+        wstring path;
+    };
+
+	// Called by QueueUserAPC to add another directory.
+	static void __stdcall startWatchCallback(_In_ ULONG_PTR arg) {
+		StartWatchRequest *request = (StartWatchRequest*)arg;
+        WatchPoint watchPoint = request->server->watchPoints.emplace_back(request->server, request->path);
+        watchPoint.listen();
+	}
+
+    void reportFinished(const WatchPoint& watchPoint) {
+        watchPoints.remove(watchPoint);
+    }
+
+    void reportEvent(jint type, const wstring changedPath) {
+        JNIEnv* env = getThreadEnv();
+        jstring changedPathJava = wstring_to_java(env, changedPath);
+        jclass callback_class = env->GetObjectClass(watcherCallback);
+        jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(ILjava/lang/String;)V");
+        env->CallVoidMethod(watcherCallback, methodCallback, type, changedPathJava);
+    }
+
+    JNIEnv* getThreadEnv() {
+        JNIEnv* env;
+        jint ret = jvm->GetEnv((void **) &(env), NULL);
+        if (ret != JNI_OK) {
+            printf("Failed to attach JNI to current thread: %d\n", ret);
+            return NULL;
         }
-        if (!watching) {
-            wprintf(L"~~~~ Ignoring %ls (root is not watched)\n", changedPath.c_str());
+        return env;
+    }
+
+    void close(JNIEnv *env) {
+        for (auto &watchPoint : watchPoints) {
+            watchPoint.close();
+        }
+        SetEvent(this->stopEventHandle);
+        WaitForSingleObject(this->threadHandle, INFINITE);
+        CloseHandle(this->threadHandle);
+        CloseHandle(this->stopEventHandle);
+        env->DeleteGlobalRef(this->watcherCallback);
+    }
+
+private:
+    JavaVM *jvm;
+    list<WatchPoint> watchPoints;
+    jobject watcherCallback;
+
+    HANDLE stopEventHandle;
+    HANDLE threadHandle;
+    bool terminate = false;
+
+    static unsigned CALLBACK EventProcessingThread(void* data) {
+        Server *server = (Server*) data;
+        server->run();
+        return 0;
+    }
+
+    void run() {
+        printf("~~~~ Starting thread\n");
+
+        // TODO Extract this logic to some shared function
+        JNIEnv* env;
+        jint statAttach = jvm->AttachCurrentThreadAsDaemon((void **) &(env), NULL);
+        if (statAttach != JNI_OK) {
+            printf("Failed to attach JNI to current thread: %d\n", statAttach);
             return;
         }
 
-        reportEvent(env, type, changedPath);
+        while (!terminate || watchPoints.size() > 0) {
+            SleepEx(INFINITE, true);
+        }
+
+        printf("~~~~ Stopping thread\n");
+
+        // TODO Extract this logic to some shared function
+        jint statDetach = jvm->DetachCurrentThread();
+        if (statDetach != JNI_OK) {
+            printf("Failed to detach JNI from current thread: %d\n", statAttach);
+            return;
+        }
     }
 };
 
@@ -225,9 +254,8 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
         return NULL;
     }
 
-    vector<WatchPoint> watchPoints;
+    Server* server = new Server(jvm, env, javaCallback);
 
-    wchar_t driveLetter = L'\0';
     for (int i = 0; i < watchPointCount; i++) {
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
         wchar_t* watchPoint = java_to_wchar_path(env, path, result);
@@ -236,30 +264,10 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
             mark_failed_with_errno(env, "Cannot watch long paths for now.", result);
             return NULL;
         }
-        if (driveLetter == L'\0') {
-            driveLetter = watchPoint[0];
-        } else if (driveLetter != watchPoint[0]) {
-            mark_failed_with_errno(env, "Cannot watch multiple drives for now.", result);
-            return NULL;
-        }
-        if (watchPoint[watchPointLen - 1] != L'\\') {
-            wchar_t* oldwatchPoint = watchPoint;
-            watchPoint = add_suffix(watchPoint, watchPointLen, L"\\");
-            free(oldwatchPoint);
-        }
         wprintf(L"~~~~ Watching %ls\n", watchPoint);
-        watchPoints.emplace_back(watchPoint);
+        server->startWatching(watchPoint);
         free(watchPoint);
     }
-    wchar_t drivePath[4] = {towupper(driveLetter), L':', L'\\', L'\0'};
-
-    Server* server = new Server(
-        jvm,
-        env,
-        javaCallback,
-        drivePath,
-        watchPoints
-    );
 
     jclass clsWatch = env->FindClass("net/rubygrapefruit/platform/internal/jni/WindowsFileEventFunctions$WatcherImpl");
     jmethodID constructor = env->GetMethodID(clsWatch, "<init>", "(Ljava/lang/Object;)V");
