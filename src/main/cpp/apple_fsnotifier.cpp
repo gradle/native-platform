@@ -79,6 +79,8 @@ static void callback(ConstFSEventStreamRef streamRef,
         } else if (IS_SET(flags, kFSEventStreamEventFlagItemInodeMetaMod)) {
             // File locked
             type = FILE_EVENT_MODIFIED;
+        } else if (IS_SET(flags, kFSEventStreamEventFlagRootChanged)) {
+            type = FILE_EVENT_REMOVED;
         } else {
             printf("~~~~ Unknown event 0x%x for %s\n", flags, paths[i]);
             type = FILE_EVENT_UNKNOWN;
@@ -225,7 +227,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
                 rootsToWatch,
                 kFSEventStreamEventIdSinceNow,
                 latencyInMillis / 1000.0,
-                kFSEventStreamCreateFlagNoDefer | kFSEventStreamCreateFlagFileEvents);
+                kFSEventStreamCreateFlagNoDefer | kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagWatchRoot);
     if (details->watcherStream == NULL) {
         mark_failed_with_errno(env, "Could not create FSEventStreamCreate to track changes.", result);
         freeDetails(env, details);

@@ -26,16 +26,18 @@ import spock.lang.Specification
 import spock.lang.Unroll
 import spock.util.concurrent.AsyncConditions
 
-import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.*
+import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
+import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
+import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 
 abstract class AbstractFileEventsTest extends Specification {
     @Rule
     TemporaryFolder tmpDir
     def callback = new TestCallback()
-    File dir
+    File rootDir
 
     def setup() {
-        dir = tmpDir.newFolder()
+        rootDir = tmpDir.newFolder()
     }
 
     def cleanup() {
@@ -44,7 +46,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can open and close watcher on a directory without receiving any events"() {
         when:
-        startWatcher(dir)
+        startWatcher(rootDir)
 
         then:
         noExceptionThrown()
@@ -52,8 +54,8 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can detect file created"() {
         given:
-        def createdFile = new File(dir, "created.txt")
-        startWatcher(dir)
+        def createdFile = new File(rootDir, "created.txt")
+        startWatcher(rootDir)
 
         when:
         def expectedChanges = expectEvents created(createdFile)
@@ -65,13 +67,13 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can detect file removed"() {
         given:
-        def removedFile = new File(dir, "removed.txt")
+        def removedFile = new File(rootDir, "removed.txt")
         removedFile.createNewFile()
         // TODO Why does Windows report the modification?
         def expectedEvents = Platform.current().windows
             ? [modified(removedFile), removed(removedFile)]
             : [removed(removedFile)]
-        startWatcher(dir)
+        startWatcher(rootDir)
 
         when:
         def expectedChanges = expectEvents expectedEvents
@@ -83,9 +85,9 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can detect file modified"() {
         given:
-        def modifiedFile = new File(dir, "modified.txt")
+        def modifiedFile = new File(rootDir, "modified.txt")
         modifiedFile.createNewFile()
-        startWatcher(dir)
+        startWatcher(rootDir)
 
         when:
         def expectedChanges = expectEvents modified(modifiedFile)
@@ -97,14 +99,14 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can detect file renamed"() {
         given:
-        def sourceFile = new File(dir, "source.txt")
-        def targetFile = new File(dir, "target.txt")
+        def sourceFile = new File(rootDir, "source.txt")
+        def targetFile = new File(rootDir, "target.txt")
         sourceFile.createNewFile()
         // TODO Why doesn't Windows report the creation of the target file?
         def expectedEvents = Platform.current().windows
             ? [removed(sourceFile)]
             : [removed(sourceFile), created(targetFile)]
-        startWatcher(dir)
+        startWatcher(rootDir)
 
         when:
         def expectedChanges = expectEvents expectedEvents
@@ -117,10 +119,10 @@ abstract class AbstractFileEventsTest extends Specification {
     def "can detect file moved out"() {
         given:
         def outsideDir = tmpDir.newFolder()
-        def sourceFileInside = new File(dir, "source-inside.txt")
+        def sourceFileInside = new File(rootDir, "source-inside.txt")
         def targetFileOutside = new File(outsideDir, "target-outside.txt")
         sourceFileInside.createNewFile()
-        startWatcher(dir)
+        startWatcher(rootDir)
 
         when:
         def expectedChanges = expectEvents removed(sourceFileInside)
@@ -134,9 +136,9 @@ abstract class AbstractFileEventsTest extends Specification {
         given:
         def outsideDir = tmpDir.newFolder()
         def sourceFileOutside = new File(outsideDir, "source-outside.txt")
-        def targetFileInside = new File(dir, "target-inside.txt")
+        def targetFileInside = new File(rootDir, "target-inside.txt")
         sourceFileOutside.createNewFile()
-        startWatcher(dir)
+        startWatcher(rootDir)
 
         when:
         def expectedChanges = expectEvents created(targetFileInside)
@@ -148,9 +150,9 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can receive multiple events from the same directory"() {
         given:
-        def firstFile = new File(dir, "first.txt")
-        def secondFile = new File(dir, "second.txt")
-        startWatcher(dir)
+        def firstFile = new File(rootDir, "first.txt")
+        def secondFile = new File(rootDir, "second.txt")
+        startWatcher(rootDir)
 
         when:
         def expectedChanges = expectEvents created(firstFile)
@@ -170,10 +172,10 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "does not receive events from unwatched directory"() {
         given:
-        def watchedFile = new File(dir, "watched.txt")
+        def watchedFile = new File(rootDir, "watched.txt")
         def unwatchedDir = tmpDir.newFolder()
         def unwatchedFile = new File(unwatchedDir, "unwatched.txt")
-        startWatcher(dir)
+        startWatcher(rootDir)
 
         when:
         def expectedChanges = expectEvents created(watchedFile)
@@ -186,10 +188,10 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can receive multiple events from multiple watched directories"() {
         given:
-        def firstFileInFirstWatchedDir = new File(dir, "first-watched.txt")
+        def firstFileInFirstWatchedDir = new File(rootDir, "first-watched.txt")
         def secondWatchedDir = tmpDir.newFolder()
         def secondFileInSecondWatchedDir = new File(secondWatchedDir, "sibling-watched.txt")
-        startWatcher(dir, secondWatchedDir)
+        startWatcher(rootDir, secondWatchedDir)
 
         when:
         def expectedChanges = expectEvents created(firstFileInFirstWatchedDir)
@@ -208,8 +210,8 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can receive events from directory with different casing"() {
         given:
-        def lowercaseDir = new File(dir, "watch-this")
-        def uppercaseDir = new File(dir, "WATCH-THIS")
+        def lowercaseDir = new File(rootDir, "watch-this")
+        def uppercaseDir = new File(rootDir, "WATCH-THIS")
         def fileInLowercaseDir = new File(lowercaseDir, "lowercase.txt")
         def fileInUppercaseDir = new File(uppercaseDir, "UPPERCASE.TXT")
         uppercaseDir.mkdirs()
@@ -235,7 +237,7 @@ abstract class AbstractFileEventsTest extends Specification {
     def "can handle exception in callback"() {
         given:
         def error = new RuntimeException("Error")
-        def createdFile = new File(dir, "created.txt")
+        def createdFile = new File(rootDir, "created.txt")
         def conditions = new AsyncConditions()
         when:
         startWatcher({ type, path ->
@@ -244,7 +246,7 @@ abstract class AbstractFileEventsTest extends Specification {
             } finally {
                 conditions.evaluate {}
             }
-        }, dir)
+        }, rootDir)
         createdFile.createNewFile()
         conditions.await()
 
@@ -254,7 +256,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can be started once and stopped multiple times"() {
         given:
-        startWatcher(dir)
+        startWatcher(rootDir)
 
         when:
         // TODO There's a race condition in starting the macOS watcher thread
@@ -268,9 +270,9 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can be used multiple times"() {
         given:
-        def firstFile = new File(dir, "first.txt")
-        def secondFile = new File(dir, "second.txt")
-        startWatcher(dir)
+        def firstFile = new File(rootDir, "first.txt")
+        def secondFile = new File(rootDir, "second.txt")
+        startWatcher(rootDir)
 
         when:
         def expectedChanges = expectEvents created(firstFile)
@@ -281,7 +283,7 @@ abstract class AbstractFileEventsTest extends Specification {
         stopWatcher()
 
         when:
-        startWatcher(dir)
+        startWatcher(rootDir)
         expectedChanges = expectEvents created(secondFile)
         secondFile.createNewFile()
 
@@ -291,10 +293,10 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can receive event about a non-direct descendant change"() {
         given:
-        def subDir = new File(dir, "sub-dir")
+        def subDir = new File(rootDir, "sub-dir")
         subDir.mkdirs()
         def fileInSubDir = new File(subDir, "watched-descendant.txt")
-        startWatcher(dir)
+        startWatcher(rootDir)
 
         when:
         def expectedChanges = expectEvents created(fileInSubDir)
@@ -308,7 +310,7 @@ abstract class AbstractFileEventsTest extends Specification {
     @IgnoreIf({ Platform.current().windows })
     def "can watch directory with long path"() {
         given:
-        def subDir = new File(dir, "long-path")
+        def subDir = new File(rootDir, "long-path")
         4.times {
             subDir = new File(subDir, "X" * 200)
         }
@@ -329,7 +331,7 @@ abstract class AbstractFileEventsTest extends Specification {
         Assume.assumeTrue(supported)
 
         given:
-        def subDir = new File(dir, path)
+        def subDir = new File(rootDir, path)
         subDir.mkdirs()
         def fileInSubDir = new File(subDir, path)
         startWatcher(subDir)
@@ -349,6 +351,34 @@ abstract class AbstractFileEventsTest extends Specification {
         "space"      | "test directory"         | true
         "zwnj"       | "test\u200cdirectory"    | true
         "URL-quoted" | "test%<directory>#2.txt" | !Platform.current().windows
+    }
+
+    @Unroll
+    @IgnoreIf({ Platform.current().windows })
+    def "can detect #removedAncestry removed"() {
+        given:
+        def parentDir = new File(rootDir, "parent")
+        def watchedDir = new File(parentDir, "removed")
+        watchedDir.mkdirs()
+        def removedFile = new File(watchedDir, "file.txt")
+        removedFile.createNewFile()
+        File removedDir = removedDirectory(watchedDir)
+
+        def expectedEvents = [removed(watchedDir)]
+        startWatcher(watchedDir)
+
+        when:
+        def expectedChanges = expectEvents expectedEvents
+        assert removedDir.deleteDir()
+
+        then:
+        expectedChanges.await()
+
+        where:
+        removedAncestry                     | removedDirectory
+        "watched directory"                 | { it }
+        "parent of watched directory"       | { it.parentFile }
+        "grand-parent of watched directory" | { it.parentFile.parentFile }
     }
 
     protected abstract void startWatcher(FileWatcherCallback callback = this.callback, File... roots)
