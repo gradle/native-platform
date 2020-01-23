@@ -7,6 +7,7 @@
 #include <list>
 #include <vector>
 #include <string>
+#include <iostream>
 
 using namespace std;
 
@@ -28,6 +29,8 @@ class WatchPoint;
 class WatchPoint {
 public:
     WatchPoint(Server *server, wstring path) {
+        wcerr << "~~~~ Server: " << server << "\n";
+        wcerr << "~~~~ Path: " << path << "\n";
         this->server = server;
         this->path = path;
         ZeroMemory(&this->overlapped, sizeof(OVERLAPPED));
@@ -50,6 +53,7 @@ public:
 
 private:
     Server *server;
+    friend static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg);
     wstring path;
     HANDLE directoryHandle;
     OVERLAPPED overlapped;
@@ -78,12 +82,13 @@ public:
             0,                      // use default creation flags
             NULL                    // the thread identifier
         );
+        // TODO Error handling
         SetThreadPriority(this->threadHandle, THREAD_PRIORITY_ABOVE_NORMAL);
     }
 
     void startWatching(wchar_t *path);
     void reportEvent(jint type, const wstring changedPath);
-    void reportFinished(const WatchPoint* watchPoint);
+    void reportFinished(WatchPoint* watchPoint);
 
     void close(JNIEnv *env);
 
@@ -95,7 +100,7 @@ private:
     friend static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg);
 
     JavaVM *jvm;
-    list<WatchPoint> watchPoints;
+    list<WatchPoint*> watchPoints;
     jobject watcherCallback;
 
     HANDLE stopEventHandle;
@@ -112,16 +117,19 @@ void WatchPoint::close() {
 }
 
 void WatchPoint::listen() {
+    wcerr << "~~~~ Listening " << directoryHandle << " with buffer " << sizeof(buffer) << "\n";
+    DWORD bytesReturned = 0;
     BOOL success = ReadDirectoryChangesW(
         directoryHandle,                    // handle to directory
         buffer,                             // read results buffer
         sizeof(buffer),                     // length of buffer
-        TRUE,                               // monitoring option
+        TRUE,                               // include children
         EVENT_MASK,                         // filter conditions
-        NULL,                               // bytes returned
+        &bytesReturned,                     // bytes returned
         &overlapped,                        // overlapped buffer
         &handleEventCallback                // completion routine
     );
+    wcerr << "~~~~ Success: " << success << " / " << GetLastError() << "\n";
 }
 
 static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransfered, LPOVERLAPPED overlapped) {
@@ -130,6 +138,7 @@ static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransfered,
 }
 
 void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransfered) {
+    wcerr << "~~~~ Callback called: " << errorCode << " / " << bytesTransfered << ", path: " << path << "\n";
     if (errorCode == ERROR_OPERATION_ABORTED){
         server->reportFinished(this);
         delete this;
@@ -179,19 +188,19 @@ void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION *info) {
 }
 
 void Server::startWatching(wchar_t *path) {
-    Server::StartWatchRequest request = { this, path };
-    QueueUserAPC(&startWatchCallback, threadHandle, ULONG_PTR (&request));
+    WatchPoint* watchPoint = new WatchPoint(this, wstring(path));
+    QueueUserAPC(&startWatchCallback, threadHandle, (ULONG_PTR) watchPoint);
 }
 
 // Called by QueueUserAPC to add another directory.
 static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg) {
-    Server::StartWatchRequest *request = (Server::StartWatchRequest*)arg;
-    request->server->watchPoints.emplace_back(request->server, request->path);
-    // watchPoint.listen();
+    WatchPoint* watchPoint = (WatchPoint*)arg;
+    watchPoint->server->watchPoints.push_back(watchPoint);
+    watchPoint->listen();
 }
 
-void Server::reportFinished(const WatchPoint *watchPoint) {
-    // watchPoints.remove(*watchPoint);
+void Server::reportFinished(WatchPoint* watchPoint) {
+    watchPoints.remove(watchPoint);
 }
 
 static JNIEnv* getThreadEnv(JavaVM *jvm) {
@@ -245,7 +254,7 @@ void Server::run() {
 
 void Server::close(JNIEnv *env) {
     for (auto &watchPoint : watchPoints) {
-        watchPoint.close();
+        watchPoint->close();
     }
     SetEvent(this->stopEventHandle);
     WaitForSingleObject(this->threadHandle, INFINITE);
