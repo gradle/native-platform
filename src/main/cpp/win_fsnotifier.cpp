@@ -7,7 +7,6 @@
 #include <list>
 #include <vector>
 #include <string>
-#include <iostream>
 
 using namespace std;
 
@@ -142,8 +141,6 @@ void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransfered) {
         return;
     }
 
-    wcerr << "~~~~ Callback called: " << errorCode << " / " << bytesTransfered << " on thread " << GetCurrentThreadId() << ", path: " << path << "\n";
-
     if (bytesTransfered == 0) {
         // don't send dirty too much, everything is changed anyway
         // TODO Understand what this does
@@ -155,6 +152,7 @@ void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransfered) {
     } else {
         FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION *)buffer.data();
         do {
+            handlePathChanged(info);
             info = (FILE_NOTIFY_INFORMATION *)((char *)info + info->NextEntryOffset);
         } while (info->NextEntryOffset != 0);
     }
@@ -167,7 +165,10 @@ void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransfered) {
 
 void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION *info) {
     wstring changedPath = wstring(info->FileName, 0, info->FileNameLength / sizeof(wchar_t));
-    changedPath.insert(0, path);
+    if (!changedPath.empty()) {
+        changedPath.insert(0, 1, L'\\');
+        changedPath.insert(0, path);
+    }
 
     wprintf(L"~~~~ Changed: 0x%x %ls\n", info->Action, changedPath.c_str());
 
@@ -204,7 +205,8 @@ void Server::reportFinished(WatchPoint* watchPoint) {
 
 static JNIEnv* getThreadEnv(JavaVM *jvm) {
     JNIEnv* env;
-    jint ret = jvm->GetEnv((void **) &(env), NULL);
+    // TODO Verify that JNI 1.6 is the right version
+    jint ret = jvm->GetEnv((void **) &(env), JNI_VERSION_1_6);
     if (ret != JNI_OK) {
         printf("Failed to attach JNI to current thread: %d\n", ret);
         return NULL;
