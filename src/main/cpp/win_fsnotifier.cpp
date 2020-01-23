@@ -18,10 +18,6 @@ using namespace std;
 #define EVENT_MASK (FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | \
                     FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE)
 
-jstring wstring_to_java(JNIEnv* env, const wstring &string) {
-    return env->NewString((jchar*) (string.c_str()), string.length());
-}
-
 class Server;
 class WatchPoint;
 
@@ -216,7 +212,7 @@ static JNIEnv* getThreadEnv(JavaVM *jvm) {
 
 void Server::reportEvent(jint type, const wstring changedPath) {
     JNIEnv* env = getThreadEnv(jvm);
-    jstring changedPathJava = wstring_to_java(env, changedPath);
+    jstring changedPathJava = wchar_to_java_path(env, changedPath.c_str());
     jclass callback_class = env->GetObjectClass(watcherCallback);
     jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(ILjava/lang/String;)V");
     env->CallVoidMethod(watcherCallback, methodCallback, type, changedPathJava);
@@ -294,12 +290,8 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
 
     for (int i = 0; i < watchPointCount; i++) {
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
-        wchar_t* watchPoint = java_to_wchar_path(env, path, result);
+        wchar_t* watchPoint = java_to_wchar_path(env, path);
         int watchPointLen = wcslen(watchPoint);
-        if (watchPointLen > 240 || watchPoint[0] == L'\\') {
-            mark_failed_with_errno(env, "Cannot watch long paths for now.", result);
-            return NULL;
-        }
         wprintf(L"~~~~ Watching %ls\n", watchPoint);
         server->startWatching(watchPoint);
         free(watchPoint);

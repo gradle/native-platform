@@ -32,17 +32,6 @@ class WindowsFileEventFunctionsTest extends AbstractFileEventsTest {
         Native.get(WindowsFileEventFunctions.class) is fileEvents
     }
 
-    def "cannot watch long paths"() {
-        given:
-        def longPath = new File(dir, "X" * 240).canonicalPath
-        when:
-        fileEvents.startWatching([longPath]) {}
-
-        then:
-        def ex = thrown NativeException
-        ex.message == "Failed to start watching. Reason: Cannot watch long paths for now."
-    }
-
     @Override
     protected void startWatcher(FileWatcherCallback callback, File... roots) {
         // Avoid setup operations to be reported

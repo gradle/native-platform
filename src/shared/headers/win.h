@@ -28,7 +28,13 @@
 // Converts a Java string to a UNICODE path, including the Long Path prefix ("\\?\")
 // so that the resulting path supports paths longer than MAX_PATH (260 characters)
 //
-extern wchar_t* java_to_wchar_path(JNIEnv *env, jstring string, jobject result);
+extern wchar_t* java_to_wchar_path(JNIEnv *env, jstring string);
+
+//
+// Converts a UJNICODE path to a Java string, removing the Long Path prefix ("\\?\")
+// if present
+//
+extern jstring wchar_to_java_path(JNIEnv *env, const wchar_t* string);
 
 //
 // Returns 'true' if the path of the form "X:\", where 'X' is a drive letter.

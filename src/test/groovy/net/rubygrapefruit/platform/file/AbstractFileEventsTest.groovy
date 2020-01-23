@@ -304,8 +304,6 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
-    // Not yet implemented properly for Windows, works on macOS
-    @IgnoreIf({ Platform.current().windows })
     def "can watch directory with long path"() {
         given:
         def subDir = new File(dir, "long-path")
