@@ -29,15 +29,14 @@ class WatchPoint;
 class WatchPoint {
 public:
     WatchPoint(Server *server, wstring path) {
-        wcerr << "~~~~ Server: " << server << "\n";
-        wcerr << "~~~~ Path: " << path << "\n";
         this->server = server;
         this->path = path;
+        this->buffer.resize(EVENT_BUFFER_SIZE);
         ZeroMemory(&this->overlapped, sizeof(OVERLAPPED));
         this->overlapped.hEvent = this;
         this->directoryHandle = CreateFileW(
             path.c_str(),                       // pointer to the file name
-            GENERIC_READ,                       // access (read/write) mode
+            FILE_LIST_DIRECTORY,                // access (read/write) mode
             CREATE_SHARE,                       // share mode
             NULL,                               // security descriptor
             OPEN_EXISTING,                      // how to create
@@ -57,7 +56,7 @@ private:
     wstring path;
     HANDLE directoryHandle;
     OVERLAPPED overlapped;
-    char buffer[EVENT_BUFFER_SIZE];
+    vector<BYTE> buffer;
 
     void handleEvent(DWORD errorCode, DWORD bytesTransfered);
     void handlePathChanged(FILE_NOTIFY_INFORMATION *info);
@@ -107,6 +106,9 @@ private:
     HANDLE threadHandle;
     bool terminate = false;
 
+    friend static void CALLBACK requestTerminationCallback(_In_ ULONG_PTR arg);
+    void requestTermination();
+
     friend static unsigned CALLBACK EventProcessingThread(void* data);
     void run();
 };
@@ -117,19 +119,17 @@ void WatchPoint::close() {
 }
 
 void WatchPoint::listen() {
-    wcerr << "~~~~ Listening " << directoryHandle << " with buffer " << sizeof(buffer) << "\n";
-    DWORD bytesReturned = 0;
     BOOL success = ReadDirectoryChangesW(
         directoryHandle,                    // handle to directory
-        buffer,                             // read results buffer
-        sizeof(buffer),                     // length of buffer
+        &buffer[0],                         // read results buffer
+        buffer.size(),                      // length of buffer
         TRUE,                               // include children
         EVENT_MASK,                         // filter conditions
-        &bytesReturned,                     // bytes returned
+        NULL,                               // bytes returned
         &overlapped,                        // overlapped buffer
         &handleEventCallback                // completion routine
     );
-    wcerr << "~~~~ Success: " << success << " / " << GetLastError() << "\n";
+    // TODO Error handling
 }
 
 static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransfered, LPOVERLAPPED overlapped) {
@@ -138,12 +138,13 @@ static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransfered,
 }
 
 void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransfered) {
-    wcerr << "~~~~ Callback called: " << errorCode << " / " << bytesTransfered << ", path: " << path << "\n";
     if (errorCode == ERROR_OPERATION_ABORTED){
         server->reportFinished(this);
         delete this;
         return;
     }
+
+    wcerr << "~~~~ Callback called: " << errorCode << " / " << bytesTransfered << " on thread " << GetCurrentThreadId() << ", path: " << path << "\n";
 
     if (bytesTransfered == 0) {
         // don't send dirty too much, everything is changed anyway
@@ -154,7 +155,7 @@ void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransfered) {
         // Got a buffer overflow => current changes lost => send INVALIDATE on root
         server->reportEvent(FILE_EVENT_INVALIDATE, path);
     } else {
-        FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION *)buffer;
+        FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION *)buffer.data();
         do {
             info = (FILE_NOTIFY_INFORMATION *)((char *)info + info->NextEntryOffset);
         } while (info->NextEntryOffset != 0);
@@ -228,7 +229,7 @@ static unsigned CALLBACK EventProcessingThread(void* data) {
 }
 
 void Server::run() {
-    printf("~~~~ Starting thread\n");
+    printf("~~~~ Thread %d running\n", GetCurrentThreadId());
 
     // TODO Extract this logic to some shared function
     JNIEnv* env;
@@ -252,11 +253,20 @@ void Server::run() {
     }
 }
 
-void Server::close(JNIEnv *env) {
+static void CALLBACK requestTerminationCallback(_In_ ULONG_PTR arg) {
+    Server* server = (Server*)arg;
+    server->requestTermination();
+}
+
+void Server::requestTermination() {
+    terminate = true;
     for (auto &watchPoint : watchPoints) {
         watchPoint->close();
     }
-    SetEvent(this->stopEventHandle);
+}
+
+void Server::close(JNIEnv *env) {
+    QueueUserAPC(requestTerminationCallback, this->threadHandle, (ULONG_PTR)this);
     WaitForSingleObject(this->threadHandle, INFINITE);
     CloseHandle(this->threadHandle);
     CloseHandle(this->stopEventHandle);
