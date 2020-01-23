@@ -72,7 +72,6 @@ public:
     ) {
         this->jvm = jvm;
         this->watcherCallback = env->NewGlobalRef(watcherCallback);
-        this->stopEventHandle = CreateEvent(NULL, FALSE, FALSE, NULL);
         this->threadHandle = (HANDLE)_beginthreadex(
             NULL,                   // default security attributes
             0,                      // use default stack size
@@ -102,7 +101,6 @@ private:
     list<WatchPoint*> watchPoints;
     jobject watcherCallback;
 
-    HANDLE stopEventHandle;
     HANDLE threadHandle;
     bool terminate = false;
 
@@ -269,7 +267,6 @@ void Server::close(JNIEnv *env) {
     QueueUserAPC(requestTerminationCallback, this->threadHandle, (ULONG_PTR)this);
     WaitForSingleObject(this->threadHandle, INFINITE);
     CloseHandle(this->threadHandle);
-    CloseHandle(this->stopEventHandle);
     env->DeleteGlobalRef(this->watcherCallback);
 }
 
