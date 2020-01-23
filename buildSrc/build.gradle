@@ -5,6 +5,12 @@ repositories {
 dependencies {
     implementation gradleApi()
     implementation 'org.apache.httpcomponents.client5:httpclient5:5.0-beta3'
+    implementation 'com.google.guava:guava:28.2-jre'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
 }
 
 if (JavaVersion.current() != JavaVersion.VERSION_1_8) {

@@ -33,7 +33,7 @@ void mark_failed_with_code(JNIEnv *env, const char* message, int error_code, con
     env->CallVoidMethod(result, method, message_str, failure_code, error_code, error_code_str);
 }
 
-JNIEXPORT jint JNICALL
+JNIEXPORT jlong JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getVersion(JNIEnv *env, jclass target) {
     return NATIVE_VERSION;
 }

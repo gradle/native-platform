@@ -20,7 +20,7 @@ import net.rubygrapefruit.platform.internal.FunctionResult;
 import net.rubygrapefruit.platform.internal.TerminalCapabilities;
 
 public class TerminfoFunctions {
-    public static native int getVersion();
+    public static native long getVersion();
 
     /**
      * Sets up output.
