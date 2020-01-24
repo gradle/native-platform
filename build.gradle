@@ -311,7 +311,6 @@ model {
                     cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
                     cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/freebsd"
                 }
-                cppCompiler.args "-I${nativeHeadersDir}"
             }
 
             binaries.withType(SharedLibraryBinarySpec) { binary ->
@@ -369,9 +368,7 @@ model {
 tasks.withType(CppCompile).configureEach {
     dependsOn(project.tasks.nativeHeaders)
     dependsOn(writeNativeVersionSources)
-    inputs.files(nativeHeadersDir)
-        .withPropertyName("nativeHeadersDir")
-        .withPathSensitivity(PathSensitivity.RELATIVE)
+    includes(nativeHeadersDir)
 }
 
 publishing {
