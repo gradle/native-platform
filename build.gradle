@@ -34,9 +34,10 @@ boolean onlyPrimaryVariants = project.hasProperty("onlyPrimaryVariants")
 
 def nativeHeadersDir = file("$buildDir/nativeHeaders")
 
-task nativeHeaders {
-    def outputFile = file("$nativeHeadersDir/native.h")
-    def classes = [
+task nativeHeaders(type: GenerateJniHeader) {
+    headerFile = file("$nativeHeadersDir/native.h")
+    classpath.from(sourceSets.main.output.classesDirs)
+    classNames = [
             'net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions',
             'net.rubygrapefruit.platform.internal.jni.PosixFileFunctions',
             'net.rubygrapefruit.platform.internal.jni.PosixFileSystemFunctions',
@@ -53,18 +54,6 @@ task nativeHeaders {
             'net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions',
             'net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions',
     ]
-    inputs.files sourceSets.main.output
-    inputs.property('classes', classes)
-    outputs.file outputFile
-    doLast {
-        outputFile.parentFile.mkdirs()
-        exec {
-            executable org.gradle.internal.jvm.Jvm.current().getExecutable('javah')
-            args '-o', outputFile
-            args '-classpath', sourceSets.main.output.classesDirs.asPath
-            args classes
-        }
-    }
 }
 
 def writeNativeVersionSources = tasks.register("writeNativeVersionSources", WriteNativeVersionSources) {
