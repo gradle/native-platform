@@ -392,3 +392,7 @@ String inferNCursesVersion(def os) {
     }
     throw new IllegalArgumentException("Could not determine ncurses version installed on this machine.")
 }
+
+tasks.withType(GroovyCompile).configureEach {
+    options.incremental = true
+}
