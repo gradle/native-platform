@@ -269,7 +269,7 @@ model {
 
         all {
             binaries.all {
-                if (targetPlatform.operatingSystem.name in ['linux', 'freebsd'] && targetPlatform.architecture != arch) {
+                if (targetPlatform.operatingSystem.name in ['linux', 'freebsd'] && targetPlatform.architecture != arch && !(arch.amd64 && targetPlatform.architecture.i386)) {
                     // Native plugins don't detect whether multilib support is available or not. Assume not for now
                     buildable = false
                 }
@@ -300,8 +300,7 @@ model {
 
             binaries.withType(SharedLibraryBinarySpec) { binary ->
                 def targetOs = binary.targetPlatform.operatingSystem
-                def targetArch = binary.targetPlatform.architecture
-                def includeVariant = !onlyPrimaryVariants || targetOs.windows || targetOs.macOsX || (targetOs.linux && targetArch.name == "x86-64" && !targetPlatform.name.contains("ncurses6"))
+                def includeVariant = !onlyPrimaryVariants || targetOs.windows || targetOs.macOsX || (targetOs.linux && (targetPlatform.architecture.i386 || targetPlatform.architecture.amd64) && !targetPlatform.name.contains("ncurses6"))
                 if (!includeVariant) {
                     return
                 }
