@@ -20,6 +20,7 @@ import net.rubygrapefruit.platform.internal.Platform
 import org.junit.Assume
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
+import org.junit.rules.TestName
 import spock.lang.Ignore
 import spock.lang.IgnoreIf
 import spock.lang.Specification
@@ -31,13 +32,13 @@ import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 
 abstract class AbstractFileEventsTest extends Specification {
-    @Rule
-    TemporaryFolder tmpDir
+    @Rule TemporaryFolder tmpDir
+    @Rule TestName testName
     def callback = new TestCallback()
     File rootDir
 
     def setup() {
-        rootDir = tmpDir.newFolder()
+        rootDir = tmpDir.newFolder(testName.methodName)
     }
 
     def cleanup() {
