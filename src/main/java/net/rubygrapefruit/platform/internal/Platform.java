@@ -27,7 +27,7 @@ import net.rubygrapefruit.platform.file.FileSystems;
 import net.rubygrapefruit.platform.file.Files;
 import net.rubygrapefruit.platform.file.PosixFiles;
 import net.rubygrapefruit.platform.file.WindowsFiles;
-import net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions;
+import net.rubygrapefruit.platform.internal.jni.NativeVersion;
 import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions;
 import net.rubygrapefruit.platform.internal.jni.PosixTypeFunctions;
 import net.rubygrapefruit.platform.internal.jni.TerminfoFunctions;
@@ -227,11 +227,11 @@ public abstract class Platform {
             }
             if (type.equals(Terminals.class)) {
                 nativeLibraryLoader.load(getCursesLibraryName(), getCursesVariants());
-                int nativeVersion = TerminfoFunctions.getVersion();
-                if (nativeVersion != NativeLibraryFunctions.VERSION) {
+                long nativeVersion = TerminfoFunctions.getVersion();
+                if (nativeVersion != NativeVersion.VERSION) {
                     throw new NativeException(String.format(
                             "Unexpected native library version loaded. Expected %s, was %s.", nativeVersion,
-                            NativeLibraryFunctions.VERSION));
+                        NativeVersion.VERSION));
                 }
                 return type.cast(new PosixTerminals());
             }

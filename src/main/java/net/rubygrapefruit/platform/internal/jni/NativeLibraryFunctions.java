@@ -21,13 +21,11 @@ import net.rubygrapefruit.platform.internal.MutableSystemInfo;
 import net.rubygrapefruit.platform.terminal.Terminals;
 
 public class NativeLibraryFunctions {
-    public static final int VERSION = 37;
-
     public static final int STDOUT = Terminals.Output.Stdout.ordinal();
     public static final int STDERR = Terminals.Output.Stderr.ordinal();
     public static final int STDIN = STDERR + 1;
 
-    public static native int getVersion();
+    public static native long getVersion();
 
     public static native void getSystemInfo(MutableSystemInfo systemInfo, FunctionResult result);
 }
