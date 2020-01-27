@@ -17,9 +17,9 @@ java {
     targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-if (JavaVersion.current() != JavaVersion.VERSION_1_8) {
+if (JavaVersion.current() < JavaVersion.VERSION_1_8) {
     // Need to use Java 8 on some older platforms
-    throw new UnsupportedOperationException("Java 8 is required to build native-platform. Later versions are not supported.")
+    throw new UnsupportedOperationException("At least Java 8 is required to build native-platform. Earlier versions are not supported.")
 }
 
 gradlePlugin {

@@ -22,8 +22,11 @@ allprojects {
 
     group = 'net.rubygrapefruit'
 
-    sourceCompatibility = 1.5
-    targetCompatibility = 1.5
+    // Java 9 and later don't support targetting Java 5
+    def compatibility = JavaVersion.current().isJava9Compatible() ? 1.6 : 1.5
+
+    sourceCompatibility = compatibility
+    targetCompatibility = compatibility
 }
 
 dependencies {
