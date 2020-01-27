@@ -32,10 +32,10 @@ dependencies {
 
 boolean onlyPrimaryVariants = project.hasProperty("onlyPrimaryVariants")
 
-def nativeHeadersDir = file("$buildDir/nativeHeaders")
+def generatedFilesDir = file("$buildDir/generated")
 
-task nativeHeaders(type: GenerateJniHeader) {
-    headerFile = file("$nativeHeadersDir/native.h")
+def nativeHeaders = tasks.register("nativeHeaders", GenerateJniHeader) {
+    generatedHeaderDirectory = file("$generatedFilesDir/jni-header")
     classpath.from(sourceSets.main.output.classesDirs)
     classNames = [
             'net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions',
@@ -62,10 +62,8 @@ def writeNativeVersionSources = tasks.register("writeNativeVersionSources", Writ
         nativeSources.from("src/${it}/headers")
     }
 
-    def generatedSources = project.layout.buildDirectory.dir("generated/sources")
-
-    nativeVersionHeaderFile = file("$nativeHeadersDir/native_platform_version.h")
-    generatedJavaSourcesDir = generatedSources.map { it.dir("java") }
+    generatedNativeHeaderDirectory = file("$generatedFilesDir/version/header")
+    generatedJavaSourcesDir = file("$generatedFilesDir/version/java")
 }
 
 sourceSets.main.java {
@@ -355,9 +353,12 @@ model {
 }
 
 tasks.withType(CppCompile).configureEach {
-    dependsOn(project.tasks.nativeHeaders)
+    dependsOn(nativeHeaders)
     dependsOn(writeNativeVersionSources)
-    includes(nativeHeadersDir)
+    includes.from(
+        nativeHeaders.map { it.generatedHeaderDirectory },
+        writeNativeVersionSources.map { it.generatedNativeHeaderDirectory }
+    )
 }
 
 publishing {

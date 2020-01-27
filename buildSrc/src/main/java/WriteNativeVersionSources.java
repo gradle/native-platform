@@ -9,12 +9,10 @@ import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.FileVisitDetails;
 import org.gradle.api.file.FileVisitor;
 import org.gradle.api.file.RegularFile;
-import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.CacheableTask;
 import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.OutputDirectory;
-import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
@@ -33,8 +31,8 @@ public abstract class WriteNativeVersionSources extends DefaultTask {
     @InputFiles
     public abstract ConfigurableFileCollection getNativeSources();
 
-    @OutputFile
-    public abstract RegularFileProperty getNativeVersionHeaderFile();
+    @OutputDirectory
+    public abstract DirectoryProperty getGeneratedNativeHeaderDirectory();
 
     @OutputDirectory
     public abstract DirectoryProperty getGeneratedJavaSourcesDir();
@@ -46,7 +44,7 @@ public abstract class WriteNativeVersionSources extends DefaultTask {
 
         writeTextFile(
             createNativeHeaderContents(version),
-            getNativeVersionHeaderFile()
+            getGeneratedNativeHeaderDirectory().file("native_platform_version.h")
         );
 
         writeTextFile(
