@@ -14,11 +14,25 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+/**
+ * Concatenates JNI headers generated during Java compilation into a single <pre>native.h</pre> file,
+ * for easier consumption by the native code.
+ */
 public abstract class ConcatenateJniHeaders extends DefaultTask {
 
+    /**
+     * The directory containing the generated JNI headers.
+     *
+     * Contains one header file per class with a native method.
+     */
     @InputDirectory
     public abstract DirectoryProperty getJniHeaders();
 
+    /**
+     * The target directory for the concatenated header file.
+     *
+     * The file will be called <pre>native.h</pre>
+     */
     @OutputDirectory
     public abstract DirectoryProperty getGeneratedNativeHeaderDirectory();
 
