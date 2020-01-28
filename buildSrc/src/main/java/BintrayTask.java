@@ -18,6 +18,7 @@ import org.apache.hc.core5.http.config.RegistryBuilder;
 import org.apache.hc.core5.http.io.entity.InputStreamEntity;
 import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.gradle.api.DefaultTask;
+import org.gradle.api.tasks.Internal;
 
 import javax.net.ssl.SSLContext;
 import java.io.ByteArrayOutputStream;
@@ -30,6 +31,7 @@ public abstract class BintrayTask extends DefaultTask {
     private String userName;
     private String apiKey;
 
+    @Internal
     public String getUserName() {
         return userName;
     }
@@ -38,6 +40,7 @@ public abstract class BintrayTask extends DefaultTask {
         this.userName = userName;
     }
 
+    @Internal
     public String getApiKey() {
         return apiKey;
     }
