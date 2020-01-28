@@ -1,8 +1,9 @@
 import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
 
 plugins {
+    id 'cpp-library'
+    id 'java-library'
     id 'groovy'
-    id 'cpp'
     id 'net.rubygrapefruit.build.jni-plugin'
 }
 
@@ -87,262 +88,337 @@ def os = new DefaultNativePlatform("current").operatingSystem
 def arch = new DefaultNativePlatform("current").architecture
 def ncursesVersion = inferNCursesVersion(os)
 
-model {
-    platforms {
-        osx_amd64 {
-            architecture "amd64"
-            operatingSystem "osx"
-        }
-        linux_i386 {
-            architecture "i386"
-            operatingSystem "linux"
-        }
-        linux_i386_ncurses5 {
-            architecture "i386"
-            operatingSystem "linux"
-        }
-        linux_i386_ncurses6 {
-            architecture "i386"
-            operatingSystem "linux"
-        }
-        linux_amd64 {
-            architecture "amd64"
-            operatingSystem "linux"
-        }
-        linux_amd64_ncurses5 {
-            architecture "amd64"
-            operatingSystem "linux"
-        }
-        linux_amd64_ncurses6 {
-            architecture "amd64"
-            operatingSystem "linux"
-        }
-        linux_aarch64 {
-            architecture "aarch64"
-            operatingSystem "linux"
-        }
-        linux_aarch64_ncurses5 {
-            architecture "aarch64"
-            operatingSystem "linux"
-        }
-        linux_aarch64_ncurses6 {
-            architecture "aarch64"
-            operatingSystem "linux"
-        }
-        windows_i386 {
-            architecture "i386"
-            operatingSystem "windows"
-        }
-        windows_amd64 {
-            architecture "amd64"
-            operatingSystem "windows"
-        }
-        windows_i386_min {
-            architecture "i386"
-            operatingSystem "windows"
-        }
-        windows_amd64_min {
-            architecture "amd64"
-            operatingSystem "windows"
-        }
-        freebsd_i386_libcpp {
-            architecture "i386"
-            operatingSystem "freebsd"
-        }
-        freebsd_i386_libstdcpp {
-            architecture "i386"
-            operatingSystem "freebsd"
-        }
-        freebsd_amd64_libcpp {
-            architecture "amd64"
-            operatingSystem "freebsd"
-        }
-        freebsd_amd64_libstdcpp {
-            architecture "amd64"
-            operatingSystem "freebsd"
-        }
-    }
-
-    toolChains {
-        gcc(Gcc) {
-            // The core Gradle toolchain for gcc only targets x86 and x86_64 out of the box.
-            // https://github.com/gradle/gradle/blob/36614ee523e5906ddfa1fed9a5dc00a5addac1b0/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/gcc/AbstractGccCompatibleToolChain.java
-            target("linux_aarch64")
-            target("linux_aarch64_ncurses5")
-            target("linux_aarch64_ncurses6")
-
-            eachPlatform {
-                // Use GCC to build for libstdc++ on FreeBSD
-                if (platform.operatingSystem.freeBSD) {
-                    if (platform.name.contains('libstdcpp')) {
-                        cCompiler.executable = 'cc'
-                        cppCompiler.executable = 'c++'
-                        linker.executable = 'c++'
-                    } else {
-                        // Use a dummy so that GCC is not selected
-                        cCompiler.executable = 'dummy'
-                        cppCompiler.executable = 'dummy'
-                        objcCompiler.executable = 'dummy'
-                        objcppCompiler.executable = 'dummy'
-                        assembler.executable = 'dummy'
-                        linker.executable = 'dummy'
-                        staticLibArchiver.executable = 'dummy'
-                    }
-                }
+library {
+    targetMachines = [
+        machines.windows.x86_64,
+        machines.macOS.x86_64,
+        machines.linux.x86_64
+    ]
+    publicHeaders.from file('src/shared/headers')
+    source.from file('src/main/cpp')
+    source.from file('src/shared/cpp')
+    binaries.configureEach {
+        linkTask.get().configure {
+            if (targetPlatform.get().operatingSystem.macOsX) {
+                linkerArgs.add('-mmacosx-version-min=10.9')
+                linkerArgs.addAll('-framework', 'CoreServices')
+            } else if (targetPlatform.get().operatingSystem.windows) {
+                linkerArgs.addAll("Shlwapi.lib", "Advapi32.lib")
             }
         }
-        clang(Clang) {
-            eachPlatform {
-                // Use Clang to build for libc++ on FreeBSD
-                if (platform.operatingSystem.freeBSD) {
-                    if (platform.name.contains('libcpp')) {
-                        cCompiler.executable = 'cc'
-                        cppCompiler.executable = 'c++'
-                        linker.executable = 'c++'
-                    } else {
-                        // Use a dummy so that Clang is not selected
-                        cCompiler.executable = 'dummy'
-                        cppCompiler.executable = 'dummy'
-                        objcCompiler.executable = 'dummy'
-                        objcppCompiler.executable = 'dummy'
-                        assembler.executable = 'dummy'
-                        linker.executable = 'dummy'
-                        staticLibArchiver.executable = 'dummy'
-                    }
-                }
-            }
-        }
-        visualCpp(VisualCpp)
-    }
-
-    components {
-        nativePlatform(NativeLibrarySpec) {
-            baseName 'native-platform'
-            // TODO - this should be the default. Figure out why this is not working
-            $.platforms.each { p ->
-                if (p.name.contains("ncurses")) {
-                    return
-                }
-                targetPlatform p.name
-            }
-            sources {
-                cpp {
-                    source.srcDirs = ['src/shared/cpp', 'src/main/cpp']
-                    exportedHeaders.srcDirs = ['src/shared/headers']
-                }
-            }
-        }
-
-        nativePlatformCurses(NativeLibrarySpec) {
-            baseName 'native-platform-curses'
-            $.platforms.each { p ->
-                if (p.operatingSystem.windows) {
-                    return
-                }
-                if (p.operatingSystem.linux && !p.name.contains("ncurses")) {
-                    return
-                }
-                targetPlatform p.name
-            }
-            sources {
-                cpp {
-                    source.srcDirs = ['src/shared/cpp', 'src/curses/cpp']
-                    exportedHeaders.srcDirs = ['src/shared/headers']
-                }
-            }
-            binaries.all {
-                if (targetPlatform.operatingSystem.linux && !targetPlatform.name.contains("curses${ncursesVersion}")) {
-                    buildable = false
-                }
-                if (targetPlatform.operatingSystem.linux && ncursesVersion != "5") {
-                    linker.args "-lncursesw"
-                } else {
-                    linker.args "-lcurses"
-                }
-            }
-        }
-
-        all {
-            binaries.all {
-                if (targetPlatform.operatingSystem.name in ['linux', 'freebsd'] && targetPlatform.architecture != arch) {
-                    // Native plugins don't detect whether multilib support is available or not. Assume not for now
-                    buildable = false
-                }
-
-                if (targetPlatform.operatingSystem.macOsX) {
-                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
-                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/darwin"
-                    cppCompiler.args '-mmacosx-version-min=10.9'
-                    linker.args '-mmacosx-version-min=10.9'
-                    linker.args '-framework', 'CoreServices'
-                } else if (targetPlatform.operatingSystem.linux) {
-                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
-                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/linux"
-                    cppCompiler.args '-D_FILE_OFFSET_BITS=64'
-                } else if (targetPlatform.operatingSystem.windows) {
+        compileTask.get().configure {
+                if (targetPlatform.get().operatingSystem.macOsX) {
+                    compilerArgs.addAll('-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include")
+                    compilerArgs.addAll('-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/darwin")
+                    compilerArgs.addAll('-mmacosx-version-min=10.9')
+                } else if (targetPlatform.get().operatingSystem.linux) {
+                    compilerArgs.addAll('-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include")
+                    compilerArgs.addAll('-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/linux")
+                    compilerArgs.addAll('-D_FILE_OFFSET_BITS=64')
+                } else if (targetPlatform.get().operatingSystem.windows) {
                     if (name.contains("_min")) {
                         cppCompiler.define "WINDOWS_MIN"
                     }
-                    cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
-                    cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"
-                    linker.args "Shlwapi.lib", "Advapi32.lib"
-                } else if (targetPlatform.operatingSystem.freeBSD) {
-                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
-                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/freebsd"
+                    compilerArgs.addAll("-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include")
+                    compilerArgs.addAll("-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32")
+                } else if (targetPlatform.get().operatingSystem.freeBSD) {
+                    compilerArgs.addAll('-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include")
+                    compilerArgs.addAll('-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/freebsd")
                 }
+        }
+        def targetMachine = targetPlatform.targetMachine
+        def variantName = "osx-amd64"
+        variantNames << variantName
+        def taskName = "jar-${variantName}"
+        def nativeJar = project.tasks.findByName(taskName)
+        if (nativeJar == null) {
+            nativeJar = project.tasks.create(taskName, Jar) {
+                archiveBaseName = "native-platform-$variantName"
             }
-
-            binaries.withType(SharedLibraryBinarySpec) { binary ->
-                def targetOs = binary.targetPlatform.operatingSystem
-                def targetArch = binary.targetPlatform.architecture
-                def includeVariant = !onlyPrimaryVariants || targetOs.windows || targetOs.macOsX || (targetOs.linux && targetArch.name == "x86-64" && !targetPlatform.name.contains("ncurses6"))
-                if (!includeVariant) {
-                    return
-                }
-                def variantName = targetPlatform.name.replace('_', '-')
-                variantNames << variantName
-
-                if (!buildable) {
-                    return
-                }
-
-                def taskName = "jar-${variantName}"
-                def nativeJar = project.tasks.findByName(taskName)
-                if (nativeJar == null) {
-                    nativeJar = project.tasks.create(taskName, Jar) {
-                        archiveBaseName = "native-platform-$variantName"
-                    }
-                    artifacts {
-                        runtimeElements nativeJar
-                    }
-                    publishing {
-                        publications {
-                            "$variantName"(MavenPublication) {
-                                artifact(nativeJar)
-                                artifact(emptyZip) {
-                                    classifier = "sources"
-                                }
-                                artifact(emptyZip) {
-                                    classifier = "javadoc"
-                                }
-                                groupId = project.group
-                                artifactId = nativeJar.archiveBaseName.get()
-                                version = project.version
-                            }
+            artifacts {
+                runtimeElements nativeJar
+            }
+            publishing {
+                publications {
+                    "$variantName"(MavenPublication) {
+                        artifact(nativeJar)
+                        artifact(emptyZip) {
+                            classifier = "sources"
                         }
+                        artifact(emptyZip) {
+                            classifier = "javadoc"
+                        }
+                        groupId = project.group
+                        artifactId = nativeJar.archiveBaseName.get()
+                        version = project.version
                     }
-                }
-
-                binary.tasks.withType(LinkSharedLibrary) { builderTask ->
-                    nativeJar.into("net/rubygrapefruit/platform/$variantName") { from builderTask.linkedFile }
-                }
-                project.tasks.test {
-                    classpath.from nativeJar
                 }
             }
         }
+
+        nativeJar.into("net/rubygrapefruit/platform/$variantName") { from linkFile }
+        project.tasks.test {
+            classpath.from nativeJar
+        }
     }
 }
+
+//model {
+//    platforms {
+//        osx_amd64 {
+//            architecture "amd64"
+//            operatingSystem "osx"
+//        }
+//        linux_i386 {
+//            architecture "i386"
+//            operatingSystem "linux"
+//        }
+//        linux_i386_ncurses5 {
+//            architecture "i386"
+//            operatingSystem "linux"
+//        }
+//        linux_i386_ncurses6 {
+//            architecture "i386"
+//            operatingSystem "linux"
+//        }
+//        linux_amd64 {
+//            architecture "amd64"
+//            operatingSystem "linux"
+//        }
+//        linux_amd64_ncurses5 {
+//            architecture "amd64"
+//            operatingSystem "linux"
+//        }
+//        linux_amd64_ncurses6 {
+//            architecture "amd64"
+//            operatingSystem "linux"
+//        }
+//        linux_aarch64 {
+//            architecture "aarch64"
+//            operatingSystem "linux"
+//        }
+//        linux_aarch64_ncurses5 {
+//            architecture "aarch64"
+//            operatingSystem "linux"
+//        }
+//        linux_aarch64_ncurses6 {
+//            architecture "aarch64"
+//            operatingSystem "linux"
+//        }
+//        windows_i386 {
+//            architecture "i386"
+//            operatingSystem "windows"
+//        }
+//        windows_amd64 {
+//            architecture "amd64"
+//            operatingSystem "windows"
+//        }
+//        windows_i386_min {
+//            architecture "i386"
+//            operatingSystem "windows"
+//        }
+//        windows_amd64_min {
+//            architecture "amd64"
+//            operatingSystem "windows"
+//        }
+//        freebsd_i386_libcpp {
+//            architecture "i386"
+//            operatingSystem "freebsd"
+//        }
+//        freebsd_i386_libstdcpp {
+//            architecture "i386"
+//            operatingSystem "freebsd"
+//        }
+//        freebsd_amd64_libcpp {
+//            architecture "amd64"
+//            operatingSystem "freebsd"
+//        }
+//        freebsd_amd64_libstdcpp {
+//            architecture "amd64"
+//            operatingSystem "freebsd"
+//        }
+//    }
+//
+//    toolChains {
+//        gcc(Gcc) {
+//            // The core Gradle toolchain for gcc only targets x86 and x86_64 out of the box.
+//            // https://github.com/gradle/gradle/blob/36614ee523e5906ddfa1fed9a5dc00a5addac1b0/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/gcc/AbstractGccCompatibleToolChain.java
+//            target("linux_aarch64")
+//            target("linux_aarch64_ncurses5")
+//            target("linux_aarch64_ncurses6")
+//
+//            eachPlatform {
+//                // Use GCC to build for libstdc++ on FreeBSD
+//                if (platform.operatingSystem.freeBSD) {
+//                    if (platform.name.contains('libstdcpp')) {
+//                        cCompiler.executable = 'cc'
+//                        cppCompiler.executable = 'c++'
+//                        linker.executable = 'c++'
+//                    } else {
+//                        // Use a dummy so that GCC is not selected
+//                        cCompiler.executable = 'dummy'
+//                        cppCompiler.executable = 'dummy'
+//                        objcCompiler.executable = 'dummy'
+//                        objcppCompiler.executable = 'dummy'
+//                        assembler.executable = 'dummy'
+//                        linker.executable = 'dummy'
+//                        staticLibArchiver.executable = 'dummy'
+//                    }
+//                }
+//            }
+//        }
+//        clang(Clang) {
+//            eachPlatform {
+//                // Use Clang to build for libc++ on FreeBSD
+//                if (platform.operatingSystem.freeBSD) {
+//                    if (platform.name.contains('libcpp')) {
+//                        cCompiler.executable = 'cc'
+//                        cppCompiler.executable = 'c++'
+//                        linker.executable = 'c++'
+//                    } else {
+//                        // Use a dummy so that Clang is not selected
+//                        cCompiler.executable = 'dummy'
+//                        cppCompiler.executable = 'dummy'
+//                        objcCompiler.executable = 'dummy'
+//                        objcppCompiler.executable = 'dummy'
+//                        assembler.executable = 'dummy'
+//                        linker.executable = 'dummy'
+//                        staticLibArchiver.executable = 'dummy'
+//                    }
+//                }
+//            }
+//        }
+//        visualCpp(VisualCpp)
+//    }
+//
+//    components {
+//        nativePlatform(NativeLibrarySpec) {
+//            baseName 'native-platform'
+//            // TODO - this should be the default. Figure out why this is not working
+//            $.platforms.each { p ->
+//                if (p.name.contains("ncurses")) {
+//                    return
+//                }
+//                targetPlatform p.name
+//            }
+//            sources {
+//                cpp {
+//                    source.srcDirs = ['src/shared/cpp', 'src/main/cpp']
+//                    exportedHeaders.srcDirs = ['src/shared/headers']
+//                }
+//            }
+//        }
+//
+//        nativePlatformCurses(NativeLibrarySpec) {
+//            baseName 'native-platform-curses'
+//            $.platforms.each { p ->
+//                if (p.operatingSystem.windows) {
+//                    return
+//                }
+//                if (p.operatingSystem.linux && !p.name.contains("ncurses")) {
+//                    return
+//                }
+//                targetPlatform p.name
+//            }
+//            sources {
+//                cpp {
+//                    source.srcDirs = ['src/shared/cpp', 'src/curses/cpp']
+//                    exportedHeaders.srcDirs = ['src/shared/headers']
+//                }
+//            }
+//            binaries.all {
+//                if (targetPlatform.operatingSystem.linux && !targetPlatform.name.contains("curses${ncursesVersion}")) {
+//                    buildable = false
+//                }
+//                if (targetPlatform.operatingSystem.linux && ncursesVersion != "5") {
+//                    linker.args "-lncursesw"
+//                } else {
+//                    linker.args "-lcurses"
+//                }
+//            }
+//        }
+//
+//        all {
+//            binaries.all {
+//                if (targetPlatform.operatingSystem.name in ['linux', 'freebsd'] && targetPlatform.architecture != arch) {
+//                    // Native plugins don't detect whether multilib support is available or not. Assume not for now
+//                    buildable = false
+//                }
+//
+//                if (targetPlatform.operatingSystem.macOsX) {
+//                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
+//                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/darwin"
+//                    cppCompiler.args '-mmacosx-version-min=10.9'
+//                    linker.args '-mmacosx-version-min=10.9'
+//                    linker.args '-framework', 'CoreServices'
+//                } else if (targetPlatform.operatingSystem.linux) {
+//                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
+//                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/linux"
+//                    cppCompiler.args '-D_FILE_OFFSET_BITS=64'
+//                } else if (targetPlatform.operatingSystem.windows) {
+//                    if (name.contains("_min")) {
+//                        cppCompiler.define "WINDOWS_MIN"
+//                    }
+//                    cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
+//                    cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"
+//                    linker.args "Shlwapi.lib", "Advapi32.lib"
+//                } else if (targetPlatform.operatingSystem.freeBSD) {
+//                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
+//                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/freebsd"
+//                }
+//            }
+//
+//            binaries.withType(SharedLibraryBinarySpec) { binary ->
+//                def targetOs = binary.targetPlatform.operatingSystem
+//                def targetArch = binary.targetPlatform.architecture
+//                def includeVariant = !onlyPrimaryVariants || targetOs.windows || targetOs.macOsX || (targetOs.linux && targetArch.name == "x86-64" && !targetPlatform.name.contains("ncurses6"))
+//                if (!includeVariant) {
+//                    return
+//                }
+//                def variantName = targetPlatform.name.replace('_', '-')
+//                variantNames << variantName
+//
+//                if (!buildable) {
+//                    return
+//                }
+//
+//                def taskName = "jar-${variantName}"
+//                def nativeJar = project.tasks.findByName(taskName)
+//                if (nativeJar == null) {
+//                    nativeJar = project.tasks.create(taskName, Jar) {
+//                        archiveBaseName = "native-platform-$variantName"
+//                    }
+//                    artifacts {
+//                        runtimeElements nativeJar
+//                    }
+//                    publishing {
+//                        publications {
+//                            "$variantName"(MavenPublication) {
+//                                artifact(nativeJar)
+//                                artifact(emptyZip) {
+//                                    classifier = "sources"
+//                                }
+//                                artifact(emptyZip) {
+//                                    classifier = "javadoc"
+//                                }
+//                                groupId = project.group
+//                                artifactId = nativeJar.archiveBaseName.get()
+//                                version = project.version
+//                            }
+//                        }
+//                    }
+//                }
+//
+//                binary.tasks.withType(LinkSharedLibrary) { builderTask ->
+//                    nativeJar.into("net/rubygrapefruit/platform/$variantName") { from builderTask.linkedFile }
+//                }
+//                project.tasks.test {
+//                    classpath.from nativeJar
+//                }
+//            }
+//        }
+//    }
+//}
 
 publishing {
     publications {

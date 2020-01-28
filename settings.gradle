@@ -4,6 +4,7 @@ plugins {
 
 rootProject.name = 'native-platform'
 
+include 'curses'
 include 'testApp'
 
 project(':testApp').projectDir = new File(rootDir, 'test-app')
