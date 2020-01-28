@@ -4,6 +4,7 @@ import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.file.Directory;
+import org.gradle.api.file.FileCollection;
 import org.gradle.api.file.FileSystemOperations;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Provider;
@@ -31,7 +32,7 @@ public abstract class JniPlugin implements Plugin<Project> {
             TaskProvider<ConcatenateJniHeaders> concatenateJniHeaders = createConcatenateJniHeadersTask(
                 tasks,
                 compileJavaProvider,
-                compilerArguments.getGeneratedHeadersDirectory(),
+                project.files(compilerArguments.getGeneratedHeadersDirectory()).getAsFileTree(),
                 jniExtension.getGeneratedHeader()
             );
 
@@ -42,9 +43,9 @@ public abstract class JniPlugin implements Plugin<Project> {
         });
     }
 
-    private TaskProvider<ConcatenateJniHeaders> createConcatenateJniHeadersTask(TaskContainer tasks, TaskProvider<JavaCompile> compileJavaProvider, Provider<Directory> sourceHeaderDirectory, RegularFileProperty targetHeader) {
+    private TaskProvider<ConcatenateJniHeaders> createConcatenateJniHeadersTask(TaskContainer tasks, TaskProvider<JavaCompile> compileJavaProvider, FileCollection sourceHeaders, RegularFileProperty targetHeader) {
         return tasks.register("concatenateJniHeaders", ConcatenateJniHeaders.class, task -> {
-            task.getJniHeaders().set(sourceHeaderDirectory);
+            task.getJniHeaders().from(sourceHeaders);
             task.getGeneratedNativeHeader().set(targetHeader);
             task.dependsOn(compileJavaProvider);
         });

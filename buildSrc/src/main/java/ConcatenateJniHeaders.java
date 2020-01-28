@@ -1,7 +1,7 @@
 import org.gradle.api.DefaultTask;
-import org.gradle.api.file.DirectoryProperty;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.RegularFileProperty;
-import org.gradle.api.tasks.InputDirectory;
+import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
 
@@ -26,8 +26,8 @@ public abstract class ConcatenateJniHeaders extends DefaultTask {
      *
      * Contains one header file per class with a native method.
      */
-    @InputDirectory
-    public abstract DirectoryProperty getJniHeaders();
+    @InputFiles
+    public abstract ConfigurableFileCollection getJniHeaders();
 
     /**
      * The location of the concatenated header file.
@@ -37,7 +37,7 @@ public abstract class ConcatenateJniHeaders extends DefaultTask {
 
     @TaskAction
     public void concatenate() throws IOException {
-        List<File> jniHeaders = new ArrayList<>(getJniHeaders().getAsFileTree().getFiles());
+        List<File> jniHeaders = new ArrayList<>(getJniHeaders().getFiles());
         jniHeaders.sort(Comparator.comparing(File::getName));
         Path outputFile = getGeneratedNativeHeader().get().getAsFile().toPath();
         try (BufferedWriter writer = Files.newBufferedWriter(outputFile, StandardCharsets.UTF_8)) {
