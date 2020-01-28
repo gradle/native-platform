@@ -17,9 +17,14 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
-import net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions;
+import net.rubygrapefruit.platform.internal.jni.NativeVersion;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.RandomAccessFile;
 import java.net.URL;
 import java.nio.channels.FileLock;
 
@@ -33,7 +38,7 @@ public class NativeLibraryLocator {
     public File find(LibraryDef libraryDef) throws IOException {
         String resourceName = String.format("net/rubygrapefruit/platform/%s/%s", libraryDef.platform, libraryDef.name);
         if (extractDir != null) {
-            File libFile = new File(extractDir, String.format("%s/%s/%s", NativeLibraryFunctions.VERSION, libraryDef.platform, libraryDef.name));
+            File libFile = new File(extractDir, String.format("%s/%s/%s", NativeVersion.VERSION, libraryDef.platform, libraryDef.name));
             File lockFile = new File(libFile.getParentFile(), libFile.getName() + ".lock");
             lockFile.getParentFile().mkdirs();
             lockFile.createNewFile();
@@ -107,7 +112,7 @@ public class NativeLibraryLocator {
                 inputStream.close();
             }
         } catch (IOException e) {
-            throw new NativeException(String.format("Could not extract native JNI library."), e);
+            throw new NativeException("Could not extract native JNI library.", e);
         }
     }
 }

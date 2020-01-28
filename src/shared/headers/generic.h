@@ -19,11 +19,11 @@
 
 #include <jni.h>
 
+#include "native_platform_version.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#define NATIVE_VERSION 37
 
 // Corresponds to NativeLibraryFunctions constants
 #define STDOUT_DESCRIPTOR 0

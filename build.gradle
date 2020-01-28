@@ -32,11 +32,12 @@ dependencies {
 
 boolean onlyPrimaryVariants = project.hasProperty("onlyPrimaryVariants")
 
-def nativeHeadersDir = file("$buildDir/nativeHeaders")
+def generatedFilesDir = file("$buildDir/generated")
 
-task nativeHeaders {
-    def outputFile = file("$nativeHeadersDir/native.h")
-    def classes = [
+def nativeHeaders = tasks.register("nativeHeaders", GenerateJniHeader) {
+    generatedHeaderDirectory = file("$generatedFilesDir/jni-header")
+    classpath.from(sourceSets.main.output.classesDirs)
+    classNames = [
             'net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions',
             'net.rubygrapefruit.platform.internal.jni.PosixFileFunctions',
             'net.rubygrapefruit.platform.internal.jni.PosixFileSystemFunctions',
@@ -53,18 +54,20 @@ task nativeHeaders {
             'net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions',
             'net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions',
     ]
-    inputs.files sourceSets.main.output
-    inputs.property('classes', classes)
-    outputs.file outputFile
-    doLast {
-        outputFile.parentFile.mkdirs()
-        exec {
-            executable org.gradle.internal.jvm.Jvm.current().getExecutable('javah')
-            args '-o', outputFile
-            args '-classpath', sourceSets.main.output.classesDirs.asPath
-            args classes
-        }
+}
+
+def writeNativeVersionSources = tasks.register("writeNativeVersionSources", WriteNativeVersionSources) {
+    ["main", "shared", "curses"].each {
+        nativeSources.from("src/${it}/cpp")
+        nativeSources.from("src/${it}/headers")
     }
+
+    generatedNativeHeaderDirectory = file("$generatedFilesDir/version/header")
+    generatedJavaSourcesDir = file("$generatedFilesDir/version/java")
+}
+
+sourceSets.main.java {
+    srcDir(writeNativeVersionSources.map { it.generatedJavaSourcesDir })
 }
 
 javadoc {
@@ -295,7 +298,6 @@ model {
                     cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
                     cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/freebsd"
                 }
-                cppCompiler.args "-I${nativeHeadersDir}"
             }
 
             binaries.withType(SharedLibraryBinarySpec) { binary ->
@@ -350,8 +352,13 @@ model {
     }
 }
 
-tasks.withType(CppCompile) { task ->
-    task.dependsOn project.tasks.nativeHeaders
+tasks.withType(CppCompile).configureEach {
+    dependsOn(nativeHeaders)
+    dependsOn(writeNativeVersionSources)
+    includes.from(
+        nativeHeaders.map { it.generatedHeaderDirectory },
+        writeNativeVersionSources.map { it.generatedNativeHeaderDirectory }
+    )
 }
 
 publishing {
