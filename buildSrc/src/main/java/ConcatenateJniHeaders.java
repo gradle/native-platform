@@ -1,7 +1,8 @@
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.DirectoryProperty;
+import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.tasks.InputDirectory;
-import org.gradle.api.tasks.OutputDirectory;
+import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
 
 import java.io.BufferedWriter;
@@ -15,7 +16,7 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Concatenates JNI headers generated during Java compilation into a single <pre>native.h</pre> file,
+ * Concatenates JNI headers generated during Java compilation into a single file,
  * for easier consumption by the native code.
  */
 public abstract class ConcatenateJniHeaders extends DefaultTask {
@@ -29,18 +30,16 @@ public abstract class ConcatenateJniHeaders extends DefaultTask {
     public abstract DirectoryProperty getJniHeaders();
 
     /**
-     * The target directory for the concatenated header file.
-     *
-     * The file will be called <pre>native.h</pre>
+     * The location of the concatenated header file.
      */
-    @OutputDirectory
-    public abstract DirectoryProperty getGeneratedNativeHeaderDirectory();
+    @OutputFile
+    public abstract RegularFileProperty getGeneratedNativeHeader();
 
     @TaskAction
     public void concatenate() throws IOException {
         List<File> jniHeaders = new ArrayList<>(getJniHeaders().getAsFileTree().getFiles());
         jniHeaders.sort(Comparator.comparing(File::getName));
-        Path outputFile = getGeneratedNativeHeaderDirectory().file("native.h").get().getAsFile().toPath();
+        Path outputFile = getGeneratedNativeHeader().get().getAsFile().toPath();
         try (BufferedWriter writer = Files.newBufferedWriter(outputFile, StandardCharsets.UTF_8)) {
             for (File header : jniHeaders) {
                 List<String> lines = Files.readAllLines(header.toPath(), StandardCharsets.UTF_8);

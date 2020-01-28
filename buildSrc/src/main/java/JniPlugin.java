@@ -4,8 +4,8 @@ import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.file.Directory;
-import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.FileSystemOperations;
+import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.TaskContainer;
@@ -32,19 +32,22 @@ public abstract class JniPlugin implements Plugin<Project> {
                 tasks,
                 compileJavaProvider,
                 compilerArguments.getGeneratedHeadersDirectory(),
-                jniExtension.getGeneratedHeaderDirectory()
+                jniExtension.getGeneratedHeader()
             );
 
-            configureIncludePath(tasks, concatenateJniHeaders.map(ConcatenateJniHeaders::getGeneratedNativeHeaderDirectory));
+            configureIncludePath(tasks, concatenateJniHeaders
+                .map(ConcatenateJniHeaders::getGeneratedNativeHeader)
+                .map(it -> it.get().getAsFile().getParentFile())
+            );
         });
     }
 
-    private TaskProvider<ConcatenateJniHeaders> createConcatenateJniHeadersTask(TaskContainer tasks, TaskProvider<JavaCompile> compileJavaProvider, Provider<Directory> sourceHeaderDirectory, DirectoryProperty targetHeaderDirectory) {
+    private TaskProvider<ConcatenateJniHeaders> createConcatenateJniHeadersTask(TaskContainer tasks, TaskProvider<JavaCompile> compileJavaProvider, Provider<Directory> sourceHeaderDirectory, RegularFileProperty targetHeader) {
         return tasks.register("concatenateJniHeaders", ConcatenateJniHeaders.class, task -> {
-                    task.getJniHeaders().set(sourceHeaderDirectory);
-                    task.getGeneratedNativeHeaderDirectory().set(targetHeaderDirectory);
-                    task.dependsOn(compileJavaProvider);
-                });
+            task.getJniHeaders().set(sourceHeaderDirectory);
+            task.getGeneratedNativeHeader().set(targetHeader);
+            task.dependsOn(compileJavaProvider);
+        });
     }
 
     private void configureCompileJava(
@@ -60,7 +63,7 @@ public abstract class JniPlugin implements Plugin<Project> {
         });
     }
 
-    private void configureIncludePath(TaskContainer tasks, Provider<DirectoryProperty> generatedHeaderDirectory) {
+    private void configureIncludePath(TaskContainer tasks, Provider<Object> generatedHeaderDirectory) {
         tasks.withType(CppCompile.class).configureEach(task -> {
             task.includes(generatedHeaderDirectory);
             task.dependsOn(generatedHeaderDirectory);

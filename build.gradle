@@ -39,7 +39,7 @@ boolean onlyPrimaryVariants = project.hasProperty("onlyPrimaryVariants")
 def generatedFilesDir = file("$buildDir/generated")
 
 jni {
-    generatedHeaderDirectory = file("$generatedFilesDir/jni-header")
+    generatedHeader = file("$generatedFilesDir/jni-header/native.h")
 }
 
 def writeNativeVersionSources = tasks.register("writeNativeVersionSources", WriteNativeVersionSources) {
