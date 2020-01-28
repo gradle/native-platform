@@ -1,8 +1,11 @@
 import com.google.common.collect.ImmutableList;
+import org.gradle.api.Action;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.Task;
 import org.gradle.api.file.Directory;
 import org.gradle.api.file.DirectoryProperty;
+import org.gradle.api.file.FileSystemOperations;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.TaskContainer;
@@ -10,6 +13,8 @@ import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.language.cpp.tasks.CppCompile;
 import org.gradle.process.CommandLineArgumentProvider;
+
+import javax.inject.Inject;
 
 public abstract class JniPlugin implements Plugin<Project> {
 
@@ -20,7 +25,8 @@ public abstract class JniPlugin implements Plugin<Project> {
             JniCompilerArguments compilerArguments = new JniCompilerArguments(project.getLayout().getBuildDirectory().dir("generated/jni-headers"));
             TaskContainer tasks = project.getTasks();
             TaskProvider<JavaCompile> compileJavaProvider = tasks.named("compileJava", JavaCompile.class);
-            configureCompileJava(compilerArguments, compileJavaProvider);
+            RemoveGeneratedNativeHeaders removeGeneratedNativeHeaders = project.getObjects().newInstance(RemoveGeneratedNativeHeaders.class, compilerArguments.getGeneratedHeadersDirectory());
+            configureCompileJava(compilerArguments, removeGeneratedNativeHeaders, compileJavaProvider);
 
             TaskProvider<ConcatenateJniHeaders> concatenateJniHeaders = createConcatenateJniHeadersTask(
                 tasks,
@@ -41,11 +47,16 @@ public abstract class JniPlugin implements Plugin<Project> {
                 });
     }
 
-    private void configureCompileJava(JniCompilerArguments compilerArguments, TaskProvider<JavaCompile> compileJavaProvider) {
+    private void configureCompileJava(
+        JniCompilerArguments compilerArguments,
+        RemoveGeneratedNativeHeaders removeGeneratedNativeHeaders,
+        TaskProvider<JavaCompile> compileJavaProvider
+    ) {
         compileJavaProvider.configure(compileJava -> {
             compileJava.getOptions().getCompilerArgumentProviders().add(compilerArguments);
             // Cannot do incremental header generation
             compileJava.getOptions().setIncremental(false);
+            compileJava.doFirst(removeGeneratedNativeHeaders);
         });
     }
 
@@ -71,6 +82,23 @@ public abstract class JniPlugin implements Plugin<Project> {
         @Override
         public Iterable<String> asArguments() {
             return ImmutableList.of("-h", generatedHeadersDirectory.get().getAsFile().getAbsolutePath());
+        }
+    }
+
+    abstract static class RemoveGeneratedNativeHeaders implements Action<Task> {
+        private final Provider<Directory> generatedHeadersDirectory;
+
+        @Inject
+        public abstract FileSystemOperations getFileSystemOperations();
+
+        @Inject
+        public RemoveGeneratedNativeHeaders(Provider<Directory> generatedHeadersDirectory) {
+            this.generatedHeadersDirectory = generatedHeadersDirectory;
+        }
+
+        @Override
+        public void execute(Task task) {
+            getFileSystemOperations().delete(spec -> spec.delete(generatedHeadersDirectory));
         }
     }
 }
