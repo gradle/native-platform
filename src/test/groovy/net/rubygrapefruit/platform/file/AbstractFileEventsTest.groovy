@@ -26,6 +26,10 @@ import spock.lang.Specification
 import spock.lang.Unroll
 import spock.util.concurrent.AsyncConditions
 
+import java.util.logging.ConsoleHandler
+import java.util.logging.Level
+import java.util.logging.Logger
+
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
@@ -35,6 +39,13 @@ abstract class AbstractFileEventsTest extends Specification {
     TemporaryFolder tmpDir
     def callback = new TestCallback()
     File rootDir
+
+    def setupSpec() {
+        // TODO Properly initialize JUL logging
+        def global = Logger.getGlobal()
+        global.addHandler(new ConsoleHandler())
+        global.setLevel(Level.INFO)
+    }
 
     def setup() {
         rootDir = tmpDir.newFolder()

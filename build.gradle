@@ -39,6 +39,7 @@ def nativeHeaders = tasks.register("nativeHeaders", GenerateJniHeader) {
     classpath.from(sourceSets.main.output.classesDirs)
     classNames = [
             'net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions',
+            "net.rubygrapefruit.platform.internal.jni.NativeLogger",
             'net.rubygrapefruit.platform.internal.jni.PosixFileFunctions',
             'net.rubygrapefruit.platform.internal.jni.PosixFileSystemFunctions',
             'net.rubygrapefruit.platform.internal.jni.PosixProcessFunctions',

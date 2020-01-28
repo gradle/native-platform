@@ -40,7 +40,7 @@ static void reportEvent(jint type, char *path, watch_details_t *details) {
         }
     }
 
-    printf("~~~~ Changed: %s %d\n", path, type);
+    log_info(details->env, "~~~~ Changed: %s %d\n", path, type);
 
     JNIEnv *env = details->env;
     jobject watcherCallback = details->watcherCallback;
@@ -62,7 +62,7 @@ static void callback(ConstFSEventStreamRef streamRef,
 
     for (int i = 0; i < numEvents; i++) {
         FSEventStreamEventFlags flags = eventFlags[i];
-        printf("~~~~ Event flags: 0x%x for %s\n", flags, paths[i]);
+        log_fine(details->env, "~~~~ Event flags: 0x%x for %s\n", flags, paths[i]);
         jint type;
         if (IS_SET(flags, kFSEventStreamEventFlagMustScanSubDirs)) {
             type = FILE_EVENT_INVALIDATE;
@@ -84,7 +84,7 @@ static void callback(ConstFSEventStreamRef streamRef,
         } else if (IS_SET(flags, kFSEventStreamEventFlagRootChanged)) {
             type = FILE_EVENT_REMOVED;
         } else {
-            printf("~~~~ Unknown event 0x%x for %s\n", flags, paths[i]);
+            log_warning(details->env, "~~~~ Unknown event 0x%x for %s\n", flags, paths[i]);
             type = FILE_EVENT_UNKNOWN;
         }
         reportEvent(type, paths[i], details);
@@ -94,13 +94,13 @@ static void callback(ConstFSEventStreamRef streamRef,
 static void *EventProcessingThread(void *data) {
     watch_details_t *details = (watch_details_t*) data;
 
-    printf("~~~~ Starting thread\n");
+    log_fine(details->env, "~~~~ Starting thread\n", NULL);
 
     // TODO Extract this logic to some shared function
     JavaVM* jvm = details->jvm;
     jint statAttach = jvm->AttachCurrentThreadAsDaemon((void **) &(details->env), NULL);
     if (statAttach != JNI_OK) {
-        printf("Failed to attach JNI to current thread: %d\n", statAttach);
+        log_severe(details->env, "Failed to attach JNI to current thread: %d\n", statAttach);
         invalidStateDetected = true;
         return NULL;
     }
@@ -115,12 +115,12 @@ static void *EventProcessingThread(void *data) {
     // This triggers run loop for this thread, causing it to run until we explicitly stop it.
     CFRunLoopRun();
 
-    printf("~~~~ Stopping thread\n");
+    log_fine(details->env, "~~~~ Stopping thread\n", NULL);
 
     // TODO Extract this logic to some shared function
     jint statDetach = jvm->DetachCurrentThread();
     if (statDetach != JNI_OK) {
-        printf("Failed to detach JNI from current thread: %d\n", statAttach);
+        log_severe(details->env, "Failed to detach JNI from current thread: %d\n", statAttach);
         invalidStateDetected = true;
         return NULL;
     }
@@ -168,7 +168,7 @@ void freeDetails(JNIEnv *env, watch_details_t *details) {
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatching(JNIEnv *env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback, jobject result) {
 
-    printf("\n~~~~ Configuring...\n");
+    log_fine(env, "\n~~~~ Configuring...\n", NULL);
 
     invalidStateDetected = false;
 
@@ -198,7 +198,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
     for (int i = 0; i < count; i++) {
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
         char* watchedPath = java_to_char(env, path, result);
-        printf("~~~~ Watching %s\n", watchedPath);
+        log_info(env, "~~~~ Watching %s\n", watchedPath);
         if (watchedPath == NULL) {
             mark_failed_with_errno(env, "Could not allocate string to store root to watch.", result);
             freeDetails(env, details);
