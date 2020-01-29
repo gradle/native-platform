@@ -391,5 +391,5 @@ boolean canBeBuiltOnCi(NativePlatform targetPlatform) {
         return true
     }
     // Can only build the 64bit ncurses5 variant on Linux
-    return targetPlatform.architecture.name == "x86-64" && !targetPlatform.name.contains("ncurses6")
+    return targetOs.linux && targetPlatform.architecture.name == "x86-64" && !targetPlatform.name.contains("ncurses6")
 }
