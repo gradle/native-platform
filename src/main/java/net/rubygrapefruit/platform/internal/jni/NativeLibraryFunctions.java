@@ -25,7 +25,7 @@ public class NativeLibraryFunctions {
     public static final int STDERR = Terminals.Output.Stderr.ordinal();
     public static final int STDIN = STDERR + 1;
 
-    public static native long getVersion();
+    public static native String getVersion();
 
     public static native void getSystemInfo(MutableSystemInfo systemInfo, FunctionResult result);
 }

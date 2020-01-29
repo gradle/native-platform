@@ -227,8 +227,8 @@ public abstract class Platform {
             }
             if (type.equals(Terminals.class)) {
                 nativeLibraryLoader.load(getCursesLibraryName(), getCursesVariants());
-                long nativeVersion = TerminfoFunctions.getVersion();
-                if (nativeVersion != NativeVersion.VERSION) {
+                String nativeVersion = TerminfoFunctions.getVersion();
+                if (!nativeVersion.equals(NativeVersion.VERSION)) {
                     throw new NativeException(String.format(
                             "Unexpected native library version loaded. Expected %s, was %s.", nativeVersion,
                         NativeVersion.VERSION));
