@@ -137,7 +137,11 @@ typedef struct file_stat {
 #define log_warning(env, message, ...) printlog(env, LOG_WARNING, message, __VA_ARGS__)
 #define log_severe(env, message, ...)  printlog(env, LOG_SEVERE, message, __VA_ARGS__)
 
+#ifdef _WIN32
+void printlog(JNIEnv* env, int level, const wchar_t *message, ...);
+#else
 void printlog(JNIEnv* env, int level, const char *message, ...);
+#endif
 
 #ifdef __cplusplus
 }
