@@ -1,7 +1,14 @@
-import jetbrains.buildServer.configs.kotlin.v2019_2.*
+
+import jetbrains.buildServer.configs.kotlin.v2019_2.BuildType
+import jetbrains.buildServer.configs.kotlin.v2019_2.DslContext
+import jetbrains.buildServer.configs.kotlin.v2019_2.FailureAction
+import jetbrains.buildServer.configs.kotlin.v2019_2.ParameterDisplay
+import jetbrains.buildServer.configs.kotlin.v2019_2.Project
 import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.gradle
+import jetbrains.buildServer.configs.kotlin.v2019_2.project
 import jetbrains.buildServer.configs.kotlin.v2019_2.triggers.vcs
 import jetbrains.buildServer.configs.kotlin.v2019_2.vcs.GitVcsRoot
+import jetbrains.buildServer.configs.kotlin.v2019_2.version
 
 /*
 The settings script is an entry point for defining a TeamCity
@@ -34,19 +41,13 @@ project {
     buildType(BuildMacOS)
     buildType(BuildTrigger)
     buildType(BuildLinux)
-    buildType(Build)
-    buildTypesOrder = arrayListOf(BuildTrigger, BuildLinux, BuildMacOS, Build)
+    buildType(BuildWindows)
+    buildTypesOrder = arrayListOf(BuildTrigger, BuildLinux, BuildMacOS, BuildWindows)
 
     subProject(Publishing)
 }
 
-object Build : BuildType({
-    name = "Build (Windows)"
-
-    params {
-        param("env.JAVA_HOME", "%windows.java8.oracle.64bit%")
-    }
-
+open class NativePlatformBuild(init: BuildType.() -> Unit) : BuildType({
     vcs {
         root(DslContext.settingsRoot)
     }
@@ -58,12 +59,22 @@ object Build : BuildType({
         }
     }
 
+    init(this)
+})
+
+object BuildWindows : NativePlatformBuild({
+    name = "Build (Windows)"
+
+    params {
+        param("env.JAVA_HOME", "%windows.java8.oracle.64bit%")
+    }
+
     requirements {
         contains("teamcity.agent.jvm.os.name", "Windows")
     }
 })
 
-object BuildLinux : BuildType({
+object BuildLinux : NativePlatformBuild({
     name = "Build (Linux)"
 
     artifactRules = "build-receipt.properties"
@@ -72,38 +83,16 @@ object BuildLinux : BuildType({
         param("env.JAVA_HOME", "%linux.java8.oracle.64bit%")
     }
 
-    vcs {
-        root(DslContext.settingsRoot)
-    }
-
-    steps {
-        gradle {
-            tasks = "clean build -I gradle/init-scripts/build-scan.init.gradle.kts"
-            buildFile = ""
-        }
-    }
-
     requirements {
         contains("teamcity.agent.jvm.os.name", "Linux")
     }
 })
 
-object BuildMacOS : BuildType({
+object BuildMacOS : NativePlatformBuild({
     name = "Build (macOS)"
 
     params {
         param("env.JAVA_HOME", "%macos.java8.oracle.64bit%")
-    }
-
-    vcs {
-        root(DslContext.settingsRoot)
-    }
-
-    steps {
-        gradle {
-            tasks = "clean build -I gradle/init-scripts/build-scan.init.gradle.kts"
-            buildFile = ""
-        }
     }
 
     requirements {
@@ -128,14 +117,10 @@ object BuildTrigger : BuildType({
     }
 
     dependencies {
-        snapshot(Build) {
-            onDependencyFailure = FailureAction.FAIL_TO_START
-        }
-        snapshot(BuildLinux) {
-            onDependencyFailure = FailureAction.FAIL_TO_START
-        }
-        snapshot(BuildMacOS) {
-            onDependencyFailure = FailureAction.FAIL_TO_START
+        listOf(BuildWindows, BuildLinux, BuildMacOS).forEach {
+            snapshot(it) {
+                onDependencyFailure = FailureAction.FAIL_TO_START
+            }
         }
     }
 
@@ -161,58 +146,56 @@ object Publishing : Project({
     buildTypesOrder = arrayListOf(Publishing_PublishJavaApiSnapshot, Publishing_PublishLinuxSnapshot, Publishing_PublishMacOsSnapshot, Publishing_PublishWindowsSnapshot)
 })
 
-object Publishing_PublishJavaApiSnapshot : BuildType({
+open class NativePlatformPublishSnapshot(uploadTasks: List<String>, init: BuildType.() -> Unit) : BuildType({
+    params {
+        param("ARTIFACTORY_USERNAME", "bot-build-tool")
+        password("ARTIFACTORY_PASSWORD", "credentialsJSON:d94612fb-3291-41f5-b043-e2b3994aeeb4", display = ParameterDisplay.HIDDEN)
+    }
+
+    vcs {
+        root(DslContext.settingsRoot)
+        cleanCheckout = true
+    }
+
+    steps {
+        uploadTasks.forEach { task ->
+            gradle {
+                name = "Gradle $task"
+                tasks = "clean $task -I gradle/init-scripts/build-scan.init.gradle.kts -Psnapshot -PonlyPrimaryVariants -PbintrayUserName=%ARTIFACTORY_USERNAME% -PbintrayApiKey=%ARTIFACTORY_PASSWORD%"
+                buildFile = ""
+            }
+        }
+    }
+
+    dependencies {
+        listOf(BuildLinux, BuildWindows, BuildMacOS).forEach {
+            snapshot(it) {
+                onDependencyFailure = FailureAction.FAIL_TO_START
+            }
+        }
+        dependency(BuildLinux) {
+            artifacts {
+                cleanDestination = true
+                artifactRules = "build-receipt.properties => incoming-distributions/"
+            }
+        }
+    }
+
+    init(this)
+})
+
+object Publishing_PublishJavaApiSnapshot : NativePlatformPublishSnapshot(listOf(":uploadMain", ":testApp:uploadMain"), {
     name = "Publish Native Platform snapshot"
 
     params {
         param("env.JAVA_HOME", "%linux.java8.oracle.64bit%")
-        param("ARTIFACTORY_USERNAME", "bot-build-tool")
-        password("ARTIFACTORY_PASSWORD", "credentialsJSON:d94612fb-3291-41f5-b043-e2b3994aeeb4", display = ParameterDisplay.HIDDEN)
-    }
-
-    vcs {
-        root(DslContext.settingsRoot)
-
-        cleanCheckout = true
-    }
-
-    steps {
-        gradle {
-            tasks = "clean :uploadMain -I gradle/init-scripts/build-scan.init.gradle.kts -Psnapshot -PonlyPrimaryVariants -PbintrayUserName=%ARTIFACTORY_USERNAME% -PbintrayApiKey=%ARTIFACTORY_PASSWORD%"
-            buildFile = ""
-        }
-        gradle {
-            name = "New build step"
-            tasks = ":testApp:uploadMain -I gradle/init-scripts/build-scan.init.gradle.kts -Psnapshot -PonlyPrimaryVariants -PbintrayUserName=%ARTIFACTORY_USERNAME% -PbintrayApiKey=%ARTIFACTORY_PASSWORD%"
-            buildFile = ""
-        }
     }
 
     dependencies {
-        snapshot(Build) {
-            onDependencyFailure = FailureAction.FAIL_TO_START
-        }
-        dependency(BuildLinux) {
-            snapshot {
+        listOf(Publishing_PublishLinuxSnapshot, Publishing_PublishMacOsSnapshot, Publishing_PublishWindowsSnapshot).forEach {
+            snapshot(it) {
                 onDependencyFailure = FailureAction.FAIL_TO_START
             }
-
-            artifacts {
-                cleanDestination = true
-                artifactRules = "build-receipt.properties => incoming-distributions/"
-            }
-        }
-        snapshot(BuildMacOS) {
-            onDependencyFailure = FailureAction.FAIL_TO_START
-        }
-        snapshot(Publishing_PublishLinuxSnapshot) {
-            onDependencyFailure = FailureAction.FAIL_TO_START
-        }
-        snapshot(Publishing_PublishMacOsSnapshot) {
-            onDependencyFailure = FailureAction.FAIL_TO_START
-        }
-        snapshot(Publishing_PublishWindowsSnapshot) {
-            onDependencyFailure = FailureAction.FAIL_TO_START
         }
     }
 
@@ -221,45 +204,11 @@ object Publishing_PublishJavaApiSnapshot : BuildType({
     }
 })
 
-object Publishing_PublishLinuxSnapshot : BuildType({
+object Publishing_PublishLinuxSnapshot : NativePlatformPublishSnapshot(listOf(":uploadJni"), {
     name = "Publish Linux snapshot"
 
     params {
         param("env.JAVA_HOME", "%linux.java8.oracle.64bit%")
-        param("ARTIFACTORY_USERNAME", "bot-build-tool")
-        password("ARTIFACTORY_PASSWORD", "credentialsJSON:d94612fb-3291-41f5-b043-e2b3994aeeb4", display = ParameterDisplay.HIDDEN)
-    }
-
-    vcs {
-        root(DslContext.settingsRoot)
-
-        cleanCheckout = true
-    }
-
-    steps {
-        gradle {
-            tasks = "clean :uploadJni -I gradle/init-scripts/build-scan.init.gradle.kts -Psnapshot -PonlyPrimaryVariants -PbintrayUserName=%ARTIFACTORY_USERNAME% -PbintrayApiKey=%ARTIFACTORY_PASSWORD%"
-            buildFile = ""
-        }
-    }
-
-    dependencies {
-        snapshot(Build) {
-            onDependencyFailure = FailureAction.FAIL_TO_START
-        }
-        dependency(BuildLinux) {
-            snapshot {
-                onDependencyFailure = FailureAction.FAIL_TO_START
-            }
-
-            artifacts {
-                cleanDestination = true
-                artifactRules = "build-receipt.properties => incoming-distributions/"
-            }
-        }
-        snapshot(BuildMacOS) {
-            onDependencyFailure = FailureAction.FAIL_TO_START
-        }
     }
 
     requirements {
@@ -267,43 +216,11 @@ object Publishing_PublishLinuxSnapshot : BuildType({
     }
 })
 
-object Publishing_PublishMacOsSnapshot : BuildType({
+object Publishing_PublishMacOsSnapshot : NativePlatformPublishSnapshot(listOf(":uploadJni"), {
     name = "Publish MacOs snapshot"
 
     params {
         param("env.JAVA_HOME", "%macos.java8.oracle.64bit%")
-        param("ARTIFACTORY_USERNAME", "bot-build-tool")
-        password("ARTIFACTORY_PASSWORD", "credentialsJSON:d94612fb-3291-41f5-b043-e2b3994aeeb4", display = ParameterDisplay.HIDDEN)
-    }
-
-    vcs {
-        root(DslContext.settingsRoot)
-    }
-
-    steps {
-        gradle {
-            tasks = "clean :uploadJni -I gradle/init-scripts/build-scan.init.gradle.kts -Psnapshot -PonlyPrimaryVariants -PbintrayUserName=%ARTIFACTORY_USERNAME% -PbintrayApiKey=%ARTIFACTORY_PASSWORD%"
-            buildFile = ""
-        }
-    }
-
-    dependencies {
-        snapshot(Build) {
-            onDependencyFailure = FailureAction.FAIL_TO_START
-        }
-        dependency(BuildLinux) {
-            snapshot {
-                onDependencyFailure = FailureAction.FAIL_TO_START
-            }
-
-            artifacts {
-                cleanDestination = true
-                artifactRules = "build-receipt.properties => incoming-distributions/"
-            }
-        }
-        snapshot(BuildMacOS) {
-            onDependencyFailure = FailureAction.FAIL_TO_START
-        }
     }
 
     requirements {
@@ -311,45 +228,12 @@ object Publishing_PublishMacOsSnapshot : BuildType({
     }
 })
 
-object Publishing_PublishWindowsSnapshot : BuildType({
+object Publishing_PublishWindowsSnapshot : NativePlatformPublishSnapshot(listOf(":uploadJni"), {
     name = "Publish Windows snapshot"
 
     params {
         param("env.JAVA_HOME", "%windows.java8.oracle.64bit%")
-        param("ARTIFACTORY_USERNAME", "bot-build-tool")
-        password("ARTIFACTORY_PASSWORD", "credentialsJSON:d94612fb-3291-41f5-b043-e2b3994aeeb4", display = ParameterDisplay.HIDDEN)
     }
-
-    vcs {
-        root(DslContext.settingsRoot)
-    }
-
-    steps {
-        gradle {
-            tasks = "clean :uploadJni -I gradle/init-scripts/build-scan.init.gradle.kts -Psnapshot -PonlyPrimaryVariants -PbintrayUserName=%ARTIFACTORY_USERNAME% -PbintrayApiKey=%ARTIFACTORY_PASSWORD%"
-            buildFile = ""
-        }
-    }
-
-    dependencies {
-        snapshot(Build) {
-            onDependencyFailure = FailureAction.FAIL_TO_START
-        }
-        dependency(BuildLinux) {
-            snapshot {
-                onDependencyFailure = FailureAction.FAIL_TO_START
-            }
-
-            artifacts {
-                cleanDestination = true
-                artifactRules = "build-receipt.properties => incoming-distributions/"
-            }
-        }
-        snapshot(BuildMacOS) {
-            onDependencyFailure = FailureAction.FAIL_TO_START
-        }
-    }
-
     requirements {
         contains("teamcity.agent.jvm.os.name", "Windows")
     }
