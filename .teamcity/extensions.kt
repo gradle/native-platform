@@ -25,3 +25,7 @@ fun BuildType.runOn(os: Os): Unit {
         contains("teamcity.agent.jvm.os.name", os.agentOsName)
     }
 }
+
+const val buildScanInit = "-I gradle/init-scripts/build-scan.init.gradle.kts"
+
+const val buildReceipt = "build-receipt.properties"
