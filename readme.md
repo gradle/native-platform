@@ -285,6 +285,24 @@ Run `gradlew installDist` to install the test application into `test-app/build/i
 
 You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
+## Testing integration with [Gradle](https://github.com/gradle/gradle)
+
+### Testing integration on a developer machine
+
+- Install a dev version of native platform to your local Maven repository by running
+    ```sh
+    ./gradlew publishToMavenLocal -PonlyLocalVariants
+    ```
+- Add `mavenLocal()` as a repository in the Gradle build [here](https://github.com/gradle/gradle/blob/732ebb779b5fc96762bc8515882a3d8067af92d6/build.gradle.kts#L195).
+- Change the version of native platform in [`dependencies.gradle`](https://github.com/gradle/gradle/blob/732ebb779b5fc96762bc8515882a3d8067af92d6/gradle/dependencies.gradle#L79) to match the version you just built, e.g. `0.22-dev`.
+- Test what you wanted to test on the Gradle build.
+
+### Testing integration with a snapshot on CI
+
+- Release a snapshot from the branch you want to test by using [this Teamcity build](https://builds.gradle.org/buildConfiguration/GradleNative_NativePlatform_Publishing_PublishJavaApiSnapshot?mode=builds).
+- Use the built snapshot in Gradle by pushing a branch with the published native platform version in [`dependencies.gradle`]([`dependencies.gradle`](https://github.com/gradle/gradle/blob/732ebb779b5fc96762bc8515882a3d8067af92d6/gradle/dependencies.gradle#L79)), e.g. `0.22-snapshot-20200128143135+0000`.
+- Run some tests on CI on the branch of Gradle you just pushed.
+
 # Releasing
 
 1. Check the version number in `build.gradle`.
