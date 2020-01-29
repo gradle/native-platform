@@ -1,6 +1,5 @@
 
 import jetbrains.buildServer.configs.kotlin.v2019_2.project
-import jetbrains.buildServer.configs.kotlin.v2019_2.vcs.GitVcsRoot
 import jetbrains.buildServer.configs.kotlin.v2019_2.version
 
 /*
@@ -28,8 +27,6 @@ To debug in IntelliJ Idea, open the 'Maven Projects' tool window (View
 version = "2019.2"
 
 project {
-    vcsRoot(HttpsGithubComWolfsNativePlatformGitRefsHeadsMaster)
-
     val buildReceiptSource = NativePlatformBuild(Os.Linux) {
         artifactRules = buildReceipt
     }
@@ -39,9 +36,3 @@ project {
 
     subProject(Publishing(builds, buildReceiptSource))
 }
-
-object HttpsGithubComWolfsNativePlatformGitRefsHeadsMaster : GitVcsRoot({
-    name = "https://github.com/wolfs/native-platform.git#refs/heads/master"
-    url = "https://github.com/wolfs/native-platform.git"
-    branchSpec = "+:refs/heads/*"
-})
