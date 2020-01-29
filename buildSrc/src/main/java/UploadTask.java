@@ -1,6 +1,7 @@
 import org.gradle.api.Task;
 import org.gradle.api.publish.maven.MavenArtifact;
 import org.gradle.api.publish.maven.MavenPublication;
+import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.TaskAction;
 
 import java.io.File;
@@ -22,6 +23,7 @@ public class UploadTask extends BintrayTask {
         });
     }
 
+    @Internal
     public MavenPublication getPublication() {
         return publication;
     }
@@ -30,6 +32,7 @@ public class UploadTask extends BintrayTask {
         this.publication = publication;
     }
 
+    @Internal
     public Callable<File> getLocalRepoDir() {
         return localRepoDir;
     }

@@ -1,4 +1,5 @@
 import org.gradle.api.publish.maven.MavenPublication;
+import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.TaskAction;
 
 import java.io.ByteArrayInputStream;
@@ -7,6 +8,7 @@ import java.net.URI;
 public class UpdatePackageMetadataTask extends BintrayTask {
     private MavenPublication publication;
 
+    @Internal
     public MavenPublication getPublication() {
         return publication;
     }
