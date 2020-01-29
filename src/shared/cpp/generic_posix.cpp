@@ -72,7 +72,7 @@ JNIEXPORT void JNICALL Java_net_rubygrapefruit_platform_internal_jni_NativeLogge
     minimumLogLevel = (int) level;
     clsLogger = env->FindClass("net/rubygrapefruit/platform/internal/jni/NativeLogger");
     logMethod = env->GetStaticMethodID(clsLogger, "log", "(ILjava/lang/String;)V");
-    printf("~~~~ Initialized logging to level %d\n", level);
+    printlog(env, LOG_CONFIG, "Initialized logging to level %d\n", level);
 }
 
 void printlog(JNIEnv* env, int level, const char* fmt, ...) {

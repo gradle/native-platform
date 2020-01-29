@@ -16,7 +16,9 @@
 package net.rubygrapefruit.platform.file
 
 import groovy.transform.EqualsAndHashCode
+import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.internal.Platform
+import net.rubygrapefruit.platform.testfixture.JulLogging
 import org.junit.Assume
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
@@ -26,26 +28,17 @@ import spock.lang.Specification
 import spock.lang.Unroll
 import spock.util.concurrent.AsyncConditions
 
-import java.util.logging.ConsoleHandler
-import java.util.logging.Level
-import java.util.logging.Logger
-
+import static java.util.logging.Level.FINE
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 
 abstract class AbstractFileEventsTest extends Specification {
-    @Rule
-    TemporaryFolder tmpDir
+    @Rule TemporaryFolder tmpDir
+    @Rule JulLogging logging = new JulLogging(Native, FINE)
+
     def callback = new TestCallback()
     File rootDir
-
-    def setupSpec() {
-        // TODO Properly initialize JUL logging
-        def global = Logger.getGlobal()
-        global.addHandler(new ConsoleHandler())
-        global.setLevel(Level.INFO)
-    }
 
     def setup() {
         rootDir = tmpDir.newFolder()
