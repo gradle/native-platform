@@ -1,4 +1,7 @@
+import jetbrains.buildServer.configs.kotlin.v2019_2.BuildFeatures
 import jetbrains.buildServer.configs.kotlin.v2019_2.BuildType
+import jetbrains.buildServer.configs.kotlin.v2019_2.DslContext
+import jetbrains.buildServer.configs.kotlin.v2019_2.buildFeatures.commitStatusPublisher
 
 /*
  * Copyright 2020 the original author or authors.
@@ -29,3 +32,15 @@ fun BuildType.runOn(os: Os): Unit {
 const val buildScanInit = "-I gradle/init-scripts/build-scan.init.gradle.kts"
 
 const val buildReceipt = "build-receipt.properties"
+
+fun BuildFeatures.publishCommitStatus() {
+    commitStatusPublisher {
+        vcsRootExtId = DslContext.settingsRoot.id?.value
+        publisher = github {
+            githubUrl = "https://api.github.com"
+            authType = personalToken {
+                token = "credentialsJSON:5306bfc7-041e-46e8-8d61-1d49424e7b04"
+            }
+        }
+    }
+}

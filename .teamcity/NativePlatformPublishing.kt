@@ -68,6 +68,10 @@ open class NativePlatformPublishSnapshot(uploadTasks: List<String>, buildAndTest
         }
     }
 
+    features {
+        publishCommitStatus()
+    }
+
     init(this)
 })
 

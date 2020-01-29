@@ -38,6 +38,10 @@ open class NativePlatformBuild(os: Os, init: BuildType.() -> Unit = {}) : BuildT
         }
     }
 
+    features {
+        publishCommitStatus()
+    }
+
     init(this)
 })
 
@@ -66,4 +70,8 @@ class BuildTrigger(dependencies: List<BuildType>) : BuildType({
     }
 
     runOn(Os.Linux)
+
+    features {
+        publishCommitStatus()
+    }
 })
