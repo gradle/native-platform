@@ -3,6 +3,7 @@ import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
 plugins {
     id 'groovy'
     id 'cpp'
+    id 'net.rubygrapefruit.build.jni-plugin'
 }
 
 apply plugin: ReleasePlugin
@@ -21,8 +22,11 @@ allprojects {
 
     group = 'net.rubygrapefruit'
 
-    sourceCompatibility = 1.5
-    targetCompatibility = 1.5
+    // Java 9 and later don't support targetting Java 5
+    def compatibility = JavaVersion.current().isJava9Compatible() ? 1.6 : 1.5
+
+    sourceCompatibility = compatibility
+    targetCompatibility = compatibility
 }
 
 dependencies {
@@ -30,30 +34,15 @@ dependencies {
     testImplementation 'org.spockframework:spock-core:1.0-groovy-2.4'
 }
 
+// Only depend on variants which can be built on our CI
 boolean onlyPrimaryVariants = project.hasProperty("onlyPrimaryVariants")
+// Only depend on variants which can be built on the current machine
+boolean onlyLocalVariants = project.hasProperty("onlyLocalVariants")
 
 def generatedFilesDir = file("$buildDir/generated")
 
-def nativeHeaders = tasks.register("nativeHeaders", GenerateJniHeader) {
-    generatedHeaderDirectory = file("$generatedFilesDir/jni-header")
-    classpath.from(sourceSets.main.output.classesDirs)
-    classNames = [
-            'net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions',
-            'net.rubygrapefruit.platform.internal.jni.PosixFileFunctions',
-            'net.rubygrapefruit.platform.internal.jni.PosixFileSystemFunctions',
-            'net.rubygrapefruit.platform.internal.jni.PosixProcessFunctions',
-            'net.rubygrapefruit.platform.internal.jni.PosixTerminalFunctions',
-            'net.rubygrapefruit.platform.internal.jni.TerminfoFunctions',
-            'net.rubygrapefruit.platform.internal.jni.WindowsConsoleFunctions',
-            'net.rubygrapefruit.platform.internal.jni.WindowsHandleFunctions',
-            'net.rubygrapefruit.platform.internal.jni.WindowsRegistryFunctions',
-            'net.rubygrapefruit.platform.internal.jni.WindowsFileFunctions',
-            'net.rubygrapefruit.platform.internal.jni.PosixTypeFunctions',
-            'net.rubygrapefruit.platform.internal.jni.MemoryFunctions',
-            'net.rubygrapefruit.platform.internal.jni.OsxMemoryFunctions',
-            'net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions',
-            'net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions',
-    ]
+jni {
+    generatedHeader = file("$generatedFilesDir/jni-header/native.h")
 }
 
 def writeNativeVersionSources = tasks.register("writeNativeVersionSources", WriteNativeVersionSources) {
@@ -64,6 +53,12 @@ def writeNativeVersionSources = tasks.register("writeNativeVersionSources", Writ
 
     generatedNativeHeaderDirectory = file("$generatedFilesDir/version/header")
     generatedJavaSourcesDir = file("$generatedFilesDir/version/java")
+}
+
+
+tasks.withType(CppCompile).configureEach {
+    dependsOn(writeNativeVersionSources)
+    includes(writeNativeVersionSources.map { it.generatedNativeHeaderDirectory })
 }
 
 sourceSets.main.java {
@@ -301,10 +296,8 @@ model {
             }
 
             binaries.withType(SharedLibraryBinarySpec) { binary ->
-                def targetOs = binary.targetPlatform.operatingSystem
-                def targetArch = binary.targetPlatform.architecture
-                def includeVariant = !onlyPrimaryVariants || targetOs.windows || targetOs.macOsX || (targetOs.linux && targetArch.name == "x86-64" && !targetPlatform.name.contains("ncurses6"))
-                if (!includeVariant) {
+                def includeVariant = !onlyPrimaryVariants || canBeBuiltOnCi(binary.targetPlatform)
+                if (!includeVariant || (onlyLocalVariants && !buildable)) {
                     return
                 }
                 def variantName = targetPlatform.name.replace('_', '-')
@@ -352,15 +345,6 @@ model {
     }
 }
 
-tasks.withType(CppCompile).configureEach {
-    dependsOn(nativeHeaders)
-    dependsOn(writeNativeVersionSources)
-    includes.from(
-        nativeHeaders.map { it.generatedHeaderDirectory },
-        writeNativeVersionSources.map { it.generatedNativeHeaderDirectory }
-    )
-}
-
 publishing {
     publications {
         main(MavenPublication) {
@@ -398,6 +382,16 @@ String inferNCursesVersion(def os) {
         }
     }
     throw new IllegalArgumentException("Could not determine ncurses version installed on this machine.")
+}
+
+boolean canBeBuiltOnCi(NativePlatform targetPlatform) {
+    def targetOs = targetPlatform.operatingSystem
+    // Can build all Windows & Mac variants on CI
+    if (targetOs.windows || targetOs.macOsX) {
+        return true
+    }
+    // Can only build the 64bit ncurses5 variant on Linux
+    return targetPlatform.architecture.name == "x86-64" && !targetPlatform.name.contains("ncurses6")
 }
 
 tasks.withType(GroovyCompile).configureEach {
