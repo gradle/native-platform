@@ -64,40 +64,19 @@ open class NativePlatformBuild(init: BuildType.() -> Unit) : BuildType({
 
 object BuildWindows : NativePlatformBuild({
     name = "Build (Windows)"
-
-    params {
-        param("env.JAVA_HOME", "%windows.java8.oracle.64bit%")
-    }
-
-    requirements {
-        contains("teamcity.agent.jvm.os.name", "Windows")
-    }
+    runOn(Os.Windows)
 })
 
 object BuildLinux : NativePlatformBuild({
     name = "Build (Linux)"
 
     artifactRules = "build-receipt.properties"
-
-    params {
-        param("env.JAVA_HOME", "%linux.java8.oracle.64bit%")
-    }
-
-    requirements {
-        contains("teamcity.agent.jvm.os.name", "Linux")
-    }
+    runOn(Os.Linux)
 })
 
 object BuildMacOS : NativePlatformBuild({
     name = "Build (macOS)"
-
-    params {
-        param("env.JAVA_HOME", "%macos.java8.oracle.64bit%")
-    }
-
-    requirements {
-        contains("teamcity.agent.jvm.os.name", "Mac OS X")
-    }
+    runOn(Os.MacOs)
 })
 
 object BuildTrigger : BuildType({
@@ -124,9 +103,7 @@ object BuildTrigger : BuildType({
         }
     }
 
-    requirements {
-        contains("teamcity.agent.jvm.os.name", "Linux")
-    }
+    runOn(Os.Linux)
 })
 
 object HttpsGithubComWolfsNativePlatformGitRefsHeadsMaster : GitVcsRoot({
@@ -186,10 +163,7 @@ open class NativePlatformPublishSnapshot(uploadTasks: List<String>, init: BuildT
 
 object Publishing_PublishJavaApiSnapshot : NativePlatformPublishSnapshot(listOf(":uploadMain", ":testApp:uploadMain"), {
     name = "Publish Native Platform snapshot"
-
-    params {
-        param("env.JAVA_HOME", "%linux.java8.oracle.64bit%")
-    }
+    runOn(Os.Linux)
 
     dependencies {
         listOf(Publishing_PublishLinuxSnapshot, Publishing_PublishMacOsSnapshot, Publishing_PublishWindowsSnapshot).forEach {
@@ -198,43 +172,19 @@ object Publishing_PublishJavaApiSnapshot : NativePlatformPublishSnapshot(listOf(
             }
         }
     }
-
-    requirements {
-        contains("teamcity.agent.jvm.os.name", "Linux")
-    }
 })
 
 object Publishing_PublishLinuxSnapshot : NativePlatformPublishSnapshot(listOf(":uploadJni"), {
     name = "Publish Linux snapshot"
-
-    params {
-        param("env.JAVA_HOME", "%linux.java8.oracle.64bit%")
-    }
-
-    requirements {
-        contains("teamcity.agent.jvm.os.name", "Linux")
-    }
+    runOn(Os.Linux)
 })
 
 object Publishing_PublishMacOsSnapshot : NativePlatformPublishSnapshot(listOf(":uploadJni"), {
     name = "Publish MacOs snapshot"
-
-    params {
-        param("env.JAVA_HOME", "%macos.java8.oracle.64bit%")
-    }
-
-    requirements {
-        contains("teamcity.agent.jvm.os.name", "Mac")
-    }
+    runOn(Os.MacOs)
 })
 
 object Publishing_PublishWindowsSnapshot : NativePlatformPublishSnapshot(listOf(":uploadJni"), {
     name = "Publish Windows snapshot"
-
-    params {
-        param("env.JAVA_HOME", "%windows.java8.oracle.64bit%")
-    }
-    requirements {
-        contains("teamcity.agent.jvm.os.name", "Windows")
-    }
+    runOn(Os.Windows)
 })
