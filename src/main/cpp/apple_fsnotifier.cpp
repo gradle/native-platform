@@ -10,7 +10,7 @@
  */
 #if defined(__APPLE__)
 
-#include "native.h"
+#include "net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions.h"
 #include "generic.h"
 #include <CoreServices/CoreServices.h>
 #include <pthread.h>

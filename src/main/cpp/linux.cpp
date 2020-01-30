@@ -19,7 +19,7 @@
  */
 #ifdef __linux__
 
-#include "native.h"
+#include "net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions.h"
 #include "generic.h"
 #include <stdio.h>
 #include <mntent.h>

@@ -19,7 +19,7 @@
  */
 #ifndef _WIN32
 
-#include "native.h"
+#include "net_rubygrapefruit_platform_internal_jni_TerminfoFunctions.h"
 #include "generic.h"
 #include <unistd.h>
 #include <stdlib.h>
