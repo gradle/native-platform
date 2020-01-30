@@ -41,10 +41,6 @@ boolean onlyLocalVariants = project.hasProperty("onlyLocalVariants")
 
 def generatedFilesDir = file("$buildDir/generated")
 
-jni {
-    generatedHeader = file("$generatedFilesDir/jni-header/native.h")
-}
-
 def writeNativeVersionSources = tasks.register("writeNativeVersionSources", WriteNativeVersionSources) {
     ["main", "shared", "curses"].each {
         nativeSources.from("src/${it}/cpp")

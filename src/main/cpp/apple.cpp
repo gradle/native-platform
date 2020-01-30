@@ -19,7 +19,9 @@
  */
 #if defined(__APPLE__)
 
-#include "native.h"
+#include "net_rubygrapefruit_platform_internal_jni_MemoryFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_OsxMemoryFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions.h"
 #include "generic.h"
 #include <string.h>
 #include <stdlib.h>

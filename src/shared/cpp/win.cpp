@@ -1,6 +1,5 @@
 #ifdef _WIN32
 
-#include "native.h"
 #include "generic.h"
 #include "win.h"
 #include <stdlib.h>

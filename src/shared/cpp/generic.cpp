@@ -17,7 +17,7 @@
 /*
  * Generic cross-platform functions.
  */
-#include "native.h"
+#include "net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions.h"
 #include "generic.h"
 
 void mark_failed_with_message(JNIEnv *env, const char* message, jobject result) {
