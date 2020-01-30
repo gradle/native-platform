@@ -53,12 +53,11 @@ def writeNativeVersionSources = tasks.register("writeNativeVersionSources", Writ
 
 
 tasks.withType(CppCompile).configureEach {
-    dependsOn(writeNativeVersionSources)
-    includes(writeNativeVersionSources.map { it.generatedNativeHeaderDirectory })
+    includes(writeNativeVersionSources.flatMap { it.generatedNativeHeaderDirectory })
 }
 
 sourceSets.main.java {
-    srcDir(writeNativeVersionSources.map { it.generatedJavaSourcesDir })
+    srcDir(writeNativeVersionSources.flatMap { it.generatedJavaSourcesDir })
 }
 
 javadoc {
