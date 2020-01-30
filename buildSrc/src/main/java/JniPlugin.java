@@ -29,7 +29,8 @@ public abstract class JniPlugin implements Plugin<Project> {
             configureCompileJava(compilerArguments, removeGeneratedNativeHeaders, compileJavaProvider);
             configureIncludePath(
                 tasks,
-                compileJavaProvider.map(compileJava -> compilerArguments.getGeneratedHeadersDirectory())
+                compilerArguments.getGeneratedHeadersDirectory(),
+                compileJavaProvider
             );
         });
     }
@@ -47,10 +48,10 @@ public abstract class JniPlugin implements Plugin<Project> {
         });
     }
 
-    private void configureIncludePath(TaskContainer tasks, Provider<Object> generatedHeaderDirectory) {
+    private void configureIncludePath(TaskContainer tasks, Provider<Directory> generatedHeaderDirectory, TaskProvider<?> buildJniTask) {
         tasks.withType(CppCompile.class).configureEach(task -> {
             task.includes(generatedHeaderDirectory);
-            task.dependsOn(generatedHeaderDirectory);
+            task.dependsOn(buildJniTask);
         });
     }
 
