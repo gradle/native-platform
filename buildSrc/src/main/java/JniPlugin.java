@@ -4,6 +4,7 @@ import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.file.Directory;
+import org.gradle.api.file.FileCollection;
 import org.gradle.api.file.FileSystemOperations;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.OutputDirectory;
@@ -29,7 +30,7 @@ public abstract class JniPlugin implements Plugin<Project> {
             configureCompileJava(compilerArguments, removeGeneratedNativeHeaders, compileJavaProvider);
             configureIncludePath(
                 tasks,
-                compileJavaProvider.flatMap(it -> compilerArguments.getGeneratedHeadersDirectory())
+                project.files(compilerArguments.getGeneratedHeadersDirectory()).builtBy(compileJavaProvider)
             );
         });
     }
@@ -47,7 +48,7 @@ public abstract class JniPlugin implements Plugin<Project> {
         });
     }
 
-    private void configureIncludePath(TaskContainer tasks, Provider<Directory> generatedHeaderDirectory) {
+    private void configureIncludePath(TaskContainer tasks, FileCollection generatedHeaderDirectory) {
         tasks.withType(CppCompile.class).configureEach(task -> {
             task.includes(generatedHeaderDirectory);
         });
