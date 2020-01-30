@@ -331,7 +331,10 @@ publishing {
     }
 }
 
+// We register the publications here, so they are available when the project is used as a composite build.
+// When we don't use the software model plugins anymore, then this can move out of the afterEvaluate block.
 afterEvaluate {
+    // Realize the software model components, so we can create the corresponding publications.
     modelRegistry.realize('components.nativePlatform', NativeLibrarySpec)
     modelRegistry.realize('components.nativePlatformCurses', NativeLibrarySpec)
     modelRegistry.realize('components', ModelMap).each { ComponentSpec spec->
