@@ -30,8 +30,10 @@ public abstract class JniPlugin implements Plugin<Project> {
             headerOutputDirectory.convention(compileJava.getProject().getLayout().getBuildDirectory().dir("generated/jni-headers"));
             // The nested output is not marked automatically as an output of the task regarding task dependencies.
             // So we mark it manually here.
+            // See https://github.com/gradle/gradle/issues/6619.
             compileJava.getOutputs().dir(compileJava.getOptions().getHeaderOutputDirectory());
-            // Cannot do incremental header generation, since the pattern is currently wrong.
+            // Cannot do incremental header generation, since the pattern for cleaning them up is currently wrong.
+            // See https://github.com/gradle/gradle/issues/12084.
             compileJava.getOptions().setIncremental(false);
         });
     }
