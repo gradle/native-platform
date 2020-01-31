@@ -16,7 +16,13 @@
 
 #ifdef _WIN32
 
-#include "native.h"
+#include "net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_WindowsHandleFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_WindowsRegistryFunctions.h"
 #include "generic.h"
 #include "win.h"
 
@@ -49,7 +55,7 @@ bool is_file_symlink(DWORD dwFileAttributes, DWORD reparseTagData) {
     // See https://docs.microsoft.com/en-us/windows/desktop/fileio/reparse-point-tags
     //  IO_REPARSE_TAG_SYMLINK (0xA000000C)
     //
-    return 
+    return
         ((dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == FILE_ATTRIBUTE_REPARSE_POINT) &&
         (reparseTagData == IO_REPARSE_TAG_SYMLINK);
 }
@@ -177,7 +183,7 @@ Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getSystemIn
     } else {
         arch = env->NewStringUTF("unknown");
     }
-    
+
     jstring hostname = NULL;
     DWORD cnSize = MAX_COMPUTERNAME_LENGTH + 1;
     wchar_t* computerName = (wchar_t*)malloc(sizeof(wchar_t) * cnSize);

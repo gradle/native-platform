@@ -54,8 +54,8 @@ public class Native {
                 try {
                     loader = new NativeLibraryLoader(platform, new NativeLibraryLocator(extractDir));
                     loader.load(platform.getLibraryName(), platform.getLibraryVariants());
-                    long nativeVersion = NativeLibraryFunctions.getVersion();
-                    if (nativeVersion != NativeVersion.VERSION) {
+                    String nativeVersion = NativeLibraryFunctions.getVersion();
+                    if (!nativeVersion.equals(NativeVersion.VERSION)) {
                         throw new NativeException(String.format("Unexpected native library version loaded. Expected %s, was %s.", NativeVersion.VERSION, nativeVersion));
                     }
                 } catch (NativeException e) {

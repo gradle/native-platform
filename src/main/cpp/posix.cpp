@@ -19,7 +19,11 @@
  */
 #ifndef _WIN32
 
-#include "native.h"
+#include "net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_PosixFileFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_PosixTerminalFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_PosixTypeFunctions.h"
 #include "generic.h"
 #include <stdlib.h>
 #include <sys/types.h>

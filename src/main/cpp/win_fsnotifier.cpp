@@ -1,6 +1,6 @@
 #ifdef _WIN32
 
-#include "native.h"
+#include "net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions.h"
 #include "generic.h"
 #include "win.h"
 #include <process.h>

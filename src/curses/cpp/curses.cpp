@@ -19,7 +19,7 @@
  */
 #ifndef _WIN32
 
-#include "native.h"
+#include "net_rubygrapefruit_platform_internal_jni_TerminfoFunctions.h"
 #include "generic.h"
 #include <unistd.h>
 #include <stdlib.h>
@@ -84,9 +84,9 @@ jbyteArray read_param_capability(JNIEnv *env, const char* capability, int count,
     return byte_array_for_capability(env, capability, result);
 }
 
-JNIEXPORT jlong JNICALL
+JNIEXPORT jstring JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_getVersion(JNIEnv *env, jclass target) {
-    return NATIVE_VERSION;
+    return env->NewStringUTF(NATIVE_VERSION);
 }
 
 JNIEXPORT void JNICALL
