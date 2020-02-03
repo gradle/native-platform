@@ -256,7 +256,9 @@ static void CALLBACK requestTerminationCallback(_In_ ULONG_PTR arg) {
 
 void Server::requestTermination() {
     terminate = true;
-    for (auto &watchPoint : watchPoints) {
+    // Make copy so terminated entries can be removed
+    list<WatchPoint*> copyWatchPoints(watchPoints);
+    for (auto &watchPoint : copyWatchPoints) {
         watchPoint->close();
     }
 }
