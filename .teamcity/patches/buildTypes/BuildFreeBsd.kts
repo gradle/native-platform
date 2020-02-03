@@ -16,7 +16,7 @@ create(DslContext.projectId, BuildType({
     name = "Build (FreeBsd)"
 
     params {
-        param("env.JAVA_HOME", "%macos.java8.oracle.64bit%")
+        param("env.JAVA_HOME", "/usr/local/openjdk8")
     }
 
     vcs {
