@@ -166,7 +166,7 @@ void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION *info) {
         changedPath.insert(0, path);
     }
 
-    wprintf(L"~~~~ Changed: 0x%x %ls\n", info->Action, changedPath.c_str());
+    log_info(details->env, L"~~~~ Changed: 0x%x %ls\n", info->Action, changedPath);
 
     jint type;
     if (info->Action == FILE_ACTION_ADDED || info->Action == FILE_ACTION_RENAMED_NEW_NAME) {
