@@ -20,6 +20,7 @@
 #include <jni.h>
 
 #include "native_platform_version.h"
+#include "net_rubygrapefruit_platform_internal_jni_NativeLogger.h"
 
 #ifdef __cplusplus
 extern "C" {

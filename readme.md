@@ -285,6 +285,50 @@ Run `gradlew installDist` to install the test application into `test-app/build/i
 
 You can run `$INSTALL_DIR/bin/native-platform-test` to run the test application.
 
+## Testing integration with another project
+
+When developing a new feature in native platform, you often want to test the features in a real-world project which uses native platform.
+There are various ways how to test the changes of native platform in the consuming project.
+
+### Use composite build on a developer machine
+
+#### From the command line
+
+From the checkout directory of the consuming project you can run:
+
+```sh
+./gradlew --include-build ../native-platform ...
+```
+
+This assumes that `native-platform` is checked out in `../native-platform` relative to the consuming project.
+
+#### From IDEA
+
+In IDEA, open the consuming project.
+Then [link the `native-platform` project](https://www.jetbrains.com/help/idea/gradle.html#link_gradle_project).
+Finally, add the linked `native-platform` project [as a participant to the Gradle build](https://www.jetbrains.com/help/idea/work-with-gradle-projects.html#gradle_composite_build) and sync the consuming project.
+
+> **WARNING**: You need to use IDEA 2020.1 for the composite build to work.
+> See https://youtrack.jetbrains.com/issue/IDEA-228368 and https://youtrack.jetbrains.com/issue/IDEA-206799.
+
+### Use a published snapshot on a developer machine/CI
+
+- Publish a snapshot from the branch you want to test by using [this Teamcity build](https://builds.gradle.org/buildConfiguration/GradleNative_NativePlatform_Publishing_PublishJavaApiSnapshot?mode=builds).
+- Change the version of native platform in the consuming project to match the version you just published, e.g. `0.22-snapshot-20200128143135+0000`,
+  and push the changes to a branch.
+- Run some tests on CI on the branch of the consuming project you just pushed.
+- Test what you want to test on the consuming project.
+
+### Use `mavenLocal()` on a developer machine
+
+- Install a dev version of native platform to your local Maven repository by running
+    ```sh
+    ./gradlew publishToMavenLocal -PonlyLocalVariants
+    ```
+- Add `mavenLocal()` as a repository in the consuming project.
+- Change the version of native platform in the consuming project to match the version you just built, e.g. `0.22-dev`.
+- Test what you want to test on the consuming project.
+
 # Releasing
 
 1. Check the version number in `build.gradle`.

@@ -1,108 +1,40 @@
-import com.google.common.collect.ImmutableList;
-import org.gradle.api.Action;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
-import org.gradle.api.Task;
-import org.gradle.api.file.Directory;
-import org.gradle.api.file.FileCollection;
-import org.gradle.api.file.FileSystemOperations;
-import org.gradle.api.file.RegularFileProperty;
-import org.gradle.api.provider.Provider;
-import org.gradle.api.tasks.OutputDirectory;
+import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.tasks.TaskContainer;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.language.cpp.tasks.CppCompile;
-import org.gradle.process.CommandLineArgumentProvider;
-
-import javax.inject.Inject;
 
 public abstract class JniPlugin implements Plugin<Project> {
 
     @Override
     public void apply(Project project) {
         project.getPluginManager().withPlugin("java", plugin -> {
-            JniExtension jniExtension = project.getExtensions().create("jni", JniExtension.class);
-            JniCompilerArguments compilerArguments = new JniCompilerArguments(project.getLayout().getBuildDirectory().dir("generated/jni-headers"));
             TaskContainer tasks = project.getTasks();
             TaskProvider<JavaCompile> compileJavaProvider = tasks.named("compileJava", JavaCompile.class);
-            RemoveGeneratedNativeHeaders removeGeneratedNativeHeaders = project.getObjects().newInstance(RemoveGeneratedNativeHeaders.class, compilerArguments.getGeneratedHeadersDirectory());
-            configureCompileJava(compilerArguments, removeGeneratedNativeHeaders, compileJavaProvider);
+            configureCompileJava(compileJavaProvider);
 
-            TaskProvider<ConcatenateJniHeaders> concatenateJniHeaders = createConcatenateJniHeadersTask(
-                tasks,
-                compileJavaProvider,
-                project.files(compilerArguments.getGeneratedHeadersDirectory()).getAsFileTree(),
-                jniExtension.getGeneratedHeader()
-            );
-
-            configureIncludePath(tasks, concatenateJniHeaders
-                .map(ConcatenateJniHeaders::getGeneratedNativeHeader)
-                .map(it -> it.get().getAsFile().getParentFile())
-            );
-        });
-    }
-
-    private TaskProvider<ConcatenateJniHeaders> createConcatenateJniHeadersTask(TaskContainer tasks, TaskProvider<JavaCompile> compileJavaProvider, FileCollection sourceHeaders, RegularFileProperty targetHeader) {
-        return tasks.register("concatenateJniHeaders", ConcatenateJniHeaders.class, task -> {
-            task.getJniHeaders().from(sourceHeaders);
-            task.getGeneratedNativeHeader().set(targetHeader);
-            task.dependsOn(compileJavaProvider);
+            tasks.withType(CppCompile.class)
+                .configureEach(task -> task.includes(
+                    compileJavaProvider.flatMap(it -> it.getOptions().getHeaderOutputDirectory())
+                ));
         });
     }
 
     private void configureCompileJava(
-        JniCompilerArguments compilerArguments,
-        RemoveGeneratedNativeHeaders removeGeneratedNativeHeaders,
         TaskProvider<JavaCompile> compileJavaProvider
     ) {
         compileJavaProvider.configure(compileJava -> {
-            compileJava.getOptions().getCompilerArgumentProviders().add(compilerArguments);
-            // Cannot do incremental header generation
+            DirectoryProperty headerOutputDirectory = compileJava.getOptions().getHeaderOutputDirectory();
+            headerOutputDirectory.convention(compileJava.getProject().getLayout().getBuildDirectory().dir("generated/jni-headers"));
+            // The nested output is not marked automatically as an output of the task regarding task dependencies.
+            // So we mark it manually here.
+            // See https://github.com/gradle/gradle/issues/6619.
+            compileJava.getOutputs().dir(compileJava.getOptions().getHeaderOutputDirectory());
+            // Cannot do incremental header generation, since the pattern for cleaning them up is currently wrong.
+            // See https://github.com/gradle/gradle/issues/12084.
             compileJava.getOptions().setIncremental(false);
-            compileJava.doFirst(removeGeneratedNativeHeaders);
         });
-    }
-
-    private void configureIncludePath(TaskContainer tasks, Provider<Object> generatedHeaderDirectory) {
-        tasks.withType(CppCompile.class).configureEach(task -> {
-            task.includes(generatedHeaderDirectory);
-            task.dependsOn(generatedHeaderDirectory);
-        });
-    }
-
-    private static class JniCompilerArguments implements CommandLineArgumentProvider {
-        private final Provider<Directory> generatedHeadersDirectory;
-
-        public JniCompilerArguments(Provider<Directory> generatedHeadersDirectory) {
-            this.generatedHeadersDirectory = generatedHeadersDirectory;
-        }
-
-        @OutputDirectory
-        public Provider<Directory> getGeneratedHeadersDirectory() {
-            return generatedHeadersDirectory;
-        }
-
-        @Override
-        public Iterable<String> asArguments() {
-            return ImmutableList.of("-h", generatedHeadersDirectory.get().getAsFile().getAbsolutePath());
-        }
-    }
-
-    abstract static class RemoveGeneratedNativeHeaders implements Action<Task> {
-        private final Provider<Directory> generatedHeadersDirectory;
-
-        @Inject
-        public abstract FileSystemOperations getFileSystemOperations();
-
-        @Inject
-        public RemoveGeneratedNativeHeaders(Provider<Directory> generatedHeadersDirectory) {
-            this.generatedHeadersDirectory = generatedHeadersDirectory;
-        }
-
-        @Override
-        public void execute(Task task) {
-            getFileSystemOperations().delete(spec -> spec.delete(generatedHeadersDirectory));
-        }
     }
 }

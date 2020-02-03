@@ -19,7 +19,6 @@
  */
 #ifdef __APPLE__
 
-#include "native.h"
 #include "generic.h"
 #include <stdlib.h>
 #include <string.h>

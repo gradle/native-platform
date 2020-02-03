@@ -41,10 +41,6 @@ boolean onlyLocalVariants = project.hasProperty("onlyLocalVariants")
 
 def generatedFilesDir = file("$buildDir/generated")
 
-jni {
-    generatedHeader = file("$generatedFilesDir/jni-header/native.h")
-}
-
 def writeNativeVersionSources = tasks.register("writeNativeVersionSources", WriteNativeVersionSources) {
     ["main", "shared", "curses"].each {
         nativeSources.from("src/${it}/cpp")
@@ -57,12 +53,11 @@ def writeNativeVersionSources = tasks.register("writeNativeVersionSources", Writ
 
 
 tasks.withType(CppCompile).configureEach {
-    dependsOn(writeNativeVersionSources)
-    includes(writeNativeVersionSources.map { it.generatedNativeHeaderDirectory })
+    includes(writeNativeVersionSources.flatMap { it.generatedNativeHeaderDirectory })
 }
 
 sourceSets.main.java {
-    srcDir(writeNativeVersionSources.map { it.generatedJavaSourcesDir })
+    srcDir(writeNativeVersionSources.flatMap { it.generatedJavaSourcesDir })
 }
 
 javadoc {
@@ -300,46 +295,8 @@ model {
                 if (!includeVariant || (onlyLocalVariants && !buildable)) {
                     return
                 }
-                def variantName = targetPlatform.name.replace('_', '-')
+                def variantName = binaryToVariantName(binary)
                 variantNames << variantName
-
-                if (!buildable) {
-                    return
-                }
-
-                def taskName = "jar-${variantName}"
-                def nativeJar = project.tasks.findByName(taskName)
-                if (nativeJar == null) {
-                    nativeJar = project.tasks.create(taskName, Jar) {
-                        archiveBaseName = "native-platform-$variantName"
-                    }
-                    artifacts {
-                        runtimeElements nativeJar
-                    }
-                    publishing {
-                        publications {
-                            "$variantName"(MavenPublication) {
-                                artifact(nativeJar)
-                                artifact(emptyZip) {
-                                    classifier = "sources"
-                                }
-                                artifact(emptyZip) {
-                                    classifier = "javadoc"
-                                }
-                                groupId = project.group
-                                artifactId = nativeJar.archiveBaseName.get()
-                                version = project.version
-                            }
-                        }
-                    }
-                }
-
-                binary.tasks.withType(LinkSharedLibrary) { builderTask ->
-                    nativeJar.into("net/rubygrapefruit/platform/$variantName") { from builderTask.linkedFile }
-                }
-                project.tasks.test {
-                    classpath.from nativeJar
-                }
             }
         }
     }
@@ -369,6 +326,52 @@ publishing {
     }
 }
 
+// We register the publications here, so they are available when the project is used as a composite build.
+// When we don't use the software model plugins anymore, then this can move out of the afterEvaluate block.
+afterEvaluate {
+    // Realize the software model components, so we can create the corresponding publications.
+    modelRegistry.realize('components.nativePlatform', NativeLibrarySpec)
+    modelRegistry.realize('components.nativePlatformCurses', NativeLibrarySpec)
+    modelRegistry.realize('components', ModelMap).each { ComponentSpec spec->
+        spec.binaries.findAll { variantNames.contains(binaryToVariantName(it)) && it.buildable } each { NativeBinarySpec binary ->
+            def variantName = binaryToVariantName(binary)
+            def taskName = "jar-${variantName}"
+            def nativeJar = project.tasks.findByName(taskName)
+            if (nativeJar == null) {
+                nativeJar = project.tasks.create(taskName, Jar) {
+                    archiveBaseName = "native-platform-$variantName"
+                }
+                artifacts {
+                    runtimeElements nativeJar
+                }
+                publishing {
+                    publications {
+                        "$variantName"(MavenPublication) {
+                            artifact(nativeJar)
+                            artifact(emptyZip) {
+                                classifier = "sources"
+                            }
+                            artifact(emptyZip) {
+                                classifier = "javadoc"
+                            }
+                            groupId = project.group
+                            artifactId = nativeJar.archiveBaseName.get()
+                            version = project.version
+                        }
+                    }
+                }
+            }
+
+            binary.tasks.withType(LinkSharedLibrary) { builderTask ->
+                nativeJar.into("net/rubygrapefruit/platform/$variantName") { from builderTask.linkedFile }
+            }
+            project.tasks.test {
+                classpath.from nativeJar
+            }
+        }
+    }
+}
+
 String inferNCursesVersion(def os) {
     if (!os.linux) {
         return "5"
@@ -391,5 +394,9 @@ boolean canBeBuiltOnCi(NativePlatform targetPlatform) {
         return true
     }
     // Can only build the 64bit ncurses5 variant on Linux
-    return targetPlatform.architecture.name == "x86-64" && !targetPlatform.name.contains("ncurses6")
+    return targetOs.linux && targetPlatform.architecture.name == "x86-64" && !targetPlatform.name.contains("ncurses6")
+}
+
+String binaryToVariantName(NativeBinarySpec binary) {
+    binary.targetPlatform.name.replace('_', '-')
 }
