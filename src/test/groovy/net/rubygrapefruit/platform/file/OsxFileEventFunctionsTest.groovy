@@ -28,7 +28,6 @@ class OsxFileEventFunctionsTest extends AbstractFileEventsTest {
     private static final LATENCY_IN_MILLIS = 200
 
     final OsxFileEventFunctions fileEvents = Native.get(OsxFileEventFunctions.class)
-    FileWatcher watcher
 
     def "caches file events instance"() {
         expect:
@@ -36,10 +35,10 @@ class OsxFileEventFunctionsTest extends AbstractFileEventsTest {
     }
 
     @Override
-    protected void startWatcher(FileWatcherCallback callback, File... roots) {
+    protected FileWatcher startNewWatcher(FileWatcherCallback callback, File... roots) {
         // Avoid setup operations to be reported
         waitForChangeEventLatency()
-        watcher = fileEvents.startWatching(
+        fileEvents.startWatching(
             roots*.absolutePath.toList(),
             LATENCY_IN_MILLIS, TimeUnit.MILLISECONDS,
             callback
@@ -47,7 +46,7 @@ class OsxFileEventFunctionsTest extends AbstractFileEventsTest {
     }
 
     @Override
-    protected void stopWatcher() {
+    protected void stopWatcher(FileWatcher watcher) {
         watcher?.close()
     }
 

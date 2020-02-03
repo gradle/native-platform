@@ -36,6 +36,7 @@ abstract class AbstractFileEventsTest extends Specification {
     @Rule TestName testName
     def callback = new TestCallback()
     File rootDir
+    FileWatcher watcher
 
     def setup() {
         rootDir = tmpDir.newFolder(testName.methodName)
@@ -292,6 +293,39 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
+    def "can start multiple watchers"() {
+        given:
+        def firstRoot = new File(rootDir, "first")
+        firstRoot.mkdirs()
+        def secondRoot = new File(rootDir, "second")
+        secondRoot.mkdirs()
+        def firstFile = new File(firstRoot, "file.txt")
+        def secondFile = new File(secondRoot, "file.txt")
+        def firstCallback = new TestCallback()
+        def secondCallback = new TestCallback()
+
+        def firstWatcher = startNewWatcher(firstCallback, firstRoot)
+        def secondWatcher = startNewWatcher(secondCallback, secondRoot)
+
+        when:
+        def firstChanges = expectEvents firstCallback, created(firstFile)
+        firstFile.createNewFile()
+
+        then:
+        firstChanges.await()
+
+        when:
+        def secondChanges = expectEvents secondCallback, created(secondFile)
+        secondFile.createNewFile()
+
+        then:
+        secondChanges.await()
+
+        cleanup:
+        stopWatcher(firstWatcher)
+        stopWatcher(secondWatcher)
+    }
+
     def "can receive event about a non-direct descendant change"() {
         given:
         def subDir = new File(rootDir, "sub-dir")
@@ -380,15 +414,25 @@ abstract class AbstractFileEventsTest extends Specification {
         "grand-parent of watched directory" | { it.parentFile.parentFile }
     }
 
-    protected abstract void startWatcher(FileWatcherCallback callback = this.callback, File... roots)
-
-    protected abstract void stopWatcher()
-
-    protected AsyncConditions expectEvents(FileEvent... events) {
-        expectEvents(events as List)
+    protected void startWatcher(FileWatcherCallback callback = this.callback, File... roots) {
+        watcher = startNewWatcher(callback, roots)
     }
 
-    protected AsyncConditions expectEvents(List<FileEvent> events) {
+    protected abstract FileWatcher startNewWatcher(FileWatcherCallback callback, File... roots)
+
+    protected void stopWatcher() {
+        def copyWatcher = watcher
+        watcher = null
+        stopWatcher(copyWatcher)
+    }
+
+    protected abstract void stopWatcher(FileWatcher watcher)
+
+    protected AsyncConditions expectEvents(FileWatcherCallback callback = this.callback, FileEvent... events) {
+        expectEvents(callback, events as List)
+    }
+
+    protected AsyncConditions expectEvents(FileWatcherCallback callback = this.callback, List<FileEvent> events) {
         return callback.expect(events)
     }
 

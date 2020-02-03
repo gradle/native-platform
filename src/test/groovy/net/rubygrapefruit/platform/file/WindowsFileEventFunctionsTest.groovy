@@ -17,7 +17,6 @@
 package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.Native
-import net.rubygrapefruit.platform.NativeException
 import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions
 import spock.lang.Requires
@@ -25,7 +24,6 @@ import spock.lang.Requires
 @Requires({ Platform.current().windows })
 class WindowsFileEventFunctionsTest extends AbstractFileEventsTest {
     final WindowsFileEventFunctions fileEvents = Native.get(WindowsFileEventFunctions.class)
-    FileWatcher watcher
 
     def "caches file events instance"() {
         expect:
@@ -33,14 +31,14 @@ class WindowsFileEventFunctionsTest extends AbstractFileEventsTest {
     }
 
     @Override
-    protected void startWatcher(FileWatcherCallback callback, File... roots) {
+    protected FileWatcher startNewWatcher(FileWatcherCallback callback, File... roots) {
         // Avoid setup operations to be reported
         waitForChangeEventLatency()
-        watcher = fileEvents.startWatching(roots*.absolutePath.toList(), callback)
+        fileEvents.startWatching(roots*.absolutePath.toList(), callback)
     }
 
     @Override
-    protected void stopWatcher() {
+    protected void stopWatcher(FileWatcher watcher) {
         watcher?.close()
     }
 
