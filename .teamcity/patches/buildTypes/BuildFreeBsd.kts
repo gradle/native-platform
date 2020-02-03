@@ -43,7 +43,7 @@ create(DslContext.projectId, BuildType({
     }
 
     requirements {
-        contains("teamcity.agent.jvm.os.name", "Mac OS X")
+        contains("teamcity.agent.jvm.os.name", "FreeBSD")
     }
 }))
 
