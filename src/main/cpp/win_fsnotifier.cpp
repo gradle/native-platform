@@ -41,7 +41,7 @@ void handlePathChanged(watch_details_t *details, FILE_NOTIFY_INFORMATION *info) 
     wchar_t *changedPath = add_prefix(info->FileName, pathLen, details->drivePath);
     int changedPathLen = pathLen + 3;
 
-    wprintf(L"~~~~ Changed: 0x%x %ls\n", info->Action, changedPath);
+    log_info(details->env, L"~~~~ Changed: 0x%x %ls\n", info->Action, changedPath);
 
     jint type;
     if (info->Action == FILE_ACTION_ADDED || info->Action == FILE_ACTION_RENAMED_NEW_NAME) {
