@@ -17,5 +17,6 @@
 enum class Os(val agentOsName: String, val java8Home: String) {
     Linux("Linux", "%linux.java8.oracle.64bit%"),
     Windows("Windows", "%windows.java8.oracle.64bit%"),
-    MacOs("Mac OS X", "%macos.java8.oracle.64bit%")
+    MacOs("Mac OS X", "%macos.java8.oracle.64bit%"),
+    FreeBsd("FreeBSD", "%freebsd.java8.openjdk.64bit%")
 }

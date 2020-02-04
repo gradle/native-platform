@@ -30,7 +30,7 @@ project {
     val buildReceiptSource = NativePlatformBuild(Os.Linux) {
         artifactRules = buildReceipt
     }
-    val builds = listOf(buildReceiptSource, NativePlatformBuild(Os.Windows), NativePlatformBuild(Os.MacOs))
+    val builds = listOf(buildReceiptSource, NativePlatformBuild(Os.Windows), NativePlatformBuild(Os.MacOs), NativePlatformBuild(Os.FreeBsd))
     builds.forEach(::buildType)
     buildType(BuildTrigger(builds))
 
