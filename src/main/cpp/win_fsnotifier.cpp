@@ -263,7 +263,7 @@ void Server::run() {
         SleepEx(INFINITE, true);
     }
 
-    log_info(env, L"Stopping thread %d\n", GetCurrentThreadId());
+    log_info(env, L"Thread %d finishing\n", GetCurrentThreadId());
 
     // TODO Extract this logic to some shared function
     jint statDetach = jvm->DetachCurrentThread();
@@ -288,9 +288,35 @@ void Server::requestTermination() {
 }
 
 void Server::close(JNIEnv *env) {
-    QueueUserAPC(requestTerminationCallback, this->threadHandle, (ULONG_PTR)this);
-    WaitForSingleObject(this->threadHandle, INFINITE);
-    CloseHandle(this->threadHandle);
+    log_info(env, L"Requesting termination of thread %p\n", threadHandle);
+    int ret = QueueUserAPC(requestTerminationCallback, this->threadHandle, (ULONG_PTR)this);
+    if (ret == 0) {
+        log_severe(env, L"Couldn't send termination request to thread %p: %d\n", threadHandle, GetLastError());
+    } else {
+        ret = WaitForSingleObject(this->threadHandle, INFINITE);
+        switch (ret) {
+        case WAIT_OBJECT_0:
+            log_info(env, L"Termination of thread %p finished normally\n", threadHandle);
+            break;
+        case WAIT_FAILED:
+            log_severe(env, L"Wait for terminating %p failed: %d\n", threadHandle, GetLastError());
+            break;
+        case WAIT_ABANDONED:
+            log_severe(env, L"Wait for terminating %p abandoned\n", threadHandle);
+            break;
+        case WAIT_TIMEOUT:
+            log_severe(env, L"Wait for terminating %p timed out\n", threadHandle);
+            break;
+
+        default:
+            log_severe(env, L"Wait for terminating %p failed with unknown reason: %d\n", threadHandle, ret);
+            break;
+        }
+        ret = CloseHandle(this->threadHandle);
+        if (ret == 0) {
+            log_severe(env, L"Closing handle for thread %p failed: %s\n", threadHandle, GetLastError());
+        }
+    }
     env->DeleteGlobalRef(this->watcherCallback);
 }
 
