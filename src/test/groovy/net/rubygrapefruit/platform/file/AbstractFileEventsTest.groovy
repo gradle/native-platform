@@ -16,6 +16,7 @@
 package net.rubygrapefruit.platform.file
 
 import groovy.transform.EqualsAndHashCode
+import java.util.logging.Logger
 import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.testfixture.JulLogging
@@ -35,6 +36,8 @@ import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 
 abstract class AbstractFileEventsTest extends Specification {
+    private static final Logger LOGGER = Logger.getLogger(AbstractFileEventsTest.name)
+
     @Rule TemporaryFolder tmpDir
     @Rule TestName testName
     @Rule JulLogging logging = new JulLogging(Native, FINE)
@@ -44,11 +47,13 @@ abstract class AbstractFileEventsTest extends Specification {
     FileWatcher watcher
 
     def setup() {
+        LOGGER.info(">>> Running '${testName.methodName}'")
         rootDir = tmpDir.newFolder(testName.methodName)
     }
 
     def cleanup() {
         stopWatcher()
+        LOGGER.info("<<< Finished '${testName.methodName}'")
     }
 
     def "can open and close watcher on a directory without receiving any events"() {
@@ -66,7 +71,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
         when:
         def expectedChanges = expectEvents created(createdFile)
-        createdFile.createNewFile()
+        createNewFile(createdFile)
 
         then:
         expectedChanges.await()
@@ -75,7 +80,7 @@ abstract class AbstractFileEventsTest extends Specification {
     def "can detect file removed"() {
         given:
         def removedFile = new File(rootDir, "removed.txt")
-        removedFile.createNewFile()
+        createNewFile(removedFile)
         // TODO Why does Windows report the modification?
         def expectedEvents = Platform.current().windows
             ? [modified(removedFile), removed(removedFile)]
@@ -93,7 +98,7 @@ abstract class AbstractFileEventsTest extends Specification {
     def "can detect file modified"() {
         given:
         def modifiedFile = new File(rootDir, "modified.txt")
-        modifiedFile.createNewFile()
+        createNewFile(modifiedFile)
         startWatcher(rootDir)
 
         when:
@@ -108,7 +113,7 @@ abstract class AbstractFileEventsTest extends Specification {
         given:
         def sourceFile = new File(rootDir, "source.txt")
         def targetFile = new File(rootDir, "target.txt")
-        sourceFile.createNewFile()
+        createNewFile(sourceFile)
         // TODO Why doesn't Windows report the creation of the target file?
         def expectedEvents = Platform.current().windows
             ? [removed(sourceFile)]
@@ -128,7 +133,7 @@ abstract class AbstractFileEventsTest extends Specification {
         def outsideDir = tmpDir.newFolder()
         def sourceFileInside = new File(rootDir, "source-inside.txt")
         def targetFileOutside = new File(outsideDir, "target-outside.txt")
-        sourceFileInside.createNewFile()
+        createNewFile(sourceFileInside)
         startWatcher(rootDir)
 
         when:
@@ -144,7 +149,7 @@ abstract class AbstractFileEventsTest extends Specification {
         def outsideDir = tmpDir.newFolder()
         def sourceFileOutside = new File(outsideDir, "source-outside.txt")
         def targetFileInside = new File(rootDir, "target-inside.txt")
-        sourceFileOutside.createNewFile()
+        createNewFile(sourceFileOutside)
         startWatcher(rootDir)
 
         when:
@@ -163,7 +168,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
         when:
         def expectedChanges = expectEvents created(firstFile)
-        firstFile.createNewFile()
+        createNewFile(firstFile)
 
         then:
         expectedChanges.await()
@@ -171,7 +176,7 @@ abstract class AbstractFileEventsTest extends Specification {
         when:
         expectedChanges = expectEvents created(secondFile)
         waitForChangeEventLatency()
-        secondFile.createNewFile()
+        createNewFile(secondFile)
 
         then:
         expectedChanges.await()
@@ -186,8 +191,8 @@ abstract class AbstractFileEventsTest extends Specification {
 
         when:
         def expectedChanges = expectEvents created(watchedFile)
-        unwatchedFile.createNewFile()
-        watchedFile.createNewFile()
+        createNewFile(unwatchedFile)
+        createNewFile(watchedFile)
 
         then:
         expectedChanges.await()
@@ -202,14 +207,14 @@ abstract class AbstractFileEventsTest extends Specification {
 
         when:
         def expectedChanges = expectEvents created(firstFileInFirstWatchedDir)
-        firstFileInFirstWatchedDir.createNewFile()
+        createNewFile(firstFileInFirstWatchedDir)
 
         then:
         expectedChanges.await()
 
         when:
         expectedChanges = expectEvents created(secondFileInSecondWatchedDir)
-        secondFileInSecondWatchedDir.createNewFile()
+        createNewFile(secondFileInSecondWatchedDir)
 
         then:
         expectedChanges.await()
@@ -226,14 +231,14 @@ abstract class AbstractFileEventsTest extends Specification {
 
         when:
         def expectedChanges = expectEvents created(fileInLowercaseDir)
-        fileInLowercaseDir.createNewFile()
+        createNewFile(fileInLowercaseDir)
 
         then:
         expectedChanges.await()
 
         when:
         expectedChanges = expectEvents created(fileInUppercaseDir)
-        fileInUppercaseDir.createNewFile()
+        createNewFile(fileInUppercaseDir)
 
         then:
         expectedChanges.await()
@@ -254,7 +259,7 @@ abstract class AbstractFileEventsTest extends Specification {
                 conditions.evaluate {}
             }
         }, rootDir)
-        createdFile.createNewFile()
+        createNewFile(createdFile)
         conditions.await()
 
         then:
@@ -283,7 +288,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
         when:
         def expectedChanges = expectEvents created(firstFile)
-        firstFile.createNewFile()
+        createNewFile(firstFile)
 
         then:
         expectedChanges.await()
@@ -292,7 +297,7 @@ abstract class AbstractFileEventsTest extends Specification {
         when:
         startWatcher(rootDir)
         expectedChanges = expectEvents created(secondFile)
-        secondFile.createNewFile()
+        createNewFile(secondFile)
 
         then:
         expectedChanges.await()
@@ -314,14 +319,14 @@ abstract class AbstractFileEventsTest extends Specification {
 
         when:
         def firstChanges = expectEvents firstCallback, created(firstFile)
-        firstFile.createNewFile()
+        createNewFile(firstFile)
 
         then:
         firstChanges.await()
 
         when:
         def secondChanges = expectEvents secondCallback, created(secondFile)
-        secondFile.createNewFile()
+        createNewFile(secondFile)
 
         then:
         secondChanges.await()
@@ -340,7 +345,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
         when:
         def expectedChanges = expectEvents created(fileInSubDir)
-        fileInSubDir.createNewFile()
+        createNewFile(fileInSubDir)
 
         then:
         expectedChanges.await()
@@ -358,7 +363,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
         when:
         def expectedChanges = expectEvents created(fileInSubDir)
-        fileInSubDir.createNewFile()
+        createNewFile(fileInSubDir)
 
         then:
         expectedChanges.await()
@@ -376,7 +381,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
         when:
         def expectedChanges = expectEvents created(fileInSubDir)
-        fileInSubDir.createNewFile()
+        createNewFile(fileInSubDir)
 
         then:
         expectedChanges.await()
@@ -399,7 +404,7 @@ abstract class AbstractFileEventsTest extends Specification {
         def watchedDir = new File(parentDir, "removed")
         watchedDir.mkdirs()
         def removedFile = new File(watchedDir, "file.txt")
-        removedFile.createNewFile()
+        createNewFile(removedFile)
         File removedDir = removedDirectory(watchedDir)
 
         def expectedEvents = [removed(watchedDir)]
@@ -453,13 +458,19 @@ abstract class AbstractFileEventsTest extends Specification {
         return new FileEvent(MODIFIED, file)
     }
 
+    protected void createNewFile(File file) {
+        LOGGER.info("> Creating $file")
+        file.createNewFile()
+        LOGGER.info("< Created $file")
+    }
+
     private static class TestCallback implements FileWatcherCallback {
         private AsyncConditions conditions
         private Collection<FileEvent> expectedEvents
 
         AsyncConditions expect(List<FileEvent> events) {
             events.each { event ->
-                println "> Expecting $event"
+                LOGGER.info("> Expecting $event")
             }
             this.conditions = new AsyncConditions()
             this.expectedEvents = new ArrayList<>(events)
@@ -472,7 +483,7 @@ abstract class AbstractFileEventsTest extends Specification {
         }
 
         private void handleEvent(FileEvent event) {
-            println "> Received  $event"
+            LOGGER.info("> Received  $event")
             if (!expectedEvents.remove(event)) {
                 conditions.evaluate {
                     throw new RuntimeException("Unexpected event $event")
