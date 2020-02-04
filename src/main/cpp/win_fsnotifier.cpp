@@ -249,13 +249,7 @@ static unsigned CALLBACK EventProcessingThread(void* data) {
 }
 
 void Server::run() {
-    // TODO Extract this logic to some shared function
-    JNIEnv* env;
-    jint statAttach = jvm->AttachCurrentThreadAsDaemon((void **) &(env), NULL);
-    if (statAttach != JNI_OK) {
-        fwprintf(stderr, L"Failed to attach JNI to current thread: %d\n", statAttach);
-        return;
-    }
+    JNIEnv* env = attach_jni(jvm, true);
 
     log_info(env, L"Thread %d running", GetCurrentThreadId());
 
@@ -266,12 +260,7 @@ void Server::run() {
 
     log_info(env, L"Thread %d finishing", GetCurrentThreadId());
 
-    // TODO Extract this logic to some shared function
-    jint statDetach = jvm->DetachCurrentThread();
-    if (statDetach != JNI_OK) {
-        fwprintf(stderr, L"Failed to detach JNI from current thread: %d\n", statAttach);
-        return;
-    }
+    detach_jni(jvm);
 }
 
 static void CALLBACK requestTerminationCallback(_In_ ULONG_PTR arg) {

@@ -73,6 +73,16 @@ extern void mark_failed_with_code(JNIEnv *env, const char* message, int error_co
  */
 extern int map_error_code(int error_code);
 
+/**
+ * Attaches JNI to the current thread.
+ */
+extern JNIEnv* attach_jni(JavaVM* jvm, bool daemon);
+
+/**
+ * Detaches JNI from the current thread.
+ */
+extern int detach_jni(JavaVM* jvm);
+
 /*
  * Converts the given Java string to a NULL terminated wchar_str. Should call free() when finished.
  *
