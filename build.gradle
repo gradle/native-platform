@@ -393,6 +393,9 @@ boolean canBeBuiltOnCi(NativePlatform targetPlatform) {
     if (targetOs.windows || targetOs.macOsX) {
         return true
     }
+    if (targetPlatform.architecture.name == "aarch64") {
+        return targetOs.linux && !targetPlatform.name.contains("ncurses5")
+    }
     if (targetPlatform.architecture.name != "x86-64") {
         return false
     }
