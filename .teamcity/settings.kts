@@ -27,10 +27,10 @@ To debug in IntelliJ Idea, open the 'Maven Projects' tool window (View
 version = "2019.2"
 
 project {
-    val buildReceiptSource = NativePlatformBuild(Os.Linux) {
+    val buildReceiptSource = NativePlatformBuild(Agent.Linux) {
         artifactRules = buildReceipt
     }
-    val builds = listOf(buildReceiptSource, NativePlatformBuild(Os.Windows), NativePlatformBuild(Os.MacOs), NativePlatformBuild(Os.FreeBsd))
+    val builds = listOf(buildReceiptSource, NativePlatformBuild(Agent.Windows), NativePlatformBuild(Agent.MacOs), NativePlatformBuild(Agent.FreeBsd), NativePlatformBuild(Agent.Linux_Arm))
     builds.forEach(::buildType)
     buildType(BuildTrigger(builds))
 

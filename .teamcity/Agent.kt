@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-enum class Os(val agentOsName: String, val java8Home: String) {
-    Linux("Linux", "%linux.java8.oracle.64bit%"),
-    Windows("Windows", "%windows.java8.oracle.64bit%"),
-    MacOs("Mac OS X", "%macos.java8.oracle.64bit%"),
-    FreeBsd("FreeBSD", "%freebsd.java8.openjdk.64bit%")
+enum class Agent(val agentOsName: String, val java8Home: String, val agentArch: String) {
+    Linux("Linux", "%linux.java8.oracle.64bit%", "amd64"),
+    Linux_Arm("Linux", "%linux.java8.openjdk.aarch64%", "aarch64"),
+    Windows("Windows", "%windows.java8.oracle.64bit%", "amd64"),
+    MacOs("Mac OS X", "%macos.java8.oracle.64bit%", "x86_64"),
+    FreeBsd("FreeBSD", "%freebsd.java8.openjdk.64bit%", "amd64")
 }

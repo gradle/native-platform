@@ -25,8 +25,8 @@ import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.gradle
 class Publishing(buildAndTest: List<BuildType>, buildReceiptSource: BuildType) : Project({
     name = "Publishing"
 
-    val nativeLibraryPublishingBuilds = Os.values().map { os ->
-        NativeLibraryPublishSnapshot(os, buildAndTest, buildReceiptSource).also(::buildType)
+    val nativeLibraryPublishingBuilds = Agent.values().map { agent ->
+        NativeLibraryPublishSnapshot(agent, buildAndTest, buildReceiptSource).also(::buildType)
     }
     val publishApi = PublishJavaApiSnapshot(nativeLibraryPublishingBuilds, buildAndTest, buildReceiptSource).also(::buildType)
 
@@ -75,18 +75,18 @@ open class NativePlatformPublishSnapshot(uploadTasks: List<String>, buildAndTest
     init(this)
 })
 
-class NativeLibraryPublishSnapshot(os: Os, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
+class NativeLibraryPublishSnapshot(agent: Agent, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
     NativePlatformPublishSnapshot(listOf(":uploadJni"), buildAndTest, buildReceiptSource, {
-        name = "Publish $os snapshot"
-        id = RelativeId("Publishing_Publish${os}Snapshot")
-        runOn(os)
+        name = "Publish $agent snapshot"
+        id = RelativeId("Publishing_Publish${agent}Snapshot")
+        runOn(agent)
     })
 
 class PublishJavaApiSnapshot(nativeLibraryPublishingBuilds: List<NativeLibraryPublishSnapshot>, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
     NativePlatformPublishSnapshot(listOf(":uploadMain", ":testApp:uploadMain"), buildAndTest, buildReceiptSource, {
         name = "Publish Native Platform snapshot"
         id = RelativeId("Publishing_PublishJavaApiSnapshot")
-        runOn(Os.Linux)
+        runOn(Agent.Linux)
 
         dependencies {
             nativeLibraryPublishingBuilds.forEach {
