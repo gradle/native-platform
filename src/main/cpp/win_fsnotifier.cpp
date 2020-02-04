@@ -26,12 +26,14 @@ public:
     WatchPoint(Server *server, wstring path);
     void close();
     void listen();
+    void awaitListeningStarted(DWORD dwMilliseconds);
 
 private:
     Server *server;
     friend static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg);
     wstring path;
     HANDLE directoryHandle;
+    HANDLE listeningStartedEvent;
     OVERLAPPED overlapped;
     vector<BYTE> buffer;
 
@@ -108,6 +110,12 @@ WatchPoint::WatchPoint(Server *server, wstring path) {
     this->buffer.resize(EVENT_BUFFER_SIZE);
     ZeroMemory(&this->overlapped, sizeof(OVERLAPPED));
     this->overlapped.hEvent = this;
+    this->listeningStartedEvent = CreateEvent( 
+        NULL,               // default security attributes
+        true,               // manual-reset event
+        false,              // initial state is nonsignaled
+        "ListeningEvent"    // object name
+    ); 
     HANDLE directoryHandle = CreateFileW(
         path.c_str(),                       // pointer to the file name
         FILE_LIST_DIRECTORY,                // access (read/write) mode
@@ -122,7 +130,6 @@ WatchPoint::WatchPoint(Server *server, wstring path) {
         log_severe(server->getThreadEnv(), L"Couldn't get handle for '%ls': %d", path.c_str(), GetLastError());
     }
 
-    log_info(server->getThreadEnv(), L"Started watching %p for '%ls'", directoryHandle, path.c_str());
     this->directoryHandle = directoryHandle;
 }
 
@@ -142,6 +149,10 @@ void WatchPoint::listen() {
         log_severe(server->getThreadEnv(), L"Couldn't start watching %p for '%ls': %d", directoryHandle, path.c_str(), GetLastError());
     }
     // TODO Error handling
+    if (!SetEvent(listeningStartedEvent)) {
+        log_severe(server->getThreadEnv(), L"Failed to signal listening started event: %d", GetLastError());
+    }
+    // TODO Error handling
 }
 
 static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransfered, LPOVERLAPPED overlapped) {
@@ -150,6 +161,10 @@ static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransfered,
 }
 
 void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransfered) {
+    if (!ResetEvent(listeningStartedEvent)) {
+        log_severe(server->getThreadEnv(), L"Failed to reset listening started event: %d", GetLastError());
+    }
+
     if (errorCode == ERROR_OPERATION_ABORTED){
         log_fine(server->getThreadEnv(), L"Finished watching %p for '%ls'", directoryHandle, path.c_str());
         server->reportFinished(this);
@@ -173,9 +188,6 @@ void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransfered) {
         } while (info->NextEntryOffset != 0);
     }
 
-    // Get the new read issued as fast as possible. The documentation
-    // says that the original OVERLAPPED structure will not be used
-    // again once the completion routine is called.
     listen();
 }
 
@@ -203,9 +215,15 @@ void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION *info) {
     server->reportEvent(type, changedPath);
 }
 
+void WatchPoint::awaitListeningStarted(DWORD dwMilliseconds) {
+    WaitForSingleObject(listeningStartedEvent, dwMilliseconds);
+}
+
 void Server::startWatching(wchar_t *path) {
     WatchPoint* watchPoint = new WatchPoint(this, wstring(path));
     QueueUserAPC(&startWatchCallback, threadHandle, (ULONG_PTR) watchPoint);
+    // TODO Error handling, timeout
+    watchPoint->awaitListeningStarted(INFINITE);
 }
 
 // Called by QueueUserAPC to add another directory.
