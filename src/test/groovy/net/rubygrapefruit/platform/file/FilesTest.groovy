@@ -273,7 +273,8 @@ abstract class FilesTest extends AbstractFilesTest {
             // This is ok
             return
         }
-        stat.type == (fileSystem.mountPoint.exists() ? FileInfo.Type.Directory : FileInfo.Type.Missing)
+        def fileType = fileSystem.mountPoint.absolutePath == '/run/docker/netns/default' ? FileInfo.Type.File : FileInfo.Type.Directory
+        stat.type == (fileSystem.mountPoint.exists() ? fileType : FileInfo.Type.Missing)
         stat.size == 0
 
         where:
