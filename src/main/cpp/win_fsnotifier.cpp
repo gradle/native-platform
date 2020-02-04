@@ -273,7 +273,7 @@ void Server::run() {
 
     while (!terminate || watchPoints.size() > 0) {
         SleepEx(INFINITE, true);
-        log_fine(getThreadEnv(), L"Thread %d woke up", GetCurrentThreadId());
+        log_fine(env, L"Thread %d woke up", GetCurrentThreadId());
     }
 
     log_info(env, L"Thread %d finishing", GetCurrentThreadId());
