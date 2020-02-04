@@ -3,10 +3,14 @@ package net.rubygrapefruit.platform.testfixture;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.logging.Handler;
 import java.util.logging.Level;
+import java.util.logging.LogManager;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
@@ -22,6 +26,16 @@ public class JulLogging extends TestWatcher {
     }
 
     private JulLogging(Logger logger, Level level) {
+        try {
+            InputStream input = getClass().getClassLoader().getResource("logging.properties").openStream();
+            try {
+                LogManager.getLogManager().readConfiguration(input);
+            } finally {
+                input.close();
+            }
+        } catch (IOException ex) {
+            throw new UncheckedIOException(ex);
+        }
         this.logger = logger;
         this.level = level;
     }
