@@ -94,11 +94,11 @@ private:
 void WatchPoint::close() {
     BOOL ret = CancelIo(directoryHandle);
     if (!ret) {
-        log_severe(server->getThreadEnv(), L"Couldn't cancel I/O %p for '%ls': %d\n", directoryHandle, path.c_str(), GetLastError());
+        log_severe(server->getThreadEnv(), L"Couldn't cancel I/O %p for '%ls': %d", directoryHandle, path.c_str(), GetLastError());
     }
     ret = CloseHandle(directoryHandle);
     if (!ret) {
-        log_severe(server->getThreadEnv(), L"Couldn't close handle %p for '%ls': %d\n", directoryHandle, path.c_str(), GetLastError());
+        log_severe(server->getThreadEnv(), L"Couldn't close handle %p for '%ls': %d", directoryHandle, path.c_str(), GetLastError());
     }
 }
 
@@ -119,15 +119,15 @@ WatchPoint::WatchPoint(Server *server, wstring path) {
     );
 
     if (directoryHandle == INVALID_HANDLE_VALUE) {
-        log_severe(server->getThreadEnv(), L"Couldn't get handle for '%ls': %d\n", path.c_str(), GetLastError());
+        log_severe(server->getThreadEnv(), L"Couldn't get handle for '%ls': %d", path.c_str(), GetLastError());
     }
 
-    log_info(server->getThreadEnv(), L"Started watching %p for '%ls'\n", directoryHandle, path.c_str());
+    log_info(server->getThreadEnv(), L"Started watching %p for '%ls'", directoryHandle, path.c_str());
     this->directoryHandle = directoryHandle;
 }
 
 void WatchPoint::listen() {
-    log_fine(server->getThreadEnv(), L"Listening to %p for '%ls'\n", directoryHandle, path.c_str());
+    log_fine(server->getThreadEnv(), L"Listening to %p for '%ls'", directoryHandle, path.c_str());
     BOOL success = ReadDirectoryChangesW(
         directoryHandle,                    // handle to directory
         &buffer[0],                         // read results buffer
@@ -139,7 +139,7 @@ void WatchPoint::listen() {
         &handleEventCallback                // completion routine
     );
     if (!success) {
-        log_severe(server->getThreadEnv(), L"Couldn't start watching %p for '%ls': %d\n", directoryHandle, path.c_str(), GetLastError());
+        log_severe(server->getThreadEnv(), L"Couldn't start watching %p for '%ls': %d", directoryHandle, path.c_str(), GetLastError());
     }
     // TODO Error handling
 }
@@ -151,7 +151,7 @@ static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransfered,
 
 void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransfered) {
     if (errorCode == ERROR_OPERATION_ABORTED){
-        log_fine(server->getThreadEnv(), L"Finished watching %p for '%ls'\n", directoryHandle, path.c_str());
+        log_fine(server->getThreadEnv(), L"Finished watching %p for '%ls'", directoryHandle, path.c_str());
         server->reportFinished(this);
         delete this;
         return;
@@ -186,7 +186,7 @@ void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION *info) {
         changedPath.insert(0, path);
     }
 
-    log_info(server->getThreadEnv(), L"Changed: 0x%x %ls\n", info->Action, changedPath.c_str());
+    log_info(server->getThreadEnv(), L"Changed: 0x%x %ls", info->Action, changedPath.c_str());
 
     jint type;
     if (info->Action == FILE_ACTION_ADDED || info->Action == FILE_ACTION_RENAMED_NEW_NAME) {
@@ -196,7 +196,7 @@ void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION *info) {
     } else if (info->Action == FILE_ACTION_MODIFIED) {
         type = FILE_EVENT_MODIFIED;
     } else {
-        log_warning(server->getThreadEnv(), L"Unknown event 0x%x for %ls\n", info->Action, changedPath.c_str());
+        log_warning(server->getThreadEnv(), L"Unknown event 0x%x for %ls", info->Action, changedPath.c_str());
         type = FILE_EVENT_UNKNOWN;
     }
 
@@ -257,13 +257,13 @@ void Server::run() {
         return;
     }
 
-    log_info(env, L"Thread %d running\n", GetCurrentThreadId());
+    log_info(env, L"Thread %d running", GetCurrentThreadId());
 
     while (!terminate || watchPoints.size() > 0) {
         SleepEx(INFINITE, true);
     }
 
-    log_info(env, L"Thread %d finishing\n", GetCurrentThreadId());
+    log_info(env, L"Thread %d finishing", GetCurrentThreadId());
 
     // TODO Extract this logic to some shared function
     jint statDetach = jvm->DetachCurrentThread();
@@ -288,33 +288,33 @@ void Server::requestTermination() {
 }
 
 void Server::close(JNIEnv *env) {
-    log_info(env, L"Requesting termination of thread %p\n", threadHandle);
+    log_info(env, L"Requesting termination of thread %p", threadHandle);
     int ret = QueueUserAPC(requestTerminationCallback, this->threadHandle, (ULONG_PTR)this);
     if (ret == 0) {
-        log_severe(env, L"Couldn't send termination request to thread %p: %d\n", threadHandle, GetLastError());
+        log_severe(env, L"Couldn't send termination request to thread %p: %d", threadHandle, GetLastError());
     } else {
         ret = WaitForSingleObject(this->threadHandle, INFINITE);
         switch (ret) {
         case WAIT_OBJECT_0:
-            log_info(env, L"Termination of thread %p finished normally\n", threadHandle);
+            log_info(env, L"Termination of thread %p finished normally", threadHandle);
             break;
         case WAIT_FAILED:
-            log_severe(env, L"Wait for terminating %p failed: %d\n", threadHandle, GetLastError());
+            log_severe(env, L"Wait for terminating %p failed: %d", threadHandle, GetLastError());
             break;
         case WAIT_ABANDONED:
-            log_severe(env, L"Wait for terminating %p abandoned\n", threadHandle);
+            log_severe(env, L"Wait for terminating %p abandoned", threadHandle);
             break;
         case WAIT_TIMEOUT:
-            log_severe(env, L"Wait for terminating %p timed out\n", threadHandle);
+            log_severe(env, L"Wait for terminating %p timed out", threadHandle);
             break;
 
         default:
-            log_severe(env, L"Wait for terminating %p failed with unknown reason: %d\n", threadHandle, ret);
+            log_severe(env, L"Wait for terminating %p failed with unknown reason: %d", threadHandle, ret);
             break;
         }
         ret = CloseHandle(this->threadHandle);
         if (ret == 0) {
-            log_severe(env, L"Closing handle for thread %p failed: %s\n", threadHandle, GetLastError());
+            log_severe(env, L"Closing handle for thread %p failed: %s", threadHandle, GetLastError());
         }
     }
     env->DeleteGlobalRef(this->watcherCallback);
@@ -323,7 +323,7 @@ void Server::close(JNIEnv *env) {
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatching(JNIEnv *env, jclass target, jobjectArray paths, jobject javaCallback, jobject result) {
 
-    log_info(env, L"Configuring...\n", nullptr);
+    log_info(env, L"Configuring...", nullptr);
 
     JavaVM* jvm;
     int jvmStatus = env->GetJavaVM(&jvm);

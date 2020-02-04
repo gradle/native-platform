@@ -121,7 +121,11 @@ void printlog(JNIEnv* env, int level, const wchar_t* fmt, ...) {
     _vsnwprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
 
-    env->CallStaticVoidMethod(clsLogger, logMethod, level, wchar_to_java(env, buffer, wcslen(buffer), NULL));
+    if (env == nullptr) {
+        fwprintf(stderr, L"%ls\n", buffer);
+    } else {
+        env->CallStaticVoidMethod(clsLogger, logMethod, level, wchar_to_java(env, buffer, wcslen(buffer), NULL));
+    }
 }
 
 #endif
