@@ -36,6 +36,8 @@ public class ReleasePlugin implements Plugin<Project> {
     private static final DateTimeFormatter SNAPSHOT_TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmssZ", Locale.US).withZone(ZoneOffset.UTC);
     private static final String BUILD_RECEIPT_NAME = "build-receipt.properties";
     private static final String BUILD_TIMESTAMP_PROPERTY = "buildTimestamp";
+    private static final String UPLOAD_MAIN_TASK_NAME = "uploadMain";
+    private static final String UPLOAD_JNI_TASK_NAME = "uploadJni";
 
     @Override
     public void apply(Project project) {
@@ -49,10 +51,18 @@ public class ReleasePlugin implements Plugin<Project> {
         String buildTimestamp = determineBuildTimestamp(project);
         writeBuildTimestamp(buildTimestamp, project);
 
+        VersionCalculator versionCalculator = new VersionCalculator(versions, buildType, buildTimestamp);
+
+        project.getGradle().getTaskGraph().whenReady(graph -> {
+            if (graph.hasTask(":" + UPLOAD_MAIN_TASK_NAME) || graph.hasTask(":" + UPLOAD_JNI_TASK_NAME)) {
+                project.getLogger().lifecycle("##teamcity[buildStatus text='{build.status.text}, Published version {}']", versionCalculator);
+            }
+        });
+
         project.allprojects(subproject -> {
             subproject.getPlugins().apply(UploadPlugin.class);
             subproject.getPlugins().apply(PublishSnapshotPlugin.class);
-            subproject.setVersion(new VersionCalculator(versions, buildType, buildTimestamp));
+            subproject.setVersion(versionCalculator);
 
             // Use authenticated snapshot/bintray repo while building a test distribution during snapshot/release
             final BintrayCredentials credentials = subproject.getExtensions().getByType(BintrayCredentials.class);
@@ -75,11 +85,11 @@ public class ReleasePlugin implements Plugin<Project> {
     }
 
     private void addUploadLifecycleTasks(Project project, VersionDetails.BuildType buildType) {
-        Task uploadMainLifecycle = project.getTasks().maybeCreate("uploadMain");
+        Task uploadMainLifecycle = project.getTasks().maybeCreate(UPLOAD_MAIN_TASK_NAME);
         uploadMainLifecycle.setGroup("Upload");
         uploadMainLifecycle.setDescription("Upload Main publication");
 
-        Task uploadJniLifecycle = project.getTasks().maybeCreate("uploadJni");
+        Task uploadJniLifecycle = project.getTasks().maybeCreate(UPLOAD_JNI_TASK_NAME);
         uploadJniLifecycle.setGroup("Upload");
         uploadJniLifecycle.setDescription("Upload all JNI publications");
 
