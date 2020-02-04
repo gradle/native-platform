@@ -224,7 +224,7 @@ static JNIEnv* lookupThreadEnv(JavaVM *jvm) {
     // TODO Verify that JNI 1.6 is the right version
     jint ret = jvm->GetEnv((void **) &(env), JNI_VERSION_1_6);
     if (ret != JNI_OK) {
-        fwprintf(stderr, L"Failed to get JNI env for current thread: %d\n", ret);
+        fwprintf(stderr, L"Failed to get JNI env for current thread %d: %d\n", GetCurrentThreadId(), ret);
         return NULL;
     }
     return env;
@@ -261,6 +261,7 @@ void Server::run() {
 
     while (!terminate || watchPoints.size() > 0) {
         SleepEx(INFINITE, true);
+        log_fine(getThreadEnv(), L"Thread %d woke up", GetCurrentThreadId());
     }
 
     log_info(env, L"Thread %d finishing", GetCurrentThreadId());
@@ -323,7 +324,7 @@ void Server::close(JNIEnv *env) {
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatching(JNIEnv *env, jclass target, jobjectArray paths, jobject javaCallback, jobject result) {
 
-    log_info(env, L"Configuring...", nullptr);
+    log_info(env, L"Configuring on thread %d...", GetCurrentThreadId());
 
     JavaVM* jvm;
     int jvmStatus = env->GetJavaVM(&jvm);
