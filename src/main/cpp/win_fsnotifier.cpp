@@ -21,10 +21,11 @@ using namespace std;
 class Server;
 class WatchPoint;
 
-#define WATCH_UNINITIALIZED        0
 #define WATCH_LISTENING            1
-#define WATCH_FINISHED             2
-#define WATCH_FAILED_TO_LISTEN    -1
+#define WATCH_NOT_LISTENING        2
+#define WATCH_FINISHED             3
+#define WATCH_UNINITIALIZED       -1
+#define WATCH_FAILED_TO_LISTEN    -2
 
 class WatchPoint {
 public:
@@ -41,7 +42,7 @@ private:
     HANDLE listeningStartedEvent;
     OVERLAPPED overlapped;
     vector<BYTE> buffer;
-    int status = WATCH_UNINITIALIZED;
+    volatile int status;
 
     void handleEvent(DWORD errorCode, DWORD bytesTransfered);
     void handlePathChanged(FILE_NOTIFY_INFORMATION *info);
@@ -107,6 +108,7 @@ WatchPoint::WatchPoint(Server *server, wstring path, HANDLE directoryHandle) {
     }
     this->listeningStartedEvent = listeningStartedEvent;
     this->directoryHandle = directoryHandle;
+    this->status = WATCH_UNINITIALIZED;
 }
 
 WatchPoint::~WatchPoint() {
@@ -134,6 +136,8 @@ void WatchPoint::listen() {
     // TODO Error handling
     if (!SetEvent(listeningStartedEvent)) {
         log_severe(server->getThreadEnv(), L"Failed to signal listening started event: %d", GetLastError());
+    } else {
+        log_fine(server->getThreadEnv(), L">>> Signalled caller %p for '%ls': %d", directoryHandle, path.c_str(), status);
     }
     // TODO Error handling
 }
@@ -144,6 +148,7 @@ static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransfered,
 }
 
 void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransfered) {
+    status = WATCH_NOT_LISTENING;
     if (!ResetEvent(listeningStartedEvent)) {
         log_severe(server->getThreadEnv(), L"Failed to reset listening started event: %d", GetLastError());
     }
@@ -203,6 +208,7 @@ void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION *info) {
 
 int WatchPoint::awaitListeningStarted(DWORD dwMilliseconds) {
     DWORD ret = WaitForSingleObject(listeningStartedEvent, dwMilliseconds);
+    log_fine(server->getThreadEnv(), L"<<< Received signal for %p for '%ls': %d", directoryHandle, path.c_str(), ret);
     switch (ret) {
         case WAIT_OBJECT_0:
             // Server up and running
@@ -307,7 +313,7 @@ void Server::startWatching(JNIEnv* env, wchar_t *path) {
     }
 
     WatchPoint* watchPoint = new WatchPoint(this, path, directoryHandle);
-    QueueUserAPC(&startWatchCallback, threadHandle, (ULONG_PTR) watchPoint);
+    QueueUserAPC(startWatchCallback, threadHandle, (ULONG_PTR) watchPoint);
     // TODO Timeout handling
     int ret = watchPoint->awaitListeningStarted(INFINITE);
     switch (ret) {
@@ -315,6 +321,8 @@ void Server::startWatching(JNIEnv* env, wchar_t *path) {
             watchPoints.push_back(watchPoint);
             break;
         default:
+            log_severe(env, L"Couldn't start listening to '%ls': %d", path, ret);
+            // delete watchPoint;
             // TODO Error handling
             break;
     }
