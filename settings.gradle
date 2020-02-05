@@ -9,3 +9,18 @@ include 'testApp'
 project(':testApp').projectDir = new File(rootDir, 'test-app')
 
 enableFeaturePreview('GROOVY_COMPILATION_AVOIDANCE')
+
+gradleEnterprise {
+    buildScan {
+        if (System.getenv("CI")) {
+            tag "CI"
+            link("TeamCity Build", System.getenv("BUILD_URL"))
+            value("BuildId", System.getenv("BUILD_ID"))
+            def commitId = System.getenv("BUILD_VCS_NUMBER")
+            value("GitCommit", commitId)
+            link("Source", "https://github.com/gradle/native-platform/commit/$commitId")
+        } else {
+            tag "local"
+        }
+    }
+}

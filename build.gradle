@@ -393,8 +393,17 @@ boolean canBeBuiltOnCi(NativePlatform targetPlatform) {
     if (targetOs.windows || targetOs.macOsX) {
         return true
     }
+    if (targetPlatform.architecture.name == "aarch64") {
+        return targetOs.linux && !targetPlatform.name.contains("ncurses5")
+    }
+    if (targetPlatform.architecture.name != "x86-64") {
+        return false
+    }
+    if (targetOs.freeBSD) {
+        return targetPlatform.name.contains("libcpp")
+    }
     // Can only build the 64bit ncurses5 variant on Linux
-    return targetOs.linux && targetPlatform.architecture.name == "x86-64" && !targetPlatform.name.contains("ncurses6")
+    return targetOs.linux && !targetPlatform.name.contains("ncurses6")
 }
 
 String binaryToVariantName(NativeBinarySpec binary) {

@@ -21,11 +21,11 @@ import jetbrains.buildServer.configs.kotlin.v2019_2.RelativeId
 import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.gradle
 import jetbrains.buildServer.configs.kotlin.v2019_2.triggers.vcs
 
-open class NativePlatformBuild(os: Os, init: BuildType.() -> Unit = {}) : BuildType({
-    name = "Build ($os)"
-    id = RelativeId("Build$os")
+open class NativePlatformBuild(agent: Agent, init: BuildType.() -> Unit = {}) : BuildType({
+    name = "Build ($agent)"
+    id = RelativeId("Build$agent")
 
-    runOn(os)
+    runOn(agent)
 
     vcs {
         root(DslContext.settingsRoot)
@@ -69,7 +69,7 @@ class BuildTrigger(dependencies: List<BuildType>) : BuildType({
         }
     }
 
-    runOn(Os.Linux)
+    runOn(Agent.Linux)
 
     features {
         publishCommitStatus()

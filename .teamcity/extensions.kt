@@ -19,13 +19,14 @@ import jetbrains.buildServer.configs.kotlin.v2019_2.buildFeatures.commitStatusPu
  * limitations under the License.
  */
 
-fun BuildType.runOn(os: Os): Unit {
+fun BuildType.runOn(agent: Agent) {
     params {
-        param("env.JAVA_HOME", os.java8Home)
+        param("env.JAVA_HOME", agent.java8Home)
     }
 
     requirements {
-        contains("teamcity.agent.jvm.os.name", os.agentOsName)
+        contains("teamcity.agent.jvm.os.name", agent.agentOsName)
+        contains("teamcity.agent.jvm.os.arch", agent.agentArch)
     }
 }
 
