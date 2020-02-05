@@ -29,6 +29,7 @@ class WatchPoint;
 class WatchPoint {
 public:
     WatchPoint(Server *server, wstring path, HANDLE directoryHandle);
+    ~WatchPoint();
     void close();
     void listen();
     int awaitListeningStarted(DWORD dwMilliseconds);
@@ -50,6 +51,7 @@ private:
 class Server {
 public:
     Server(JavaVM *jvm, JNIEnv *env, jobject watcherCallback);
+    ~Server();
 
     void start(JNIEnv* env);
     void startWatching(JNIEnv* env, wchar_t *path);
@@ -105,6 +107,10 @@ WatchPoint::WatchPoint(Server *server, wstring path, HANDLE directoryHandle) {
     }
     this->listeningStartedEvent = listeningStartedEvent;
     this->directoryHandle = directoryHandle;
+}
+
+WatchPoint::~WatchPoint() {
+    CloseHandle(listeningStartedEvent);
 }
 
 void WatchPoint::listen() {
@@ -239,6 +245,10 @@ Server::Server(JavaVM* jvm, JNIEnv* env, jobject watcherCallback) {
     );
     // TODO Error handling
     SetThreadPriority(this->threadHandle, THREAD_PRIORITY_ABOVE_NORMAL);
+}
+
+Server::~Server() {
+    CloseHandle(threadStartedEvent);
 }
 
 static unsigned CALLBACK EventProcessingThread(void* data) {
