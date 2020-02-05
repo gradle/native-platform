@@ -94,7 +94,7 @@ WatchPoint::WatchPoint(Server *server, wstring path, HANDLE directoryHandle) {
         NULL,               // default security attributes
         true,               // manual-reset event
         false,              // initial state is nonsignaled
-        "ListeningEvent"    // object name
+        "LISTEN"            // object name
     );
     if (listeningStartedEvent == INVALID_HANDLE_VALUE) {
         log_severe(server->getThreadEnv(), L"Couldn't create listening sterted event: %d", GetLastError());
@@ -120,9 +120,9 @@ void WatchPoint::close() {
 }
 
 int WatchPoint::awaitListeningStarted(DWORD dwMilliseconds) {
-    log_fine(server->getThreadEnv(), L"<<< Waiting for signal %p on thread %d for %p for '%ls'", listeningStartedEvent, GetCurrentThreadId(), directoryHandle, path.c_str());
+    log_fine(server->getThreadEnv(), L"??? Waiting on thread %d for LISTEN signal %p", GetCurrentThreadId(), listeningStartedEvent);
     DWORD ret = WaitForSingleObject(listeningStartedEvent, dwMilliseconds);
-    log_fine(server->getThreadEnv(), L"<<< Received signal %p on thread %d for %p for '%ls': %d", listeningStartedEvent, GetCurrentThreadId(), directoryHandle, path.c_str(), ret);
+    log_fine(server->getThreadEnv(), L"<<< Received on thread %d the LISTEN signal %p: %d", GetCurrentThreadId(), listeningStartedEvent, ret);
     switch (ret) {
         case WAIT_OBJECT_0:
             // Server up and running
@@ -151,13 +151,13 @@ void WatchPoint::listen() {
         status = WATCH_LISTENING;
     } else {
         status = WATCH_FAILED_TO_LISTEN;
-        log_warning(server->getThreadEnv(), L"Couldn't start watching %p for '%ls': %d", directoryHandle, path.c_str(), GetLastError());
+        log_warning(server->getThreadEnv(), L"Couldn't start watching %p for '%ls', error = %d", directoryHandle, path.c_str(), GetLastError());
     }
     // TODO Error handling
     if (!SetEvent(listeningStartedEvent)) {
-        log_severe(server->getThreadEnv(), L"Failed to signal listening started event: %d", GetLastError());
+        log_severe(server->getThreadEnv(), L"Failed to signal listening started event with status %d, error = %d", status, GetLastError());
     } else {
-        log_fine(server->getThreadEnv(), L">>> Signalled caller %p from thread %d - %p for '%ls': %d", listeningStartedEvent, GetCurrentThreadId(), directoryHandle, path.c_str(), status);
+        log_fine(server->getThreadEnv(), L">>> Sent LISTEN signal %p from thread %d, status = %d", listeningStartedEvent, GetCurrentThreadId(), status);
     }
     // TODO Error handling
 }
@@ -237,11 +237,11 @@ Server::Server(JavaVM* jvm, JNIEnv* env, jobject watcherCallback) {
         nullptr,            // default security attributes
         true,               // manual-reset event
         false,              // initial state is nonsignaled
-        "ServerStarted"     // object name
+        "STARTED"           // object name
     );
 
     if (threadStartedEvent == INVALID_HANDLE_VALUE) {
-        log_severe(env, L"Couldn't create server sterted event: %d", GetLastError());
+        log_severe(env, L"Couldn't create server STARTED event: %d", GetLastError());
     }
 
     this->threadStartedEvent = threadStartedEvent;
@@ -268,13 +268,25 @@ static unsigned CALLBACK EventProcessingThread(void* data) {
 }
 
 void Server::run() {
+    fwprintf(stderr, L"ooo Setting up JNI for thread %d\n", GetCurrentThreadId());
     JNIEnv* env = attach_jni(jvm, true);
+    if (env == nullptr) {
+        fwprintf(stderr, L"!!! Couldn't attach JNI, stopping");
+        return;
+    }
 
-    log_info(env, L"Thread %d running, JNI attached, signalling %p", GetCurrentThreadId(), threadStartedEvent);
+    if (getThreadEnv() == nullptr) {
+        fwprintf(stderr, L"---->>>> PROBLEM!");
+    }
+
+    log_fine(env, L"/// STARTED event is set: %d", WaitForSingleObject(threadStartedEvent, 0));
+
+    log_info(env, L"Thread %d running, JNI attached, sending STARTED signal %p", GetCurrentThreadId(), threadStartedEvent);
 
     if (!SetEvent(threadStartedEvent)) {
         log_severe(env, L"Couldn't signal the start of thread %d", GetCurrentThreadId());
     }
+    log_fine(env, L">>> Sent STARTED siggnal %p from thread %d", threadStartedEvent, GetCurrentThreadId());
 
     while (!terminate || watchPoints.size() > 0) {
         SleepEx(INFINITE, true);
@@ -287,9 +299,9 @@ void Server::run() {
 }
 
 void Server::start(JNIEnv* env) {
-    log_info(env, L"Waiting on thread %d for server thread to start up, waiting on signal %p", GetCurrentThreadId(), threadStartedEvent);
+    log_fine(env, L"??? Waiting on thread %d for STARTED signal %p", GetCurrentThreadId(), threadStartedEvent);
     DWORD ret = WaitForSingleObject(threadStartedEvent, INFINITE);
-    log_info(env, L"Received signal on thread %d about server thread on signal %p: %d", GetCurrentThreadId(), threadStartedEvent, ret);
+    log_fine(env, L"<<< Received on thread %d the STARTED signal %p: %d", GetCurrentThreadId(), threadStartedEvent, ret);
     switch (ret) {
         case WAIT_OBJECT_0:
             // Server up and running
@@ -307,6 +319,7 @@ static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg) {
 }
 
 void Server::startWatching(JNIEnv* env, wchar_t *path) {
+    log_fine(env, L"Server::startWatching on thread %d for '%ls'", GetCurrentThreadId(), path);
     HANDLE directoryHandle = CreateFileW(
         path,                               // pointer to the file name
         FILE_LIST_DIRECTORY,                // access (read/write) mode
