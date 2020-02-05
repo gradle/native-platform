@@ -51,6 +51,7 @@ class Server {
 public:
     Server(JavaVM *jvm, JNIEnv *env, jobject watcherCallback);
 
+    void start(JNIEnv* env);
     void startWatching(JNIEnv* env, wchar_t *path);
     void reportEvent(jint type, const wstring changedPath);
     void reportFinished(WatchPoint* watchPoint);
@@ -66,6 +67,7 @@ private:
     jobject watcherCallback;
 
     HANDLE threadHandle;
+    HANDLE threadStartedEvent;
     bool terminate = false;
 
     friend static void CALLBACK requestTerminationCallback(_In_ ULONG_PTR arg);
@@ -202,6 +204,12 @@ static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg) {
 Server::Server(JavaVM* jvm, JNIEnv* env, jobject watcherCallback) {
     this->jvm = jvm;
     this->watcherCallback = env->NewGlobalRef(watcherCallback);
+    this->threadStartedEvent = CreateEvent( 
+        nullptr,            // default security attributes
+        true,               // manual-reset event
+        false,              // initial state is nonsignaled
+        "ServerStarted"     // object name
+    ); 
     this->threadHandle = (HANDLE)_beginthreadex(
         NULL,                   // default security attributes
         0,                      // use default stack size
@@ -212,6 +220,10 @@ Server::Server(JavaVM* jvm, JNIEnv* env, jobject watcherCallback) {
     );
     // TODO Error handling
     SetThreadPriority(this->threadHandle, THREAD_PRIORITY_ABOVE_NORMAL);
+}
+
+void Server::start(JNIEnv* env) {
+    WaitForSingleObject(threadStartedEvent, INFINITY);
 }
 
 void Server::startWatching(JNIEnv* env, wchar_t *path) {
@@ -283,6 +295,10 @@ void Server::run() {
     JNIEnv* env = attach_jni(jvm, true);
 
     log_info(env, L"Thread %d running", GetCurrentThreadId());
+
+    if (!SetEvent(threadStartedEvent)) {
+        log_severe(env, L"Couldn't signal the start of thread %d", GetCurrentThreadId());
+    }
 
     while (!terminate || watchPoints.size() > 0) {
         SleepEx(INFINITE, true);
@@ -360,6 +376,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
     }
 
     Server* server = new Server(jvm, env, javaCallback);
+    server->start(env);
 
     for (int i = 0; i < watchPointCount; i++) {
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
