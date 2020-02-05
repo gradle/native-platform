@@ -40,6 +40,7 @@ class WindowsFileEventFunctionsTest extends AbstractFileEventsTest {
         startWatcher(missingDirectory)
 
         then:
+        logging.messages.any { it ==~ /Couldn't start watching.*/ }
         noExceptionThrown()
     }
 

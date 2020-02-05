@@ -21,21 +21,26 @@ using namespace std;
 class Server;
 class WatchPoint;
 
+#define WATCH_UNINITIALIZED        0
+#define WATCH_LISTENING            1
+#define WATCH_FINISHED             2
+#define WATCH_FAILED_TO_LISTEN    -1
+
 class WatchPoint {
 public:
     WatchPoint(Server *server, wstring path);
     void close();
     void listen();
-    void awaitListeningStarted(DWORD dwMilliseconds);
+    int awaitListeningStarted(DWORD dwMilliseconds);
 
 private:
     Server *server;
-    friend static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg);
     wstring path;
     HANDLE directoryHandle;
     HANDLE listeningStartedEvent;
     OVERLAPPED overlapped;
     vector<BYTE> buffer;
+    int status = WATCH_UNINITIALIZED;
 
     void handleEvent(DWORD errorCode, DWORD bytesTransfered);
     void handlePathChanged(FILE_NOTIFY_INFORMATION *info);
@@ -73,12 +78,6 @@ public:
     JNIEnv* getThreadEnv();
 
 private:
-    struct StartWatchRequest {
-        Server *server;
-        wstring path;
-    };
-    friend static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg);
-
     JavaVM *jvm;
     list<WatchPoint*> watchPoints;
     jobject watcherCallback;
@@ -145,7 +144,10 @@ void WatchPoint::listen() {
         &overlapped,                        // overlapped buffer
         &handleEventCallback                // completion routine
     );
-    if (!success) {
+    if (success) {
+        status = WATCH_LISTENING;
+    } else {
+        status = WATCH_FAILED_TO_LISTEN;
         log_severe(server->getThreadEnv(), L"Couldn't start watching %p for '%ls': %d", directoryHandle, path.c_str(), GetLastError());
     }
     // TODO Error handling
@@ -167,8 +169,8 @@ void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransfered) {
 
     if (errorCode == ERROR_OPERATION_ABORTED){
         log_fine(server->getThreadEnv(), L"Finished watching %p for '%ls'", directoryHandle, path.c_str());
+        status = WATCH_FINISHED;
         server->reportFinished(this);
-        delete this;
         return;
     }
 
@@ -215,26 +217,34 @@ void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION *info) {
     server->reportEvent(type, changedPath);
 }
 
-void WatchPoint::awaitListeningStarted(DWORD dwMilliseconds) {
+int WatchPoint::awaitListeningStarted(DWORD dwMilliseconds) {
     WaitForSingleObject(listeningStartedEvent, dwMilliseconds);
+    return status;
+}
+
+static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg) {
+    WatchPoint* watchPoint = (WatchPoint*)arg;
+    watchPoint->listen();
 }
 
 void Server::startWatching(wchar_t *path) {
     WatchPoint* watchPoint = new WatchPoint(this, wstring(path));
     QueueUserAPC(&startWatchCallback, threadHandle, (ULONG_PTR) watchPoint);
-    // TODO Error handling, timeout
-    watchPoint->awaitListeningStarted(INFINITE);
-}
-
-// Called by QueueUserAPC to add another directory.
-static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg) {
-    WatchPoint* watchPoint = (WatchPoint*)arg;
-    watchPoint->server->watchPoints.push_back(watchPoint);
-    watchPoint->listen();
+    // TODO Timeout handling
+    int ret = watchPoint->awaitListeningStarted(INFINITE);
+    switch (ret) {
+        case WATCH_LISTENING:
+            watchPoints.push_back(watchPoint);
+            break;
+        default:
+            // TODO Error handling
+            break;
+    }
 }
 
 void Server::reportFinished(WatchPoint* watchPoint) {
     watchPoints.remove(watchPoint);
+    delete watchPoint;
 }
 
 static JNIEnv* lookupThreadEnv(JavaVM *jvm) {
