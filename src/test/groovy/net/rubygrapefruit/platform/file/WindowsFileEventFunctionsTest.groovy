@@ -44,6 +44,6 @@ class WindowsFileEventFunctionsTest extends AbstractFileEventsTest {
 
     @Override
     protected void waitForChangeEventLatency() {
-        Thread.sleep(1000)
+        Thread.sleep(50)
     }
 }
