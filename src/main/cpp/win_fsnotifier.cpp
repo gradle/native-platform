@@ -80,16 +80,9 @@ private:
     void run();
 };
 
-void WatchPoint::close() {
-    BOOL ret = CancelIo(directoryHandle);
-    if (!ret) {
-        log_severe(server->getThreadEnv(), L"Couldn't cancel I/O %p for '%ls': %d", directoryHandle, path.c_str(), GetLastError());
-    }
-    ret = CloseHandle(directoryHandle);
-    if (!ret) {
-        log_severe(server->getThreadEnv(), L"Couldn't close handle %p for '%ls': %d", directoryHandle, path.c_str(), GetLastError());
-    }
-}
+//
+// WatchPoint
+//
 
 WatchPoint::WatchPoint(Server *server, wstring path, HANDLE directoryHandle) {
     this->server = server;
@@ -113,6 +106,32 @@ WatchPoint::WatchPoint(Server *server, wstring path, HANDLE directoryHandle) {
 
 WatchPoint::~WatchPoint() {
     CloseHandle(listeningStartedEvent);
+}
+
+void WatchPoint::close() {
+    BOOL ret = CancelIo(directoryHandle);
+    if (!ret) {
+        log_severe(server->getThreadEnv(), L"Couldn't cancel I/O %p for '%ls': %d", directoryHandle, path.c_str(), GetLastError());
+    }
+    ret = CloseHandle(directoryHandle);
+    if (!ret) {
+        log_severe(server->getThreadEnv(), L"Couldn't close handle %p for '%ls': %d", directoryHandle, path.c_str(), GetLastError());
+    }
+}
+
+int WatchPoint::awaitListeningStarted(DWORD dwMilliseconds) {
+    DWORD ret = WaitForSingleObject(listeningStartedEvent, dwMilliseconds);
+    log_fine(server->getThreadEnv(), L"<<< Received signal on thread %d for %p for '%ls': %d", GetCurrentThreadId(), directoryHandle, path.c_str(), ret);
+    switch (ret) {
+        case WAIT_OBJECT_0:
+            // Server up and running
+            break;
+        default:
+            log_severe(server->getThreadEnv(), L"Couldn't wait for listening to start for '%ls': %d", path.c_str(), ret);
+            // TODO Error handling
+            break;
+    }
+    return status;
 }
 
 void WatchPoint::listen() {
@@ -206,25 +225,9 @@ void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION *info) {
     server->reportEvent(type, changedPath);
 }
 
-int WatchPoint::awaitListeningStarted(DWORD dwMilliseconds) {
-    DWORD ret = WaitForSingleObject(listeningStartedEvent, dwMilliseconds);
-    log_fine(server->getThreadEnv(), L"<<< Received signal on thread %d for %p for '%ls': %d", GetCurrentThreadId(), directoryHandle, path.c_str(), ret);
-    switch (ret) {
-        case WAIT_OBJECT_0:
-            // Server up and running
-            break;
-        default:
-            log_severe(server->getThreadEnv(), L"Couldn't wait for listening to start for '%ls': %d", path.c_str(), ret);
-            // TODO Error handling
-            break;
-    }
-    return status;
-}
-
-static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg) {
-    WatchPoint* watchPoint = (WatchPoint*)arg;
-    watchPoint->listen();
-}
+//
+// Server
+//
 
 Server::Server(JavaVM* jvm, JNIEnv* env, jobject watcherCallback) {
     this->jvm = jvm;
@@ -293,6 +296,11 @@ void Server::start(JNIEnv* env) {
             // TODO Error handling
             break;
     }
+}
+
+static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg) {
+    WatchPoint* watchPoint = (WatchPoint*)arg;
+    watchPoint->listen();
 }
 
 void Server::startWatching(JNIEnv* env, wchar_t *path) {
@@ -402,6 +410,10 @@ void Server::close(JNIEnv *env) {
     }
     env->DeleteGlobalRef(this->watcherCallback);
 }
+
+//
+// JNI calls
+//
 
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatching(JNIEnv *env, jclass target, jobjectArray paths, jobject javaCallback, jobject result) {
