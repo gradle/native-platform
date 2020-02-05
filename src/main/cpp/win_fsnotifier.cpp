@@ -222,6 +222,31 @@ Server::Server(JavaVM* jvm, JNIEnv* env, jobject watcherCallback) {
     SetThreadPriority(this->threadHandle, THREAD_PRIORITY_ABOVE_NORMAL);
 }
 
+static unsigned CALLBACK EventProcessingThread(void* data) {
+    Server *server = (Server*) data;
+    server->run();
+    return 0;
+}
+
+void Server::run() {
+    JNIEnv* env = attach_jni(jvm, true);
+
+    log_info(env, L"Thread %d running", GetCurrentThreadId());
+
+    if (!SetEvent(threadStartedEvent)) {
+        log_severe(env, L"Couldn't signal the start of thread %d", GetCurrentThreadId());
+    }
+
+    while (!terminate || watchPoints.size() > 0) {
+        SleepEx(INFINITE, true);
+        log_fine(env, L"Thread %d woke up", GetCurrentThreadId());
+    }
+
+    log_info(env, L"Thread %d finishing", GetCurrentThreadId());
+
+    detach_jni(jvm);
+}
+
 void Server::start(JNIEnv* env) {
     WaitForSingleObject(threadStartedEvent, INFINITY);
 }
@@ -283,31 +308,6 @@ void Server::reportEvent(jint type, const wstring changedPath) {
     jclass callback_class = env->GetObjectClass(watcherCallback);
     jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(ILjava/lang/String;)V");
     env->CallVoidMethod(watcherCallback, methodCallback, type, changedPathJava);
-}
-
-static unsigned CALLBACK EventProcessingThread(void* data) {
-    Server *server = (Server*) data;
-    server->run();
-    return 0;
-}
-
-void Server::run() {
-    JNIEnv* env = attach_jni(jvm, true);
-
-    log_info(env, L"Thread %d running", GetCurrentThreadId());
-
-    if (!SetEvent(threadStartedEvent)) {
-        log_severe(env, L"Couldn't signal the start of thread %d", GetCurrentThreadId());
-    }
-
-    while (!terminate || watchPoints.size() > 0) {
-        SleepEx(INFINITE, true);
-        log_fine(env, L"Thread %d woke up", GetCurrentThreadId());
-    }
-
-    log_info(env, L"Thread %d finishing", GetCurrentThreadId());
-
-    detach_jni(jvm);
 }
 
 static void CALLBACK requestTerminationCallback(_In_ ULONG_PTR arg) {
