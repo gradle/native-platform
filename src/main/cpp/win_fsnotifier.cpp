@@ -120,9 +120,7 @@ void WatchPoint::close() {
 }
 
 int WatchPoint::awaitListeningStarted(DWORD dwMilliseconds) {
-    log_fine(server->getThreadEnv(), L"??? Waiting on thread %d for LISTEN signal %p", GetCurrentThreadId(), listeningStartedEvent);
     DWORD ret = WaitForSingleObject(listeningStartedEvent, dwMilliseconds);
-    log_fine(server->getThreadEnv(), L"<<< Received on thread %d the LISTEN signal %p: %d", GetCurrentThreadId(), listeningStartedEvent, ret);
     switch (ret) {
         case WAIT_OBJECT_0:
             // Server up and running
@@ -136,7 +134,6 @@ int WatchPoint::awaitListeningStarted(DWORD dwMilliseconds) {
 }
 
 void WatchPoint::listen() {
-    log_fine(server->getThreadEnv(), L"Listening on thread %d to %p for '%ls'", GetCurrentThreadId(), directoryHandle, path.c_str());
     BOOL success = ReadDirectoryChangesW(
         directoryHandle,                    // handle to directory
         &buffer[0],                         // read results buffer
@@ -152,14 +149,14 @@ void WatchPoint::listen() {
     } else {
         status = WATCH_FAILED_TO_LISTEN;
         log_warning(server->getThreadEnv(), L"Couldn't start watching %p for '%ls', error = %d", directoryHandle, path.c_str(), GetLastError());
+        // TODO Error handling
     }
-    // TODO Error handling
     if (!SetEvent(listeningStartedEvent)) {
         log_severe(server->getThreadEnv(), L"Failed to signal listening started event with status %d, error = %d", status, GetLastError());
+        // TODO Error handling
     } else {
-        log_fine(server->getThreadEnv(), L">>> Sent LISTEN signal %p from thread %d, status = %d", listeningStartedEvent, GetCurrentThreadId(), status);
+        log_fine(server->getThreadEnv(), L"Watching directory '%ls'", path.c_str());
     }
-    // TODO Error handling
 }
 
 static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransfered, LPOVERLAPPED overlapped) {
@@ -174,7 +171,7 @@ void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransfered) {
     }
 
     if (errorCode == ERROR_OPERATION_ABORTED){
-        log_fine(server->getThreadEnv(), L"Finished watching %p for '%ls'", directoryHandle, path.c_str());
+        log_info(server->getThreadEnv(), L"Finished watching '%ls'", path.c_str());
         status = WATCH_FINISHED;
         server->reportFinished(this);
         return;
@@ -209,7 +206,7 @@ void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION *info) {
         changedPath.insert(0, path);
     }
 
-    log_info(server->getThreadEnv(), L"Changed: 0x%x %ls", info->Action, changedPath.c_str());
+    log_fine(server->getThreadEnv(), L"Change detected: 0x%x '%ls'", info->Action, changedPath.c_str());
 
     jint type;
     if (info->Action == FILE_ACTION_ADDED || info->Action == FILE_ACTION_RENAMED_NEW_NAME) {
@@ -268,40 +265,29 @@ static unsigned CALLBACK EventProcessingThread(void* data) {
 }
 
 void Server::run() {
-    fwprintf(stderr, L"ooo Setting up JNI for thread %d\n", GetCurrentThreadId());
     JNIEnv* env = attach_jni(jvm, true);
     if (env == nullptr) {
         fwprintf(stderr, L"!!! Couldn't attach JNI, stopping");
         return;
     }
 
-    if (getThreadEnv() == nullptr) {
-        fwprintf(stderr, L"---->>>> PROBLEM!");
-    }
-
-    log_fine(env, L"/// STARTED event is set: %d", WaitForSingleObject(threadStartedEvent, 0));
-
-    log_info(env, L"Thread %d running, JNI attached, sending STARTED signal %p", GetCurrentThreadId(), threadStartedEvent);
+    log_info(env, L"Server thread %d with handle %p running", GetCurrentThreadId(), threadHandle);
 
     if (!SetEvent(threadStartedEvent)) {
         log_severe(env, L"Couldn't signal the start of thread %d", GetCurrentThreadId());
     }
-    log_fine(env, L">>> Sent STARTED siggnal %p from thread %d", threadStartedEvent, GetCurrentThreadId());
 
     while (!terminate || watchPoints.size() > 0) {
         SleepEx(INFINITE, true);
-        log_fine(env, L"Thread %d woke up", GetCurrentThreadId());
     }
 
-    log_info(env, L"Thread %d finishing, detaching JNI", GetCurrentThreadId());
+    log_info(env, L"Server thread %d finishing", GetCurrentThreadId());
 
     detach_jni(jvm);
 }
 
 void Server::start(JNIEnv* env) {
-    log_fine(env, L"??? Waiting on thread %d for STARTED signal %p", GetCurrentThreadId(), threadStartedEvent);
     DWORD ret = WaitForSingleObject(threadStartedEvent, INFINITE);
-    log_fine(env, L"<<< Received on thread %d the STARTED signal %p: %d", GetCurrentThreadId(), threadStartedEvent, ret);
     switch (ret) {
         case WAIT_OBJECT_0:
             // Server up and running
@@ -319,7 +305,6 @@ static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg) {
 }
 
 void Server::startWatching(JNIEnv* env, wchar_t *path) {
-    log_fine(env, L"Server::startWatching on thread %d for '%ls'", GetCurrentThreadId(), path);
     HANDLE directoryHandle = CreateFileW(
         path,                               // pointer to the file name
         FILE_LIST_DIRECTORY,                // access (read/write) mode
@@ -395,7 +380,7 @@ void Server::requestTermination() {
 }
 
 void Server::close(JNIEnv *env) {
-    log_info(env, L"Requesting termination of thread %p", threadHandle);
+    log_fine(env, L"Requesting termination of server thread %p", threadHandle);
     int ret = QueueUserAPC(requestTerminationCallback, this->threadHandle, (ULONG_PTR)this);
     if (ret == 0) {
         log_severe(env, L"Couldn't send termination request to thread %p: %d", threadHandle, GetLastError());
@@ -403,7 +388,7 @@ void Server::close(JNIEnv *env) {
         ret = WaitForSingleObject(this->threadHandle, INFINITE);
         switch (ret) {
         case WAIT_OBJECT_0:
-            log_info(env, L"Termination of thread %p finished normally", threadHandle);
+            log_info(env, L"Termination of server thread %p finished normally", threadHandle);
             break;
         case WAIT_FAILED:
             log_severe(env, L"Wait for terminating %p failed: %d", threadHandle, GetLastError());
@@ -414,7 +399,6 @@ void Server::close(JNIEnv *env) {
         case WAIT_TIMEOUT:
             log_severe(env, L"Wait for terminating %p timed out", threadHandle);
             break;
-
         default:
             log_severe(env, L"Wait for terminating %p failed with unknown reason: %d", threadHandle, ret);
             break;
@@ -433,8 +417,6 @@ void Server::close(JNIEnv *env) {
 
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatching(JNIEnv *env, jclass target, jobjectArray paths, jobject javaCallback, jobject result) {
-
-    log_info(env, L"Configuring from thread %d", GetCurrentThreadId());
 
     JavaVM* jvm;
     int jvmStatus = env->GetJavaVM(&jvm);
