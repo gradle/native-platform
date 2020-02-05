@@ -331,7 +331,7 @@ void Server::startWatching(JNIEnv* env, wchar_t *path) {
             break;
         default:
             log_severe(env, L"Couldn't start listening to '%ls': %d", path, ret);
-            // delete watchPoint;
+            delete watchPoint;
             // TODO Error handling
             break;
     }
