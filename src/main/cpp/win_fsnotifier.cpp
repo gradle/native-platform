@@ -389,7 +389,7 @@ void Server::close(JNIEnv *env) {
         }
         ret = CloseHandle(this->threadHandle);
         if (ret == 0) {
-            log_severe(env, L"Closing handle for thread %p failed: %s", threadHandle, GetLastError());
+            log_severe(env, L"Closing handle for thread %p failed: %d", threadHandle, GetLastError());
         }
     }
     env->DeleteGlobalRef(this->watcherCallback);
