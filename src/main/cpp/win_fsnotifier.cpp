@@ -94,7 +94,7 @@ WatchPoint::WatchPoint(Server *server, wstring path, HANDLE directoryHandle) {
         NULL,               // default security attributes
         true,               // manual-reset event
         false,              // initial state is nonsignaled
-        "LISTEN"            // object name
+        NULL                // object name
     );
     if (listeningStartedEvent == INVALID_HANDLE_VALUE) {
         log_severe(server->getThreadEnv(), L"Couldn't create listening sterted event: %d", GetLastError());
@@ -237,7 +237,7 @@ Server::Server(JavaVM* jvm, JNIEnv* env, jobject watcherCallback) {
         nullptr,            // default security attributes
         true,               // manual-reset event
         false,              // initial state is nonsignaled
-        "STARTED"           // object name
+        nullptr             // object name
     );
 
     if (threadStartedEvent == INVALID_HANDLE_VALUE) {
