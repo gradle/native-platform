@@ -315,8 +315,11 @@ abstract class AbstractFileEventsTest extends Specification {
         def firstCallback = new TestCallback()
         def secondCallback = new TestCallback()
 
+        LOGGER.info("> Starting first watcher")
         def firstWatcher = startNewWatcher(firstCallback, firstRoot)
+        LOGGER.info("> Starting second watcher")
         def secondWatcher = startNewWatcher(secondCallback, secondRoot)
+        LOGGER.info("> Watchers started")
 
         when:
         def firstChanges = expectEvents firstCallback, created(firstFile)

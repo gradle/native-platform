@@ -120,8 +120,9 @@ void WatchPoint::close() {
 }
 
 int WatchPoint::awaitListeningStarted(DWORD dwMilliseconds) {
+    log_fine(server->getThreadEnv(), L"<<< Waiting for signal %p on thread %d for %p for '%ls'", listeningStartedEvent, GetCurrentThreadId(), directoryHandle, path.c_str());
     DWORD ret = WaitForSingleObject(listeningStartedEvent, dwMilliseconds);
-    log_fine(server->getThreadEnv(), L"<<< Received signal on thread %d for %p for '%ls': %d", GetCurrentThreadId(), directoryHandle, path.c_str(), ret);
+    log_fine(server->getThreadEnv(), L"<<< Received signal %p on thread %d for %p for '%ls': %d", listeningStartedEvent, GetCurrentThreadId(), directoryHandle, path.c_str(), ret);
     switch (ret) {
         case WAIT_OBJECT_0:
             // Server up and running
@@ -135,7 +136,7 @@ int WatchPoint::awaitListeningStarted(DWORD dwMilliseconds) {
 }
 
 void WatchPoint::listen() {
-    log_fine(server->getThreadEnv(), L"Listening to %p for '%ls'", directoryHandle, path.c_str());
+    log_fine(server->getThreadEnv(), L"Listening on thread %d to %p for '%ls'", GetCurrentThreadId(), directoryHandle, path.c_str());
     BOOL success = ReadDirectoryChangesW(
         directoryHandle,                    // handle to directory
         &buffer[0],                         // read results buffer
@@ -156,7 +157,7 @@ void WatchPoint::listen() {
     if (!SetEvent(listeningStartedEvent)) {
         log_severe(server->getThreadEnv(), L"Failed to signal listening started event: %d", GetLastError());
     } else {
-        log_fine(server->getThreadEnv(), L">>> Signalled caller from thread %d - %p for '%ls': %d", GetCurrentThreadId(), directoryHandle, path.c_str(), status);
+        log_fine(server->getThreadEnv(), L">>> Signalled caller %p from thread %d - %p for '%ls': %d", listeningStartedEvent, GetCurrentThreadId(), directoryHandle, path.c_str(), status);
     }
     // TODO Error handling
 }
@@ -269,7 +270,7 @@ static unsigned CALLBACK EventProcessingThread(void* data) {
 void Server::run() {
     JNIEnv* env = attach_jni(jvm, true);
 
-    log_info(env, L"Thread %d running, JNI attached", GetCurrentThreadId());
+    log_info(env, L"Thread %d running, JNI attached, signalling %p", GetCurrentThreadId(), threadStartedEvent);
 
     if (!SetEvent(threadStartedEvent)) {
         log_severe(env, L"Couldn't signal the start of thread %d", GetCurrentThreadId());
@@ -286,7 +287,9 @@ void Server::run() {
 }
 
 void Server::start(JNIEnv* env) {
+    log_info(env, L"Waiting on thread %d for server thread to start up, waiting on signal %p", GetCurrentThreadId(), threadStartedEvent);
     DWORD ret = WaitForSingleObject(threadStartedEvent, INFINITE);
+    log_info(env, L"Received signal on thread %d about server thread on signal %p: %d", GetCurrentThreadId(), threadStartedEvent, ret);
     switch (ret) {
         case WAIT_OBJECT_0:
             // Server up and running
