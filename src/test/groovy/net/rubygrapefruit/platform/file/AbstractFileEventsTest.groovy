@@ -200,10 +200,11 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can receive multiple events from multiple watched directories"() {
         given:
-        def firstFileInFirstWatchedDir = new File(rootDir, "first-watched.txt")
-        def secondWatchedDir = tmpDir.newFolder()
+        def firstWatchedDir = tmpDir.newFolder("first")
+        def firstFileInFirstWatchedDir = new File(firstWatchedDir, "first-watched.txt")
+        def secondWatchedDir = tmpDir.newFolder("second")
         def secondFileInSecondWatchedDir = new File(secondWatchedDir, "sibling-watched.txt")
-        startWatcher(rootDir, secondWatchedDir)
+        startWatcher(firstWatchedDir, secondWatchedDir)
 
         when:
         def expectedChanges = expectEvents created(firstFileInFirstWatchedDir)
