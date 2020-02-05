@@ -137,7 +137,7 @@ void WatchPoint::listen() {
     if (!SetEvent(listeningStartedEvent)) {
         log_severe(server->getThreadEnv(), L"Failed to signal listening started event: %d", GetLastError());
     } else {
-        log_fine(server->getThreadEnv(), L">>> Signalled caller %p for '%ls': %d", directoryHandle, path.c_str(), status);
+        log_fine(server->getThreadEnv(), L">>> Signalled caller from thread %d - %p for '%ls': %d", GetCurrentThreadId(), directoryHandle, path.c_str(), status);
     }
     // TODO Error handling
 }
@@ -208,7 +208,7 @@ void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION *info) {
 
 int WatchPoint::awaitListeningStarted(DWORD dwMilliseconds) {
     DWORD ret = WaitForSingleObject(listeningStartedEvent, dwMilliseconds);
-    log_fine(server->getThreadEnv(), L"<<< Received signal for %p for '%ls': %d", directoryHandle, path.c_str(), ret);
+    log_fine(server->getThreadEnv(), L"<<< Received signal on thread %d for %p for '%ls': %d", GetCurrentThreadId(), directoryHandle, path.c_str(), ret);
     switch (ret) {
         case WAIT_OBJECT_0:
             // Server up and running
@@ -266,7 +266,7 @@ static unsigned CALLBACK EventProcessingThread(void* data) {
 void Server::run() {
     JNIEnv* env = attach_jni(jvm, true);
 
-    log_info(env, L"Thread %d running", GetCurrentThreadId());
+    log_info(env, L"Thread %d running, JNI attached", GetCurrentThreadId());
 
     if (!SetEvent(threadStartedEvent)) {
         log_severe(env, L"Couldn't signal the start of thread %d", GetCurrentThreadId());
@@ -277,7 +277,7 @@ void Server::run() {
         log_fine(env, L"Thread %d woke up", GetCurrentThreadId());
     }
 
-    log_info(env, L"Thread %d finishing", GetCurrentThreadId());
+    log_info(env, L"Thread %d finishing, detaching JNI", GetCurrentThreadId());
 
     detach_jni(jvm);
 }
@@ -406,12 +406,12 @@ void Server::close(JNIEnv *env) {
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatching(JNIEnv *env, jclass target, jobjectArray paths, jobject javaCallback, jobject result) {
 
-    log_info(env, L"Configuring on thread %d...", GetCurrentThreadId());
+    log_info(env, L"Configuring from thread %d", GetCurrentThreadId());
 
     JavaVM* jvm;
     int jvmStatus = env->GetJavaVM(&jvm);
     if (jvmStatus != JNI_OK) {
-        mark_failed_with_errno(env, "Could not store jvm instance.", result);
+        mark_failed_with_errno(env, "Could not store JVM instance.", result);
         return NULL;
     }
 

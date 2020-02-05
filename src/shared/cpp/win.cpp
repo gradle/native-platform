@@ -122,7 +122,7 @@ void printlog(JNIEnv* env, int level, const wchar_t* fmt, ...) {
     va_end(args);
 
     if (env == nullptr) {
-        fwprintf(stderr, L"%ls\n", buffer);
+        fwprintf(stderr, L"!!! %ls\n", buffer);
     } else {
         env->CallStaticVoidMethod(clsLogger, logMethod, level, wchar_to_java(env, buffer, wcslen(buffer), NULL));
     }
