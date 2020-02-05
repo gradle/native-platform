@@ -85,7 +85,11 @@ void printlog(JNIEnv* env, int level, const char* fmt, ...) {
     vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
 
-    env->CallStaticVoidMethod(clsLogger, logMethod, level, env->NewStringUTF(buffer));
+    if (env == NULL) {
+        fprintf(stderr, "%s\n", buffer);
+    } else {
+        env->CallStaticVoidMethod(clsLogger, logMethod, level, env->NewStringUTF(buffer));
+    }
 }
 
 #endif

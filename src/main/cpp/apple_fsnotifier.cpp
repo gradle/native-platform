@@ -94,16 +94,10 @@ static void callback(ConstFSEventStreamRef streamRef,
 static void *EventProcessingThread(void *data) {
     watch_details_t *details = (watch_details_t*) data;
 
-    log_fine(details->env, "~~~~ Starting thread\n", NULL);
+    JNIEnv* env = attach_jni(details->jvm, true);
+    details->env = env;
 
-    // TODO Extract this logic to some shared function
-    JavaVM* jvm = details->jvm;
-    jint statAttach = jvm->AttachCurrentThreadAsDaemon((void **) &(details->env), NULL);
-    if (statAttach != JNI_OK) {
-        log_severe(details->env, "Failed to attach JNI to current thread: %d\n", statAttach);
-        invalidStateDetected = true;
-        return NULL;
-    }
+    log_fine(env, "~~~~ Starting thread\n", NULL);
 
     CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
     FSEventStreamScheduleWithRunLoop(details->watcherStream, threadLoop, kCFRunLoopDefaultMode);
@@ -117,14 +111,7 @@ static void *EventProcessingThread(void *data) {
 
     log_fine(details->env, "~~~~ Stopping thread\n", NULL);
 
-    // TODO Extract this logic to some shared function
-    jint statDetach = jvm->DetachCurrentThread();
-    if (statDetach != JNI_OK) {
-        log_severe(details->env, "Failed to detach JNI from current thread: %d\n", statAttach);
-        invalidStateDetected = true;
-        return NULL;
-    }
-
+    detach_jni(details->jvm);
     return NULL;
 }
 
