@@ -134,7 +134,7 @@ void WatchPoint::listen() {
         status = WATCH_LISTENING;
     } else {
         status = WATCH_FAILED_TO_LISTEN;
-        log_severe(server->getThreadEnv(), L"Couldn't start watching %p for '%ls': %d", directoryHandle, path.c_str(), GetLastError());
+        log_warning(server->getThreadEnv(), L"Couldn't start watching %p for '%ls': %d", directoryHandle, path.c_str(), GetLastError());
     }
     // TODO Error handling
     if (!SetEvent(listeningStartedEvent)) {
@@ -177,6 +177,9 @@ void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransfered) {
     }
 
     listen();
+    if (status != WATCH_LISTENING) {
+        server->reportFinished(this);
+    }
 }
 
 void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION *info) {
