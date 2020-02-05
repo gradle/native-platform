@@ -196,7 +196,16 @@ void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION *info) {
 }
 
 int WatchPoint::awaitListeningStarted(DWORD dwMilliseconds) {
-    WaitForSingleObject(listeningStartedEvent, dwMilliseconds);
+    DWORD ret = WaitForSingleObject(listeningStartedEvent, dwMilliseconds);
+    switch (ret) {
+        case WAIT_OBJECT_0:
+            // Server up and running
+            break;
+        default:
+            log_severe(server->getThreadEnv(), L"Couldn't wait for listening to start for '%ls': %d", path.c_str(), ret);
+            // TODO Error handling
+            break;
+    }
     return status;
 }
 
@@ -258,7 +267,16 @@ void Server::run() {
 }
 
 void Server::start(JNIEnv* env) {
-    WaitForSingleObject(threadStartedEvent, INFINITY);
+    DWORD ret = WaitForSingleObject(threadStartedEvent, INFINITE);
+    switch (ret) {
+        case WAIT_OBJECT_0:
+            // Server up and running
+            break;
+        default:
+            log_severe(env, L"Couldn't wait for server to start: %d", ret);
+            // TODO Error handling
+            break;
+    }
 }
 
 void Server::startWatching(JNIEnv* env, wchar_t *path) {
