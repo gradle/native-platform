@@ -94,12 +94,16 @@ WatchPoint::WatchPoint(Server *server, wstring path, HANDLE directoryHandle) {
     this->buffer.resize(EVENT_BUFFER_SIZE);
     ZeroMemory(&this->overlapped, sizeof(OVERLAPPED));
     this->overlapped.hEvent = this;
-    this->listeningStartedEvent = CreateEvent( 
+    HANDLE listeningStartedEvent = CreateEvent(
         NULL,               // default security attributes
         true,               // manual-reset event
         false,              // initial state is nonsignaled
         "ListeningEvent"    // object name
     );
+    if (listeningStartedEvent == INVALID_HANDLE_VALUE) {
+        log_severe(server->getThreadEnv(), L"Couldn't create listening sterted event: %d", GetLastError());
+    }
+    this->listeningStartedEvent = listeningStartedEvent;
     this->directoryHandle = directoryHandle;
 }
 
@@ -204,12 +208,18 @@ static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg) {
 Server::Server(JavaVM* jvm, JNIEnv* env, jobject watcherCallback) {
     this->jvm = jvm;
     this->watcherCallback = env->NewGlobalRef(watcherCallback);
-    this->threadStartedEvent = CreateEvent( 
+    HANDLE threadStartedEvent = CreateEvent(
         nullptr,            // default security attributes
         true,               // manual-reset event
         false,              // initial state is nonsignaled
         "ServerStarted"     // object name
-    ); 
+    );
+
+    if (threadStartedEvent == INVALID_HANDLE_VALUE) {
+        log_severe(env, L"Couldn't create server sterted event: %d", GetLastError());
+    }
+
+    this->threadStartedEvent = threadStartedEvent;
     this->threadHandle = (HANDLE)_beginthreadex(
         NULL,                   // default security attributes
         0,                      // use default stack size
