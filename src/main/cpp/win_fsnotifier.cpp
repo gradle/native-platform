@@ -49,24 +49,7 @@ private:
 
 class Server {
 public:
-    Server(
-        JavaVM *jvm,
-        JNIEnv *env,
-        jobject watcherCallback
-    ) {
-        this->jvm = jvm;
-        this->watcherCallback = env->NewGlobalRef(watcherCallback);
-        this->threadHandle = (HANDLE)_beginthreadex(
-            NULL,                   // default security attributes
-            0,                      // use default stack size
-            EventProcessingThread,  // thread function name
-            this,                   // argument to thread function
-            0,                      // use default creation flags
-            NULL                    // the thread identifier
-        );
-        // TODO Error handling
-        SetThreadPriority(this->threadHandle, THREAD_PRIORITY_ABOVE_NORMAL);
-    }
+    Server(JavaVM *jvm, JNIEnv *env, jobject watcherCallback);
 
     void startWatching(JNIEnv* env, wchar_t *path);
     void reportEvent(jint type, const wstring changedPath);
@@ -114,7 +97,7 @@ WatchPoint::WatchPoint(Server *server, wstring path, HANDLE directoryHandle) {
         true,               // manual-reset event
         false,              // initial state is nonsignaled
         "ListeningEvent"    // object name
-    ); 
+    );
     this->directoryHandle = directoryHandle;
 }
 
@@ -214,6 +197,21 @@ int WatchPoint::awaitListeningStarted(DWORD dwMilliseconds) {
 static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg) {
     WatchPoint* watchPoint = (WatchPoint*)arg;
     watchPoint->listen();
+}
+
+Server::Server(JavaVM* jvm, JNIEnv* env, jobject watcherCallback) {
+    this->jvm = jvm;
+    this->watcherCallback = env->NewGlobalRef(watcherCallback);
+    this->threadHandle = (HANDLE)_beginthreadex(
+        NULL,                   // default security attributes
+        0,                      // use default stack size
+        EventProcessingThread,  // thread function name
+        this,                   // argument to thread function
+        0,                      // use default creation flags
+        NULL                    // the thread identifier
+    );
+    // TODO Error handling
+    SetThreadPriority(this->threadHandle, THREAD_PRIORITY_ABOVE_NORMAL);
 }
 
 void Server::startWatching(JNIEnv* env, wchar_t *path) {
