@@ -28,7 +28,7 @@ class WatchPoint;
 
 class WatchPoint {
 public:
-    WatchPoint(Server *server, wstring path);
+    WatchPoint(Server *server, wstring path, HANDLE directoryHandle);
     void close();
     void listen();
     int awaitListeningStarted(DWORD dwMilliseconds);
@@ -68,7 +68,7 @@ public:
         SetThreadPriority(this->threadHandle, THREAD_PRIORITY_ABOVE_NORMAL);
     }
 
-    void startWatching(wchar_t *path);
+    void startWatching(JNIEnv* env, wchar_t *path);
     void reportEvent(jint type, const wstring changedPath);
     void reportFinished(WatchPoint* watchPoint);
 
@@ -103,7 +103,7 @@ void WatchPoint::close() {
     }
 }
 
-WatchPoint::WatchPoint(Server *server, wstring path) {
+WatchPoint::WatchPoint(Server *server, wstring path, HANDLE directoryHandle) {
     this->server = server;
     this->path = path;
     this->buffer.resize(EVENT_BUFFER_SIZE);
@@ -115,20 +115,6 @@ WatchPoint::WatchPoint(Server *server, wstring path) {
         false,              // initial state is nonsignaled
         "ListeningEvent"    // object name
     ); 
-    HANDLE directoryHandle = CreateFileW(
-        path.c_str(),                       // pointer to the file name
-        FILE_LIST_DIRECTORY,                // access (read/write) mode
-        CREATE_SHARE,                       // share mode
-        NULL,                               // security descriptor
-        OPEN_EXISTING,                      // how to create
-        CREATE_FLAGS,                       // file attributes
-        NULL                                // file with attributes to copy
-    );
-
-    if (directoryHandle == INVALID_HANDLE_VALUE) {
-        log_severe(server->getThreadEnv(), L"Couldn't get handle for '%ls': %d", path.c_str(), GetLastError());
-    }
-
     this->directoryHandle = directoryHandle;
 }
 
@@ -227,8 +213,24 @@ static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg) {
     watchPoint->listen();
 }
 
-void Server::startWatching(wchar_t *path) {
-    WatchPoint* watchPoint = new WatchPoint(this, wstring(path));
+void Server::startWatching(JNIEnv* env, wchar_t *path) {
+    HANDLE directoryHandle = CreateFileW(
+        path,                               // pointer to the file name
+        FILE_LIST_DIRECTORY,                // access (read/write) mode
+        CREATE_SHARE,                       // share mode
+        NULL,                               // security descriptor
+        OPEN_EXISTING,                      // how to create
+        CREATE_FLAGS,                       // file attributes
+        NULL                                // file with attributes to copy
+    );
+
+    if (directoryHandle == INVALID_HANDLE_VALUE) {
+        log_severe(env, L"Couldn't get file handle for '%ls': %d", path, GetLastError());
+        // TODO Error handling
+        return;
+    }
+
+    WatchPoint* watchPoint = new WatchPoint(this, path, directoryHandle);
     QueueUserAPC(&startWatchCallback, threadHandle, (ULONG_PTR) watchPoint);
     // TODO Timeout handling
     int ret = watchPoint->awaitListeningStarted(INFINITE);
@@ -362,7 +364,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
         wchar_t* watchPoint = java_to_wchar_path(env, path);
         int watchPointLen = wcslen(watchPoint);
-        server->startWatching(watchPoint);
+        server->startWatching(env, watchPoint);
         free(watchPoint);
     }
 
