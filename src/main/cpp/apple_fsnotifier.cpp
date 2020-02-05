@@ -94,7 +94,8 @@ static void callback(ConstFSEventStreamRef streamRef,
 static void *EventProcessingThread(void *data) {
     watch_details_t *details = (watch_details_t*) data;
 
-    JNIEnv* env = attach_jni(details->jvm, true);
+    JavaVM* jvm = details->jvm;
+    JNIEnv* env = attach_jni(jvm, true);
     details->env = env;
 
     log_fine(env, "~~~~ Starting thread\n", NULL);
@@ -109,9 +110,9 @@ static void *EventProcessingThread(void *data) {
     // This triggers run loop for this thread, causing it to run until we explicitly stop it.
     CFRunLoopRun();
 
-    log_fine(details->env, "~~~~ Stopping thread\n", NULL);
+    log_fine(env, "~~~~ Stopping thread\n", NULL);
 
-    detach_jni(details->jvm);
+    detach_jni(jvm);
     return NULL;
 }
 
