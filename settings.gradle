@@ -8,6 +8,8 @@ include 'testApp'
 
 project(':testApp').projectDir = new File(rootDir, 'test-app')
 
+enableFeaturePreview('GROOVY_COMPILATION_AVOIDANCE')
+
 gradleEnterprise {
     buildScan {
         if (System.getenv("CI")) {

@@ -394,7 +394,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_stat(JNIEnv *
         return;
     }
 
-    wchar_t* pathStr = java_to_wchar_path(env, path, result);
+    wchar_t* pathStr = java_to_wchar_path(env, path);
     file_stat_t fileStat;
     DWORD errorCode = get_file_stat(pathStr, followLink, &fileStat);
     free(pathStr);
@@ -415,7 +415,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_readdir(JNIEn
     }
 
     WIN32_FIND_DATAW entry;
-    wchar_t* pathStr = java_to_wchar_path(env, path, result);
+    wchar_t* pathStr = java_to_wchar_path(env, path);
     wchar_t* patternStr = add_suffix(pathStr, wcslen(pathStr), L"\\*");
     free(pathStr);
     HANDLE dirHandle = FindFirstFileW(patternStr, &entry);

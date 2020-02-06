@@ -17,7 +17,6 @@
 package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.Native
-import net.rubygrapefruit.platform.NativeException
 import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions
 import spock.lang.Requires
@@ -25,38 +24,40 @@ import spock.lang.Requires
 @Requires({ Platform.current().windows })
 class WindowsFileEventFunctionsTest extends AbstractFileEventsTest {
     final WindowsFileEventFunctions fileEvents = Native.get(WindowsFileEventFunctions.class)
-    FileWatcher watcher
 
     def "caches file events instance"() {
         expect:
         Native.get(WindowsFileEventFunctions.class) is fileEvents
     }
-
-    def "cannot watch long paths"() {
+    
+    // TODO Add test for watching file
+    // TODO Promote test to AbstractFileEventsTest
+    def "fails when registering watch for non-existent directory"() {
         given:
-        def longPath = new File(rootDir, "X" * 240).canonicalPath
+        def missingDirectory = new File(rootDir, "missing")
+
         when:
-        fileEvents.startWatching([longPath]) {}
+        startWatcher(missingDirectory)
 
         then:
-        def ex = thrown NativeException
-        ex.message == "Failed to start watching. Reason: Cannot watch long paths for now."
+        logging.messages.any { it ==~ /Couldn't get file handle for.*/ }
+        noExceptionThrown()
     }
 
     @Override
-    protected void startWatcher(FileWatcherCallback callback, File... roots) {
+    protected FileWatcher startNewWatcher(FileWatcherCallback callback, File... roots) {
         // Avoid setup operations to be reported
         waitForChangeEventLatency()
-        watcher = fileEvents.startWatching(roots*.absolutePath.toList(), callback)
+        fileEvents.startWatching(roots*.absolutePath.toList(), callback)
     }
 
     @Override
-    protected void stopWatcher() {
+    protected void stopWatcher(FileWatcher watcher) {
         watcher?.close()
     }
 
     @Override
     protected void waitForChangeEventLatency() {
-        Thread.sleep(1000)
+        Thread.sleep(50)
     }
 }

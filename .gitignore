@@ -3,8 +3,6 @@
 *.ipr
 *.iws
 
-.vscode/
-
 **/.classpath
 **/.project
 **/.settings/

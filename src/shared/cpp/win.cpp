@@ -22,7 +22,7 @@ wchar_t* java_to_wchar(JNIEnv *env, jstring string, jobject result) {
     return str;
 }
 
-wchar_t* java_to_wchar_path(JNIEnv *env, jstring string, jobject result) {
+wchar_t* java_to_wchar_path(JNIEnv *env, jstring string) {
     // Copy the Java string into a UTF-16 string.
     jsize len = env->GetStringLength(string);
     wchar_t* str = (wchar_t*)malloc(sizeof(wchar_t) * (len+1));
@@ -52,6 +52,17 @@ wchar_t* java_to_wchar_path(JNIEnv *env, jstring string, jobject result) {
         // It is some sort of unknown format, don't mess with it
         return str;
     }
+}
+
+jstring wchar_to_java_path(JNIEnv *env, const wchar_t* string) {
+    const wchar_t* pathStart;
+    if (wcsncmp(string, L"\\\\?\\", 4) == 0) {
+        // TODO Handle "\\?\UNC\" --> "\\" too
+        pathStart = &string[4];
+    } else {
+        pathStart = string;
+    }
+    return env->NewString((jchar*) pathStart, wcslen(pathStart));
 }
 
 bool is_path_absolute_local(wchar_t* path, int path_len) {
@@ -110,7 +121,11 @@ void printlog(JNIEnv* env, int level, const wchar_t* fmt, ...) {
     _vsnwprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
 
-    env->CallStaticVoidMethod(clsLogger, logMethod, level, wchar_to_java(env, buffer, wcslen(buffer), NULL));
+    if (env == nullptr) {
+        fwprintf(stderr, L"!!! %ls\n", buffer);
+    } else {
+        env->CallStaticVoidMethod(clsLogger, logMethod, level, wchar_to_java(env, buffer, wcslen(buffer), NULL));
+    }
 }
 
 #endif

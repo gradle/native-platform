@@ -28,12 +28,12 @@ public class NativeLogger {
 
     public static void initLogging(Class<?> loggerClass) {
         Logger logger = Logger.getLogger(loggerClass.getName());
-        Level effectiveLevel = getEffectiveLevel(logger);
+        Level effectiveLevel = Level.FINEST; // getEffectiveLevel(logger);
 
         for (LogLevel logLevel : LogLevel.values()) {
             if (logLevel.getLevel().equals(effectiveLevel)) {
-                initLogging(logLevel.ordinal());
                 LOGGER = logger;
+                initLogging(logLevel.ordinal());
                 return;
             }
         }

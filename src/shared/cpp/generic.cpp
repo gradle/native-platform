@@ -33,6 +33,26 @@ void mark_failed_with_code(JNIEnv *env, const char* message, int error_code, con
     env->CallVoidMethod(result, method, message_str, failure_code, error_code, error_code_str);
 }
 
+JNIEnv* attach_jni(JavaVM* jvm, bool daemon) {
+    JNIEnv* env;
+    jint ret = daemon
+        ? jvm->AttachCurrentThreadAsDaemon((void **) &(env), NULL)
+        : jvm->AttachCurrentThread((void **) &(env), NULL);
+    if (ret != JNI_OK) {
+        fprintf(stderr, "Failed to attach JNI to current thread: %d\n", ret);
+        return NULL;
+    }
+    return env;
+}
+
+int detach_jni(JavaVM* jvm) {
+    jint ret = jvm->DetachCurrentThread();
+    if (ret != JNI_OK) {
+        fprintf(stderr, "Failed to detach JNI from current thread: %d\n", ret);
+    }
+    return ret;
+}
+
 JNIEXPORT jstring JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getVersion(JNIEnv *env, jclass target) {
     return env->NewStringUTF(NATIVE_VERSION);

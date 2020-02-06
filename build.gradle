@@ -420,3 +420,7 @@ boolean canBeBuiltOnCi(NativePlatform targetPlatform) {
 String binaryToVariantName(NativeBinarySpec binary) {
     binary.targetPlatform.name.replace('_', '-')
 }
+
+tasks.withType(GroovyCompile).configureEach {
+    options.incremental = true
+}
