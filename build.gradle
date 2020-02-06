@@ -3,6 +3,7 @@ import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
 plugins {
     id 'groovy'
     id 'cpp'
+    id 'org.gradle.test-retry' version '1.1.1'
     id 'net.rubygrapefruit.build.jni-plugin'
 }
 
@@ -11,6 +12,16 @@ apply plugin: ReleasePlugin
 versions {
     nextVersion = '0.22'
     nextSnapshot = '1'
+}
+
+ext.isCiServer = System.getenv().get("CI") != null
+
+test {
+    retry {
+        maxRetries = isCiServer ? 1 : 0
+        maxFailures = 10
+        failOnPassedAfterRetry = true
+    }
 }
 
 allprojects {
