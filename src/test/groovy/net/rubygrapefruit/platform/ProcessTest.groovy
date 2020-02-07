@@ -16,8 +16,10 @@
 
 package net.rubygrapefruit.platform
 
+import net.rubygrapefruit.platform.testfixture.JavaVersion
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
+import spock.lang.IgnoreIf
 import spock.lang.Specification
 
 class ProcessTest extends Specification {
@@ -34,6 +36,8 @@ class ProcessTest extends Specification {
         process.getProcessId() != 0
     }
 
+    // Changing the working directory has no effect on Java 11+
+    @IgnoreIf({ JavaVersion.majorVersion >= 11 })
     def "can get and change working directory"() {
         def newDir = tmpDir.newFolder(dir).canonicalFile
         assert newDir.directory

@@ -91,8 +91,8 @@ class OsxMemoryTest extends Specification {
         csv += row 'external', hostStat.externalPagesCount, vmStat.externalPagesCount
         csv += row 'speculative', hostStat.speculativePagesCount, vmStat.speculativePagesCount
         csv += row 'total',
-                (long) hostStat.totalPhysicalMemory / pageSize,
-                (long) vmStat.totalPhysicalMemory / pageSize
+                (long) (hostStat.totalPhysicalMemory / pageSize),
+                (long) (vmStat.totalPhysicalMemory / pageSize)
         csv += row 'available_fcache',
                 hostStat.freePagesCount + hostStat.externalPagesCount - hostStat.speculativePagesCount,
                 vmStat.freePagesCount + vmStat.externalPagesCount - vmStat.speculativePagesCount
