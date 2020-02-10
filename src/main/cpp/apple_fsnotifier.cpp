@@ -64,7 +64,11 @@ static void callback(ConstFSEventStreamRef streamRef,
         FSEventStreamEventFlags flags = eventFlags[i];
         log_fine(details->env, "~~~~ Event flags: 0x%x for %s\n", flags, paths[i]);
         jint type;
-        if (IS_SET(flags, kFSEventStreamEventFlagMustScanSubDirs)) {
+        if (IS_SET(flags, kFSEventStreamEventFlagHistoryDone)) {
+            continue;
+        } else if (IS_SET(flags, kFSEventStreamEventFlagRootChanged)) {
+            type = FILE_EVENT_INVALIDATE;
+        } else if (IS_SET(flags, kFSEventStreamEventFlagMustScanSubDirs)) {
             type = FILE_EVENT_INVALIDATE;
         } else if (IS_SET(flags, kFSEventStreamEventFlagItemRenamed)) {
             if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
@@ -81,8 +85,6 @@ static void callback(ConstFSEventStreamRef streamRef,
         } else if (IS_SET(flags, kFSEventStreamEventFlagItemInodeMetaMod)) {
             // File locked
             type = FILE_EVENT_MODIFIED;
-        } else if (IS_SET(flags, kFSEventStreamEventFlagRootChanged)) {
-            type = FILE_EVENT_REMOVED;
         } else {
             log_warning(details->env, "~~~~ Unknown event 0x%x for %s\n", flags, paths[i]);
             type = FILE_EVENT_UNKNOWN;

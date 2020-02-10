@@ -32,6 +32,7 @@ import spock.util.concurrent.AsyncConditions
 
 import static java.util.logging.Level.FINE
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
+import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.INVALIDATE
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 
@@ -411,7 +412,7 @@ abstract class AbstractFileEventsTest extends Specification {
         createNewFile(removedFile)
         File removedDir = removedDirectory(watchedDir)
 
-        def expectedEvents = [removed(watchedDir)]
+        def expectedEvents = [invalidated(watchedDir)]
         startWatcher(watchedDir)
 
         when:
@@ -460,6 +461,10 @@ abstract class AbstractFileEventsTest extends Specification {
 
     protected static FileEvent modified(File file) {
         return new FileEvent(MODIFIED, file)
+    }
+
+    protected static FileEvent invalidated(File file) {
+        return new FileEvent(INVALIDATE, file)
     }
 
     protected void createNewFile(File file) {
