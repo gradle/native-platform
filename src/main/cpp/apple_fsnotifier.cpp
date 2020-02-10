@@ -163,7 +163,7 @@ void freeDetails(JNIEnv *env, watch_details_t *details) {
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatching(JNIEnv *env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback, jobject result) {
 
-    log_fine(env, "\nConfiguring...", NULL);
+    log_fine(env, "Configuring...", NULL);
 
     invalidStateDetected = false;
 
