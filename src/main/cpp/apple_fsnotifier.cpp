@@ -40,7 +40,7 @@ static void reportEvent(jint type, char *path, watch_details_t *details) {
         }
     }
 
-    log_info(details->env, "~~~~ Changed: %s %d", path, type);
+    log_info(details->env, "Changed: %s %d", path, type);
 
     JNIEnv *env = details->env;
     jobject watcherCallback = details->watcherCallback;
@@ -62,7 +62,7 @@ static void callback(ConstFSEventStreamRef streamRef,
 
     for (int i = 0; i < numEvents; i++) {
         FSEventStreamEventFlags flags = eventFlags[i];
-        log_fine(details->env, "~~~~ Event flags: 0x%x for %s", flags, paths[i]);
+        log_fine(details->env, "Event flags: 0x%x for %s", flags, paths[i]);
         jint type;
         if (IS_SET(flags, kFSEventStreamEventFlagHistoryDone)) {
             continue;
@@ -91,7 +91,7 @@ static void callback(ConstFSEventStreamRef streamRef,
                 | kFSEventStreamEventFlagItemXattrMod)) {
             type = FILE_EVENT_MODIFIED;
         } else {
-            log_warning(details->env, "~~~~ Unknown event 0x%x for %s", flags, paths[i]);
+            log_warning(details->env, "Unknown event 0x%x for %s", flags, paths[i]);
             type = FILE_EVENT_UNKNOWN;
         }
         reportEvent(type, paths[i], details);
@@ -105,7 +105,7 @@ static void *EventProcessingThread(void *data) {
     JNIEnv* env = attach_jni(jvm, true);
     details->env = env;
 
-    log_fine(env, "~~~~ Starting thread", NULL);
+    log_fine(env, "Starting thread", NULL);
 
     CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
     FSEventStreamScheduleWithRunLoop(details->watcherStream, threadLoop, kCFRunLoopDefaultMode);
@@ -117,7 +117,7 @@ static void *EventProcessingThread(void *data) {
     // This triggers run loop for this thread, causing it to run until we explicitly stop it.
     CFRunLoopRun();
 
-    log_fine(env, "~~~~ Stopping thread", NULL);
+    log_fine(env, "Stopping thread", NULL);
 
     detach_jni(jvm);
     return NULL;
@@ -163,7 +163,7 @@ void freeDetails(JNIEnv *env, watch_details_t *details) {
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatching(JNIEnv *env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback, jobject result) {
 
-    log_fine(env, "\n~~~~ Configuring...", NULL);
+    log_fine(env, "\nConfiguring...", NULL);
 
     invalidStateDetected = false;
 
@@ -193,7 +193,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
     for (int i = 0; i < count; i++) {
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
         char* watchedPath = java_to_char(env, path, result);
-        log_info(env, "~~~~ Watching %s", watchedPath);
+        log_info(env, "Watching %s", watchedPath);
         if (watchedPath == NULL) {
             mark_failed_with_errno(env, "Could not allocate string to store root to watch.", result);
             freeDetails(env, details);
