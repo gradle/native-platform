@@ -30,6 +30,7 @@ import net.rubygrapefruit.platform.file.WindowsFiles;
 import net.rubygrapefruit.platform.internal.jni.AbstractFileEventFunctions;
 import net.rubygrapefruit.platform.internal.jni.NativeLogger;
 import net.rubygrapefruit.platform.internal.jni.NativeVersion;
+import net.rubygrapefruit.platform.internal.jni.LinuxFileEventFunctions;
 import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions;
 import net.rubygrapefruit.platform.internal.jni.PosixTypeFunctions;
 import net.rubygrapefruit.platform.internal.jni.TerminfoFunctions;
@@ -292,6 +293,9 @@ public abstract class Platform {
     private abstract static class Linux extends Unix {
         @Override
         public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
+            if (type.equals(LinuxFileEventFunctions.class)) {
+                return type.cast(new LinuxFileEventFunctions());
+            }
             return super.get(type, nativeLibraryLoader);
         }
 

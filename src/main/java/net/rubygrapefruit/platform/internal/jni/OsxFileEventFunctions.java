@@ -34,9 +34,9 @@ public class OsxFileEventFunctions extends AbstractFileEventFunctions {
      * <h3>Remarks:</h3>
      *
      * <ul>
-     *     <li>Changes to any descendants to the given paths are reported.</li>
+     *     <li>Changes to the given paths themselves are reported.</li>
      *
-     *     <li>Changes to the given paths themselves are not reported.</li>
+     *     <li>Changes to any descendants to the given paths are reported.</li>
      *
      *     <li>Changes are reported as <em>canonical</em> paths. This means:
      *     <ul>

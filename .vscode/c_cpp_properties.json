@@ -17,6 +17,19 @@
             "intelliSenseMode": "clang-x64"
         },
         {
+            "name": "Linux",
+            "includePath": [
+                "/opt/jdk/open-jdk-11/include",
+                "/opt/jdk/open-jdk-11/include/linux",
+                "${workspaceFolder}/**",
+                "${default}"
+            ],
+            "defines": [],
+            "cStandard": "c11",
+            "cppStandard": "c++11",
+            "intelliSenseMode": "gcc-x64"
+        },
+        {
             "name": "Win32",
             "includePath": [
                 "${env:JAVA_HOME}/include",

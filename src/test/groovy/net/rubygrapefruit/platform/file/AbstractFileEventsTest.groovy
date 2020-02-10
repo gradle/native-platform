@@ -356,6 +356,7 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
+    @IgnoreIf({ Platform.current().linux })
     def "can receive events from directory with different casing"() {
         given:
         def lowercaseDir = new File(rootDir, "watch-this")
