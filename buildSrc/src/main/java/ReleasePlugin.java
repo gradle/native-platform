@@ -55,7 +55,7 @@ public class ReleasePlugin implements Plugin<Project> {
         VersionCalculator versionCalculator = new VersionCalculator(versions, buildType, buildTimestamp);
 
         project.getGradle().getTaskGraph().whenReady(graph -> {
-            if (graph.hasTask(":" + UPLOAD_MAIN_TASK_NAME) || graph.hasTask(":" + UPLOAD_JNI_TASK_NAME)) {
+            if (graph.hasTask(":" + UPLOAD_MAIN_TASK_NAME) || graph.hasTask(":" + UPLOAD_JNI_TASK_NAME) || graph.hasTask(":" + UPLOAD_NCURSES_JNI_TASK_NAME)) {
                 project.getLogger().lifecycle("##teamcity[buildStatus text='{build.status.text}, Published version {}']", versionCalculator);
             }
         });
