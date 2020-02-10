@@ -25,12 +25,18 @@ import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.gradle
 class Publishing(buildAndTest: List<BuildType>, buildReceiptSource: BuildType) : Project({
     name = "Publishing"
 
-    val nativeLibraryPublishingBuilds = Agent.values().map { agent ->
+    val agentsForAllJniPublications = listOf(Agent.Linux, Agent.MacOs, Agent.Windows, Agent.LinuxAarch64, Agent.FreeBsd)
+    val agentsForNcursesOnlyPublications = listOf(Agent.LinuxAarch64Ncurses5, Agent.LinuxNcurses6)
+
+    val nativeLibraryAllJniBuilds = agentsForAllJniPublications.map { agent ->
         NativeLibraryPublishSnapshot(agent, buildAndTest, buildReceiptSource).also(::buildType)
     }
-    val publishApi = PublishJavaApiSnapshot(nativeLibraryPublishingBuilds, buildAndTest, buildReceiptSource).also(::buildType)
+    val nativeLibraryNcursesJniBuilds = agentsForNcursesOnlyPublications.map { agent ->
+        NativeLibraryPublishNcursesSnapshot(agent, buildAndTest, buildReceiptSource).also(::buildType)
+    }
+    val publishApi = PublishJavaApiSnapshot(nativeLibraryAllJniBuilds + nativeLibraryNcursesJniBuilds, buildAndTest, buildReceiptSource).also(::buildType)
 
-    buildTypesOrder = listOf(publishApi) + nativeLibraryPublishingBuilds
+    buildTypesOrder = listOf(publishApi) + nativeLibraryAllJniBuilds + nativeLibraryNcursesJniBuilds
 })
 
 open class NativePlatformPublishSnapshot(uploadTasks: List<String>, buildAndTest: List<BuildType>, buildReceiptSource: BuildType, init: BuildType.() -> Unit) : BuildType({
@@ -82,7 +88,14 @@ class NativeLibraryPublishSnapshot(agent: Agent, buildAndTest: List<BuildType>, 
         runOn(agent)
     })
 
-class PublishJavaApiSnapshot(nativeLibraryPublishingBuilds: List<NativeLibraryPublishSnapshot>, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
+class NativeLibraryPublishNcursesSnapshot(agent: Agent, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
+    NativePlatformPublishSnapshot(listOf(":uploadNcursesJni"), buildAndTest, buildReceiptSource, {
+        name = "Publish $agent snapshot"
+        id = RelativeId("Publishing_Publish${agent}Snapshot")
+        runOn(agent)
+    })
+
+class PublishJavaApiSnapshot(nativeLibraryPublishingBuilds: List<NativePlatformPublishSnapshot>, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
     NativePlatformPublishSnapshot(listOf(":uploadMain", ":testApp:uploadMain"), buildAndTest, buildReceiptSource, {
         name = "Publish Native Platform snapshot"
         id = RelativeId("Publishing_PublishJavaApiSnapshot")
