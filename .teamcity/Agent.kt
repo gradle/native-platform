@@ -16,7 +16,9 @@
 
 enum class Agent(val agentOsName: String, val java8Home: String, val agentArch: String, val curses: CursesRequirement = CursesRequirement.None) {
     Linux(agentOsName = "Linux", java8Home = "%linux.java8.oracle.64bit%", agentArch = "amd64", curses = CursesRequirement.Curses5),
-    Linux_Arm(agentOsName = "Linux", java8Home = "%linux.java8.openjdk.aarch64%", agentArch = "aarch64", curses = CursesRequirement.Curses6),
+    LinuxNcurses6(agentOsName = "Linux", java8Home = "%linux.java8.openjdk.aarch64%", agentArch = "amd64", curses = CursesRequirement.Curses5),
+    LinuxAarch64(agentOsName = "Linux", java8Home = "%linux.java8.openjdk.aarch64%", agentArch = "aarch64", curses = CursesRequirement.Curses6),
+    LinuxAarch64Ncurses5(agentOsName = "Linux", java8Home = "/usr/lib/jvm/java-8-openjdk-arm64", agentArch = "aarch64", curses = CursesRequirement.Curses5),
     Windows(agentOsName = "Windows", java8Home = "%windows.java8.oracle.64bit%", agentArch = "amd64"),
     MacOs(agentOsName = "Mac OS X", java8Home = "%macos.java8.oracle.64bit%", agentArch = "x86_64"),
     FreeBsd(agentOsName = "FreeBSD", java8Home = "%freebsd.java8.openjdk.64bit%", agentArch = "amd64")
