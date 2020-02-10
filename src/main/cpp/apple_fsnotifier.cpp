@@ -66,9 +66,11 @@ static void callback(ConstFSEventStreamRef streamRef,
         jint type;
         if (IS_SET(flags, kFSEventStreamEventFlagHistoryDone)) {
             continue;
-        } else if (IS_SET(flags, kFSEventStreamEventFlagRootChanged)) {
-            type = FILE_EVENT_INVALIDATE;
-        } else if (IS_SET(flags, kFSEventStreamEventFlagMustScanSubDirs)) {
+        } else if (IS_ANY_SET(flags,
+                kFSEventStreamEventFlagRootChanged
+                | kFSEventStreamEventFlagMount
+                | kFSEventStreamEventFlagUnmount
+                | kFSEventStreamEventFlagMustScanSubDirs)) {
             type = FILE_EVENT_INVALIDATE;
         } else if (IS_SET(flags, kFSEventStreamEventFlagItemRenamed)) {
             if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
@@ -82,8 +84,11 @@ static void callback(ConstFSEventStreamRef streamRef,
             type = FILE_EVENT_REMOVED;
         } else if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
             type = FILE_EVENT_CREATED;
-        } else if (IS_SET(flags, kFSEventStreamEventFlagItemInodeMetaMod)) {
-            // File locked
+        } else if (IS_ANY_SET(flags,
+                kFSEventStreamEventFlagItemInodeMetaMod // file locked
+                | kFSEventStreamEventFlagItemFinderInfoMod
+                | kFSEventStreamEventFlagItemChangeOwner
+                | kFSEventStreamEventFlagItemXattrMod)) {
             type = FILE_EVENT_MODIFIED;
         } else {
             log_warning(details->env, "~~~~ Unknown event 0x%x for %s\n", flags, paths[i]);
