@@ -38,6 +38,7 @@ public class ReleasePlugin implements Plugin<Project> {
     private static final String BUILD_TIMESTAMP_PROPERTY = "buildTimestamp";
     private static final String UPLOAD_MAIN_TASK_NAME = "uploadMain";
     private static final String UPLOAD_JNI_TASK_NAME = "uploadJni";
+    private static final String UPLOAD_NCURSES_JNI_TASK_NAME = "uploadNcursesJni";
 
     @Override
     public void apply(Project project) {
@@ -93,6 +94,10 @@ public class ReleasePlugin implements Plugin<Project> {
         uploadJniLifecycle.setGroup("Upload");
         uploadJniLifecycle.setDescription("Upload all JNI publications");
 
+        Task uploadNcursesJniLifecycle = project.getTasks().maybeCreate(UPLOAD_NCURSES_JNI_TASK_NAME);
+        uploadNcursesJniLifecycle.setGroup("Upload");
+        uploadNcursesJniLifecycle.setDescription("Upload only ncurses5/6 JNI publications");
+
         project.getExtensions().configure(
                 PublishingExtension.class,
                 extension -> extension.getPublications().withType(MavenPublication.class, publication -> {
@@ -104,6 +109,9 @@ public class ReleasePlugin implements Plugin<Project> {
                         uploadMainLifecycle.dependsOn(uploadTask);
                     } else {
                         uploadJniLifecycle.dependsOn(uploadTask);
+                        if (uploadTaskName.contains("ncurses")) {
+                            uploadNcursesJniLifecycle.dependsOn(uploadTask);
+                        }
                     }
                 }));
     }
