@@ -128,6 +128,22 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
+    @Requires({ Platform.current().macOs })
+    def "changing metadata doesn't mask content change"() {
+        given:
+        def modifiedFile = new File(rootDir, "modified.txt")
+        createNewFile(modifiedFile)
+        startWatcher(rootDir)
+
+        when:
+        def expectedChanges = expectEvents modified(modifiedFile)
+        modifiedFile.setReadable(false)
+        modifiedFile << "change"
+
+        then:
+        expectedChanges.await()
+    }
+
     def "can detect file renamed"() {
         given:
         def sourceFile = new File(rootDir, "source.txt")
