@@ -35,7 +35,6 @@ import java.util.logging.Logger
 import static java.util.logging.Level.FINE
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.INVALIDATE
-import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.METADATA_MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 
@@ -121,8 +120,31 @@ abstract class AbstractFileEventsTest extends Specification {
         startWatcher(rootDir)
 
         when:
-        def expectedChanges = expectEvents metadataModified(modifiedFile)
+        def expectedChanges = expectEvents modified(modifiedFile)
         modifiedFile.setReadable(false)
+
+        then:
+        expectedChanges.await()
+
+        when:
+        expectedChanges = expectEvents modified(modifiedFile)
+        modifiedFile.setReadable(true)
+
+        then:
+        expectedChanges.await()
+    }
+
+    @Ignore("This actually alternates between MODIFIED and CREATED, no idea how to better identify the events")
+    @Requires({ Platform.current().macOs })
+    def "changing metadata immediately after creation is reported as modified"() {
+        given:
+        def createdFile = new File(rootDir, "file.txt")
+        startWatcher(rootDir)
+
+        when:
+        def expectedChanges = expectEvents modified(createdFile)
+        createNewFile(createdFile)
+        createdFile.setReadable(false)
 
         then:
         expectedChanges.await()
@@ -132,13 +154,29 @@ abstract class AbstractFileEventsTest extends Specification {
     def "changing metadata doesn't mask content change"() {
         given:
         def modifiedFile = new File(rootDir, "modified.txt")
-        createNewFile(modifiedFile)
+        modifiedFile.createNewFile()
         startWatcher(rootDir)
 
         when:
         def expectedChanges = expectEvents modified(modifiedFile)
         modifiedFile.setReadable(false)
         modifiedFile << "change"
+
+        then:
+        expectedChanges.await()
+    }
+
+    @Requires({ Platform.current().macOs })
+    def "changing metadata doesn't mask removal"() {
+        given:
+        def removedFile = new File(rootDir, "removed.txt")
+        createNewFile(removedFile)
+        startWatcher(rootDir)
+
+        when:
+        def expectedChanges = expectEvents removed(removedFile)
+        removedFile.setReadable(false)
+        assert removedFile.delete()
 
         then:
         expectedChanges.await()
@@ -495,10 +533,6 @@ abstract class AbstractFileEventsTest extends Specification {
 
     protected static FileEvent modified(File file) {
         return new FileEvent(MODIFIED, file)
-    }
-
-    protected static FileEvent metadataModified(File file) {
-        return new FileEvent(METADATA_MODIFIED, file)
     }
 
     protected static FileEvent invalidated(File file) {
