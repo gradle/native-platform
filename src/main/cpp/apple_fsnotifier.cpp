@@ -1,13 +1,3 @@
-/*
- * Initial version copied from https://github.com/JetBrains/intellij-community/blob/master/native/fsNotifier/mac/fsnotifier.c
- */
-// Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
-
-// Important notes on FSEvents: https://developer.apple.com/library/archive/documentation/Darwin/Conceptual/FSEvents_ProgGuide/UsingtheFSEventsFramework/UsingtheFSEventsFramework.html
-
-/*
- * Apple specific functions.
- */
 #if defined(__APPLE__)
 
 #include "net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions.h"
