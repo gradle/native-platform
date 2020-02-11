@@ -40,7 +40,7 @@ static void reportEvent(jint type, char *path, watch_details_t *details) {
         }
     }
 
-    log_info(details->env, "~~~~ Changed: %s %d\n", path, type);
+    log_info(details->env, "Changed: %s %d", path, type);
 
     JNIEnv *env = details->env;
     jobject watcherCallback = details->watcherCallback;
@@ -62,9 +62,15 @@ static void callback(ConstFSEventStreamRef streamRef,
 
     for (int i = 0; i < numEvents; i++) {
         FSEventStreamEventFlags flags = eventFlags[i];
-        log_fine(details->env, "~~~~ Event flags: 0x%x for %s\n", flags, paths[i]);
+        log_fine(details->env, "Event flags: 0x%x for %s", flags, paths[i]);
         jint type;
-        if (IS_SET(flags, kFSEventStreamEventFlagMustScanSubDirs)) {
+        if (IS_SET(flags, kFSEventStreamEventFlagHistoryDone)) {
+            continue;
+        } else if (IS_ANY_SET(flags,
+                kFSEventStreamEventFlagRootChanged
+                | kFSEventStreamEventFlagMount
+                | kFSEventStreamEventFlagUnmount
+                | kFSEventStreamEventFlagMustScanSubDirs)) {
             type = FILE_EVENT_INVALIDATE;
         } else if (IS_SET(flags, kFSEventStreamEventFlagItemRenamed)) {
             if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
@@ -76,15 +82,16 @@ static void callback(ConstFSEventStreamRef streamRef,
             type = FILE_EVENT_MODIFIED;
         } else if (IS_SET(flags, kFSEventStreamEventFlagItemRemoved)) {
             type = FILE_EVENT_REMOVED;
+        } else if (IS_ANY_SET(flags,
+                kFSEventStreamEventFlagItemInodeMetaMod // file locked
+                | kFSEventStreamEventFlagItemFinderInfoMod
+                | kFSEventStreamEventFlagItemChangeOwner
+                | kFSEventStreamEventFlagItemXattrMod)) {
+            type = FILE_EVENT_MODIFIED;
         } else if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
             type = FILE_EVENT_CREATED;
-        } else if (IS_SET(flags, kFSEventStreamEventFlagItemInodeMetaMod)) {
-            // File locked
-            type = FILE_EVENT_MODIFIED;
-        } else if (IS_SET(flags, kFSEventStreamEventFlagRootChanged)) {
-            type = FILE_EVENT_REMOVED;
         } else {
-            log_warning(details->env, "~~~~ Unknown event 0x%x for %s\n", flags, paths[i]);
+            log_warning(details->env, "Unknown event 0x%x for %s", flags, paths[i]);
             type = FILE_EVENT_UNKNOWN;
         }
         reportEvent(type, paths[i], details);
@@ -98,7 +105,7 @@ static void *EventProcessingThread(void *data) {
     JNIEnv* env = attach_jni(jvm, true);
     details->env = env;
 
-    log_fine(env, "~~~~ Starting thread\n", NULL);
+    log_fine(env, "Starting thread", NULL);
 
     CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
     FSEventStreamScheduleWithRunLoop(details->watcherStream, threadLoop, kCFRunLoopDefaultMode);
@@ -110,7 +117,7 @@ static void *EventProcessingThread(void *data) {
     // This triggers run loop for this thread, causing it to run until we explicitly stop it.
     CFRunLoopRun();
 
-    log_fine(env, "~~~~ Stopping thread\n", NULL);
+    log_fine(env, "Stopping thread", NULL);
 
     detach_jni(jvm);
     return NULL;
@@ -156,7 +163,7 @@ void freeDetails(JNIEnv *env, watch_details_t *details) {
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatching(JNIEnv *env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback, jobject result) {
 
-    log_fine(env, "\n~~~~ Configuring...\n", NULL);
+    log_fine(env, "Configuring...", NULL);
 
     invalidStateDetected = false;
 
@@ -186,7 +193,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
     for (int i = 0; i < count; i++) {
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
         char* watchedPath = java_to_char(env, path, result);
-        log_info(env, "~~~~ Watching %s\n", watchedPath);
+        log_info(env, "Watching %s", watchedPath);
         if (watchedPath == NULL) {
             mark_failed_with_errno(env, "Could not allocate string to store root to watch.", result);
             freeDetails(env, details);

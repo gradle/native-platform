@@ -16,7 +16,6 @@
 package net.rubygrapefruit.platform.file
 
 import groovy.transform.EqualsAndHashCode
-import java.util.logging.Logger
 import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.testfixture.JulLogging
@@ -26,12 +25,16 @@ import org.junit.rules.TemporaryFolder
 import org.junit.rules.TestName
 import spock.lang.Ignore
 import spock.lang.IgnoreIf
+import spock.lang.Requires
 import spock.lang.Specification
 import spock.lang.Unroll
 import spock.util.concurrent.AsyncConditions
 
+import java.util.logging.Logger
+
 import static java.util.logging.Level.FINE
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
+import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.INVALIDATE
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 
@@ -104,6 +107,76 @@ abstract class AbstractFileEventsTest extends Specification {
         when:
         def expectedChanges = expectEvents modified(modifiedFile)
         modifiedFile << "change"
+
+        then:
+        expectedChanges.await()
+    }
+
+    @Requires({ Platform.current().macOs })
+    def "can detect file metadata modified"() {
+        given:
+        def modifiedFile = new File(rootDir, "modified.txt")
+        createNewFile(modifiedFile)
+        startWatcher(rootDir)
+
+        when:
+        def expectedChanges = expectEvents modified(modifiedFile)
+        modifiedFile.setReadable(false)
+
+        then:
+        expectedChanges.await()
+
+        when:
+        expectedChanges = expectEvents modified(modifiedFile)
+        modifiedFile.setReadable(true)
+
+        then:
+        expectedChanges.await()
+    }
+
+    @Ignore("This actually alternates between MODIFIED and CREATED, no idea how to better identify the events")
+    @Requires({ Platform.current().macOs })
+    def "changing metadata immediately after creation is reported as modified"() {
+        given:
+        def createdFile = new File(rootDir, "file.txt")
+        startWatcher(rootDir)
+
+        when:
+        def expectedChanges = expectEvents modified(createdFile)
+        createNewFile(createdFile)
+        createdFile.setReadable(false)
+
+        then:
+        expectedChanges.await()
+    }
+
+    @Requires({ Platform.current().macOs })
+    def "changing metadata doesn't mask content change"() {
+        given:
+        def modifiedFile = new File(rootDir, "modified.txt")
+        modifiedFile.createNewFile()
+        startWatcher(rootDir)
+
+        when:
+        def expectedChanges = expectEvents modified(modifiedFile)
+        modifiedFile.setReadable(false)
+        modifiedFile << "change"
+
+        then:
+        expectedChanges.await()
+    }
+
+    @Requires({ Platform.current().macOs })
+    def "changing metadata doesn't mask removal"() {
+        given:
+        def removedFile = new File(rootDir, "removed.txt")
+        createNewFile(removedFile)
+        startWatcher(rootDir)
+
+        when:
+        def expectedChanges = expectEvents removed(removedFile)
+        removedFile.setReadable(false)
+        assert removedFile.delete()
 
         then:
         expectedChanges.await()
@@ -375,7 +448,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
     @Unroll
     def "can watch directory with #type characters"() {
-        Assume.assumeTrue(supported)
+        Assume.assumeTrue(supported as boolean)
 
         given:
         def subDir = new File(rootDir, path)
@@ -411,7 +484,7 @@ abstract class AbstractFileEventsTest extends Specification {
         createNewFile(removedFile)
         File removedDir = removedDirectory(watchedDir)
 
-        def expectedEvents = [removed(watchedDir)]
+        def expectedEvents = [invalidated(watchedDir)]
         startWatcher(watchedDir)
 
         when:
@@ -462,7 +535,11 @@ abstract class AbstractFileEventsTest extends Specification {
         return new FileEvent(MODIFIED, file)
     }
 
-    protected void createNewFile(File file) {
+    protected static FileEvent invalidated(File file) {
+        return new FileEvent(INVALIDATE, file)
+    }
+
+    protected static void createNewFile(File file) {
         LOGGER.info("> Creating $file")
         file.createNewFile()
         LOGGER.info("< Created $file")

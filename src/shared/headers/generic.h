@@ -52,6 +52,7 @@ extern "C" {
 #define FILE_EVENT_UNKNOWN 4
 
 #define IS_SET(flags, flag) (((flags) & (flag)) == (flag))
+#define IS_ANY_SET(flags, mask) (((flags) & (mask)) != 0)
 
 /*
  * Marks the given result as failed, using the given error message
