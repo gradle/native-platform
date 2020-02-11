@@ -16,7 +16,6 @@
 package net.rubygrapefruit.platform.file
 
 import groovy.transform.EqualsAndHashCode
-import java.util.logging.Logger
 import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.testfixture.JulLogging
@@ -26,13 +25,17 @@ import org.junit.rules.TemporaryFolder
 import org.junit.rules.TestName
 import spock.lang.Ignore
 import spock.lang.IgnoreIf
+import spock.lang.Requires
 import spock.lang.Specification
 import spock.lang.Unroll
 import spock.util.concurrent.AsyncConditions
 
+import java.util.logging.Logger
+
 import static java.util.logging.Level.FINE
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.INVALIDATE
+import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.METADATA_MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 
@@ -105,6 +108,21 @@ abstract class AbstractFileEventsTest extends Specification {
         when:
         def expectedChanges = expectEvents modified(modifiedFile)
         modifiedFile << "change"
+
+        then:
+        expectedChanges.await()
+    }
+
+    @Requires({ Platform.current().macOs })
+    def "can detect file metadata modified"() {
+        given:
+        def modifiedFile = new File(rootDir, "modified.txt")
+        createNewFile(modifiedFile)
+        startWatcher(rootDir)
+
+        when:
+        def expectedChanges = expectEvents metadataModified(modifiedFile)
+        modifiedFile.setReadable(false)
 
         then:
         expectedChanges.await()
@@ -376,7 +394,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
     @Unroll
     def "can watch directory with #type characters"() {
-        Assume.assumeTrue(supported)
+        Assume.assumeTrue(supported as boolean)
 
         given:
         def subDir = new File(rootDir, path)
@@ -463,11 +481,15 @@ abstract class AbstractFileEventsTest extends Specification {
         return new FileEvent(MODIFIED, file)
     }
 
+    protected static FileEvent metadataModified(File file) {
+        return new FileEvent(METADATA_MODIFIED, file)
+    }
+
     protected static FileEvent invalidated(File file) {
         return new FileEvent(INVALIDATE, file)
     }
 
-    protected void createNewFile(File file) {
+    protected static void createNewFile(File file) {
         LOGGER.info("> Creating $file")
         file.createNewFile()
         LOGGER.info("< Created $file")

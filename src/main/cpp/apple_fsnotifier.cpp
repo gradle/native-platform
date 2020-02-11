@@ -78,18 +78,18 @@ static void callback(ConstFSEventStreamRef streamRef,
             } else {
                 type = FILE_EVENT_CREATED;
             }
+        } else if (IS_ANY_SET(flags,
+                kFSEventStreamEventFlagItemInodeMetaMod // file locked
+                | kFSEventStreamEventFlagItemFinderInfoMod
+                | kFSEventStreamEventFlagItemChangeOwner
+                | kFSEventStreamEventFlagItemXattrMod)) {
+            type = FILE_EVENT_METADATA_MODIFIED;
         } else if (IS_SET(flags, kFSEventStreamEventFlagItemModified)) {
             type = FILE_EVENT_MODIFIED;
         } else if (IS_SET(flags, kFSEventStreamEventFlagItemRemoved)) {
             type = FILE_EVENT_REMOVED;
         } else if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
             type = FILE_EVENT_CREATED;
-        } else if (IS_ANY_SET(flags,
-                kFSEventStreamEventFlagItemInodeMetaMod // file locked
-                | kFSEventStreamEventFlagItemFinderInfoMod
-                | kFSEventStreamEventFlagItemChangeOwner
-                | kFSEventStreamEventFlagItemXattrMod)) {
-            type = FILE_EVENT_MODIFIED;
         } else {
             log_warning(details->env, "Unknown event 0x%x for %s", flags, paths[i]);
             type = FILE_EVENT_UNKNOWN;

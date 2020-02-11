@@ -48,8 +48,9 @@ extern "C" {
 #define FILE_EVENT_CREATED 0
 #define FILE_EVENT_REMOVED 1
 #define FILE_EVENT_MODIFIED 2
-#define FILE_EVENT_INVALIDATE 3
-#define FILE_EVENT_UNKNOWN 4
+#define FILE_EVENT_METADATA_MODIFIED 3
+#define FILE_EVENT_INVALIDATE 4
+#define FILE_EVENT_UNKNOWN 5
 
 #define IS_SET(flags, flag) (((flags) & (flag)) == (flag))
 #define IS_ANY_SET(flags, mask) (((flags) & (mask)) != 0)

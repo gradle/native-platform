@@ -39,6 +39,11 @@ public interface FileWatcherCallback {
         MODIFIED,
 
         /**
+         * The metadata of an item with the given path has been modified.
+         */
+        METADATA_MODIFIED,
+
+        /**
          * Some undisclosed changes happened under the given path,
          * all information about descendants must be discarded.
          */
