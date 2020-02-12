@@ -81,7 +81,7 @@ Server::Server(JavaVM *jvm, JNIEnv *env, jobject watcherCallback, CFMutableArray
     }
     this->watcherStream = watcherStream;
 
-    if (pthread_create(&(watcherThread), NULL, EventProcessingThread, this) != 0) {
+    if (pthread_create(&watcherThread, NULL, EventProcessingThread, this) != 0) {
         log_severe(env, "Could not create file watcher thread.", NULL);
         // TODO Error handling
         return;
