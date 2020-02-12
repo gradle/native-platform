@@ -182,7 +182,6 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
-    @Ignore("Flaky")
     def "can detect file renamed"() {
         given:
         def sourceFile = new File(rootDir, "source.txt")
@@ -202,7 +201,6 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
-    @Ignore("Flaky")
     def "can detect file moved out"() {
         given:
         def outsideDir = tmpDir.newFolder()
@@ -219,7 +217,6 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
-    @Ignore("Flaky")
     def "can detect file moved in"() {
         given:
         def outsideDir = tmpDir.newFolder()
