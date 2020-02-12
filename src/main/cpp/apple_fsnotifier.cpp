@@ -66,7 +66,7 @@ Server::Server(JavaVM *jvm, JNIEnv *env, jobject watcherCallback, CFMutableArray
         NULL,           // release
         NULL            // copyDescription
     };
-    FSEventStreamRef watcherStream = FSEventStreamCreate (
+    FSEventStreamRef watcherStream = FSEventStreamCreate(
         NULL,
         &handleEventsCallback,
         &context,
