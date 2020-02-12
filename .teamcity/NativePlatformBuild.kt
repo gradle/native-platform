@@ -42,6 +42,10 @@ open class NativePlatformBuild(agent: Agent, init: BuildType.() -> Unit = {}) : 
         publishCommitStatus()
     }
 
+    failureConditions {
+        testFailure = false
+    }
+
     init(this)
 })
 
