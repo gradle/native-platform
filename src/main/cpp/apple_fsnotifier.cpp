@@ -19,7 +19,7 @@ static void handleEventsCallback(
 
 class Server {
 public:
-    Server(JavaVM *jvm, JNIEnv *env, jobject watcherCallback, CFMutableArrayRef rootsToWatch, long latencyInMillis);
+    Server(JNIEnv *env, jobject watcherCallback, CFMutableArrayRef rootsToWatch, long latencyInMillis);
     ~Server();
 
 private:
@@ -52,7 +52,14 @@ private:
     bool invalidStateDetected;
 };
 
-Server::Server(JavaVM *jvm, JNIEnv *env, jobject watcherCallback, CFMutableArrayRef rootsToWatch, long latencyInMillis) {
+Server::Server(JNIEnv *env, jobject watcherCallback, CFMutableArrayRef rootsToWatch, long latencyInMillis) {
+    JavaVM* jvm;
+    int jvmStatus = env->GetJavaVM(&jvm);
+    if (jvmStatus < 0) {
+        log_severe(env, "Could not store jvm instance", NULL);
+        return;
+    }
+
     this->jvm = jvm;
     // TODO Handle if returns NULL
     this->watcherCallback = env->NewGlobalRef(watcherCallback);
@@ -239,13 +246,6 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
 
     log_fine(env, "Configuring...", NULL);
 
-    JavaVM* jvm;
-    int jvmStatus = env->GetJavaVM(&jvm);
-    if (jvmStatus < 0) {
-        log_severe(env, "Could not store jvm instance", NULL);
-        return NULL;
-    }
-
     int count = env->GetArrayLength(paths);
     if (count == 0) {
         log_severe(env, "No paths given to watch", NULL);
@@ -279,7 +279,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
         CFArrayAppendValue(rootsToWatch, stringPath);
     }
 
-    Server* server = new Server(jvm, env, javaCallback, rootsToWatch, latencyInMillis);
+    Server* server = new Server(env, javaCallback, rootsToWatch, latencyInMillis);
 
     jclass clsWatcher = env->FindClass("net/rubygrapefruit/platform/internal/jni/OsxFileEventFunctions$WatcherImpl");
     jmethodID constructor = env->GetMethodID(clsWatcher, "<init>", "(Ljava/lang/Object;)V");
