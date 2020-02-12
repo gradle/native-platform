@@ -107,10 +107,7 @@ Server::~Server() {
     }
 
     if (watcherStream != NULL) {
-        FSEventStreamStop(watcherStream);
-        FSEventStreamInvalidate(watcherStream);
         FSEventStreamRelease(watcherStream);
-        // TODO: consider using FSEventStreamFlushSync to flush all pending events.
     }
 
     if (watcherCallback != NULL) {
@@ -128,10 +125,11 @@ void Server::run() {
     FSEventStreamStart(watcherStream);
     this->threadLoop = threadLoop;
 
-    // TODO We should wait for all this to finish in the caller thread otherwise stopWatching() might crash
-
-    // This triggers run loop for this thread, causing it to run until we explicitly stop it.
     CFRunLoopRun();
+
+    FSEventStreamFlushSync(watcherStream);
+    FSEventStreamStop(watcherStream);
+    FSEventStreamInvalidate(watcherStream);
 
     log_fine(env, "Stopping thread", NULL);
 
