@@ -5,7 +5,6 @@
 #include "win.h"
 #include <process.h>
 #include <list>
-#include <vector>
 #include <string>
 
 using namespace std;
@@ -41,7 +40,7 @@ private:
     HANDLE directoryHandle;
     HANDLE listeningStartedEvent;
     OVERLAPPED overlapped;
-    vector<BYTE> buffer;
+    FILE_NOTIFY_INFORMATION* buffer;
     volatile int status;
 
     void handleEvent(DWORD errorCode, DWORD bytesTransfered);
@@ -87,7 +86,7 @@ private:
 WatchPoint::WatchPoint(Server *server, wstring path, HANDLE directoryHandle) {
     this->server = server;
     this->path = path;
-    this->buffer.resize(EVENT_BUFFER_SIZE);
+    this->buffer = (FILE_NOTIFY_INFORMATION*) malloc(EVENT_BUFFER_SIZE);
     ZeroMemory(&this->overlapped, sizeof(OVERLAPPED));
     this->overlapped.hEvent = this;
     HANDLE listeningStartedEvent = CreateEvent(
@@ -106,6 +105,7 @@ WatchPoint::WatchPoint(Server *server, wstring path, HANDLE directoryHandle) {
 
 WatchPoint::~WatchPoint() {
     CloseHandle(listeningStartedEvent);
+    free(buffer);
 }
 
 void WatchPoint::close() {
@@ -136,8 +136,8 @@ int WatchPoint::awaitListeningStarted(DWORD dwMilliseconds) {
 void WatchPoint::listen() {
     BOOL success = ReadDirectoryChangesW(
         directoryHandle,                    // handle to directory
-        &buffer[0],                         // read results buffer
-        buffer.size(),                      // length of buffer
+        buffer,                             // read results buffer
+        EVENT_BUFFER_SIZE,                  // length of buffer
         TRUE,                               // include children
         EVENT_MASK,                         // filter conditions
         NULL,                               // bytes returned
@@ -186,11 +186,14 @@ void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransfered) {
         // Got a buffer overflow => current changes lost => send INVALIDATE on root
         server->reportEvent(FILE_EVENT_INVALIDATE, path);
     } else {
-        FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION *)buffer.data();
-        do {
-            handlePathChanged(info);
-            info = (FILE_NOTIFY_INFORMATION *)((char *)info + info->NextEntryOffset);
-        } while (info->NextEntryOffset != 0);
+        FILE_NOTIFY_INFORMATION *current = buffer;
+        for (;;) {
+            handlePathChanged(current);
+            if (current->NextEntryOffset == 0) {
+                break;
+            }
+            current = (FILE_NOTIFY_INFORMATION *)(((BYTE *) current) + current->NextEntryOffset);
+        }
     }
 
     listen();
