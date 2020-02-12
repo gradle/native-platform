@@ -190,7 +190,6 @@ abstract class AbstractFileEventsTest extends Specification {
         startWatcher(rootDir)
 
         when:
-        // TODO Why doesn't Windows report the creation of the target file?
         def expectedChanges = expectEvents event(REMOVED, sourceFile), event(CREATED, targetFile)
         sourceFile.renameTo(targetFile)
 
