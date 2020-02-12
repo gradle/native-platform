@@ -20,7 +20,7 @@ test {
     retry {
         maxRetries = isCiServer ? 1 : 0
         maxFailures = 10
-        failOnPassedAfterRetry = true
+        failOnPassedAfterRetry = false
     }
 }
 
