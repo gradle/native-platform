@@ -84,7 +84,7 @@ abstract class AbstractFileEventsTest extends Specification {
         given:
         def removedFile = new File(rootDir, "removed.txt")
         createNewFile(removedFile)
-        // TODO Why does Windows report the modification?
+        // Windows reports the file as modified before removing it
         def expectedEvents = Platform.current().windows
             ? [event(MODIFIED, removedFile), event(REMOVED, removedFile)]
             : [event(REMOVED, removedFile)]
