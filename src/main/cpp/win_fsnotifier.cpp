@@ -60,7 +60,7 @@ public:
 
     void close(JNIEnv *env);
 
-    // TOOD: Move this to somewhere else
+    // TODO: Move this to somewhere else
     JNIEnv* getThreadEnv();
 
 private:

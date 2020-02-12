@@ -5,5 +5,14 @@
         "**/.settings": true,
         "**/.factorypath": true
     },
-    "java.configuration.updateBuildConfiguration": "interactive"
+    "java.configuration.updateBuildConfiguration": "interactive",
+    "cSpell.words": [
+        "JNICALL",
+        "JNIEXPORT",
+        "Ljava",
+        "jclass",
+        "jint",
+        "jmethod",
+        "jobject"
+    ]
 }
