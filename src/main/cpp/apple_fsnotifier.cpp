@@ -55,6 +55,7 @@ private:
 
 Server::Server(JavaVM *jvm, JNIEnv *env, jobject watcherCallback, CFMutableArrayRef rootsToWatch, long latencyInMillis) {
     this->jvm = jvm;
+    // TODO Handle if returns NULL
     this->watcherCallback = env->NewGlobalRef(watcherCallback);
     this->rootsToWatch = rootsToWatch;
     this->invalidStateDetected = false;
