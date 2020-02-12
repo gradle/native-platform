@@ -182,7 +182,6 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
-    @Ignore("Flaky")
     def "can detect file renamed"() {
         given:
         def sourceFile = new File(rootDir, "source.txt")
@@ -192,9 +191,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
         when:
         // TODO Why doesn't Windows report the creation of the target file?
-        def expectedChanges = expectEvents Platform.current().windows
-            ? [event(REMOVED, sourceFile)]
-            : [event(REMOVED, sourceFile), event(CREATED, targetFile)]
+        def expectedChanges = expectEvents event(REMOVED, sourceFile), event(CREATED, targetFile)
         sourceFile.renameTo(targetFile)
 
         then:
