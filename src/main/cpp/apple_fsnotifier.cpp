@@ -80,8 +80,7 @@ Server::Server(JavaVM *jvm, JNIEnv *env, jobject watcherCallback, CFMutableArray
         return;
     }
     this->watcherStream = watcherStream;
-
-    this->watcherThread = thread([](Server *server) { server->run(); }, this);
+    this->watcherThread = thread(&Server::run, this);
 }
 
 Server::~Server() {
