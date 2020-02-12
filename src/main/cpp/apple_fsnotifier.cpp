@@ -3,7 +3,9 @@
 #include "net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions.h"
 #include "generic.h"
 #include <CoreServices/CoreServices.h>
-#include <pthread.h>
+#include <thread>
+
+using namespace std;
 
 class Server;
 
@@ -15,8 +17,6 @@ static void handleEventsCallback(
     const FSEventStreamEventFlags eventFlags[],
     const FSEventStreamEventId eventIds[]);
 
-static void *EventProcessingThread(void *data);
-
 class Server {
 public:
     Server(JavaVM *jvm, JNIEnv *env, jobject watcherCallback, CFMutableArrayRef rootsToWatch, long latencyInMillis);
@@ -24,7 +24,6 @@ public:
 
 private:
     void run();
-    friend void *EventProcessingThread(void *data);
 
     void handleEvents(
         size_t numEvents,
@@ -48,7 +47,7 @@ private:
     jobject watcherCallback;
     CFMutableArrayRef rootsToWatch;
     FSEventStreamRef watcherStream;
-    pthread_t watcherThread;
+    thread watcherThread;
     CFRunLoopRef threadLoop;
     bool invalidStateDetected;
 };
@@ -82,11 +81,7 @@ Server::Server(JavaVM *jvm, JNIEnv *env, jobject watcherCallback, CFMutableArray
     }
     this->watcherStream = watcherStream;
 
-    if (pthread_create(&watcherThread, NULL, EventProcessingThread, this) != 0) {
-        log_severe(env, "Could not create file watcher thread.", NULL);
-        // TODO Error handling
-        return;
-    }
+    this->watcherThread = thread([](Server *server) { server->run(); }, this);
 }
 
 Server::~Server() {
@@ -101,9 +96,7 @@ Server::~Server() {
         CFRunLoopStop(threadLoop);
     }
 
-    if (watcherThread != NULL) {
-        pthread_join(watcherThread, NULL);
-    }
+    watcherThread.join();
 
     if (rootsToWatch != NULL) {
         for (int i = 0; i < CFArrayGetCount(rootsToWatch); i++) {
@@ -124,12 +117,6 @@ Server::~Server() {
     if (watcherCallback != NULL) {
         env->DeleteGlobalRef(watcherCallback);
     }
-}
-
-static void *EventProcessingThread(void *data) {
-    Server *server = (Server*) data;
-    server->run();
-    return NULL;
 }
 
 void Server::run() {
