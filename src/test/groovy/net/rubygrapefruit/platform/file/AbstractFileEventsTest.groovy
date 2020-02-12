@@ -188,21 +188,19 @@ abstract class AbstractFileEventsTest extends Specification {
         def sourceFile = new File(rootDir, "source.txt")
         def targetFile = new File(rootDir, "target.txt")
         createNewFile(sourceFile)
-        // TODO Why doesn't Windows report the creation of the target file?
-        def expectedEvents = Platform.current().windows
-            ? [event(REMOVED, sourceFile)]
-            : [event(REMOVED, sourceFile), event(CREATED, targetFile)]
         startWatcher(rootDir)
 
         when:
-        def expectedChanges = expectEvents expectedEvents
+        // TODO Why doesn't Windows report the creation of the target file?
+        def expectedChanges = expectEvents Platform.current().windows
+            ? [event(REMOVED, sourceFile)]
+            : [event(REMOVED, sourceFile), event(CREATED, targetFile)]
         sourceFile.renameTo(targetFile)
 
         then:
         expectedChanges.await()
     }
 
-    @Ignore("Flaky")
     def "can detect file moved out"() {
         given:
         def outsideDir = tmpDir.newFolder()
@@ -219,7 +217,6 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
-    @Ignore("Flaky")
     def "can detect file moved in"() {
         given:
         def outsideDir = tmpDir.newFolder()
@@ -229,7 +226,10 @@ abstract class AbstractFileEventsTest extends Specification {
         startWatcher(rootDir)
 
         when:
-        def expectedChanges = expectEvents event(CREATED, targetFileInside)
+        // On Windows we sometimes get a MODIFIED event after CREATED for some reason
+        def expectedChanges = expectEvents Platform.current().windows
+            ? [event(CREATED, targetFileInside), event(MODIFIED, targetFileInside, false)]
+            : [event(CREATED, targetFileInside)]
         sourceFileOutside.renameTo(targetFileInside)
 
         then:
