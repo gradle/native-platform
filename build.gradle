@@ -281,7 +281,7 @@ model {
                     cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
                     cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/darwin"
                     cppCompiler.args '-mmacosx-version-min=10.9'
-                    cppCompiler.args "--std=c++17"
+                    cppCompiler.args "--std=c++11"
                     linker.args '-mmacosx-version-min=10.9'
                     linker.args '-framework', 'CoreServices'
                 } else if (targetPlatform.operatingSystem.linux) {
