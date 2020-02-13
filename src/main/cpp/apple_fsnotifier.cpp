@@ -219,7 +219,7 @@ void Server::handleEvent(JNIEnv *env, char* path, FSEventStreamEventFlags flags)
         }
     }
 
-    log_info(env, "Changed: %s %d", path, type);
+    log_fine(env, "Changed: %s %d", path, type);
 
     jclass callback_class = env->GetObjectClass(watcherCallback);
     jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(ILjava/lang/String;)V");
@@ -263,7 +263,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
     for (int i = 0; i < count; i++) {
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
         char* watchedPath = java_to_char(env, path, result);
-        log_info(env, "Watching %s", watchedPath);
+        log_fine(env, "Watching %s", watchedPath);
         if (watchedPath == NULL) {
             log_severe(env, "Could not allocate string to store root to watch.", NULL);
             // TODO Free resources
