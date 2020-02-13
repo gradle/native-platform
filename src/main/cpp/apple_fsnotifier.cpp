@@ -234,7 +234,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
         return NULL;
     }
 
-    CFMutableArrayRef rootsToWatch = CFArrayCreateMutable(NULL, 0, NULL);
+    CFMutableArrayRef rootsToWatch = CFArrayCreateMutable(NULL, count, NULL);
     if (rootsToWatch == NULL) {
         log_severe(env, "Could not allocate array to store roots to watch", NULL);
         // TODO Error handling
