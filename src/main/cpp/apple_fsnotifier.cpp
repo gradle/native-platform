@@ -19,7 +19,7 @@ static void handleEventsCallback(
 
 class Server {
 public:
-    Server(JNIEnv *env, jobject watcherCallback, CFMutableArrayRef rootsToWatch, long latencyInMillis);
+    Server(JNIEnv *env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis);
     ~Server();
 
 private:
@@ -45,14 +45,13 @@ private:
 
     JavaVM *jvm;
     jobject watcherCallback;
-    CFMutableArrayRef rootsToWatch;
     FSEventStreamRef watcherStream;
     thread watcherThread;
     CFRunLoopRef threadLoop;
     bool invalidStateDetected;
 };
 
-Server::Server(JNIEnv *env, jobject watcherCallback, CFMutableArrayRef rootsToWatch, long latencyInMillis) {
+Server::Server(JNIEnv *env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis) {
     JavaVM* jvm;
     int jvmStatus = env->GetJavaVM(&jvm);
     if (jvmStatus < 0) {
@@ -63,7 +62,6 @@ Server::Server(JNIEnv *env, jobject watcherCallback, CFMutableArrayRef rootsToWa
     this->jvm = jvm;
     // TODO Handle if returns NULL
     this->watcherCallback = env->NewGlobalRef(watcherCallback);
-    this->rootsToWatch = rootsToWatch;
     this->invalidStateDetected = false;
 
     FSEventStreamContext context = {
@@ -103,15 +101,6 @@ Server::~Server() {
     }
 
     watcherThread.join();
-
-    if (rootsToWatch != NULL) {
-        for (int i = 0; i < CFArrayGetCount(rootsToWatch); i++) {
-            const void *value = CFArrayGetValueAtIndex(rootsToWatch, i);
-            CFRelease(value);
-        }
-        // TODO Can we release these earlier?
-        CFRelease(rootsToWatch);
-    }
 
     if (watcherStream != NULL) {
         FSEventStreamRelease(watcherStream);
@@ -280,6 +269,8 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
     }
 
     Server* server = new Server(env, javaCallback, rootsToWatch, latencyInMillis);
+
+    CFRelease(rootsToWatch);
 
     jclass clsWatcher = env->FindClass("net/rubygrapefruit/platform/internal/jni/OsxFileEventFunctions$WatcherImpl");
     jmethodID constructor = env->GetMethodID(clsWatcher, "<init>", "(Ljava/lang/Object;)V");
