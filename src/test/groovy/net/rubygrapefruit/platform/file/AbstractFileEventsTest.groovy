@@ -190,7 +190,9 @@ abstract class AbstractFileEventsTest extends Specification {
         startWatcher(rootDir)
 
         when:
-        def expectedChanges = expectEvents event(REMOVED, sourceFile), event(CREATED, targetFile)
+        def expectedChanges = expectEvents Platform.current().windows
+            ? [event(REMOVED, sourceFile), event(CREATED, targetFile), event(MODIFIED, targetFile, false)]
+            : [event(REMOVED, sourceFile), event(CREATED, targetFile)]
         sourceFile.renameTo(targetFile)
 
         then:
@@ -469,6 +471,7 @@ abstract class AbstractFileEventsTest extends Specification {
         "Hungarian"  | "Dezső"                  | true
         "space"      | "test directory"         | true
         "zwnj"       | "test\u200cdirectory"    | true
+        "newline"    | "test\ndirectory"        | Platform.current().macOs
         "URL-quoted" | "test%<directory>#2.txt" | !Platform.current().windows
     }
 

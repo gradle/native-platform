@@ -3,7 +3,9 @@
 #include "net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions.h"
 #include "generic.h"
 #include <CoreServices/CoreServices.h>
-#include <pthread.h>
+#include <thread>
+
+using namespace std;
 
 class Server;
 
@@ -15,16 +17,13 @@ static void handleEventsCallback(
     const FSEventStreamEventFlags eventFlags[],
     const FSEventStreamEventId eventIds[]);
 
-static void *EventProcessingThread(void *data);
-
 class Server {
 public:
-    Server(JavaVM *jvm, JNIEnv *env, jobject watcherCallback, CFMutableArrayRef rootsToWatch, long latencyInMillis);
+    Server(JNIEnv *env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis);
     ~Server();
 
 private:
     void run();
-    friend void *EventProcessingThread(void *data);
 
     void handleEvents(
         size_t numEvents,
@@ -46,18 +45,28 @@ private:
 
     JavaVM *jvm;
     jobject watcherCallback;
-    CFMutableArrayRef rootsToWatch;
+    jmethodID watcherCallbackMethod;
+
     FSEventStreamRef watcherStream;
-    pthread_t watcherThread;
+    thread watcherThread;
     CFRunLoopRef threadLoop;
     bool invalidStateDetected;
 };
 
-Server::Server(JavaVM *jvm, JNIEnv *env, jobject watcherCallback, CFMutableArrayRef rootsToWatch, long latencyInMillis) {
+Server::Server(JNIEnv *env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis) {
+    JavaVM* jvm;
+    int jvmStatus = env->GetJavaVM(&jvm);
+    if (jvmStatus < 0) {
+        log_severe(env, "Could not store jvm instance", NULL);
+        return;
+    }
+
     this->jvm = jvm;
     // TODO Handle if returns NULL
     this->watcherCallback = env->NewGlobalRef(watcherCallback);
-    this->rootsToWatch = rootsToWatch;
+    jclass callbackClass = env->GetObjectClass(watcherCallback);
+    this->watcherCallbackMethod = env->GetMethodID(callbackClass, "pathChanged", "(ILjava/lang/String;)V");
+
     this->invalidStateDetected = false;
 
     FSEventStreamContext context = {
@@ -81,12 +90,7 @@ Server::Server(JavaVM *jvm, JNIEnv *env, jobject watcherCallback, CFMutableArray
         return;
     }
     this->watcherStream = watcherStream;
-
-    if (pthread_create(&watcherThread, NULL, EventProcessingThread, this) != 0) {
-        log_severe(env, "Could not create file watcher thread.", NULL);
-        // TODO Error handling
-        return;
-    }
+    this->watcherThread = thread(&Server::run, this);
 }
 
 Server::~Server() {
@@ -101,35 +105,15 @@ Server::~Server() {
         CFRunLoopStop(threadLoop);
     }
 
-    if (watcherThread != NULL) {
-        pthread_join(watcherThread, NULL);
-    }
-
-    if (rootsToWatch != NULL) {
-        for (int i = 0; i < CFArrayGetCount(rootsToWatch); i++) {
-            const void *value = CFArrayGetValueAtIndex(rootsToWatch, i);
-            CFRelease(value);
-        }
-        // TODO Can we release these earlier?
-        CFRelease(rootsToWatch);
-    }
+    watcherThread.join();
 
     if (watcherStream != NULL) {
-        FSEventStreamStop(watcherStream);
-        FSEventStreamInvalidate(watcherStream);
         FSEventStreamRelease(watcherStream);
-        // TODO: consider using FSEventStreamFlushSync to flush all pending events.
     }
 
     if (watcherCallback != NULL) {
         env->DeleteGlobalRef(watcherCallback);
     }
-}
-
-static void *EventProcessingThread(void *data) {
-    Server *server = (Server*) data;
-    server->run();
-    return NULL;
 }
 
 void Server::run() {
@@ -142,10 +126,11 @@ void Server::run() {
     FSEventStreamStart(watcherStream);
     this->threadLoop = threadLoop;
 
-    // TODO We should wait for all this to finish in the caller thread otherwise stopWatching() might crash
-
-    // This triggers run loop for this thread, causing it to run until we explicitly stop it.
     CFRunLoopRun();
+
+    FSEventStreamFlushSync(watcherStream);
+    FSEventStreamStop(watcherStream);
+    FSEventStreamInvalidate(watcherStream);
 
     log_fine(env, "Stopping thread", NULL);
 
@@ -217,22 +202,9 @@ void Server::handleEvent(JNIEnv *env, char* path, FSEventStreamEventFlags flags)
         type = FILE_EVENT_UNKNOWN;
     }
 
-    // TODO What does this do?
-    size_t len = 0;
-    if (path != NULL) {
-        len = strlen(path);
-        for (char *p = path; *p != '\0'; p++) {
-            if (*p == '\n') {
-                *p = '\0';
-            }
-        }
-    }
+    log_fine(env, "Changed: %s %d", path, type);
 
-    log_info(env, "Changed: %s %d", path, type);
-
-    jclass callback_class = env->GetObjectClass(watcherCallback);
-    jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(ILjava/lang/String;)V");
-    env->CallVoidMethod(watcherCallback, methodCallback, type, env->NewStringUTF(path));
+    env->CallVoidMethod(watcherCallback, watcherCallbackMethod, type, env->NewStringUTF(path));
 }
 
 static JNIEnv* lookupThreadEnv(JavaVM *jvm) {
@@ -255,13 +227,6 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
 
     log_fine(env, "Configuring...", NULL);
 
-    JavaVM* jvm;
-    int jvmStatus = env->GetJavaVM(&jvm);
-    if (jvmStatus < 0) {
-        log_severe(env, "Could not store jvm instance", NULL);
-        return NULL;
-    }
-
     int count = env->GetArrayLength(paths);
     if (count == 0) {
         log_severe(env, "No paths given to watch", NULL);
@@ -269,7 +234,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
         return NULL;
     }
 
-    CFMutableArrayRef rootsToWatch = CFArrayCreateMutable(NULL, 0, NULL);
+    CFMutableArrayRef rootsToWatch = CFArrayCreateMutable(NULL, count, NULL);
     if (rootsToWatch == NULL) {
         log_severe(env, "Could not allocate array to store roots to watch", NULL);
         // TODO Error handling
@@ -279,7 +244,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
     for (int i = 0; i < count; i++) {
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
         char* watchedPath = java_to_char(env, path, result);
-        log_info(env, "Watching %s", watchedPath);
+        log_fine(env, "Watching %s", watchedPath);
         if (watchedPath == NULL) {
             log_severe(env, "Could not allocate string to store root to watch.", NULL);
             // TODO Free resources
@@ -295,7 +260,9 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
         CFArrayAppendValue(rootsToWatch, stringPath);
     }
 
-    Server* server = new Server(jvm, env, javaCallback, rootsToWatch, latencyInMillis);
+    Server* server = new Server(env, javaCallback, rootsToWatch, latencyInMillis);
+
+    CFRelease(rootsToWatch);
 
     jclass clsWatcher = env->FindClass("net/rubygrapefruit/platform/internal/jni/OsxFileEventFunctions$WatcherImpl");
     jmethodID constructor = env->GetMethodID(clsWatcher, "<init>", "(Ljava/lang/Object;)V");
