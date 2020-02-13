@@ -45,6 +45,8 @@ private:
 
     JavaVM *jvm;
     jobject watcherCallback;
+    jmethodID watcherCallbackMethod;
+
     FSEventStreamRef watcherStream;
     thread watcherThread;
     CFRunLoopRef threadLoop;
@@ -62,6 +64,9 @@ Server::Server(JNIEnv *env, jobject watcherCallback, CFArrayRef rootsToWatch, lo
     this->jvm = jvm;
     // TODO Handle if returns NULL
     this->watcherCallback = env->NewGlobalRef(watcherCallback);
+    jclass callbackClass = env->GetObjectClass(watcherCallback);
+    this->watcherCallbackMethod = env->GetMethodID(callbackClass, "pathChanged", "(ILjava/lang/String;)V");
+
     this->invalidStateDetected = false;
 
     FSEventStreamContext context = {
@@ -199,9 +204,7 @@ void Server::handleEvent(JNIEnv *env, char* path, FSEventStreamEventFlags flags)
 
     log_fine(env, "Changed: %s %d", path, type);
 
-    jclass callback_class = env->GetObjectClass(watcherCallback);
-    jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(ILjava/lang/String;)V");
-    env->CallVoidMethod(watcherCallback, methodCallback, type, env->NewStringUTF(path));
+    env->CallVoidMethod(watcherCallback, watcherCallbackMethod, type, env->NewStringUTF(path));
 }
 
 static JNIEnv* lookupThreadEnv(JavaVM *jvm) {
