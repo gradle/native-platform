@@ -471,6 +471,7 @@ abstract class AbstractFileEventsTest extends Specification {
         "Hungarian"  | "Dezső"                  | true
         "space"      | "test directory"         | true
         "zwnj"       | "test\u200cdirectory"    | true
+        "newline"    | "test\ndirectory"        | Platform.current().macOs
         "URL-quoted" | "test%<directory>#2.txt" | !Platform.current().windows
     }
 

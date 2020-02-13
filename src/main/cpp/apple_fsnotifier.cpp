@@ -197,17 +197,6 @@ void Server::handleEvent(JNIEnv *env, char* path, FSEventStreamEventFlags flags)
         type = FILE_EVENT_UNKNOWN;
     }
 
-    // TODO What does this do?
-    size_t len = 0;
-    if (path != NULL) {
-        len = strlen(path);
-        for (char *p = path; *p != '\0'; p++) {
-            if (*p == '\n') {
-                *p = '\0';
-            }
-        }
-    }
-
     log_fine(env, "Changed: %s %d", path, type);
 
     jclass callback_class = env->GetObjectClass(watcherCallback);
