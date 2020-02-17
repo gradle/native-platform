@@ -7,6 +7,20 @@
 
 using namespace std;
 
+struct FileWatcherException : public exception {
+public:
+    FileWatcherException(const char *message) {
+        this->message = message;
+    }
+
+    const char * what () const throw () {
+        return message;
+    }
+
+private:
+    const char *message;
+};
+
 class Server;
 
 static void handleEventsCallback(
@@ -57,8 +71,7 @@ Server::Server(JNIEnv *env, jobject watcherCallback, CFArrayRef rootsToWatch, lo
     JavaVM* jvm;
     int jvmStatus = env->GetJavaVM(&jvm);
     if (jvmStatus < 0) {
-        log_severe(env, "Could not store jvm instance", NULL);
-        return;
+        throw FileWatcherException("Could not store jvm instance");
     }
 
     this->jvm = jvm;
@@ -67,6 +80,11 @@ Server::Server(JNIEnv *env, jobject watcherCallback, CFArrayRef rootsToWatch, lo
     jclass callbackClass = env->GetObjectClass(watcherCallback);
     this->watcherCallbackMethod = env->GetMethodID(callbackClass, "pathChanged", "(ILjava/lang/String;)V");
 
+    jobject globalWatcherCallback = env->NewGlobalRef(watcherCallback);
+    if (globalWatcherCallback == NULL) {
+        throw FileWatcherException("Could not get global ref for watcher callback");
+    }
+    this->watcherCallback = globalWatcherCallback;
     this->invalidStateDetected = false;
 
     FSEventStreamContext context = {
@@ -85,9 +103,7 @@ Server::Server(JNIEnv *env, jobject watcherCallback, CFArrayRef rootsToWatch, lo
         latencyInMillis / 1000.0,
         kFSEventStreamCreateFlagNoDefer | kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagWatchRoot);
     if (watcherStream == NULL) {
-        log_severe(env, "Could not create FSEventStreamCreate to track changes", NULL);
-        // TODO Error handling
-        return;
+        throw FileWatcherException("Could not create FSEventStreamCreate to track changes");
     }
     this->watcherStream = watcherStream;
     this->watcherThread = thread(&Server::run, this);
@@ -97,7 +113,7 @@ Server::~Server() {
     JNIEnv *env = getThreadEnv();
 
     if (invalidStateDetected) {
-        // report and reset flag, but try to clean up state as much as possible
+        // report problem, but try to clean up state as much as possible
         log_severe(env, "Watcher is in invalid state, reported changes may be incorrect", NULL);
     }
 
@@ -213,7 +229,7 @@ static JNIEnv* lookupThreadEnv(JavaVM *jvm) {
     jint ret = jvm->GetEnv((void **) &(env), JNI_VERSION_1_6);
     if (ret != JNI_OK) {
         fprintf(stderr, "Failed to get JNI env for current thread: %d\n", ret);
-        return NULL;
+        throw FileWatcherException("Failed to get JNI env for current thread");
     }
     return env;
 }
@@ -222,47 +238,50 @@ JNIEnv* Server::getThreadEnv() {
     return lookupThreadEnv(jvm);
 }
 
-JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatching(JNIEnv *env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback, jobject result) {
-
-    log_fine(env, "Configuring...", NULL);
-
+Server *startWatching(JNIEnv *env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback) {
     int count = env->GetArrayLength(paths);
     if (count == 0) {
-        log_severe(env, "No paths given to watch", NULL);
-        // TODO Error handling
-        return NULL;
+        throw FileWatcherException("No paths given to watch");
     }
 
     CFMutableArrayRef rootsToWatch = CFArrayCreateMutable(NULL, count, NULL);
     if (rootsToWatch == NULL) {
-        log_severe(env, "Could not allocate array to store roots to watch", NULL);
-        // TODO Error handling
-        return NULL;
+        throw FileWatcherException("Could not allocate array to store roots to watch");
     }
 
     for (int i = 0; i < count; i++) {
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
-        char* watchedPath = java_to_char(env, path, result);
-        log_fine(env, "Watching %s", watchedPath);
+        char* watchedPath = java_to_char(env, path, NULL);
         if (watchedPath == NULL) {
-            log_severe(env, "Could not allocate string to store root to watch.", NULL);
-            // TODO Free resources
-            return NULL;
+            throw FileWatcherException("Could not allocate string to store root to watch");
         }
+        log_fine(env, "Watching %s", watchedPath);
         CFStringRef stringPath = CFStringCreateWithCString(NULL, watchedPath, kCFStringEncodingUTF8);
         free(watchedPath);
         if (stringPath == NULL) {
-            log_severe(env, "Could not create CFStringRef", NULL);
-            // TODO Free resources
-            return NULL;
+            throw FileWatcherException("Could not create CFStringRef");
         }
         CFArrayAppendValue(rootsToWatch, stringPath);
     }
 
-    Server* server = new Server(env, javaCallback, rootsToWatch, latencyInMillis);
+    try {
+        return new Server(env, javaCallback, rootsToWatch, latencyInMillis);
+    } catch (...) {
+        CFRelease(rootsToWatch);
+        throw;
+    }
+}
 
-    CFRelease(rootsToWatch);
+JNIEXPORT jobject JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatching(JNIEnv *env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback, jobject result) {
+    Server *server;
+    try {
+        server = startWatching(env, target, paths, latencyInMillis, javaCallback);
+    } catch (const exception& e) {
+        log_severe(env, "Caught exception: %s", e.what());
+        // TODO Set Java exception
+        return NULL;
+    }
 
     jclass clsWatcher = env->FindClass("net/rubygrapefruit/platform/internal/jni/OsxFileEventFunctions$WatcherImpl");
     jmethodID constructor = env->GetMethodID(clsWatcher, "<init>", "(Ljava/lang/Object;)V");
