@@ -63,6 +63,8 @@ private:
 
     FSEventStreamRef watcherStream;
     thread watcherThread;
+    mutex watcherThreadMutex;
+    condition_variable watcherThreadStarted;
     CFRunLoopRef threadLoop;
 };
 
@@ -104,7 +106,11 @@ Server::Server(JNIEnv *env, jobject watcherCallback, CFArrayRef rootsToWatch, lo
         throw FileWatcherException("Could not create FSEventStreamCreate to track changes");
     }
     this->watcherStream = watcherStream;
+
+    unique_lock<mutex> lock(watcherThreadMutex);
     this->watcherThread = thread(&Server::run, this);
+    this->watcherThreadStarted.wait(lock);
+    lock.unlock();
 }
 
 Server::~Server() {
@@ -137,6 +143,10 @@ void Server::run() {
     FSEventStreamScheduleWithRunLoop(watcherStream, threadLoop, kCFRunLoopDefaultMode);
     FSEventStreamStart(watcherStream);
     this->threadLoop = threadLoop;
+
+    unique_lock<mutex> lock(watcherThreadMutex);
+    watcherThreadStarted.notify_all();
+    lock.unlock();
 
     CFRunLoopRun();
 

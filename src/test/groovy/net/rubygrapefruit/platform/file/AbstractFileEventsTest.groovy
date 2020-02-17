@@ -346,10 +346,20 @@ abstract class AbstractFileEventsTest extends Specification {
         startWatcher(rootDir)
 
         when:
-        // TODO There's a race condition in starting the macOS watcher thread
-        Thread.sleep(100)
         watcher.close()
         watcher.close()
+
+        then:
+        noExceptionThrown()
+    }
+
+    def "can be started and stopped multiple times"() {
+        when:
+        10.times { i ->
+            LOGGER.info "> Iteration #${i + 1}"
+            startWatcher(rootDir)
+            stopWatcher()
+        }
 
         then:
         noExceptionThrown()
