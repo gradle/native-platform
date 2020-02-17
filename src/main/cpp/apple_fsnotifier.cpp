@@ -135,7 +135,7 @@ Server::~Server() {
 }
 
 void Server::run() {
-    JNIEnv* env = attach_jni(jvm, true);
+    JNIEnv* env = attach_jni(jvm, "File watcher server", true);
 
     log_fine(env, "Starting thread", NULL);
 

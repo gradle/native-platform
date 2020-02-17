@@ -33,11 +33,16 @@ void mark_failed_with_code(JNIEnv *env, const char* message, int error_code, con
     env->CallVoidMethod(result, method, message_str, failure_code, error_code, error_code_str);
 }
 
-JNIEnv* attach_jni(JavaVM* jvm, bool daemon) {
+JNIEnv* attach_jni(JavaVM* jvm, char *name, bool daemon) {
     JNIEnv* env;
+    JavaVMAttachArgs args = {
+        JNI_VERSION_1_6,      // version
+        name,                 // thread name
+        NULL                  // thread group
+    };
     jint ret = daemon
-        ? jvm->AttachCurrentThreadAsDaemon((void **) &(env), NULL)
-        : jvm->AttachCurrentThread((void **) &(env), NULL);
+        ? jvm->AttachCurrentThreadAsDaemon((void **) &(env), (void *) &args)
+        : jvm->AttachCurrentThread((void **) &(env), (void *) &args);
     if (ret != JNI_OK) {
         fprintf(stderr, "Failed to attach JNI to current thread: %d\n", ret);
         return NULL;

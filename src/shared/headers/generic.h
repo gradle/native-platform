@@ -77,7 +77,7 @@ extern int map_error_code(int error_code);
 /**
  * Attaches JNI to the current thread.
  */
-extern JNIEnv* attach_jni(JavaVM* jvm, bool daemon);
+extern JNIEnv* attach_jni(JavaVM* jvm, char* name, bool daemon);
 
 /**
  * Detaches JNI from the current thread.

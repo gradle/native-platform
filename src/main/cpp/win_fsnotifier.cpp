@@ -268,7 +268,7 @@ static unsigned CALLBACK EventProcessingThread(void* data) {
 }
 
 void Server::run() {
-    JNIEnv* env = attach_jni(jvm, true);
+    JNIEnv* env = attach_jni(jvm, "File watcher server", true);
     if (env == nullptr) {
         fwprintf(stderr, L"!!! Couldn't attach JNI, stopping");
         return;
