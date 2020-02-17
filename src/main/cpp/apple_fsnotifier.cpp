@@ -64,7 +64,6 @@ private:
     FSEventStreamRef watcherStream;
     thread watcherThread;
     CFRunLoopRef threadLoop;
-    bool invalidStateDetected;
 };
 
 Server::Server(JNIEnv *env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis) {
@@ -85,7 +84,6 @@ Server::Server(JNIEnv *env, jobject watcherCallback, CFArrayRef rootsToWatch, lo
         throw FileWatcherException("Could not get global ref for watcher callback");
     }
     this->watcherCallback = globalWatcherCallback;
-    this->invalidStateDetected = false;
 
     FSEventStreamContext context = {
         0,              // version, must be 0
@@ -111,11 +109,6 @@ Server::Server(JNIEnv *env, jobject watcherCallback, CFArrayRef rootsToWatch, lo
 
 Server::~Server() {
     JNIEnv *env = getThreadEnv();
-
-    if (invalidStateDetected) {
-        // report problem, but try to clean up state as much as possible
-        log_severe(env, "Watcher is in invalid state, reported changes may be incorrect", NULL);
-    }
 
     if (threadLoop != NULL) {
         CFRunLoopStop(threadLoop);
@@ -171,11 +164,6 @@ void Server::handleEvents(
     const FSEventStreamEventFlags eventFlags[],
     const FSEventStreamEventId eventIds[]
 ) {
-    if (invalidStateDetected) {
-        // TODO Handle this better
-        return;
-    }
-
     JNIEnv* env = getThreadEnv();
 
     for (int i = 0; i < numEvents; i++) {
