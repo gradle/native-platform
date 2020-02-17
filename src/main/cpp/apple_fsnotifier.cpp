@@ -246,22 +246,22 @@ Server *startWatching(JNIEnv *env, jclass target, jobjectArray paths, long laten
         throw FileWatcherException("Could not allocate array to store roots to watch");
     }
 
-    for (int i = 0; i < count; i++) {
-        jstring path = (jstring) env->GetObjectArrayElement(paths, i);
-        char* watchedPath = java_to_char(env, path, NULL);
-        if (watchedPath == NULL) {
-            throw FileWatcherException("Could not allocate string to store root to watch");
-        }
-        log_fine(env, "Watching %s", watchedPath);
-        CFStringRef stringPath = CFStringCreateWithCString(NULL, watchedPath, kCFStringEncodingUTF8);
-        free(watchedPath);
-        if (stringPath == NULL) {
-            throw FileWatcherException("Could not create CFStringRef");
-        }
-        CFArrayAppendValue(rootsToWatch, stringPath);
-    }
-
     try {
+        for (int i = 0; i < count; i++) {
+            jstring path = (jstring) env->GetObjectArrayElement(paths, i);
+            char* watchedPath = java_to_char(env, path, NULL);
+            if (watchedPath == NULL) {
+                throw FileWatcherException("Could not allocate string to store root to watch");
+            }
+            log_fine(env, "Watching %s", watchedPath);
+            CFStringRef stringPath = CFStringCreateWithCString(NULL, watchedPath, kCFStringEncodingUTF8);
+            free(watchedPath);
+            if (stringPath == NULL) {
+                throw FileWatcherException("Could not create CFStringRef");
+            }
+            CFArrayAppendValue(rootsToWatch, stringPath);
+        }
+
         return new Server(env, javaCallback, rootsToWatch, latencyInMillis);
     } catch (...) {
         CFRelease(rootsToWatch);
