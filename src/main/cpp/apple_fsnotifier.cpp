@@ -241,10 +241,6 @@ JNIEnv* Server::getThreadEnv() {
 
 Server *startWatching(JNIEnv *env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback) {
     int count = env->GetArrayLength(paths);
-    if (count == 0) {
-        throw FileWatcherException("No paths given to watch");
-    }
-
     CFMutableArrayRef rootsToWatch = CFArrayCreateMutable(NULL, count, NULL);
     if (rootsToWatch == NULL) {
         throw FileWatcherException("Could not allocate array to store roots to watch");
