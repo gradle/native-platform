@@ -279,18 +279,24 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
         server = startWatching(env, target, paths, latencyInMillis, javaCallback);
     } catch (const exception& e) {
         log_severe(env, "Caught exception: %s", e.what());
-        // TODO Set Java exception
+        jclass exceptionClass = env->FindClass("net/rubygrapefruit/platform/NativeException");
+        assert(exceptionClass != NULL);
+        jint ret = env->ThrowNew(exceptionClass, e.what());
+        assert(ret == 0);
         return NULL;
     }
 
     jclass clsWatcher = env->FindClass("net/rubygrapefruit/platform/internal/jni/OsxFileEventFunctions$WatcherImpl");
+    assert(clsWatcher != NULL);
     jmethodID constructor = env->GetMethodID(clsWatcher, "<init>", "(Ljava/lang/Object;)V");
+    assert(constructor != NULL);
     return env->NewObject(clsWatcher, constructor, env->NewDirectByteBuffer(server, sizeof(server)));
 }
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_stopWatching(JNIEnv *env, jclass target, jobject detailsObj, jobject result) {
     Server *server = (Server*) env->GetDirectBufferAddress(detailsObj);
+    assert(server != NULL);
     delete server;
 }
 
