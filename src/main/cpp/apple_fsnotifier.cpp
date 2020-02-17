@@ -108,8 +108,6 @@ Server::Server(JNIEnv *env, jobject watcherCallback, CFArrayRef rootsToWatch, lo
 }
 
 Server::~Server() {
-    JNIEnv *env = getThreadEnv();
-
     if (threadLoop != NULL) {
         CFRunLoopStop(threadLoop);
     }
@@ -123,7 +121,10 @@ Server::~Server() {
     }
 
     if (watcherCallback != NULL) {
-        env->DeleteGlobalRef(watcherCallback);
+        JNIEnv *env = getThreadEnv();
+        if (env != NULL) {
+            env->DeleteGlobalRef(watcherCallback);
+        }
     }
 }
 
