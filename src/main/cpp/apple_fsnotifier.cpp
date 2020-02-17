@@ -114,7 +114,9 @@ Server::~Server() {
         CFRunLoopStop(threadLoop);
     }
 
-    watcherThread.join();
+    if (watcherThread.joinable()) {
+        watcherThread.join();
+    }
 
     if (watcherStream != NULL) {
         FSEventStreamRelease(watcherStream);
