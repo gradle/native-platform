@@ -52,6 +52,6 @@ class OsxFileEventFunctionsTest extends AbstractFileEventsTest {
 
     @Override
     protected void waitForChangeEventLatency() {
-        TimeUnit.MILLISECONDS.sleep(LATENCY_IN_MILLIS + 100)
+        TimeUnit.MILLISECONDS.sleep(LATENCY_IN_MILLIS + 20)
     }
 }
