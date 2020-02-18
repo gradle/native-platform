@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit
 
 @Requires({ Platform.current().macOs })
 class OsxFileEventFunctionsTest extends AbstractFileEventsTest {
-    private static final LATENCY_IN_MILLIS = 200
+    private static final LATENCY_IN_MILLIS = 0
 
     final OsxFileEventFunctions fileEvents = Native.get(OsxFileEventFunctions.class)
 
@@ -52,6 +52,6 @@ class OsxFileEventFunctionsTest extends AbstractFileEventsTest {
 
     @Override
     protected void waitForChangeEventLatency() {
-        TimeUnit.MILLISECONDS.sleep(LATENCY_IN_MILLIS + 100)
+        TimeUnit.MILLISECONDS.sleep(LATENCY_IN_MILLIS + 20)
     }
 }

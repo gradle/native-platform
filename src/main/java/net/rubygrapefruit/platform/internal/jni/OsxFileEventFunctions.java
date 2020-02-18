@@ -28,6 +28,11 @@ public class OsxFileEventFunctions extends AbstractFileEventFunctions {
     /**
      * Start watching the given directory hierarchies.
      *
+     * @param paths the absolute paths to watch.
+     * @param latency throttle / coalesce events for the given amount of time, {@code 0} meaning no coalescing.
+     * @param unit the time unit for {@code latency}.
+     * @param callback the callback to invoke when changes are detected.
+     *
      * <h3>Remarks:</h3>
      *
      * <ul>
@@ -55,11 +60,12 @@ public class OsxFileEventFunctions extends AbstractFileEventFunctions {
      *     <li>Exceptions happening in the callback are currently silently ignored.</li>
      * </ul>
      */
-    public FileWatcher startWatching(Collection<String> paths, final long time, final TimeUnit unit, FileWatcherCallback callback) {
+    // TODO How to set kFSEventStreamCreateFlagNoDefer when latency is non-zero?
+    public FileWatcher startWatching(Collection<String> paths, final long latency, final TimeUnit unit, FileWatcherCallback callback) {
         return createWatcher(paths, callback, new WatcherFactory() {
             @Override
             public FileWatcher createWatcher(String[] canonicalPaths, NativeFileWatcherCallback callback, FunctionResult result) {
-                return startWatching(canonicalPaths, unit.toMillis(time), callback, result);
+                return startWatching(canonicalPaths, unit.toMillis(latency), callback, result);
             }
         });
     }
