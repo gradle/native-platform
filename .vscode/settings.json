@@ -16,7 +16,7 @@
         "jfieldID",
         "jint",
         "jlong",
-        "jmethod",
+        "jmethodID",
         "jobject",
         "jsize"
     ]
