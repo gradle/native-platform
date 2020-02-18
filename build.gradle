@@ -236,7 +236,7 @@ model {
             sources {
                 cpp {
                     source.srcDirs = ['src/shared/cpp', 'src/main/cpp']
-                    exportedHeaders.srcDirs = ['src/shared/headers']
+                    exportedHeaders.srcDirs = ['src/shared/headers', 'src/main/headers']
                 }
             }
         }
