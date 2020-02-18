@@ -44,8 +44,6 @@ dependencies {
     testImplementation 'org.spockframework:spock-core:1.3-groovy-2.5'
 }
 
-// Only depend on variants which can be built on our CI
-boolean onlyPrimaryVariants = project.hasProperty("onlyPrimaryVariants")
 // Only depend on variants which can be built on the current machine
 boolean onlyLocalVariants = project.hasProperty("onlyLocalVariants")
 
@@ -101,18 +99,6 @@ model {
             architecture "amd64"
             operatingSystem "osx"
         }
-        linux_i386 {
-            architecture "i386"
-            operatingSystem "linux"
-        }
-        linux_i386_ncurses5 {
-            architecture "i386"
-            operatingSystem "linux"
-        }
-        linux_i386_ncurses6 {
-            architecture "i386"
-            operatingSystem "linux"
-        }
         linux_amd64 {
             architecture "amd64"
             operatingSystem "linux"
@@ -153,19 +139,7 @@ model {
             architecture "amd64"
             operatingSystem "windows"
         }
-        freebsd_i386_libcpp {
-            architecture "i386"
-            operatingSystem "freebsd"
-        }
-        freebsd_i386_libstdcpp {
-            architecture "i386"
-            operatingSystem "freebsd"
-        }
         freebsd_amd64_libcpp {
-            architecture "amd64"
-            operatingSystem "freebsd"
-        }
-        freebsd_amd64_libstdcpp {
             architecture "amd64"
             operatingSystem "freebsd"
         }
@@ -302,8 +276,7 @@ model {
             }
 
             binaries.withType(SharedLibraryBinarySpec) { binary ->
-                def includeVariant = !onlyPrimaryVariants || canBeBuiltOnCi(binary.targetPlatform)
-                if (!includeVariant || (onlyLocalVariants && !buildable)) {
+                if (onlyLocalVariants && !buildable) {
                     return
                 }
                 def variantName = binaryToVariantName(binary)
@@ -396,25 +369,6 @@ String inferNCursesVersion(def os) {
         }
     }
     throw new IllegalArgumentException("Could not determine ncurses version installed on this machine.")
-}
-
-boolean canBeBuiltOnCi(NativePlatform targetPlatform) {
-    def targetOs = targetPlatform.operatingSystem
-    // Can build all Windows & Mac variants on CI
-    if (targetOs.windows || targetOs.macOsX) {
-        return true
-    }
-    if (targetPlatform.architecture.name == "aarch64") {
-        return targetOs.linux
-    }
-    if (targetPlatform.architecture.name != "x86-64") {
-        return false
-    }
-    if (targetOs.freeBSD) {
-        return targetPlatform.name.contains("libcpp")
-    }
-    // Can only build the 64bit variants on Linux
-    return targetOs.linux
 }
 
 String binaryToVariantName(NativeBinarySpec binary) {

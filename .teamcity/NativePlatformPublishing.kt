@@ -68,7 +68,7 @@ open class NativePlatformPublishSnapshot(releaseType: ReleaseType, uploadTasks: 
         uploadTasks.forEach { task ->
             gradle {
                 name = "Gradle $task"
-                tasks = "clean $task $buildScanInit -P${releaseType.gradleProperty}${if (releaseType.userProvidedVersion) "=%versionPostfix%" else ""} -PonlyPrimaryVariants -PbintrayUserName=%ARTIFACTORY_USERNAME% -PbintrayApiKey=%ARTIFACTORY_PASSWORD%"
+                tasks = "clean $task $buildScanInit -P${releaseType.gradleProperty}${if (releaseType.userProvidedVersion) "=%versionPostfix%" else ""} -PbintrayUserName=%ARTIFACTORY_USERNAME% -PbintrayApiKey=%ARTIFACTORY_PASSWORD%"
                 buildFile = ""
             }
         }

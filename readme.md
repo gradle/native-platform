@@ -78,10 +78,10 @@ See [WindowsRegistry](src/main/java/net/rubygrapefruit/platform/WindowsRegistry.
 Currently ported to OS X, Linux, FreeBSD and Windows. Support for Solaris is a work in progress. Supported on:
 
 * OS X, version 10.9 and later (x86_64)
-* Fedora 23 and later (amd64, i386).
-* Ubuntu 8.04 and later (amd64, i386).
+* Fedora 23 and later (amd64).
+* Ubuntu 8.04 and later (amd64).
 * Ubuntu 18.04 and later (aarch64).
-* FreeBSD 8.4 and later (amd64, i386).
+* FreeBSD 10 and later (amd64).
 * Windows XP and later (amd64, i386). Console integration works with cmd.exe, powershell, ConEmu, Mintty from Cygwin, Mintty from Msys (includes Git for Windows).
 
 ## Using
@@ -119,6 +119,10 @@ Some sample code to use the terminal:
     System.out.println("bold text");
 
 ## Changes
+
+### 0.22 (unreleased)
+
+* Remove support for 32bit Linux & FreeBSD, as well as support for FreeBSD < 10.
 
 ### 0.21
 
