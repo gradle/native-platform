@@ -24,8 +24,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-void mark_failed_with_errno(JNIEnv *env, const char* message, jobject result) {
-    char* buffer = (char*)malloc(1024);
+void mark_failed_with_errno(JNIEnv* env, const char* message, jobject result) {
+    char* buffer = (char*) malloc(1024);
 #if defined(__linux__) && _GNU_SOURCE
     // GNU semantics
     char* errno_message = strerror_r(errno, buffer, 1024);
@@ -50,10 +50,10 @@ int map_error_code(int error_code) {
     return FAILURE_GENERIC;
 }
 
-char* java_to_utf_char(JNIEnv *env, jstring string, jobject result) {
+char* java_to_utf_char(JNIEnv* env, jstring string, jobject result) {
     size_t len = env->GetStringLength(string);
     size_t bytes = env->GetStringUTFLength(string);
-    char* chars = (char*)malloc(bytes + 1);
+    char* chars = (char*) malloc(bytes + 1);
     env->GetStringUTFRegion(string, 0, len, chars);
     chars[bytes] = 0;
     return chars;
@@ -67,7 +67,7 @@ int minimumLogLevel;
 jclass clsLogger;
 jmethodID logMethod;
 
-JNIEXPORT void JNICALL Java_net_rubygrapefruit_platform_internal_jni_NativeLogger_initLogging(JNIEnv *env, jclass target, jint level) {
+JNIEXPORT void JNICALL Java_net_rubygrapefruit_platform_internal_jni_NativeLogger_initLogging(JNIEnv* env, jclass target, jint level) {
     minimumLogLevel = (int) level;
     clsLogger = env->FindClass("net/rubygrapefruit/platform/internal/jni/NativeLogger");
     logMethod = env->GetStaticMethodID(clsLogger, "log", "(ILjava/lang/String;)V");
