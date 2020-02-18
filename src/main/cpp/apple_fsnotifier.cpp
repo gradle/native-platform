@@ -4,14 +4,8 @@
 
 using namespace std;
 
-Server::Server(JNIEnv* env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis) {
-    JavaVM* jvm;
-    int jvmStatus = env->GetJavaVM(&jvm);
-    if (jvmStatus < 0) {
-        throw FileWatcherException("Could not store jvm instance");
-    }
-
-    this->jvm = jvm;
+Server::Server(JNIEnv* env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis)
+    : AbstractServer(env) {
     // TODO Handle if returns NULL
     this->watcherCallback = env->NewGlobalRef(watcherCallback);
     jclass callbackClass = env->GetObjectClass(watcherCallback);
@@ -167,21 +161,6 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
     jstring javaPath = env->NewStringUTF(path);
     env->CallVoidMethod(watcherCallback, watcherCallbackMethod, type, javaPath);
     env->DeleteLocalRef(javaPath);
-}
-
-static JNIEnv* lookupThreadEnv(JavaVM* jvm) {
-    JNIEnv* env;
-    // TODO Verify that JNI 1.6 is the right version
-    jint ret = jvm->GetEnv((void**) &(env), JNI_VERSION_1_6);
-    if (ret != JNI_OK) {
-        fprintf(stderr, "Failed to get JNI env for current thread: %d\n", ret);
-        throw FileWatcherException("Failed to get JNI env for current thread");
-    }
-    return env;
-}
-
-JNIEnv* Server::getThreadEnv() {
-    return lookupThreadEnv(jvm);
 }
 
 Server* startWatching(JNIEnv* env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback) {

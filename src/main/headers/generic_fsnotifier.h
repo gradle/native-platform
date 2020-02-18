@@ -1,3 +1,4 @@
+#include "generic.h"
 #include <mutex>
 #include <thread>
 
@@ -15,4 +16,13 @@ public:
 
 private:
     const char* message;
+};
+
+class AbstractServer {
+public:
+    AbstractServer(JNIEnv* env);
+    JNIEnv* getThreadEnv();
+protected:
+    // TODO Make this private
+    JavaVM* jvm;
 };

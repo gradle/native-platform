@@ -1,6 +1,5 @@
 #if defined(__APPLE__)
 
-#include "generic.h"
 #include "generic_fsnotifier.h"
 #include "net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions.h"
 #include <CoreServices/CoreServices.h>
@@ -17,7 +16,7 @@ static void handleEventsCallback(
     const FSEventStreamEventFlags eventFlags[],
     const FSEventStreamEventId eventIds[]);
 
-class Server {
+class Server : AbstractServer {
 public:
     Server(JNIEnv* env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis);
     ~Server();
@@ -40,10 +39,6 @@ private:
 
     void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);
 
-    // TODO: Move this to somewhere else
-    JNIEnv* getThreadEnv();
-
-    JavaVM* jvm;
     jobject watcherCallback;
     jmethodID watcherCallbackMethod;
 
