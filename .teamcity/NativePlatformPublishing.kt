@@ -28,21 +28,22 @@ class Publishing(buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
     val agentsForAllJniPublications = listOf(Agent.Linux, Agent.MacOs, Agent.Windows, Agent.LinuxAarch64, Agent.FreeBsd)
     val agentsForNcursesOnlyPublications = listOf(Agent.LinuxAarch64Ncurses5, Agent.LinuxNcurses6)
 
-    val nativeLibraryAllJniBuilds = agentsForAllJniPublications.map { agent ->
-        NativeLibraryPublishSnapshot(agent, buildAndTest, buildReceiptSource).also(::buildType)
+    buildTypesOrder = ReleaseType.values().flatMap { releaseType ->
+        val nativeLibraryAllJniBuilds = agentsForAllJniPublications.map { agent ->
+            NativeLibraryPublish(releaseType, agent, buildAndTest, buildReceiptSource).also(::buildType)
+        }
+        val nativeLibraryNcursesJniBuilds = agentsForNcursesOnlyPublications.map { agent ->
+            NativeLibraryPublishNcurses(releaseType, agent, buildAndTest, buildReceiptSource).also(::buildType)
+        }
+        val publishApi = PublishJavaApi(releaseType, nativeLibraryAllJniBuilds + nativeLibraryNcursesJniBuilds, buildAndTest, buildReceiptSource).also(::buildType)
+        listOf(publishApi) + nativeLibraryAllJniBuilds + nativeLibraryNcursesJniBuilds
     }
-    val nativeLibraryNcursesJniBuilds = agentsForNcursesOnlyPublications.map { agent ->
-        NativeLibraryPublishNcursesSnapshot(agent, buildAndTest, buildReceiptSource).also(::buildType)
-    }
-    val publishApi = PublishJavaApiSnapshot(nativeLibraryAllJniBuilds + nativeLibraryNcursesJniBuilds, buildAndTest, buildReceiptSource).also(::buildType)
-
-    buildTypesOrder = listOf(publishApi) + nativeLibraryAllJniBuilds + nativeLibraryNcursesJniBuilds
 })
 
-open class NativePlatformPublishSnapshot(uploadTasks: List<String>, buildAndTest: List<BuildType>, buildReceiptSource: BuildType, init: BuildType.() -> Unit) : BuildType({
+open class NativePlatformPublishSnapshot(releaseType: ReleaseType, uploadTasks: List<String>, buildAndTest: List<BuildType>, buildReceiptSource: BuildType, init: BuildType.() -> Unit) : BuildType({
     params {
-        param("ARTIFACTORY_USERNAME", "bot-build-tool")
-        password("ARTIFACTORY_PASSWORD", "credentialsJSON:d94612fb-3291-41f5-b043-e2b3994aeeb4", display = ParameterDisplay.HIDDEN)
+        param("ARTIFACTORY_USERNAME", releaseType.username)
+        password("ARTIFACTORY_PASSWORD", releaseType.password, display = ParameterDisplay.HIDDEN)
     }
 
     vcs {
@@ -54,7 +55,7 @@ open class NativePlatformPublishSnapshot(uploadTasks: List<String>, buildAndTest
         uploadTasks.forEach { task ->
             gradle {
                 name = "Gradle $task"
-                tasks = "clean $task $buildScanInit -Psnapshot -PonlyPrimaryVariants -PbintrayUserName=%ARTIFACTORY_USERNAME% -PbintrayApiKey=%ARTIFACTORY_PASSWORD%"
+                tasks = "clean $task $buildScanInit -P${releaseType.gradleProperty}  -PonlyPrimaryVariants -PbintrayUserName=%ARTIFACTORY_USERNAME% -PbintrayApiKey=%ARTIFACTORY_PASSWORD%"
                 buildFile = ""
             }
         }
@@ -81,24 +82,24 @@ open class NativePlatformPublishSnapshot(uploadTasks: List<String>, buildAndTest
     init(this)
 })
 
-class NativeLibraryPublishSnapshot(agent: Agent, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
-    NativePlatformPublishSnapshot(listOf(":uploadJni"), buildAndTest, buildReceiptSource, {
-        name = "Publish $agent snapshot"
-        id = RelativeId("Publishing_Publish${agent}Snapshot")
+class NativeLibraryPublish(releaseType: ReleaseType = ReleaseType.Snapshot, agent: Agent, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
+    NativePlatformPublishSnapshot(releaseType, listOf(":uploadJni"), buildAndTest, buildReceiptSource, {
+        name = "Publish $agent ${releaseType.name}"
+        id = RelativeId("Publishing_Publish${agent}${releaseType.name}")
         runOn(agent)
     })
 
-class NativeLibraryPublishNcursesSnapshot(agent: Agent, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
-    NativePlatformPublishSnapshot(listOf(":uploadNcursesJni"), buildAndTest, buildReceiptSource, {
-        name = "Publish $agent snapshot"
-        id = RelativeId("Publishing_Publish${agent}Snapshot")
+class NativeLibraryPublishNcurses(releaseType: ReleaseType = ReleaseType.Snapshot, agent: Agent, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
+    NativePlatformPublishSnapshot(releaseType, listOf(":uploadNcursesJni"), buildAndTest, buildReceiptSource, {
+        name = "Publish $agent ${releaseType.name}"
+        id = RelativeId("Publishing_Publish${agent}${releaseType.name}")
         runOn(agent)
     })
 
-class PublishJavaApiSnapshot(nativeLibraryPublishingBuilds: List<NativePlatformPublishSnapshot>, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
-    NativePlatformPublishSnapshot(listOf(":uploadMain", ":testApp:uploadMain"), buildAndTest, buildReceiptSource, {
-        name = "Publish Native Platform snapshot"
-        id = RelativeId("Publishing_PublishJavaApiSnapshot")
+class PublishJavaApi(releaseType: ReleaseType = ReleaseType.Snapshot, nativeLibraryPublishingBuilds: List<NativePlatformPublishSnapshot>, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
+    NativePlatformPublishSnapshot(releaseType, listOf(":uploadMain", ":testApp:uploadMain"), buildAndTest, buildReceiptSource, {
+        name = "Publish Native Platform ${releaseType.name}"
+        id = RelativeId("Publishing_PublishJavaApi${releaseType.name}")
         runOn(Agent.Linux)
 
         dependencies {
