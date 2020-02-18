@@ -4,8 +4,9 @@
 #include "net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions.h"
 #include "win.h"
 #include <list>
-#include <process.h>
+#include <mutex>
 #include <string>
+#include <thread>
 
 using namespace std;
 
@@ -53,7 +54,6 @@ public:
     Server(JavaVM* jvm, JNIEnv* env, jobject watcherCallback);
     ~Server();
 
-    void start(JNIEnv* env);
     void startWatching(JNIEnv* env, wchar_t* path);
     void reportEvent(jint type, const wstring changedPath);
     void reportFinished(WatchPoint* watchPoint);
@@ -68,8 +68,9 @@ private:
     list<WatchPoint*> watchPoints;
     jobject watcherCallback;
 
-    HANDLE threadHandle;
-    HANDLE threadStartedEvent;
+    thread watcherThread;
+    mutex watcherThreadMutex;
+    condition_variable watcherThreadStarted;
     bool terminate = false;
 
     friend static void CALLBACK requestTerminationCallback(_In_ ULONG_PTR arg);
@@ -233,38 +234,17 @@ void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION* info) {
 Server::Server(JavaVM* jvm, JNIEnv* env, jobject watcherCallback) {
     this->jvm = jvm;
     this->watcherCallback = env->NewGlobalRef(watcherCallback);
-    HANDLE threadStartedEvent = CreateEvent(
-        nullptr,    // default security attributes
-        true,       // manual-reset event
-        false,      // initial state is nonsignaled
-        nullptr     // object name
-    );
 
-    if (threadStartedEvent == INVALID_HANDLE_VALUE) {
-        log_severe(env, L"Couldn't create server STARTED event: %d", GetLastError());
-    }
+    unique_lock<mutex> lock(watcherThreadMutex);
+    this->watcherThread = thread(&Server::run, this);
+    this->watcherThreadStarted.wait(lock);
+    lock.unlock();
 
-    this->threadStartedEvent = threadStartedEvent;
-    this->threadHandle = (HANDLE) _beginthreadex(
-        nullptr,                  // default security attributes
-        0,                        // use default stack size
-        EventProcessingThread,    // thread function name
-        this,                     // argument to thread function
-        0,                        // use default creation flags
-        NULL                      // the thread identifier
-    );
     // TODO Error handling
-    SetThreadPriority(this->threadHandle, THREAD_PRIORITY_ABOVE_NORMAL);
+    SetThreadPriority(this->watcherThread.native_handle(), THREAD_PRIORITY_ABOVE_NORMAL);
 }
 
 Server::~Server() {
-    CloseHandle(threadStartedEvent);
-}
-
-static unsigned CALLBACK EventProcessingThread(void* data) {
-    Server* server = (Server*) data;
-    server->run();
-    return 0;
 }
 
 void Server::run() {
@@ -274,11 +254,11 @@ void Server::run() {
         return;
     }
 
-    log_info(env, L"Server thread %d with handle %p running", GetCurrentThreadId(), threadHandle);
+    log_info(env, L"Server thread %d with handle %p running", GetCurrentThreadId(), watcherThread.native_handle());
 
-    if (!SetEvent(threadStartedEvent)) {
-        log_severe(env, L"Couldn't signal the start of thread %d", GetCurrentThreadId());
-    }
+    unique_lock<mutex> lock(watcherThreadMutex);
+    watcherThreadStarted.notify_all();
+    lock.unlock();
 
     while (!terminate || watchPoints.size() > 0) {
         SleepEx(INFINITE, true);
@@ -287,19 +267,6 @@ void Server::run() {
     log_info(env, L"Server thread %d finishing", GetCurrentThreadId());
 
     detach_jni(jvm);
-}
-
-void Server::start(JNIEnv* env) {
-    DWORD ret = WaitForSingleObject(threadStartedEvent, INFINITE);
-    switch (ret) {
-        case WAIT_OBJECT_0:
-            // Server up and running
-            break;
-        default:
-            log_severe(env, L"Couldn't wait for server to start: %d", ret);
-            // TODO Error handling
-            break;
-    }
 }
 
 static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg) {
@@ -325,7 +292,7 @@ void Server::startWatching(JNIEnv* env, wchar_t* path) {
     }
 
     WatchPoint* watchPoint = new WatchPoint(this, path, directoryHandle);
-    QueueUserAPC(startWatchCallback, threadHandle, (ULONG_PTR) watchPoint);
+    QueueUserAPC(startWatchCallback, watcherThread.native_handle(), (ULONG_PTR) watchPoint);
     // TODO Timeout handling
     int ret = watchPoint->awaitListeningStarted(INFINITE);
     switch (ret) {
@@ -384,33 +351,13 @@ void Server::requestTermination() {
 }
 
 void Server::close(JNIEnv* env) {
+    HANDLE threadHandle = watcherThread.native_handle();
     log_fine(env, L"Requesting termination of server thread %p", threadHandle);
-    int ret = QueueUserAPC(requestTerminationCallback, this->threadHandle, (ULONG_PTR) this);
+    int ret = QueueUserAPC(requestTerminationCallback, threadHandle, (ULONG_PTR) this);
     if (ret == 0) {
         log_severe(env, L"Couldn't send termination request to thread %p: %d", threadHandle, GetLastError());
     } else {
-        ret = WaitForSingleObject(this->threadHandle, INFINITE);
-        switch (ret) {
-            case WAIT_OBJECT_0:
-                log_info(env, L"Termination of server thread %p finished normally", threadHandle);
-                break;
-            case WAIT_FAILED:
-                log_severe(env, L"Wait for terminating %p failed: %d", threadHandle, GetLastError());
-                break;
-            case WAIT_ABANDONED:
-                log_severe(env, L"Wait for terminating %p abandoned", threadHandle);
-                break;
-            case WAIT_TIMEOUT:
-                log_severe(env, L"Wait for terminating %p timed out", threadHandle);
-                break;
-            default:
-                log_severe(env, L"Wait for terminating %p failed with unknown reason: %d", threadHandle, ret);
-                break;
-        }
-        ret = CloseHandle(this->threadHandle);
-        if (ret == 0) {
-            log_severe(env, L"Closing handle for thread %p failed: %d", threadHandle, GetLastError());
-        }
+        watcherThread.join();
     }
     env->DeleteGlobalRef(this->watcherCallback);
 }
@@ -435,7 +382,6 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
     }
 
     Server* server = new Server(jvm, env, javaCallback);
-    server->start(env);
 
     for (int i = 0; i < watchPointCount; i++) {
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
