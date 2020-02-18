@@ -17,6 +17,7 @@
         "jint",
         "jlong",
         "jmethod",
-        "jobject"
+        "jobject",
+        "jsize"
     ]
 }
