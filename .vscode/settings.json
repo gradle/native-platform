@@ -11,6 +11,7 @@
         "JNIEXPORT",
         "Ljava",
         "jboolean",
+        "jchar",
         "jclass",
         "jfieldID",
         "jint",
