@@ -440,7 +440,11 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_readdir(JNIEn
                 break;
             }
         } else {
-            fileInfo.fileType = isSymLink ? FILE_TYPE_SYMLINK : (entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? FILE_TYPE_DIRECTORY : FILE_TYPE_FILE;
+            fileInfo.fileType = isSymLink
+                ? FILE_TYPE_SYMLINK
+                : (entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+                    ? FILE_TYPE_DIRECTORY
+                    : FILE_TYPE_FILE;
             fileInfo.lastModified = lastModifiedNanos(&entry.ftLastWriteTime);
             fileInfo.size = ((jlong) entry.nFileSizeHigh << 32) | entry.nFileSizeLow;
         }
