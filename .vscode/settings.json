@@ -10,8 +10,10 @@
         "JNICALL",
         "JNIEXPORT",
         "Ljava",
+        "jboolean",
         "jclass",
         "jint",
+        "jlong",
         "jmethod",
         "jobject"
     ]
