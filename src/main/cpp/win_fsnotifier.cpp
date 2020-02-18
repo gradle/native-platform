@@ -43,9 +43,9 @@ private:
     FILE_NOTIFY_INFORMATION* buffer;
     volatile int status;
 
-    void handleEvent(DWORD errorCode, DWORD bytesTransfered);
+    void handleEvent(DWORD errorCode, DWORD bytesTransferred);
     void handlePathChanged(FILE_NOTIFY_INFORMATION* info);
-    friend static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransfered, LPOVERLAPPED overlapped);
+    friend static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped);
 };
 
 class Server {
@@ -159,12 +159,12 @@ void WatchPoint::listen() {
     }
 }
 
-static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransfered, LPOVERLAPPED overlapped) {
+static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped) {
     WatchPoint* watchPoint = (WatchPoint*) overlapped->hEvent;
-    watchPoint->handleEvent(errorCode, bytesTransfered);
+    watchPoint->handleEvent(errorCode, bytesTransferred);
 }
 
-void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransfered) {
+void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransferred) {
     status = WATCH_NOT_LISTENING;
     if (!ResetEvent(listeningStartedEvent)) {
         log_severe(server->getThreadEnv(), L"Failed to reset listening started event: %d", GetLastError());
@@ -177,7 +177,7 @@ void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransfered) {
         return;
     }
 
-    if (bytesTransfered == 0) {
+    if (bytesTransferred == 0) {
         // don't send dirty too much, everything is changed anyway
         // TODO Understand what this does
         // if (WaitForSingleObject(stopEventHandle, 500) == WAIT_OBJECT_0)
