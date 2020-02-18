@@ -32,16 +32,18 @@ public:
     ~WatchPoint();
     void close();
     void listen();
-    int awaitListeningStarted(DWORD dwMilliseconds);
+    int awaitListeningStarted(HANDLE threadHandle);
 
 private:
     Server* server;
     wstring path;
     HANDLE directoryHandle;
-    HANDLE listeningStartedEvent;
     OVERLAPPED overlapped;
     FILE_NOTIFY_INFORMATION* buffer;
+
     volatile int status;
+    mutex listenerMutex;
+    condition_variable listenerStarted;
 
     void handleEvent(DWORD errorCode, DWORD bytesTransferred);
     void handlePathChanged(FILE_NOTIFY_INFORMATION* info);

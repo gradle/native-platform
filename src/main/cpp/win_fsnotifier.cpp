@@ -14,22 +14,11 @@ WatchPoint::WatchPoint(Server* server, wstring path, HANDLE directoryHandle) {
     this->buffer = (FILE_NOTIFY_INFORMATION*) malloc(EVENT_BUFFER_SIZE);
     ZeroMemory(&this->overlapped, sizeof(OVERLAPPED));
     this->overlapped.hEvent = this;
-    HANDLE listeningStartedEvent = CreateEvent(
-        NULL,     // default security attributes
-        true,     // manual-reset event
-        false,    // initial state is nonsignaled
-        NULL      // object name
-    );
-    if (listeningStartedEvent == INVALID_HANDLE_VALUE) {
-        log_severe(server->getThreadEnv(), L"Couldn't create listening sterted event: %d", GetLastError());
-    }
-    this->listeningStartedEvent = listeningStartedEvent;
     this->directoryHandle = directoryHandle;
     this->status = WATCH_UNINITIALIZED;
 }
 
 WatchPoint::~WatchPoint() {
-    CloseHandle(listeningStartedEvent);
     free(buffer);
 }
 
@@ -44,17 +33,16 @@ void WatchPoint::close() {
     }
 }
 
-int WatchPoint::awaitListeningStarted(DWORD dwMilliseconds) {
-    DWORD ret = WaitForSingleObject(listeningStartedEvent, dwMilliseconds);
-    switch (ret) {
-        case WAIT_OBJECT_0:
-            // Server up and running
-            break;
-        default:
-            log_severe(server->getThreadEnv(), L"Couldn't wait for listening to start for '%ls': %d", path.c_str(), ret);
-            // TODO Error handling
-            break;
-    }
+static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg) {
+    WatchPoint* watchPoint = (WatchPoint*) arg;
+    watchPoint->listen();
+}
+
+int WatchPoint::awaitListeningStarted(HANDLE threadHandle) {
+    unique_lock<mutex> lock(listenerMutex);
+    QueueUserAPC(startWatchCallback, threadHandle, (ULONG_PTR) this);
+    listenerStarted.wait(lock);
+    lock.unlock();
     return status;
 }
 
@@ -69,6 +57,8 @@ void WatchPoint::listen() {
         &overlapped,            // overlapped buffer
         &handleEventCallback    // completion routine
     );
+
+    unique_lock<mutex> lock(listenerMutex);
     if (success) {
         status = WATCH_LISTENING;
     } else {
@@ -76,12 +66,8 @@ void WatchPoint::listen() {
         log_warning(server->getThreadEnv(), L"Couldn't start watching %p for '%ls', error = %d", directoryHandle, path.c_str(), GetLastError());
         // TODO Error handling
     }
-    if (!SetEvent(listeningStartedEvent)) {
-        log_severe(server->getThreadEnv(), L"Failed to signal listening started event with status %d, error = %d", status, GetLastError());
-        // TODO Error handling
-    } else {
-        log_fine(server->getThreadEnv(), L"Watching directory '%ls'", path.c_str());
-    }
+    listenerStarted.notify_all();
+    lock.unlock();
 }
 
 static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped) {
@@ -91,9 +77,6 @@ static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred
 
 void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransferred) {
     status = WATCH_NOT_LISTENING;
-    if (!ResetEvent(listeningStartedEvent)) {
-        log_severe(server->getThreadEnv(), L"Failed to reset listening started event: %d", GetLastError());
-    }
 
     if (errorCode == ERROR_OPERATION_ABORTED) {
         log_info(server->getThreadEnv(), L"Finished watching '%ls'", path.c_str());
@@ -193,11 +176,6 @@ void Server::run() {
     detach_jni(jvm);
 }
 
-static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg) {
-    WatchPoint* watchPoint = (WatchPoint*) arg;
-    watchPoint->listen();
-}
-
 void Server::startWatching(JNIEnv* env, wchar_t* path) {
     HANDLE directoryHandle = CreateFileW(
         path,                   // pointer to the file name
@@ -216,9 +194,9 @@ void Server::startWatching(JNIEnv* env, wchar_t* path) {
     }
 
     WatchPoint* watchPoint = new WatchPoint(this, path, directoryHandle);
-    QueueUserAPC(startWatchCallback, watcherThread.native_handle(), (ULONG_PTR) watchPoint);
-    // TODO Timeout handling
-    int ret = watchPoint->awaitListeningStarted(INFINITE);
+
+    HANDLE threadHandle = watcherThread.native_handle();
+    int ret = watchPoint->awaitListeningStarted(threadHandle);
     switch (ret) {
         case WATCH_LISTENING:
             watchPoints.push_back(watchPoint);
