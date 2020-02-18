@@ -26,10 +26,7 @@ Server::Server(JNIEnv* env, jobject watcherCallback, CFArrayRef rootsToWatch, lo
     }
     this->watcherStream = watcherStream;
 
-    unique_lock<mutex> lock(watcherThreadMutex);
-    this->watcherThread = thread(&Server::run, this);
-    this->watcherThreadStarted.wait(lock);
-    lock.unlock();
+    startThread();
 }
 
 Server::~Server() {
@@ -46,20 +43,14 @@ Server::~Server() {
     }
 }
 
-void Server::run() {
-    JNIEnv* env = attach_jni(jvm, "File watcher server", true);
-
-    log_fine(env, "Starting thread", NULL);
-
+void Server::initializeRunLoop() {
     CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
     FSEventStreamScheduleWithRunLoop(watcherStream, threadLoop, kCFRunLoopDefaultMode);
     FSEventStreamStart(watcherStream);
     this->threadLoop = threadLoop;
+}
 
-    unique_lock<mutex> lock(watcherThreadMutex);
-    watcherThreadStarted.notify_all();
-    lock.unlock();
-
+void Server::runLoop() {
     CFRunLoopRun();
 
     // Reading the Apple docs it seems we should call FSEventStreamFlushSync() here.
@@ -74,10 +65,6 @@ void Server::run() {
     // FSEventStreamFlushSync(watcherStream);
     FSEventStreamStop(watcherStream);
     FSEventStreamInvalidate(watcherStream);
-
-    log_fine(env, "Stopping thread", NULL);
-
-    detach_jni(jvm);
 }
 
 static void handleEventsCallback(

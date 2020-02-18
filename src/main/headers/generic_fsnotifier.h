@@ -32,7 +32,18 @@ protected:
     // TODO Make this private
     JavaVM* jvm;
 
+    void startThread();
+    virtual void initializeRunLoop() = 0;
+    virtual void runLoop() = 0;
+
+    // TODO Make these private
+    thread watcherThread;
+    mutex watcherThreadMutex;
+    condition_variable watcherThreadStarted;
+
 private:
+    void run();
+
     jobject watcherCallback;
     jmethodID watcherCallbackMethod;
 };

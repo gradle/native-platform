@@ -29,6 +29,31 @@ AbstractServer::~AbstractServer() {
     }
 }
 
+void AbstractServer::startThread() {
+    unique_lock<mutex> lock(watcherThreadMutex);
+    this->watcherThread = thread(&AbstractServer::run, this);
+    this->watcherThreadStarted.wait(lock);
+    lock.unlock();
+}
+
+void AbstractServer::run() {
+    JNIEnv* env = attach_jni(jvm, "File watcher server", true);
+
+    log_fine(env, "Starting thread", NULL);
+
+    initializeRunLoop();
+
+    unique_lock<mutex> lock(watcherThreadMutex);
+    watcherThreadStarted.notify_all();
+    lock.unlock();
+
+    runLoop();
+
+    log_fine(env, "Stopping thread", NULL);
+
+    detach_jni(jvm);
+}
+
 static JNIEnv* lookupThreadEnv(JavaVM* jvm) {
     JNIEnv* env;
     // TODO Verify that JNI 1.6 is the right version

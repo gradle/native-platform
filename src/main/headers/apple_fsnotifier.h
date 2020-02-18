@@ -21,9 +21,11 @@ public:
     Server(JNIEnv* env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis);
     ~Server();
 
-private:
-    void run();
+protected:
+    void initializeRunLoop() override;
+    void runLoop() override;
 
+private:
     void handleEvents(
         size_t numEvents,
         char** eventPaths,
@@ -40,9 +42,6 @@ private:
     void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);
 
     FSEventStreamRef watcherStream;
-    thread watcherThread;
-    mutex watcherThreadMutex;
-    condition_variable watcherThreadStarted;
     CFRunLoopRef threadLoop;
 };
 
