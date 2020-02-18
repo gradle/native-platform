@@ -57,17 +57,17 @@ extern "C" {
 /*
  * Marks the given result as failed, using the given error message
  */
-extern void mark_failed_with_message(JNIEnv *env, const char* message, jobject result);
+extern void mark_failed_with_message(JNIEnv* env, const char* message, jobject result);
 
 /*
  * Marks the given result as failed, using the given error message and the current value of errno/GetLastError()
  */
-extern void mark_failed_with_errno(JNIEnv *env, const char* message, jobject result);
+extern void mark_failed_with_errno(JNIEnv* env, const char* message, jobject result);
 
 /*
  * Marks the given result as failed, using the given error message and error code
  */
-extern void mark_failed_with_code(JNIEnv *env, const char* message, int error_code, const char* error_code_message, jobject result);
+extern void mark_failed_with_code(JNIEnv* env, const char* message, int error_code, const char* error_code_message, jobject result);
 
 /**
  * Maps system error code to a failure constant above.
@@ -90,7 +90,7 @@ extern int detach_jni(JavaVM* jvm);
  * Returns NULL on failure.
  */
 extern wchar_t*
-java_to_wchar(JNIEnv *env, jstring string, jobject result);
+java_to_wchar(JNIEnv* env, jstring string, jobject result);
 
 /*
  * Converts the given wchar_t string to a Java string.
@@ -104,7 +104,7 @@ extern jstring wchar_to_java(JNIEnv* env, const wchar_t* chars, size_t len, jobj
  *
  * Returns NULL on failure.
  */
-extern char* java_to_char(JNIEnv *env, jstring string, jobject result);
+extern char* java_to_char(JNIEnv* env, jstring string, jobject result);
 
 /*
  * Converts the given NULL terminated char string to a Java string.
@@ -118,7 +118,7 @@ extern jstring char_to_java(JNIEnv* env, const char* chars, jobject result);
  *
  * Returns NULL on failure.
  */
-extern char* java_to_utf_char(JNIEnv *env, jstring string, jobject result);
+extern char* java_to_utf_char(JNIEnv* env, jstring string, jobject result);
 
 /*
  * Converts the given NULL terminated char string (encoded with modified UTF-8) to a Java string.
@@ -150,9 +150,9 @@ typedef struct file_stat {
 #define log_severe(env, message, ...)  printlog(env, LOG_SEVERE, message, __VA_ARGS__)
 
 #ifdef _WIN32
-void printlog(JNIEnv* env, int level, const wchar_t *message, ...);
+void printlog(JNIEnv* env, int level, const wchar_t* message, ...);
 #else
-void printlog(JNIEnv* env, int level, const char *message, ...);
+void printlog(JNIEnv* env, int level, const char* message, ...);
 #endif
 
 #ifdef __cplusplus
