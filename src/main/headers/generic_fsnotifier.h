@@ -1,4 +1,5 @@
 #include "generic.h"
+#include <functional>
 #include <mutex>
 #include <thread>
 
@@ -30,7 +31,7 @@ protected:
     void reportChange(JNIEnv* env, int type, jstring path);
 
     void startThread();
-    virtual void runLoop(function<void()> notifyStarted) = 0;
+    virtual void runLoop(JNIEnv* env, function<void()> notifyStarted) = 0;
 
     thread watcherThread;
 

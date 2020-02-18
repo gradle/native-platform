@@ -39,15 +39,11 @@ void AbstractServer::startThread() {
 void AbstractServer::run() {
     JNIEnv* env = attach_jni(jvm, "File watcher server", true);
 
-    log_fine(env, "Starting thread", NULL);
-
-    runLoop([this] {
+    runLoop(env, [this] {
         unique_lock<mutex> lock(watcherThreadMutex);
         watcherThreadStarted.notify_all();
         lock.unlock();
     });
-
-    log_fine(env, "Stopping thread", NULL);
 
     detach_jni(jvm);
 }

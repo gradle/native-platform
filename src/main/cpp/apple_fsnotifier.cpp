@@ -43,7 +43,9 @@ Server::~Server() {
     }
 }
 
-void Server::runLoop(function<void()> notifyStarted) {
+void Server::runLoop(JNIEnv* env, function<void()> notifyStarted) {
+    log_fine(env, "Starting thread", NULL);
+
     CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
     FSEventStreamScheduleWithRunLoop(watcherStream, threadLoop, kCFRunLoopDefaultMode);
     FSEventStreamStart(watcherStream);
@@ -65,6 +67,8 @@ void Server::runLoop(function<void()> notifyStarted) {
     // FSEventStreamFlushSync(watcherStream);
     FSEventStreamStop(watcherStream);
     FSEventStreamInvalidate(watcherStream);
+
+    log_fine(env, "Stopping thread", NULL);
 }
 
 static void handleEventsCallback(

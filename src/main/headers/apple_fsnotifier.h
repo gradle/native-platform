@@ -22,7 +22,7 @@ public:
     ~Server();
 
 protected:
-    void runLoop(function<void()> notifyStarted) override;
+    void runLoop(JNIEnv* env, function<void()> notifyStarted) override;
 
 private:
     void handleEvents(

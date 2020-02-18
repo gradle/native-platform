@@ -19,6 +19,8 @@
  */
 #include "generic.h"
 #include "net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions.h"
+#include <stdlib.h>
+#include <string.h>
 
 void mark_failed_with_message(JNIEnv* env, const char* message, jobject result) {
     mark_failed_with_code(env, message, 0, NULL, result);
@@ -36,13 +38,16 @@ void mark_failed_with_code(JNIEnv* env, const char* message, int error_code, con
     }
 }
 
-JNIEnv* attach_jni(JavaVM* jvm, char* name, bool daemon) {
+JNIEnv* attach_jni(JavaVM* jvm, const char* name, bool daemon) {
     JNIEnv* env;
+    // Work around const char* issue
+    char* nameCopy = strdup(name);
     JavaVMAttachArgs args = {
         JNI_VERSION_1_6,    // version
-        name,               // thread name
+        nameCopy,           // thread name
         NULL                // thread group
     };
+    free(nameCopy);
     jint ret = daemon
         ? jvm->AttachCurrentThreadAsDaemon((void**) &(env), (void*) &args)
         : jvm->AttachCurrentThread((void**) &(env), (void*) &args);
