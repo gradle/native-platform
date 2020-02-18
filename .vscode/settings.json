@@ -12,6 +12,7 @@
         "Ljava",
         "jboolean",
         "jclass",
+        "jfieldID",
         "jint",
         "jlong",
         "jmethod",
