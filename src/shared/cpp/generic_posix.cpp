@@ -88,7 +88,9 @@ void printlog(JNIEnv* env, int level, const char* fmt, ...) {
     if (env == NULL) {
         fprintf(stderr, "%s\n", buffer);
     } else {
-        env->CallStaticVoidMethod(clsLogger, logMethod, level, env->NewStringUTF(buffer));
+        jstring logString = env->NewStringUTF(buffer);
+        env->CallStaticVoidMethod(clsLogger, logMethod, level, logString);
+        env->DeleteLocalRef(logString);
     }
 }
 

@@ -124,7 +124,9 @@ void printlog(JNIEnv* env, int level, const wchar_t* fmt, ...) {
     if (env == nullptr) {
         fwprintf(stderr, L"!!! %ls\n", buffer);
     } else {
-        env->CallStaticVoidMethod(clsLogger, logMethod, level, wchar_to_java(env, buffer, wcslen(buffer), NULL));
+        jstring logString = wchar_to_java(env, buffer, wcslen(buffer), NULL);
+        env->CallStaticVoidMethod(clsLogger, logMethod, level, logString);
+        env->DeleteLocalRef(logString);
     }
 }
 

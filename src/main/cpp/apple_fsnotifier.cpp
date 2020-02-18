@@ -221,7 +221,9 @@ void Server::handleEvent(JNIEnv *env, char* path, FSEventStreamEventFlags flags)
 
     log_fine(env, "Changed: %s %d", path, type);
 
-    env->CallVoidMethod(watcherCallback, watcherCallbackMethod, type, env->NewStringUTF(path));
+    jstring javaPath = env->NewStringUTF(path);
+    env->CallVoidMethod(watcherCallback, watcherCallbackMethod, type, javaPath);
+    env->DeleteLocalRef(javaPath);
 }
 
 static JNIEnv* lookupThreadEnv(JavaVM *jvm) {

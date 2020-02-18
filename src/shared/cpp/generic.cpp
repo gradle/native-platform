@@ -31,6 +31,9 @@ void mark_failed_with_code(JNIEnv *env, const char* message, int error_code, con
     jstring error_code_str = error_code_message == NULL ? NULL : env->NewStringUTF(error_code_message);
     jint failure_code = map_error_code(error_code);
     env->CallVoidMethod(result, method, message_str, failure_code, error_code, error_code_str);
+    if (error_code_str != NULL) {
+        env->DeleteLocalRef(error_code_str);
+    }
 }
 
 JNIEnv* attach_jni(JavaVM* jvm, char *name, bool daemon) {
