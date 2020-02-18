@@ -5,18 +5,7 @@
 using namespace std;
 
 Server::Server(JNIEnv* env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis)
-    : AbstractServer(env) {
-    // TODO Handle if returns NULL
-    this->watcherCallback = env->NewGlobalRef(watcherCallback);
-    jclass callbackClass = env->GetObjectClass(watcherCallback);
-    this->watcherCallbackMethod = env->GetMethodID(callbackClass, "pathChanged", "(ILjava/lang/String;)V");
-
-    jobject globalWatcherCallback = env->NewGlobalRef(watcherCallback);
-    if (globalWatcherCallback == NULL) {
-        throw FileWatcherException("Could not get global ref for watcher callback");
-    }
-    this->watcherCallback = globalWatcherCallback;
-
+    : AbstractServer(env, watcherCallback) {
     FSEventStreamContext context = {
         0,               // version, must be 0
         (void*) this,    // info
@@ -54,13 +43,6 @@ Server::~Server() {
 
     if (watcherStream != NULL) {
         FSEventStreamRelease(watcherStream);
-    }
-
-    if (watcherCallback != NULL) {
-        JNIEnv* env = getThreadEnv();
-        if (env != NULL) {
-            env->DeleteGlobalRef(watcherCallback);
-        }
     }
 }
 
@@ -159,7 +141,7 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
     log_fine(env, "Changed: %s %d", path, type);
 
     jstring javaPath = env->NewStringUTF(path);
-    env->CallVoidMethod(watcherCallback, watcherCallbackMethod, type, javaPath);
+    reportChange(env, type, javaPath);
     env->DeleteLocalRef(javaPath);
 }
 

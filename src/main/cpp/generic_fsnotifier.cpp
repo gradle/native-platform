@@ -1,12 +1,30 @@
 #include "generic_fsnotifier.h"
 
-AbstractServer::AbstractServer(JNIEnv* env) {
+AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback) {
     JavaVM* jvm;
     int jvmStatus = env->GetJavaVM(&jvm);
     if (jvmStatus < 0) {
         throw FileWatcherException("Could not store jvm instance");
     }
     this->jvm = jvm;
+
+    jclass callbackClass = env->GetObjectClass(watcherCallback);
+    this->watcherCallbackMethod = env->GetMethodID(callbackClass, "pathChanged", "(ILjava/lang/String;)V");
+
+    jobject globalWatcherCallback = env->NewGlobalRef(watcherCallback);
+    if (globalWatcherCallback == NULL) {
+        throw FileWatcherException("Could not get global ref for watcher callback");
+    }
+    this->watcherCallback = globalWatcherCallback;
+}
+
+AbstractServer::~AbstractServer() {
+    if (watcherCallback != NULL) {
+        JNIEnv* env = getThreadEnv();
+        if (env != NULL) {
+            env->DeleteGlobalRef(watcherCallback);
+        }
+    }
 }
 
 static JNIEnv* lookupThreadEnv(JavaVM* jvm) {
@@ -22,4 +40,8 @@ static JNIEnv* lookupThreadEnv(JavaVM* jvm) {
 
 JNIEnv* AbstractServer::getThreadEnv() {
     return lookupThreadEnv(jvm);
+}
+
+void AbstractServer::reportChange(JNIEnv* env, int type, jstring path) {
+    env->CallVoidMethod(watcherCallback, watcherCallbackMethod, type, path);
 }

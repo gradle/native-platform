@@ -39,9 +39,6 @@ private:
 
     void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);
 
-    jobject watcherCallback;
-    jmethodID watcherCallbackMethod;
-
     FSEventStreamRef watcherStream;
     thread watcherThread;
     mutex watcherThreadMutex;
