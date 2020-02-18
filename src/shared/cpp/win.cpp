@@ -68,7 +68,9 @@ bool is_path_absolute_local(wchar_t* path, int path_len) {
     if (path_len < 3) {
         return false;
     }
-    return (('a' <= path[0] && path[0] <= 'z') || ('A' <= path[0] && path[0] <= 'Z')) && path[1] == ':' && path[2] == '\\';
+    return (('a' <= path[0] && path[0] <= 'z') || ('A' <= path[0] && path[0] <= 'Z'))
+        && path[1] == ':'
+        && path[2] == '\\';
 }
 
 bool is_path_absolute_unc(wchar_t* path, int path_len) {
