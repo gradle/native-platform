@@ -19,21 +19,21 @@
  */
 #ifdef __linux__
 
-#include "net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions.h"
 #include "generic.h"
-#include <stdio.h>
-#include <mntent.h>
-#include <unistd.h>
-#include <stdlib.h>
+#include "net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions.h"
 #include <dirent.h>
+#include <mntent.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <sys/inotify.h>
+#include <unistd.h>
 
 /*
  * File system functions
  */
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileSystems(JNIEnv *env, jclass target, jobject info, jobject result) {
-    FILE *fp = setmntent(MOUNTED, "r");
+Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileSystems(JNIEnv* env, jclass target, jobject info, jobject result) {
+    FILE* fp = setmntent(MOUNTED, "r");
     if (fp == NULL) {
         mark_failed_with_errno(env, "could not open mount file", result);
         return;

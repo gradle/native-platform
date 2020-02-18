@@ -1,0 +1,8 @@
+BasedOnStyle: WebKit
+AlignTrailingComments: true
+AllowShortFunctionsOnASingleLine: None
+BreakBeforeBraces: Attach
+BreakBeforeTernaryOperators: true
+IndentCaseLabels: true
+SpaceAfterCStyleCast: true
+SpacesBeforeTrailingComments: 4

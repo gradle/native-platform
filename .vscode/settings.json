@@ -10,9 +10,14 @@
         "JNICALL",
         "JNIEXPORT",
         "Ljava",
+        "jboolean",
+        "jchar",
         "jclass",
+        "jfieldID",
         "jint",
-        "jmethod",
-        "jobject"
+        "jlong",
+        "jmethodID",
+        "jobject",
+        "jsize"
     ]
 }

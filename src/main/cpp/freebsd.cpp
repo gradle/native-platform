@@ -19,21 +19,21 @@
  */
 #if defined(__FreeBSD__)
 
-#include "net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions.h"
 #include "generic.h"
-#include <string.h>
+#include "net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions.h"
+#include <errno.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/mount.h>
 #include <sys/param.h>
 #include <sys/ucred.h>
-#include <sys/mount.h>
 #include <unistd.h>
-#include <errno.h>
 
 /*
  * File system functions
  */
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileSystems(JNIEnv *env, jclass target, jobject info, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileSystems(JNIEnv* env, jclass target, jobject info, jobject result) {
     int fs_count = getfsstat(NULL, 0, MNT_NOWAIT);
     if (fs_count < 0) {
         mark_failed_with_errno(env, "could not stat file systems", result);
@@ -41,8 +41,8 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
     }
 
     size_t len = fs_count * sizeof(struct statfs);
-    struct statfs* buf = (struct statfs*)malloc(len);
-    if (getfsstat(buf, len, MNT_NOWAIT) < 0 ) {
+    struct statfs* buf = (struct statfs*) malloc(len);
+    if (getfsstat(buf, len, MNT_NOWAIT) < 0) {
         mark_failed_with_errno(env, "could not stat file systems", result);
         free(buf);
         return;

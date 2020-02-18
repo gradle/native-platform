@@ -24,7 +24,7 @@
 #include <string.h>
 #include <wchar.h>
 
-char* java_to_char(JNIEnv *env, jstring string, jobject result) {
+char* java_to_char(JNIEnv* env, jstring string, jobject result) {
     return java_to_utf_char(env, string, result);
 }
 

@@ -17,14 +17,14 @@
 /*
  * Generic cross-platform functions.
  */
-#include "net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions.h"
 #include "generic.h"
+#include "net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions.h"
 
-void mark_failed_with_message(JNIEnv *env, const char* message, jobject result) {
+void mark_failed_with_message(JNIEnv* env, const char* message, jobject result) {
     mark_failed_with_code(env, message, 0, NULL, result);
 }
 
-void mark_failed_with_code(JNIEnv *env, const char* message, int error_code, const char* error_code_message, jobject result) {
+void mark_failed_with_code(JNIEnv* env, const char* message, int error_code, const char* error_code_message, jobject result) {
     jclass destClass = env->GetObjectClass(result);
     jmethodID method = env->GetMethodID(destClass, "failed", "(Ljava/lang/String;IILjava/lang/String;)V");
     jstring message_str = env->NewStringUTF(message);
@@ -36,16 +36,16 @@ void mark_failed_with_code(JNIEnv *env, const char* message, int error_code, con
     }
 }
 
-JNIEnv* attach_jni(JavaVM* jvm, char *name, bool daemon) {
+JNIEnv* attach_jni(JavaVM* jvm, char* name, bool daemon) {
     JNIEnv* env;
     JavaVMAttachArgs args = {
-        JNI_VERSION_1_6,      // version
-        name,                 // thread name
-        NULL                  // thread group
+        JNI_VERSION_1_6,    // version
+        name,               // thread name
+        NULL                // thread group
     };
     jint ret = daemon
-        ? jvm->AttachCurrentThreadAsDaemon((void **) &(env), (void *) &args)
-        : jvm->AttachCurrentThread((void **) &(env), (void *) &args);
+        ? jvm->AttachCurrentThreadAsDaemon((void**) &(env), (void*) &args)
+        : jvm->AttachCurrentThread((void**) &(env), (void*) &args);
     if (ret != JNI_OK) {
         fprintf(stderr, "Failed to attach JNI to current thread: %d\n", ret);
         return NULL;
@@ -62,6 +62,6 @@ int detach_jni(JavaVM* jvm) {
 }
 
 JNIEXPORT jstring JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getVersion(JNIEnv *env, jclass target) {
+Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getVersion(JNIEnv* env, jclass target) {
     return env->NewStringUTF(NATIVE_VERSION);
 }

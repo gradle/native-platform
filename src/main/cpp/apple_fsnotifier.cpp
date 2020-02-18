@@ -1,7 +1,7 @@
 #if defined(__APPLE__)
 
-#include "net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions.h"
 #include "generic.h"
+#include "net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions.h"
 #include <CoreServices/CoreServices.h>
 #include <thread>
 
@@ -9,31 +9,31 @@ using namespace std;
 
 struct FileWatcherException : public exception {
 public:
-    FileWatcherException(const char *message) {
+    FileWatcherException(const char* message) {
         this->message = message;
     }
 
-    const char * what () const throw () {
+    const char* what() const throw() {
         return message;
     }
 
 private:
-    const char *message;
+    const char* message;
 };
 
 class Server;
 
 static void handleEventsCallback(
     ConstFSEventStreamRef streamRef,
-    void *clientCallBackInfo,
+    void* clientCallBackInfo,
     size_t numEvents,
-    void *eventPaths,
+    void* eventPaths,
     const FSEventStreamEventFlags eventFlags[],
     const FSEventStreamEventId eventIds[]);
 
 class Server {
 public:
-    Server(JNIEnv *env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis);
+    Server(JNIEnv* env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis);
     ~Server();
 
 private:
@@ -41,23 +41,23 @@ private:
 
     void handleEvents(
         size_t numEvents,
-        char **eventPaths,
+        char** eventPaths,
         const FSEventStreamEventFlags eventFlags[],
         const FSEventStreamEventId eventIds[]);
     friend void handleEventsCallback(
         ConstFSEventStreamRef streamRef,
-        void *clientCallBackInfo,
+        void* clientCallBackInfo,
         size_t numEvents,
-        void *eventPaths,
+        void* eventPaths,
         const FSEventStreamEventFlags eventFlags[],
         const FSEventStreamEventId eventIds[]);
 
-    void handleEvent(JNIEnv *env, char* path, FSEventStreamEventFlags flags);
+    void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);
 
     // TODO: Move this to somewhere else
     JNIEnv* getThreadEnv();
 
-    JavaVM *jvm;
+    JavaVM* jvm;
     jobject watcherCallback;
     jmethodID watcherCallbackMethod;
 
@@ -68,7 +68,7 @@ private:
     CFRunLoopRef threadLoop;
 };
 
-Server::Server(JNIEnv *env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis) {
+Server::Server(JNIEnv* env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis) {
     JavaVM* jvm;
     int jvmStatus = env->GetJavaVM(&jvm);
     if (jvmStatus < 0) {
@@ -88,11 +88,11 @@ Server::Server(JNIEnv *env, jobject watcherCallback, CFArrayRef rootsToWatch, lo
     this->watcherCallback = globalWatcherCallback;
 
     FSEventStreamContext context = {
-        0,              // version, must be 0
-        (void*) this,   // info
-        NULL,           // retain
-        NULL,           // release
-        NULL            // copyDescription
+        0,               // version, must be 0
+        (void*) this,    // info
+        NULL,            // retain
+        NULL,            // release
+        NULL             // copyDescription
     };
     FSEventStreamRef watcherStream = FSEventStreamCreate(
         NULL,
@@ -127,7 +127,7 @@ Server::~Server() {
     }
 
     if (watcherCallback != NULL) {
-        JNIEnv *env = getThreadEnv();
+        JNIEnv* env = getThreadEnv();
         if (env != NULL) {
             env->DeleteGlobalRef(watcherCallback);
         }
@@ -170,22 +170,20 @@ void Server::run() {
 
 static void handleEventsCallback(
     ConstFSEventStreamRef streamRef,
-    void *clientCallBackInfo,
+    void* clientCallBackInfo,
     size_t numEvents,
-    void *eventPaths,
+    void* eventPaths,
     const FSEventStreamEventFlags eventFlags[],
-    const FSEventStreamEventId eventIds[]
-) {
-    Server *server = (Server*) clientCallBackInfo;
-    server->handleEvents(numEvents, (char **) eventPaths, eventFlags, eventIds);
+    const FSEventStreamEventId eventIds[]) {
+    Server* server = (Server*) clientCallBackInfo;
+    server->handleEvents(numEvents, (char**) eventPaths, eventFlags, eventIds);
 }
 
 void Server::handleEvents(
     size_t numEvents,
-    char **eventPaths,
+    char** eventPaths,
     const FSEventStreamEventFlags eventFlags[],
-    const FSEventStreamEventId eventIds[]
-) {
+    const FSEventStreamEventId eventIds[]) {
     JNIEnv* env = getThreadEnv();
 
     for (int i = 0; i < numEvents; i++) {
@@ -193,17 +191,17 @@ void Server::handleEvents(
     }
 }
 
-void Server::handleEvent(JNIEnv *env, char* path, FSEventStreamEventFlags flags) {
+void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags) {
     log_fine(env, "Event flags: 0x%x for %s", flags, path);
 
     jint type;
     if (IS_SET(flags, kFSEventStreamEventFlagHistoryDone)) {
         return;
     } else if (IS_ANY_SET(flags,
-            kFSEventStreamEventFlagRootChanged
-            | kFSEventStreamEventFlagMount
-            | kFSEventStreamEventFlagUnmount
-            | kFSEventStreamEventFlagMustScanSubDirs)) {
+                   kFSEventStreamEventFlagRootChanged
+                       | kFSEventStreamEventFlagMount
+                       | kFSEventStreamEventFlagUnmount
+                       | kFSEventStreamEventFlagMustScanSubDirs)) {
         type = FILE_EVENT_INVALIDATE;
     } else if (IS_SET(flags, kFSEventStreamEventFlagItemRenamed)) {
         if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
@@ -216,10 +214,10 @@ void Server::handleEvent(JNIEnv *env, char* path, FSEventStreamEventFlags flags)
     } else if (IS_SET(flags, kFSEventStreamEventFlagItemRemoved)) {
         type = FILE_EVENT_REMOVED;
     } else if (IS_ANY_SET(flags,
-            kFSEventStreamEventFlagItemInodeMetaMod // file locked
-            | kFSEventStreamEventFlagItemFinderInfoMod
-            | kFSEventStreamEventFlagItemChangeOwner
-            | kFSEventStreamEventFlagItemXattrMod)) {
+                   kFSEventStreamEventFlagItemInodeMetaMod    // file locked
+                       | kFSEventStreamEventFlagItemFinderInfoMod
+                       | kFSEventStreamEventFlagItemChangeOwner
+                       | kFSEventStreamEventFlagItemXattrMod)) {
         type = FILE_EVENT_MODIFIED;
     } else if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
         type = FILE_EVENT_CREATED;
@@ -235,10 +233,10 @@ void Server::handleEvent(JNIEnv *env, char* path, FSEventStreamEventFlags flags)
     env->DeleteLocalRef(javaPath);
 }
 
-static JNIEnv* lookupThreadEnv(JavaVM *jvm) {
+static JNIEnv* lookupThreadEnv(JavaVM* jvm) {
     JNIEnv* env;
     // TODO Verify that JNI 1.6 is the right version
-    jint ret = jvm->GetEnv((void **) &(env), JNI_VERSION_1_6);
+    jint ret = jvm->GetEnv((void**) &(env), JNI_VERSION_1_6);
     if (ret != JNI_OK) {
         fprintf(stderr, "Failed to get JNI env for current thread: %d\n", ret);
         throw FileWatcherException("Failed to get JNI env for current thread");
@@ -250,7 +248,7 @@ JNIEnv* Server::getThreadEnv() {
     return lookupThreadEnv(jvm);
 }
 
-Server *startWatching(JNIEnv *env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback) {
+Server* startWatching(JNIEnv* env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback) {
     int count = env->GetArrayLength(paths);
     CFMutableArrayRef rootsToWatch = CFArrayCreateMutable(NULL, count, NULL);
     if (rootsToWatch == NULL) {
@@ -281,8 +279,8 @@ Server *startWatching(JNIEnv *env, jclass target, jobjectArray paths, long laten
 }
 
 JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatching(JNIEnv *env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback, jobject result) {
-    Server *server;
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatching(JNIEnv* env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback, jobject result) {
+    Server* server;
     try {
         server = startWatching(env, target, paths, latencyInMillis, javaCallback);
     } catch (const exception& e) {
@@ -302,8 +300,8 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_stopWatching(JNIEnv *env, jclass target, jobject detailsObj, jobject result) {
-    Server *server = (Server*) env->GetDirectBufferAddress(detailsObj);
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_stopWatching(JNIEnv* env, jclass target, jobject detailsObj, jobject result) {
+    Server* server = (Server*) env->GetDirectBufferAddress(detailsObj);
     assert(server != NULL);
     delete server;
 }

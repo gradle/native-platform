@@ -24,9 +24,9 @@
 #include <string.h>
 #include <wchar.h>
 
-char* java_to_char(JNIEnv *env, jstring string, jobject result) {
+char* java_to_char(JNIEnv* env, jstring string, jobject result) {
     size_t stringLen = env->GetStringLength(string);
-    wchar_t* wideString = (wchar_t*)malloc(sizeof(wchar_t) * (stringLen+1));
+    wchar_t* wideString = (wchar_t*) malloc(sizeof(wchar_t) * (stringLen + 1));
     const jchar* javaString = env->GetStringChars(string, NULL);
     for (size_t i = 0; i < stringLen; i++) {
         wideString[i] = javaString[i];
@@ -35,14 +35,14 @@ char* java_to_char(JNIEnv *env, jstring string, jobject result) {
     env->ReleaseStringChars(string, javaString);
 
     size_t bytes = wcstombs(NULL, wideString, 0);
-    if (bytes == (size_t)-1) {
+    if (bytes == (size_t) -1) {
         mark_failed_with_message(env, "could not convert string to current locale", result);
         free(wideString);
         return NULL;
     }
 
-    char* chars = (char*)malloc(bytes + 1);
-    wcstombs(chars, wideString, bytes+1);
+    char* chars = (char*) malloc(bytes + 1);
+    wcstombs(chars, wideString, bytes + 1);
     free(wideString);
 
     return chars;
@@ -50,16 +50,16 @@ char* java_to_char(JNIEnv *env, jstring string, jobject result) {
 
 jstring char_to_java(JNIEnv* env, const char* chars, jobject result) {
     size_t bytes = strlen(chars);
-    wchar_t* wideString = (wchar_t*)malloc(sizeof(wchar_t) * (bytes+1));
-    if (mbstowcs(wideString, chars, bytes+1) == (size_t)-1) {
+    wchar_t* wideString = (wchar_t*) malloc(sizeof(wchar_t) * (bytes + 1));
+    if (mbstowcs(wideString, chars, bytes + 1) == (size_t) -1) {
         mark_failed_with_message(env, "could not convert string from current locale", result);
         free(wideString);
         return NULL;
     }
     size_t stringLen = wcslen(wideString);
-    jchar* javaString = (jchar*)malloc(sizeof(jchar) * stringLen);
-    for (int i =0; i < stringLen; i++) {
-        javaString[i] = (jchar)wideString[i];
+    jchar* javaString = (jchar*) malloc(sizeof(jchar) * stringLen);
+    for (int i = 0; i < stringLen; i++) {
+        javaString[i] = (jchar) wideString[i];
     }
     jstring string = env->NewString(javaString, stringLen);
     free(wideString);
