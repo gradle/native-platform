@@ -29,21 +29,18 @@ protected:
     // TODO Make this take a native string and free up the local JNI ref
     void reportChange(JNIEnv* env, int type, jstring path);
 
-    // TODO Make this private
-    JavaVM* jvm;
-
     void startThread();
-    virtual void initializeRunLoop() = 0;
-    virtual void runLoop() = 0;
+    virtual void runLoop(function<void()> notifyStarted) = 0;
 
-    // TODO Make these private
     thread watcherThread;
-    mutex watcherThreadMutex;
-    condition_variable watcherThreadStarted;
 
 private:
     void run();
+    mutex watcherThreadMutex;
+    condition_variable watcherThreadStarted;
 
     jobject watcherCallback;
     jmethodID watcherCallbackMethod;
+
+    JavaVM* jvm;
 };

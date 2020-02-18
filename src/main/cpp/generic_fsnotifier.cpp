@@ -41,13 +41,11 @@ void AbstractServer::run() {
 
     log_fine(env, "Starting thread", NULL);
 
-    initializeRunLoop();
-
-    unique_lock<mutex> lock(watcherThreadMutex);
-    watcherThreadStarted.notify_all();
-    lock.unlock();
-
-    runLoop();
+    runLoop([this] {
+        unique_lock<mutex> lock(watcherThreadMutex);
+        watcherThreadStarted.notify_all();
+        lock.unlock();
+    });
 
     log_fine(env, "Stopping thread", NULL);
 

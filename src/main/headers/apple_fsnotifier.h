@@ -22,8 +22,7 @@ public:
     ~Server();
 
 protected:
-    void initializeRunLoop() override;
-    void runLoop() override;
+    void runLoop(function<void()> notifyStarted) override;
 
 private:
     void handleEvents(

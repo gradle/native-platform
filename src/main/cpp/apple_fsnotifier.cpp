@@ -43,14 +43,14 @@ Server::~Server() {
     }
 }
 
-void Server::initializeRunLoop() {
+void Server::runLoop(function<void()> notifyStarted) {
     CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
     FSEventStreamScheduleWithRunLoop(watcherStream, threadLoop, kCFRunLoopDefaultMode);
     FSEventStreamStart(watcherStream);
     this->threadLoop = threadLoop;
-}
 
-void Server::runLoop() {
+    notifyStarted();
+
     CFRunLoopRun();
 
     // Reading the Apple docs it seems we should call FSEventStreamFlushSync() here.
