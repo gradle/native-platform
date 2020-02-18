@@ -1,10 +1,6 @@
 #if defined(__APPLE__)
 
 #include "apple_fsnotifier.h"
-#include "generic.h"
-#include "net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions.h"
-#include <CoreServices/CoreServices.h>
-#include <thread>
 
 using namespace std;
 
