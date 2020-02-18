@@ -1,3 +1,5 @@
+#if defined(_WIN32) || defined(__APPLE__)
+
 #include "generic_fsnotifier.h"
 
 AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback) {
@@ -45,3 +47,5 @@ JNIEnv* AbstractServer::getThreadEnv() {
 void AbstractServer::reportChange(JNIEnv* env, int type, jstring path) {
     env->CallVoidMethod(watcherCallback, watcherCallbackMethod, type, path);
 }
+
+#endif
