@@ -366,6 +366,7 @@ void Server::reportEvent(jint type, const wstring changedPath) {
     jclass callback_class = env->GetObjectClass(watcherCallback);
     jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(ILjava/lang/String;)V");
     env->CallVoidMethod(watcherCallback, methodCallback, type, changedPathJava);
+    env->DeleteLocalRef(changedPathJava);
 }
 
 static void CALLBACK requestTerminationCallback(_In_ ULONG_PTR arg) {
