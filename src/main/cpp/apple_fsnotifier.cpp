@@ -150,7 +150,16 @@ void Server::run() {
 
     CFRunLoopRun();
 
-    FSEventStreamFlushSync(watcherStream);
+    // Reading the Apple docs it seems we should call FSEventStreamFlushSync() here.
+    // But doing so produces this log:
+    //
+    //     2020-02-17 23:02 java[50430] (FSEvents.framework) FSEventStreamFlushSync(): failed assertion '(SInt64)last_id > 0LL'
+    //
+    // According to this comment we should not use flush at all, and it's probably broken:
+    // https://github.com/nodejs/node/issues/854#issuecomment-294892950
+    // As the comment mentions, even Watchman doesn't flush:
+    // https://github.com/facebook/watchman/blob/b397e00cf566f361282a456122eef4e909f26182/watcher/fsevents.cpp#L276-L285
+    // FSEventStreamFlushSync(watcherStream);
     FSEventStreamStop(watcherStream);
     FSEventStreamInvalidate(watcherStream);
 
