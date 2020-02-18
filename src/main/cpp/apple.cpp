@@ -19,20 +19,20 @@
  */
 #if defined(__APPLE__)
 
+#include "generic.h"
 #include "net_rubygrapefruit_platform_internal_jni_MemoryFunctions.h"
 #include "net_rubygrapefruit_platform_internal_jni_OsxMemoryFunctions.h"
 #include "net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions.h"
-#include "generic.h"
-#include <string.h>
-#include <stdlib.h>
-#include <sys/param.h>
-#include <sys/ucred.h>
-#include <sys/mount.h>
-#include <unistd.h>
-#include <sys/attr.h>
-#include <sys/types.h>
-#include <sys/sysctl.h>
 #include <mach/mach.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/attr.h>
+#include <sys/mount.h>
+#include <sys/param.h>
+#include <sys/sysctl.h>
+#include <sys/types.h>
+#include <sys/ucred.h>
+#include <unistd.h>
 
 typedef struct vol_caps_buf {
     u_int32_t size;
@@ -43,7 +43,7 @@ typedef struct vol_caps_buf {
  * File system functions
  */
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileSystems(JNIEnv *env, jclass target, jobject info, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileSystems(JNIEnv* env, jclass target, jobject info, jobject result) {
     int fs_count = getfsstat(NULL, 0, MNT_NOWAIT);
     if (fs_count < 0) {
         mark_failed_with_errno(env, "could not stat file systems", result);
@@ -51,8 +51,8 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
     }
 
     size_t len = fs_count * sizeof(struct statfs);
-    struct statfs* buf = (struct statfs*)malloc(len);
-    if (getfsstat(buf, len, MNT_NOWAIT) < 0 ) {
+    struct statfs* buf = (struct statfs*) malloc(len);
+    if (getfsstat(buf, len, MNT_NOWAIT) < 0) {
         mark_failed_with_errno(env, "could not stat file systems", result);
         free(buf);
         return;
@@ -100,7 +100,7 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
  * Memory functions
  */
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_MemoryFunctions_getMemoryInfo(JNIEnv *env, jclass type, jobject dest, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_MemoryFunctions_getMemoryInfo(JNIEnv* env, jclass type, jobject dest, jobject result) {
     jclass destClass = env->GetObjectClass(dest);
     jmethodID mid = env->GetMethodID(destClass, "details", "(JJ)V");
     if (mid == NULL) {
@@ -131,23 +131,23 @@ Java_net_rubygrapefruit_platform_internal_jni_MemoryFunctions_getMemoryInfo(JNIE
         mark_failed_with_errno(env, "could not query page size", result);
         return;
     }
-    if (KERN_SUCCESS != host_statistics64(mach_port, HOST_VM_INFO, (host_info64_t)&vm_stats, &count)) {
+    if (KERN_SUCCESS != host_statistics64(mach_port, HOST_VM_INFO, (host_info64_t) &vm_stats, &count)) {
         mark_failed_with_errno(env, "could not query host statistics", result);
         return;
     }
 
     // Calculate available memory
-    long long available_memory = ((int64_t)vm_stats.free_count
-                                 + (int64_t)vm_stats.inactive_count
-                                 - (int64_t)vm_stats.speculative_count)
-                                 * (int64_t)page_size;
+    long long available_memory = ((int64_t) vm_stats.free_count
+                                     + (int64_t) vm_stats.inactive_count
+                                     - (int64_t) vm_stats.speculative_count)
+        * (int64_t) page_size;
 
     // Feed Java with details
-    env->CallVoidMethod(dest, mid, (jlong)total_memory, (jlong)available_memory);
+    env->CallVoidMethod(dest, mid, (jlong) total_memory, (jlong) available_memory);
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxMemoryFunctions_getOsxMemoryInfo(JNIEnv *env, jclass type, jobject dest, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_OsxMemoryFunctions_getOsxMemoryInfo(JNIEnv* env, jclass type, jobject dest, jobject result) {
     jclass destClass = env->GetObjectClass(dest);
     jmethodID mid = env->GetMethodID(destClass, "details", "(JJJJJJJJJ)V");
     if (mid == NULL) {
@@ -178,28 +178,28 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxMemoryFunctions_getOsxMemoryInf
         mark_failed_with_errno(env, "could not query page size", result);
         return;
     }
-    if (KERN_SUCCESS != host_statistics64(mach_port, HOST_VM_INFO, (host_info64_t)&vm_stats, &count)) {
+    if (KERN_SUCCESS != host_statistics64(mach_port, HOST_VM_INFO, (host_info64_t) &vm_stats, &count)) {
         mark_failed_with_errno(env, "could not query host statistics", result);
         return;
     }
 
     // Calculate available memory
-    long long available_memory = ((int64_t)vm_stats.free_count
-                                 + (int64_t)vm_stats.inactive_count
-                                 - (int64_t)vm_stats.speculative_count)
-                                 * (int64_t)page_size;
+    long long available_memory = ((int64_t) vm_stats.free_count
+                                     + (int64_t) vm_stats.inactive_count
+                                     - (int64_t) vm_stats.speculative_count)
+        * (int64_t) page_size;
 
     // Feed Java with details
     env->CallVoidMethod(dest, mid,
-        (jlong)page_size,
-        (jlong)vm_stats.free_count,
-        (jlong)vm_stats.inactive_count,
-        (jlong)vm_stats.wire_count,
-        (jlong)vm_stats.active_count,
-        (jlong)vm_stats.external_page_count,
-        (jlong)vm_stats.speculative_count,
-        (jlong)total_memory,
-        (jlong)available_memory);
+        (jlong) page_size,
+        (jlong) vm_stats.free_count,
+        (jlong) vm_stats.inactive_count,
+        (jlong) vm_stats.wire_count,
+        (jlong) vm_stats.active_count,
+        (jlong) vm_stats.external_page_count,
+        (jlong) vm_stats.speculative_count,
+        (jlong) total_memory,
+        (jlong) available_memory);
 }
 
 #endif
