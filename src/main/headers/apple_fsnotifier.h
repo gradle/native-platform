@@ -1,25 +1,11 @@
 #if defined(__APPLE__)
 
 #include "generic.h"
+#include "generic_fsnotifier.h"
 #include "net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions.h"
 #include <CoreServices/CoreServices.h>
-#include <thread>
 
 using namespace std;
-
-struct FileWatcherException : public exception {
-public:
-    FileWatcherException(const char* message) {
-        this->message = message;
-    }
-
-    const char* what() const throw() {
-        return message;
-    }
-
-private:
-    const char* message;
-};
 
 class Server;
 
