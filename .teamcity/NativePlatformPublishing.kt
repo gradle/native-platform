@@ -106,6 +106,11 @@ class PublishJavaApi(releaseType: ReleaseType = ReleaseType.Snapshot, nativeLibr
         name = "Publish Native Platform ${releaseType.name}"
         id = RelativeId("Publishing_PublishJavaApi${releaseType.name}")
         runOn(Agent.Linux)
+        params {
+            if (releaseType.userProvidedVersion) {
+                param(versionPostfixParameterName, "%reverse.dep.*.$versionPostfixParameterName%")
+            }
+        }
 
         dependencies {
             nativeLibraryPublishingBuilds.forEach {
