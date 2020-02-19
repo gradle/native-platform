@@ -16,20 +16,15 @@ static void handleEventsCallback(
     const FSEventStreamEventFlags eventFlags[],
     const FSEventStreamEventId eventIds[]);
 
-class Server : AbstractServer {
+class EventStream {
 public:
-    Server(JNIEnv* env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis);
-    ~Server();
+    EventStream(CFArrayRef rootsToWatch, long latencyInMillis);
+    ~EventStream();
 
-protected:
-    void runLoop(JNIEnv* env, function<void()> notifyStarted) override;
+    void schedule(Server* server, CFRunLoopRef runLoop);
+    void unschedule();
 
 private:
-    void handleEvents(
-        size_t numEvents,
-        char** eventPaths,
-        const FSEventStreamEventFlags eventFlags[],
-        const FSEventStreamEventId eventIds[]);
     friend void handleEventsCallback(
         ConstFSEventStreamRef streamRef,
         void* clientCallBackInfo,
@@ -38,9 +33,28 @@ private:
         const FSEventStreamEventFlags eventFlags[],
         const FSEventStreamEventId eventIds[]);
 
+    FSEventStreamRef watcherStream;
+    Server* server;
+};
+
+class Server : AbstractServer {
+public:
+    Server(JNIEnv* env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis);
+    ~Server();
+
+    void handleEvents(
+        size_t numEvents,
+        char** eventPaths,
+        const FSEventStreamEventFlags eventFlags[],
+        const FSEventStreamEventId eventIds[]);
+
+protected:
+    void runLoop(JNIEnv* env, function<void()> notifyStarted) override;
+
+private:
     void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);
 
-    FSEventStreamRef watcherStream;
+    EventStream eventStream;
     CFRunLoopRef threadLoop;
 };
 

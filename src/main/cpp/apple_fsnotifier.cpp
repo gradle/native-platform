@@ -4,8 +4,7 @@
 
 using namespace std;
 
-Server::Server(JNIEnv* env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis)
-    : AbstractServer(env, watcherCallback) {
+EventStream::EventStream(CFArrayRef rootsToWatch, long latencyInMillis) {
     FSEventStreamContext context = {
         0,               // version, must be 0
         (void*) this,    // info
@@ -25,36 +24,15 @@ Server::Server(JNIEnv* env, jobject watcherCallback, CFArrayRef rootsToWatch, lo
         throw FileWatcherException("Could not create FSEventStreamCreate to track changes");
     }
     this->watcherStream = watcherStream;
-
-    startThread();
 }
 
-Server::~Server() {
-    if (threadLoop != NULL) {
-        CFRunLoopStop(threadLoop);
-    }
-
-    if (watcherThread.joinable()) {
-        watcherThread.join();
-    }
-
-    if (watcherStream != NULL) {
-        FSEventStreamRelease(watcherStream);
-    }
-}
-
-void Server::runLoop(JNIEnv* env, function<void()> notifyStarted) {
-    log_fine(env, "Starting thread", NULL);
-
-    CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
-    FSEventStreamScheduleWithRunLoop(watcherStream, threadLoop, kCFRunLoopDefaultMode);
+void EventStream::schedule(Server* server, CFRunLoopRef runLoop) {
+    this->server = server;
+    FSEventStreamScheduleWithRunLoop(watcherStream, runLoop, kCFRunLoopDefaultMode);
     FSEventStreamStart(watcherStream);
-    this->threadLoop = threadLoop;
+}
 
-    notifyStarted();
-
-    CFRunLoopRun();
-
+void EventStream::unschedule() {
     // Reading the Apple docs it seems we should call FSEventStreamFlushSync() here.
     // But doing so produces this log:
     //
@@ -67,6 +45,44 @@ void Server::runLoop(JNIEnv* env, function<void()> notifyStarted) {
     // FSEventStreamFlushSync(watcherStream);
     FSEventStreamStop(watcherStream);
     FSEventStreamInvalidate(watcherStream);
+}
+
+EventStream::~EventStream() {
+    FSEventStreamRelease(watcherStream);
+}
+
+//
+// Server
+//
+
+Server::Server(JNIEnv* env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis)
+    : eventStream(rootsToWatch, latencyInMillis)
+    , AbstractServer(env, watcherCallback) {
+    startThread();
+}
+
+Server::~Server() {
+    if (threadLoop != NULL) {
+        CFRunLoopStop(threadLoop);
+    }
+
+    if (watcherThread.joinable()) {
+        watcherThread.join();
+    }
+}
+
+void Server::runLoop(JNIEnv* env, function<void()> notifyStarted) {
+    log_fine(env, "Starting thread", NULL);
+
+    CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
+    eventStream.schedule(this, threadLoop);
+    this->threadLoop = threadLoop;
+
+    notifyStarted();
+
+    CFRunLoopRun();
+
+    eventStream.unschedule();
 
     log_fine(env, "Stopping thread", NULL);
 }
@@ -78,8 +94,8 @@ static void handleEventsCallback(
     void* eventPaths,
     const FSEventStreamEventFlags eventFlags[],
     const FSEventStreamEventId eventIds[]) {
-    Server* server = (Server*) clientCallBackInfo;
-    server->handleEvents(numEvents, (char**) eventPaths, eventFlags, eventIds);
+    EventStream* eventStream = (EventStream*) clientCallBackInfo;
+    eventStream->server->handleEvents(numEvents, (char**) eventPaths, eventFlags, eventIds);
 }
 
 void Server::handleEvents(
