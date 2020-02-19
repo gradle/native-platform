@@ -48,7 +48,7 @@ void AbstractServer::run() {
     detach_jni(jvm);
 }
 
-static JNIEnv* lookupThreadEnv(JavaVM* jvm) {
+JNIEnv* AbstractServer::getThreadEnv() {
     JNIEnv* env;
     // TODO Verify that JNI 1.6 is the right version
     jint ret = jvm->GetEnv((void**) &(env), JNI_VERSION_1_6);
@@ -57,10 +57,6 @@ static JNIEnv* lookupThreadEnv(JavaVM* jvm) {
         throw FileWatcherException("Failed to get JNI env for current thread");
     }
     return env;
-}
-
-JNIEnv* AbstractServer::getThreadEnv() {
-    return lookupThreadEnv(jvm);
 }
 
 void AbstractServer::reportChange(JNIEnv* env, int type, jstring path) {
