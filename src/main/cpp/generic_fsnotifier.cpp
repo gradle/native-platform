@@ -21,11 +21,9 @@ AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback) {
 }
 
 AbstractServer::~AbstractServer() {
-    if (watcherCallback != NULL) {
-        JNIEnv* env = getThreadEnv();
-        if (env != NULL) {
-            env->DeleteGlobalRef(watcherCallback);
-        }
+    JNIEnv* env = getThreadEnv();
+    if (env != NULL) {
+        env->DeleteGlobalRef(watcherCallback);
     }
 }
 
@@ -33,7 +31,6 @@ void AbstractServer::startThread() {
     unique_lock<mutex> lock(watcherThreadMutex);
     this->watcherThread = thread(&AbstractServer::run, this);
     this->watcherThreadStarted.wait(lock);
-    lock.unlock();
 }
 
 void AbstractServer::run() {
@@ -42,7 +39,6 @@ void AbstractServer::run() {
     runLoop(env, [this] {
         unique_lock<mutex> lock(watcherThreadMutex);
         watcherThreadStarted.notify_all();
-        lock.unlock();
     });
 
     detach_jni(jvm);
@@ -50,7 +46,6 @@ void AbstractServer::run() {
 
 JNIEnv* AbstractServer::getThreadEnv() {
     JNIEnv* env;
-    // TODO Verify that JNI 1.6 is the right version
     jint ret = jvm->GetEnv((void**) &(env), JNI_VERSION_1_6);
     if (ret != JNI_OK) {
         fprintf(stderr, "Failed to get JNI env for current thread: %d\n", ret);

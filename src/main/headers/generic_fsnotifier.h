@@ -22,7 +22,7 @@ private:
 class AbstractServer {
 public:
     AbstractServer(JNIEnv* env, jobject watcherCallback);
-    ~AbstractServer();
+    virtual ~AbstractServer();
 
     JNIEnv* getThreadEnv();
 
