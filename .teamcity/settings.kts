@@ -30,10 +30,9 @@ project {
     val buildReceiptSource = NativePlatformBuild(Agent.Linux) {
         artifactRules = buildReceipt
     }
-    val builds = listOf(buildReceiptSource, NativePlatformBuild(Agent.Windows), NativePlatformBuild(Agent.MacOs), NativePlatformBuild(Agent.FreeBsd), NativePlatformBuild(Agent.LinuxAarch64))
+    val builds = listOf(buildReceiptSource) +
+        Agent.values().filter { it != Agent.Linux }.map { NativePlatformBuild(it) }
     builds.forEach(::buildType)
-    buildType(NativePlatformBuild(Agent.LinuxNcurses6))
-    buildType(NativePlatformBuild(Agent.LinuxAarch64Ncurses5))
     buildType(BuildTrigger(builds))
 
     subProject(Publishing(builds, buildReceiptSource))
