@@ -50,9 +50,9 @@ private:
     friend static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped);
 };
 
-class Server {
+class Server : public AbstractServer {
 public:
-    Server(JavaVM* jvm, JNIEnv* env, jobject watcherCallback);
+    Server(JNIEnv* env, jobject watcherCallback);
     ~Server();
 
     void startWatching(JNIEnv* env, wchar_t* path);
@@ -61,24 +61,16 @@ public:
 
     void close(JNIEnv* env);
 
-    // TODO: Move this to somewhere else
-    JNIEnv* getThreadEnv();
+protected:
+    void Server::runLoop(JNIEnv* env, function<void()> notifyStarted) override;
 
 private:
-    JavaVM* jvm;
     list<WatchPoint*> watchPoints;
-    jobject watcherCallback;
 
-    thread watcherThread;
-    mutex watcherThreadMutex;
-    condition_variable watcherThreadStarted;
     bool terminate = false;
 
     friend static void CALLBACK requestTerminationCallback(_In_ ULONG_PTR arg);
     void requestTermination();
-
-    friend static unsigned CALLBACK EventProcessingThread(void* data);
-    void run();
 };
 
 #endif

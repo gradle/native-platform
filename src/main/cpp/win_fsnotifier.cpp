@@ -138,15 +138,9 @@ void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION* info) {
 // Server
 //
 
-Server::Server(JavaVM* jvm, JNIEnv* env, jobject watcherCallback) {
-    this->jvm = jvm;
-    this->watcherCallback = env->NewGlobalRef(watcherCallback);
-
-    unique_lock<mutex> lock(watcherThreadMutex);
-    this->watcherThread = thread(&Server::run, this);
-    this->watcherThreadStarted.wait(lock);
-    lock.unlock();
-
+Server::Server(JNIEnv* env, jobject watcherCallback)
+    : AbstractServer(env, watcherCallback) {
+    startThread();
     // TODO Error handling
     SetThreadPriority(this->watcherThread.native_handle(), THREAD_PRIORITY_ABOVE_NORMAL);
 }
@@ -154,26 +148,16 @@ Server::Server(JavaVM* jvm, JNIEnv* env, jobject watcherCallback) {
 Server::~Server() {
 }
 
-void Server::run() {
-    JNIEnv* env = attach_jni(jvm, "File watcher server", true);
-    if (env == nullptr) {
-        fwprintf(stderr, L"!!! Couldn't attach JNI, stopping");
-        return;
-    }
-
+void Server::runLoop(JNIEnv* env, function<void()> notifyStarted) {
     log_info(env, L"Server thread %d with handle %p running", GetCurrentThreadId(), watcherThread.native_handle());
 
-    unique_lock<mutex> lock(watcherThreadMutex);
-    watcherThreadStarted.notify_all();
-    lock.unlock();
+    notifyStarted();
 
     while (!terminate || watchPoints.size() > 0) {
         SleepEx(INFINITE, true);
     }
 
     log_info(env, L"Server thread %d finishing", GetCurrentThreadId());
-
-    detach_jni(jvm);
 }
 
 void Server::startWatching(JNIEnv* env, wchar_t* path) {
@@ -214,27 +198,10 @@ void Server::reportFinished(WatchPoint* watchPoint) {
     delete watchPoint;
 }
 
-static JNIEnv* lookupThreadEnv(JavaVM* jvm) {
-    JNIEnv* env;
-    // TODO Verify that JNI 1.6 is the right version
-    jint ret = jvm->GetEnv((void**) &(env), JNI_VERSION_1_6);
-    if (ret != JNI_OK) {
-        fwprintf(stderr, L"Failed to get JNI env for current thread %d: %d\n", GetCurrentThreadId(), ret);
-        return NULL;
-    }
-    return env;
-}
-
-JNIEnv* Server::getThreadEnv() {
-    return lookupThreadEnv(jvm);
-}
-
 void Server::reportEvent(jint type, const wstring changedPath) {
     JNIEnv* env = getThreadEnv();
     jstring changedPathJava = wchar_to_java_path(env, changedPath.c_str());
-    jclass callback_class = env->GetObjectClass(watcherCallback);
-    jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(ILjava/lang/String;)V");
-    env->CallVoidMethod(watcherCallback, methodCallback, type, changedPathJava);
+    reportChange(env, type, changedPathJava);
     env->DeleteLocalRef(changedPathJava);
 }
 
@@ -261,7 +228,6 @@ void Server::close(JNIEnv* env) {
     } else {
         watcherThread.join();
     }
-    env->DeleteGlobalRef(this->watcherCallback);
 }
 
 //
@@ -270,21 +236,9 @@ void Server::close(JNIEnv* env) {
 
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatching(JNIEnv* env, jclass target, jobjectArray paths, jobject javaCallback, jobject result) {
-    JavaVM* jvm;
-    int jvmStatus = env->GetJavaVM(&jvm);
-    if (jvmStatus != JNI_OK) {
-        mark_failed_with_errno(env, "Could not store JVM instance.", result);
-        return NULL;
-    }
+    Server* server = new Server(env, javaCallback);
 
     int watchPointCount = env->GetArrayLength(paths);
-    if (watchPointCount == 0) {
-        mark_failed_with_errno(env, "No paths given to watch.", result);
-        return NULL;
-    }
-
-    Server* server = new Server(jvm, env, javaCallback);
-
     for (int i = 0; i < watchPointCount; i++) {
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
         wchar_t* watchPoint = java_to_wchar_path(env, path);
