@@ -42,7 +42,6 @@ int WatchPoint::awaitListeningStarted(HANDLE threadHandle) {
     unique_lock<mutex> lock(listenerMutex);
     QueueUserAPC(startWatchCallback, threadHandle, (ULONG_PTR) this);
     listenerStarted.wait(lock);
-    lock.unlock();
     return status;
 }
 
@@ -67,7 +66,6 @@ void WatchPoint::listen() {
         // TODO Error handling
     }
     listenerStarted.notify_all();
-    lock.unlock();
 }
 
 static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped) {
