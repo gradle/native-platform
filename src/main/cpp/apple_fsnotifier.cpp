@@ -58,6 +58,7 @@ EventStream::~EventStream() {
 Server::Server(JNIEnv* env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis)
     : eventStream(rootsToWatch, latencyInMillis)
     , AbstractServer(env, watcherCallback) {
+    // TODO Would be nice to inline this in AbstractServer(), but doing so results in pure virtual call
     startThread();
 }
 
