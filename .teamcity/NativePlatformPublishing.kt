@@ -40,10 +40,15 @@ class Publishing(buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
     }
 })
 
+private const val versionPostfixParameterName = "versionPostfix"
+
 open class NativePlatformPublishSnapshot(releaseType: ReleaseType, uploadTasks: List<String>, buildAndTest: List<BuildType>, buildReceiptSource: BuildType, init: BuildType.() -> Unit) : BuildType({
     params {
         param("ARTIFACTORY_USERNAME", releaseType.username)
         password("ARTIFACTORY_PASSWORD", releaseType.password, display = ParameterDisplay.HIDDEN)
+        if (releaseType.userProvidedVersion) {
+            text("reverse.dep.*.$versionPostfixParameterName", "${releaseType.gradleProperty}-1", display = ParameterDisplay.PROMPT, allowEmpty = false)
+        }
     }
 
     vcs {
@@ -55,7 +60,7 @@ open class NativePlatformPublishSnapshot(releaseType: ReleaseType, uploadTasks: 
         uploadTasks.forEach { task ->
             gradle {
                 name = "Gradle $task"
-                tasks = "clean $task $buildScanInit -P${releaseType.gradleProperty}  -PonlyPrimaryVariants -PbintrayUserName=%ARTIFACTORY_USERNAME% -PbintrayApiKey=%ARTIFACTORY_PASSWORD%"
+                tasks = "clean $task $buildScanInit -P${releaseType.gradleProperty}${if (releaseType.userProvidedVersion) "=%versionPostfix%" else ""} -PonlyPrimaryVariants -PbintrayUserName=%ARTIFACTORY_USERNAME% -PbintrayApiKey=%ARTIFACTORY_PASSWORD%"
                 buildFile = ""
             }
         }

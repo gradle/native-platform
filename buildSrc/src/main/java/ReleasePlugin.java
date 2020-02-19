@@ -39,11 +39,15 @@ public class ReleasePlugin implements Plugin<Project> {
     private static final String UPLOAD_MAIN_TASK_NAME = "uploadMain";
     private static final String UPLOAD_JNI_TASK_NAME = "uploadJni";
     private static final String UPLOAD_NCURSES_JNI_TASK_NAME = "uploadNcursesJni";
+    private static final String ALPHA_VERSION_PROPERTY_NAME = "alpha";
 
     @Override
     public void apply(Project project) {
         VersionDetails.BuildType buildType = determineBuildType(project);
         VersionDetails versions = project.getExtensions().create("versions", VersionDetails.class, buildType);
+        if (project.hasProperty(ALPHA_VERSION_PROPERTY_NAME)) {
+            versions.setNextAlphaPostfix(project.property(ALPHA_VERSION_PROPERTY_NAME).toString());
+        }
 
         if (buildType != VersionDetails.BuildType.Dev && JavaVersion.current() != JavaVersion.VERSION_1_8) {
             throw new RuntimeException("Java 8 is required to build a release of native-platform. Later versions are not supported.");
@@ -70,7 +74,7 @@ public class ReleasePlugin implements Plugin<Project> {
 
             if (versions.isUseRepo()) {
                 credentials.assertPresent();
-                String repositoryUrl = buildType == VersionDetails.BuildType.Snapshot
+                String repositoryUrl = buildType.getReleaseRepository() == VersionDetails.ReleaseRepository.Snapshots
                         ? SNAPSHOT_REPOSITORY_URL
                         : RELEASES_REPOSITORY_URL;
                 subproject.getRepositories().maven(repo -> {
@@ -101,7 +105,7 @@ public class ReleasePlugin implements Plugin<Project> {
         project.getExtensions().configure(
                 PublishingExtension.class,
                 extension -> extension.getPublications().withType(MavenPublication.class, publication -> {
-                    String uploadTaskName = buildType == VersionDetails.BuildType.Snapshot
+                    String uploadTaskName = buildType.getReleaseRepository() == VersionDetails.ReleaseRepository.Snapshots
                             ? PublishSnapshotPlugin.uploadTaskName(publication)
                             : UploadPlugin.uploadTaskName(publication);
                     TaskProvider<Task> uploadTask = project.getTasks().named(uploadTaskName);
@@ -144,9 +148,10 @@ public class ReleasePlugin implements Plugin<Project> {
     }
 
     private VersionDetails.BuildType determineBuildType(Project project) {
-        boolean snapshot = project.hasProperty("snapshot");
         boolean release = project.hasProperty("release");
         boolean milestone = project.hasProperty("milestone");
+        boolean alpha = project.hasProperty(ALPHA_VERSION_PROPERTY_NAME);
+        boolean snapshot = project.hasProperty("snapshot");
 
         Set<VersionDetails.BuildType> enabledBuildTypes = EnumSet.noneOf(VersionDetails.BuildType.class);
         if (release) {
@@ -154,6 +159,9 @@ public class ReleasePlugin implements Plugin<Project> {
         }
         if (milestone) {
             enabledBuildTypes.add(VersionDetails.BuildType.Milestone);
+        }
+        if (alpha) {
+            enabledBuildTypes.add(VersionDetails.BuildType.Alpha);
         }
         if (snapshot) {
             enabledBuildTypes.add(VersionDetails.BuildType.Snapshot);
@@ -195,6 +203,11 @@ public class ReleasePlugin implements Plugin<Project> {
                         throw new UnsupportedOperationException("Next milestone not specified.");
                     }
                     version = nextVersion + "-milestone-" + release.getNextSnapshot();
+                } else if (buildType == VersionDetails.BuildType.Alpha) {
+                    if (release.getNextAlphaPostfix() == null || release.getNextAlphaPostfix().isEmpty()) {
+                        throw new UnsupportedOperationException("Next alpha version postfix not specified.");
+                    }
+                    version = nextVersion + "-" + release.getNextAlphaPostfix();
                 } else if (buildType == VersionDetails.BuildType.Snapshot) {
                     version = nextVersion + "-snapshot-" + buildTimestamp;
                 } else {
