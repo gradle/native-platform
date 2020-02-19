@@ -28,19 +28,27 @@ class Publishing(buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
     val agentsForAllJniPublications = listOf(Agent.Linux, Agent.MacOs, Agent.Windows, Agent.LinuxAarch64, Agent.FreeBsd)
     val agentsForNcursesOnlyPublications = listOf(Agent.LinuxAarch64Ncurses5, Agent.LinuxNcurses6)
 
-    buildTypesOrder = ReleaseType.values().flatMap { releaseType ->
-        val nativeLibraryAllJniBuilds = agentsForAllJniPublications.map { agent ->
-            NativeLibraryPublish(releaseType, agent, buildAndTest, buildReceiptSource).also(::buildType)
-        }
-        val nativeLibraryNcursesJniBuilds = agentsForNcursesOnlyPublications.map { agent ->
-            NativeLibraryPublishNcurses(releaseType, agent, buildAndTest, buildReceiptSource).also(::buildType)
-        }
-        val publishApi = PublishJavaApi(releaseType, nativeLibraryAllJniBuilds + nativeLibraryNcursesJniBuilds, buildAndTest, buildReceiptSource).also(::buildType)
-        listOf(publishApi) + nativeLibraryAllJniBuilds + nativeLibraryNcursesJniBuilds
+    ReleaseType.values().forEach { releaseType ->
+        val publishProject = NativePlatformPublishProject(releaseType, agentsForAllJniPublications, agentsForNcursesOnlyPublications, buildAndTest, buildReceiptSource)
+        buildType(publishProject.publishApi)
+        subProject(publishProject)
     }
 })
 
 private const val versionPostfixParameterName = "versionPostfix"
+
+class NativePlatformPublishProject(releaseType: ReleaseType, agentsForAllJniPublications: List<Agent>, agentsForNcursesOnlyPublications: List<Agent>, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) : Project({
+    id = RelativeId("Publish${releaseType.name}")
+    name = "Publish ${releaseType.name}"
+}) {
+    val nativeLibraryAllJniBuilds = agentsForAllJniPublications.map { agent ->
+        NativeLibraryPublish(releaseType, agent, buildAndTest, buildReceiptSource).also(::buildType)
+    }
+    val nativeLibraryNcursesJniBuilds = agentsForNcursesOnlyPublications.map { agent ->
+        NativeLibraryPublishNcurses(releaseType, agent, buildAndTest, buildReceiptSource).also(::buildType)
+    }
+    val publishApi = PublishJavaApi(releaseType, nativeLibraryAllJniBuilds + nativeLibraryNcursesJniBuilds, buildAndTest, buildReceiptSource)
+}
 
 open class NativePlatformPublishSnapshot(releaseType: ReleaseType, uploadTasks: List<String>, buildAndTest: List<BuildType>, buildReceiptSource: BuildType, init: BuildType.() -> Unit) : BuildType({
     params {
