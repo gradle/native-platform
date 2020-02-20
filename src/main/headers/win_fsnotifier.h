@@ -30,7 +30,7 @@ class WatchPoint;
 
 class WatchPoint {
 public:
-    WatchPoint(Server* server, wstring path, HANDLE directoryHandle);
+    WatchPoint(Server* server, const wstring& path, HANDLE directoryHandle);
     ~WatchPoint();
     void close();
     void listen();
@@ -57,8 +57,8 @@ public:
     Server(JNIEnv* env, jobject watcherCallback);
     ~Server();
 
-    void startWatching(JNIEnv* env, wchar_t* path);
-    void reportEvent(jint type, const wstring changedPath);
+    void startWatching(JNIEnv* env, const wstring& path);
+    void reportEvent(jint type, const wstring& changedPath);
     void reportFinished(WatchPoint* watchPoint);
 
     void close(JNIEnv* env);

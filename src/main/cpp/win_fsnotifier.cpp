@@ -8,7 +8,7 @@ using namespace std;
 // WatchPoint
 //
 
-WatchPoint::WatchPoint(Server* server, wstring path, HANDLE directoryHandle) {
+WatchPoint::WatchPoint(Server* server, const wstring& path, HANDLE directoryHandle) {
     this->server = server;
     this->path = path;
     this->buffer = (FILE_NOTIFY_INFORMATION*) malloc(EVENT_BUFFER_SIZE);
@@ -158,9 +158,9 @@ void Server::runLoop(JNIEnv* env, function<void()> notifyStarted) {
     log_info(env, L"Server thread %d finishing", GetCurrentThreadId());
 }
 
-void Server::startWatching(JNIEnv* env, wchar_t* path) {
+void Server::startWatching(JNIEnv* env, const wstring& path) {
     HANDLE directoryHandle = CreateFileW(
-        path,                   // pointer to the file name
+        path.c_str(),           // pointer to the file name
         FILE_LIST_DIRECTORY,    // access (read/write) mode
         CREATE_SHARE,           // share mode
         NULL,                   // security descriptor
@@ -170,7 +170,7 @@ void Server::startWatching(JNIEnv* env, wchar_t* path) {
     );
 
     if (directoryHandle == INVALID_HANDLE_VALUE) {
-        log_severe(env, L"Couldn't get file handle for '%ls': %d", path, GetLastError());
+        log_severe(env, L"Couldn't get file handle for '%ls': %d", path.c_str(), GetLastError());
         // TODO Error handling
         return;
     }
@@ -196,15 +196,16 @@ void Server::reportFinished(WatchPoint* watchPoint) {
     delete watchPoint;
 }
 
-void Server::reportEvent(jint type, const wstring changedPath) {
+void Server::reportEvent(jint type, const wstring& changedPath) {
     JNIEnv* env = getThreadEnv();
-    int start;
-    if (changedPath.length() >= 4 && changedPath.substr(0, 4) == L"\\\\?\\") {
-        start = 4;
-    } else {
-        start = 0;
+    u16string u16path(changedPath.begin(), changedPath.end());
+    if (u16path.length() >= 4 && u16path.substr(0, 4) == u"\\\\?\\") {
+        if (u16path.length() >= 8 && u16path.substr(0, 8) == u"\\\\?\\UNC\\") {
+            u16path.erase(0, 8).insert(0, u"\\\\");
+        } else {
+            u16path.erase(0, 4);
+        }
     }
-    u16string u16path(changedPath.begin() + start, changedPath.end());
     reportChange(env, type, u16path);
 }
 
@@ -233,6 +234,43 @@ void Server::close(JNIEnv* env) {
     }
 }
 
+bool isAbsoluteLocalPath(const u16string& path) {
+    if (path.length() < 3) {
+        return false;
+    }
+    return ((u'a' <= path[0] && path[0] <= u'z') || (u'A' <= path[0] && path[0] <= u'Z'))
+        && path[1] == u':'
+        && path[2] == u'\\';
+}
+
+bool isAbsoluteUncPath(const u16string& path) {
+    if (path.length() < 3) {
+        return false;
+    }
+    return path[0] == u'\\' && path[1] == u'\\';
+}
+
+void convertToLongPathIfNeeded(u16string& path) {
+    // Technically, this should be MAX_PATH (i.e. 260), except some Win32 API related
+    // to working with directory paths are actually limited to 240. It is just
+    // safer/simpler to cover both cases in one code path.
+    if (path.length() <= 240) {
+        return;
+    }
+
+    if (isAbsoluteLocalPath(path)) {
+        // Format: C:\... -> \\?\C:\...
+        path.insert(0, u"\\\\?\\");
+    } else if (isAbsoluteUncPath(path)) {
+        // In this case, we need to skip the first 2 characters:
+        // Format: \\server\share\... -> \\?\UNC\server\share\...
+        path.erase(0, 2);
+        path.insert(0, u"\\\\?\\UNC\\");
+    } else {
+        // It is some sort of unknown format, don't mess with it
+    }
+}
+
 //
 // JNI calls
 //
@@ -243,11 +281,17 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
 
     int watchPointCount = env->GetArrayLength(paths);
     for (int i = 0; i < watchPointCount; i++) {
-        jstring path = (jstring) env->GetObjectArrayElement(paths, i);
-        wchar_t* watchPoint = java_to_wchar_path(env, path);
-        int watchPointLen = wcslen(watchPoint);
-        server->startWatching(env, watchPoint);
-        free(watchPoint);
+        jstring javaPath = (jstring) env->GetObjectArrayElement(paths, i);
+        jsize javaPathLength = env->GetStringLength(javaPath);
+        const jchar* javaPathChars = env->GetStringCritical(javaPath, nullptr);
+        if (javaPathChars == NULL) {
+            throw FileWatcherException("Could not get Java string character");
+        }
+        u16string pathStr((char16_t*) javaPathChars, javaPathLength);
+        env->ReleaseStringCritical(javaPath, javaPathChars);
+        convertToLongPathIfNeeded(pathStr);
+        wstring pathStrW(pathStr.begin(), pathStr.end());
+        server->startWatching(env, pathStrW);
     }
 
     jclass clsWatch = env->FindClass("net/rubygrapefruit/platform/internal/jni/WindowsFileEventFunctions$WatcherImpl");
