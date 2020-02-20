@@ -30,6 +30,8 @@ public class AbstractFileEventFunctions implements NativeIntegration {
         return watcher;
     }
 
+    public static native String getVersion();
+
     /**
      * Canonicalizes the given paths using {@link File#getCanonicalPath()}.
      * Throws {@link NativeException} if any of the given paths is not absolute,

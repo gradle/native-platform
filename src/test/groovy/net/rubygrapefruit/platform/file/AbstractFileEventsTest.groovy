@@ -16,8 +16,8 @@
 package net.rubygrapefruit.platform.file
 
 import groovy.transform.EqualsAndHashCode
-import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.internal.Platform
+import net.rubygrapefruit.platform.internal.jni.AbstractFileEventFunctions
 import net.rubygrapefruit.platform.testfixture.JulLogging
 import org.junit.Assume
 import org.junit.Rule
@@ -43,7 +43,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
     @Rule TemporaryFolder tmpDir
     @Rule TestName testName
-    @Rule JulLogging logging = new JulLogging(Native, FINE)
+    @Rule JulLogging logging = new JulLogging(AbstractFileEventFunctions, FINE)
 
     def callback = new TestCallback()
     File rootDir
