@@ -1,8 +1,24 @@
 #if defined(__APPLE__)
 
 #include "apple_fsnotifier.h"
+#include <codecvt>
+#include <locale>
+#include <string>
 
 using namespace std;
+
+// Utility wrapper to adapt locale-bound facets for wstring convert
+// See https://en.cppreference.com/w/cpp/locale/codecvt
+// TODO Understand what this does
+template <class Facet>
+struct deletable_facet : Facet {
+    template <class... Args>
+    deletable_facet(Args&&... args)
+        : Facet(std::forward<Args>(args)...) {
+    }
+    ~deletable_facet() {
+    }
+};
 
 EventStream::EventStream(CFArrayRef rootsToWatch, long latencyInMillis) {
     FSEventStreamContext context = {
@@ -147,10 +163,10 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
     }
 
     log_fine(env, "Changed: %s %d", path, type);
-
-    jstring javaPath = env->NewStringUTF(path);
-    reportChange(env, type, javaPath);
-    env->DeleteLocalRef(javaPath);
+    // TODO Can we extract this to some static state? It should only be used from the server thread
+    wstring_convert<deletable_facet<codecvt<char16_t, char, mbstate_t>>, char16_t> conv16;
+    u16string pathStr = conv16.from_bytes(path);
+    reportChange(env, type, pathStr);
 }
 
 Server* startWatching(JNIEnv* env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback) {
@@ -162,14 +178,14 @@ Server* startWatching(JNIEnv* env, jclass target, jobjectArray paths, long laten
 
     try {
         for (int i = 0; i < count; i++) {
-            jstring path = (jstring) env->GetObjectArrayElement(paths, i);
-            char* watchedPath = java_to_char(env, path, NULL);
-            if (watchedPath == NULL) {
-                throw FileWatcherException("Could not allocate string to store root to watch");
+            jstring javaPath = (jstring) env->GetObjectArrayElement(paths, i);
+            jsize javaPathLength = env->GetStringLength(javaPath);
+            const jchar* javaPathChars = env->GetStringCritical(javaPath, nullptr);
+            if (javaPathChars == NULL) {
+                throw FileWatcherException("Could not get Java string character");
             }
-            log_fine(env, "Watching %s", watchedPath);
-            CFStringRef stringPath = CFStringCreateWithCString(NULL, watchedPath, kCFStringEncodingUTF8);
-            free(watchedPath);
+            CFStringRef stringPath = CFStringCreateWithCharacters(NULL, javaPathChars, javaPathLength);
+            env->ReleaseStringCritical(javaPath, javaPathChars);
             if (stringPath == NULL) {
                 throw FileWatcherException("Could not create CFStringRef");
             }

@@ -475,14 +475,15 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
 
         where:
-        type         | path                     | supported
-        "ASCII-only" | "directory"              | true
-        "Chinese"    | "输入文件"                   | true
-        "Hungarian"  | "Dezső"                  | true
-        "space"      | "test directory"         | true
-        "zwnj"       | "test\u200cdirectory"    | true
-        "newline"    | "test\ndirectory"        | Platform.current().macOs
-        "URL-quoted" | "test%<directory>#2.txt" | !Platform.current().windows
+        type             | path                     | supported
+        "ASCII-only"     | "directory"              | true
+        "Chinese"        | "输入文件"                   | true
+        "four-byte UTF8" | "𠜎𠜱𠝹𠱓"               | true
+        "Hungarian"      | "Dezső"                  | true
+        "space"          | "test directory"         | true
+        "zwnj"           | "test\u200cdirectory"    | true
+        "newline"        | "test\ndirectory"        | Platform.current().macOs
+        "URL-quoted"     | "test%<directory>#2.txt" | !Platform.current().windows
     }
 
     @Unroll
@@ -560,7 +561,13 @@ abstract class AbstractFileEventsTest extends Specification {
 
         @Override
         void pathChanged(Type type, String path) {
-            handleEvent(new FileEvent(type, new File(path).canonicalFile, true))
+            def canonicalFile
+            try {
+                canonicalFile = new File(path).canonicalFile
+            } catch (IOException e) {
+                throw new RuntimeException("Couldn't canonicalize path: '$path'", e)
+            }
+            handleEvent(new FileEvent(type, canonicalFile, true))
         }
 
         private void handleEvent(FileEvent event) {

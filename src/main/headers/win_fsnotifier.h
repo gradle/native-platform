@@ -30,7 +30,7 @@ class WatchPoint;
 
 class WatchPoint {
 public:
-    WatchPoint(Server* server, wstring path, HANDLE directoryHandle);
+    WatchPoint(Server* server, const u16string& path, HANDLE directoryHandle);
     ~WatchPoint();
     void close();
     void listen();
@@ -38,7 +38,7 @@ public:
 
 private:
     Server* server;
-    wstring path;
+    u16string path;
     HANDLE directoryHandle;
     OVERLAPPED overlapped;
     FILE_NOTIFY_INFORMATION* buffer;
@@ -57,8 +57,8 @@ public:
     Server(JNIEnv* env, jobject watcherCallback);
     ~Server();
 
-    void startWatching(JNIEnv* env, wchar_t* path);
-    void reportEvent(jint type, const wstring changedPath);
+    void startWatching(JNIEnv* env, const u16string& path);
+    void reportEvent(jint type, const u16string& changedPath);
     void reportFinished(WatchPoint* watchPoint);
 
     void close(JNIEnv* env);

@@ -54,8 +54,10 @@ JNIEnv* AbstractServer::getThreadEnv() {
     return env;
 }
 
-void AbstractServer::reportChange(JNIEnv* env, int type, jstring path) {
-    env->CallVoidMethod(watcherCallback, watcherCallbackMethod, type, path);
+void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) {
+    jstring javaPath = env->NewString((jchar*) path.c_str(), path.length());
+    env->CallVoidMethod(watcherCallback, watcherCallbackMethod, type, javaPath);
+    env->DeleteLocalRef(javaPath);
 }
 
 #endif
