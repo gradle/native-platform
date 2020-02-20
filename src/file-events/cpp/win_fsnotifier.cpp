@@ -25,11 +25,11 @@ WatchPoint::~WatchPoint() {
 void WatchPoint::close() {
     BOOL ret = CancelIo(directoryHandle);
     if (!ret) {
-        log_severe(server->getThreadEnv(), L"Couldn't cancel I/O %p for '%ls': %d", directoryHandle, path.c_str(), GetLastError());
+        log_severe(server->getThreadEnv(), "Couldn't cancel I/O %p for '%ls': %d", directoryHandle, path.c_str(), GetLastError());
     }
     ret = CloseHandle(directoryHandle);
     if (!ret) {
-        log_severe(server->getThreadEnv(), L"Couldn't close handle %p for '%ls': %d", directoryHandle, path.c_str(), GetLastError());
+        log_severe(server->getThreadEnv(), "Couldn't close handle %p for '%ls': %d", directoryHandle, path.c_str(), GetLastError());
     }
 }
 
@@ -62,7 +62,7 @@ void WatchPoint::listen() {
         status = WATCH_LISTENING;
     } else {
         status = WATCH_FAILED_TO_LISTEN;
-        log_warning(server->getThreadEnv(), L"Couldn't start watching %p for '%ls', error = %d", directoryHandle, path.c_str(), GetLastError());
+        log_warning(server->getThreadEnv(), "Couldn't start watching %p for '%ls', error = %d", directoryHandle, path.c_str(), GetLastError());
         // TODO Error handling
     }
     listenerStarted.notify_all();
@@ -77,7 +77,7 @@ void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransferred) {
     status = WATCH_NOT_LISTENING;
 
     if (errorCode == ERROR_OPERATION_ABORTED) {
-        log_info(server->getThreadEnv(), L"Finished watching '%ls'", path.c_str());
+        log_info(server->getThreadEnv(), "Finished watching '%ls'", path.c_str());
         status = WATCH_FINISHED;
         server->reportFinished(this);
         return;
@@ -125,7 +125,7 @@ void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION* info) {
         }
     }
 
-    log_fine(server->getThreadEnv(), L"Change detected: 0x%x '%ls'", info->Action, changedPathW.c_str());
+    log_fine(server->getThreadEnv(), "Change detected: 0x%x '%ls'", info->Action, changedPathW.c_str());
 
     jint type;
     if (info->Action == FILE_ACTION_ADDED || info->Action == FILE_ACTION_RENAMED_NEW_NAME) {
@@ -135,7 +135,7 @@ void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION* info) {
     } else if (info->Action == FILE_ACTION_MODIFIED) {
         type = FILE_EVENT_MODIFIED;
     } else {
-        log_warning(server->getThreadEnv(), L"Unknown event 0x%x for %ls", info->Action, changedPathW.c_str());
+        log_warning(server->getThreadEnv(), "Unknown event 0x%x for %ls", info->Action, changedPathW.c_str());
         type = FILE_EVENT_UNKNOWN;
     }
 
@@ -157,7 +157,7 @@ Server::~Server() {
 }
 
 void Server::runLoop(JNIEnv* env, function<void()> notifyStarted) {
-    log_info(env, L"Server thread %d with handle %p running", GetCurrentThreadId(), watcherThread.native_handle());
+    log_info(env, "Server thread %d with handle %p running", GetCurrentThreadId(), watcherThread.native_handle());
 
     notifyStarted();
 
@@ -165,7 +165,7 @@ void Server::runLoop(JNIEnv* env, function<void()> notifyStarted) {
         SleepEx(INFINITE, true);
     }
 
-    log_info(env, L"Server thread %d finishing", GetCurrentThreadId());
+    log_info(env, "Server thread %d finishing", GetCurrentThreadId());
 }
 
 void Server::startWatching(JNIEnv* env, const u16string& path) {
@@ -181,7 +181,7 @@ void Server::startWatching(JNIEnv* env, const u16string& path) {
     );
 
     if (directoryHandle == INVALID_HANDLE_VALUE) {
-        log_severe(env, L"Couldn't get file handle for '%ls': %d", pathW.c_str(), GetLastError());
+        log_severe(env, "Couldn't get file handle for '%ls': %d", pathW.c_str(), GetLastError());
         // TODO Error handling
         return;
     }
@@ -195,7 +195,7 @@ void Server::startWatching(JNIEnv* env, const u16string& path) {
             watchPoints.push_back(watchPoint);
             break;
         default:
-            log_severe(env, L"Couldn't start listening to '%ls': %d", pathW.c_str(), ret);
+            log_severe(env, "Couldn't start listening to '%ls': %d", pathW.c_str(), ret);
             delete watchPoint;
             // TODO Error handling
             break;
@@ -228,10 +228,10 @@ void Server::requestTermination() {
 
 void Server::close(JNIEnv* env) {
     HANDLE threadHandle = watcherThread.native_handle();
-    log_fine(env, L"Requesting termination of server thread %p", threadHandle);
+    log_fine(env, "Requesting termination of server thread %p", threadHandle);
     int ret = QueueUserAPC(requestTerminationCallback, threadHandle, (ULONG_PTR) this);
     if (ret == 0) {
-        log_severe(env, L"Couldn't send termination request to thread %p: %d", threadHandle, GetLastError());
+        log_severe(env, "Couldn't send termination request to thread %p: %d", threadHandle, GetLastError());
     } else {
         watcherThread.join();
     }

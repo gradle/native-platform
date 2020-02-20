@@ -20,7 +20,6 @@
 #include <jni.h>
 
 #include "native_platform_version.h"
-#include "net_rubygrapefruit_platform_internal_jni_NativeLogger.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -44,16 +43,6 @@ extern "C" {
 #define FAILURE_NOT_A_DIRECTORY 2
 #define FAILURE_PERMISSIONS 3
 
-// Corresponds to values of FileWatcherCallback.Type
-#define FILE_EVENT_CREATED 0
-#define FILE_EVENT_REMOVED 1
-#define FILE_EVENT_MODIFIED 2
-#define FILE_EVENT_INVALIDATE 3
-#define FILE_EVENT_UNKNOWN 4
-
-#define IS_SET(flags, flag) (((flags) & (flag)) == (flag))
-#define IS_ANY_SET(flags, mask) (((flags) & (mask)) != 0)
-
 /*
  * Marks the given result as failed, using the given error message
  */
@@ -73,16 +62,6 @@ extern void mark_failed_with_code(JNIEnv* env, const char* message, int error_co
  * Maps system error code to a failure constant above.
  */
 extern int map_error_code(int error_code);
-
-/**
- * Attaches JNI to the current thread.
- */
-extern JNIEnv* attach_jni(JavaVM* jvm, const char* name, bool daemon);
-
-/**
- * Detaches JNI from the current thread.
- */
-extern int detach_jni(JavaVM* jvm);
 
 /*
  * Converts the given Java string to a NULL terminated wchar_str. Should call free() when finished.
@@ -132,28 +111,6 @@ typedef struct file_stat {
     jlong lastModified;
     jlong size;
 } file_stat_t;
-
-#define LOG_FINEST 0
-#define LOG_FINER 1
-#define LOG_FINE 2
-#define LOG_CONFIG 3
-#define LOG_INFO 4
-#define LOG_WARNING 5
-#define LOG_SEVERE 6
-
-#define log_finest(env, message, ...) printlog(env, LOG_FINEST, message, __VA_ARGS__)
-#define log_finer(env, message, ...) printlog(env, LOG_FINER, message, __VA_ARGS__)
-#define log_fine(env, message, ...) printlog(env, LOG_FINE, message, __VA_ARGS__)
-#define log_config(env, message, ...) printlog(env, LOG_CONFIG, message, __VA_ARGS__)
-#define log_info(env, message, ...) printlog(env, LOG_INFO, message, __VA_ARGS__)
-#define log_warning(env, message, ...) printlog(env, LOG_WARNING, message, __VA_ARGS__)
-#define log_severe(env, message, ...) printlog(env, LOG_SEVERE, message, __VA_ARGS__)
-
-#ifdef _WIN32
-void printlog(JNIEnv* env, int level, const wchar_t* message, ...);
-#else
-void printlog(JNIEnv* env, int level, const char* message, ...);
-#endif
 
 #ifdef __cplusplus
 }

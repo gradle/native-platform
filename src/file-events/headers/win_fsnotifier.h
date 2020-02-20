@@ -2,12 +2,13 @@
 
 #ifdef _WIN32
 
-#include "generic.h"
 #include "generic_fsnotifier.h"
 #include "net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions.h"
-#include "win.h"
+#include <Shlwapi.h>
 #include <list>
 #include <string>
+#include <wchar.h>
+#include <windows.h>
 
 using namespace std;
 

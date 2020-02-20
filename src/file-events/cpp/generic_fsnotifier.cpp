@@ -2,6 +2,16 @@
 
 #include "generic_fsnotifier.h"
 
+/**
+ * Attaches JNI to the current thread.
+ */
+extern JNIEnv* attach_jni(JavaVM* jvm, const char* name, bool daemon);
+
+/**
+ * Detaches JNI from the current thread.
+ */
+extern int detach_jni(JavaVM* jvm);
+
 AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback) {
     JavaVM* jvm;
     int jvmStatus = env->GetJavaVM(&jvm);
@@ -58,6 +68,34 @@ void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) 
     jstring javaPath = env->NewString((jchar*) path.c_str(), path.length());
     env->CallVoidMethod(watcherCallback, watcherCallbackMethod, type, javaPath);
     env->DeleteLocalRef(javaPath);
+}
+
+JNIEnv* attach_jni(JavaVM* jvm, const char* name, bool daemon) {
+    JNIEnv* env;
+    // Work around const char* issue
+    char* nameCopy = strdup(name);
+    JavaVMAttachArgs args = {
+        JNI_VERSION_1_6,    // version
+        nameCopy,           // thread name
+        NULL                // thread group
+    };
+    free(nameCopy);
+    jint ret = daemon
+        ? jvm->AttachCurrentThreadAsDaemon((void**) &(env), (void*) &args)
+        : jvm->AttachCurrentThread((void**) &(env), (void*) &args);
+    if (ret != JNI_OK) {
+        fprintf(stderr, "Failed to attach JNI to current thread: %d\n", ret);
+        return NULL;
+    }
+    return env;
+}
+
+int detach_jni(JavaVM* jvm) {
+    jint ret = jvm->DetachCurrentThread();
+    if (ret != JNI_OK) {
+        fprintf(stderr, "Failed to detach JNI from current thread: %d\n", ret);
+    }
+    return ret;
 }
 
 #endif

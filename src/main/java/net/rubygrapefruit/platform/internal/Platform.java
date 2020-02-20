@@ -16,6 +16,7 @@
 
 package net.rubygrapefruit.platform.internal;
 
+import net.rubygrapefruit.platform.Native;
 import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.NativeIntegration;
 import net.rubygrapefruit.platform.NativeIntegrationUnavailableException;
@@ -27,6 +28,7 @@ import net.rubygrapefruit.platform.file.FileSystems;
 import net.rubygrapefruit.platform.file.Files;
 import net.rubygrapefruit.platform.file.PosixFiles;
 import net.rubygrapefruit.platform.file.WindowsFiles;
+import net.rubygrapefruit.platform.internal.jni.NativeLogger;
 import net.rubygrapefruit.platform.internal.jni.NativeVersion;
 import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions;
 import net.rubygrapefruit.platform.internal.jni.PosixTypeFunctions;
@@ -117,6 +119,11 @@ public abstract class Platform {
                 toString()));
     }
 
+    public String getFileEventsLibraryName() {
+        throw new NativeIntegrationUnavailableException(String.format("Native file events integration is not available for %s.",
+                toString()));
+    }
+
     public List<String> getLibraryVariants() {
         return Arrays.asList(getId());
     }
@@ -140,6 +147,11 @@ public abstract class Platform {
         @Override
         public String getLibraryName() {
             return "native-platform.dll";
+        }
+
+        @Override
+        public String getFileEventsLibraryName() {
+            return "native-platform-file-events.dll";
         }
 
         @Override
@@ -179,6 +191,8 @@ public abstract class Platform {
                 return type.cast(new DefaultWindowsRegistry());
             }
             if (type.equals(WindowsFileEventFunctions.class)) {
+                nativeLibraryLoader.load(getFileEventsLibraryName(), getLibraryVariants());
+                NativeLogger.initLogging(Native.class);
                 return type.cast(new WindowsFileEventFunctions());
             }
             return super.get(type, nativeLibraryLoader);
@@ -260,6 +274,11 @@ public abstract class Platform {
         String getCursesLibraryName() {
             return "libnative-platform-curses.so";
         }
+
+        @Override
+        public String getFileEventsLibraryName() {
+            return "libnative-platform-file-events.so";
+        }
     }
 
     private abstract static class Linux extends Unix {
@@ -338,6 +357,11 @@ public abstract class Platform {
         }
 
         @Override
+        public String getFileEventsLibraryName() {
+            return "libnative-platform-file-events.dylib";
+        }
+
+        @Override
         String getCursesLibraryName() {
             return "libnative-platform-curses.dylib";
         }
@@ -351,6 +375,15 @@ public abstract class Platform {
                 return type.cast(new DefaultMemory());
             }
             if (type.equals(OsxFileEventFunctions.class)) {
+                nativeLibraryLoader.load(getFileEventsLibraryName(), getLibraryVariants());
+                NativeLogger.initLogging(Native.class);
+                // TODO: Check version
+//                String nativeVersion = TerminfoFunctions.getVersion();
+//                if (!nativeVersion.equals(NativeVersion.VERSION)) {
+//                    throw new NativeException(String.format(
+//                        "Unexpected native library version loaded. Expected %s, was %s.", nativeVersion,
+//                        NativeVersion.VERSION));
+//                }
                 return type.cast(new OsxFileEventFunctions());
             }
             return super.get(type, nativeLibraryLoader);

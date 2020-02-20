@@ -50,7 +50,7 @@ boolean onlyLocalVariants = project.hasProperty("onlyLocalVariants")
 def generatedFilesDir = file("$buildDir/generated")
 
 def writeNativeVersionSources = tasks.register("writeNativeVersionSources", WriteNativeVersionSources) {
-    ["main", "shared", "curses"].each {
+    ["main", "shared", "curses", "file-events"].each {
         nativeSources.from("src/${it}/cpp")
         nativeSources.from("src/${it}/headers")
     }
@@ -210,7 +210,7 @@ model {
             sources {
                 cpp {
                     source.srcDirs = ['src/shared/cpp', 'src/main/cpp']
-                    exportedHeaders.srcDirs = ['src/shared/headers', 'src/main/headers']
+                    exportedHeaders.srcDirs = ['src/shared/headers']
                 }
             }
         }
@@ -240,6 +240,22 @@ model {
                     linker.args "-lncursesw"
                 } else {
                     linker.args "-lcurses"
+                }
+            }
+        }
+
+        nativePlatformFileEvents(NativeLibrarySpec) {
+            baseName 'native-platform-file-events'
+            $.platforms.each { p ->
+                if (p.operatingSystem.freeBSD) {
+                    return
+                }
+                targetPlatform p.name
+            }
+            sources {
+                cpp {
+                    source.srcDirs = ['src/file-events/cpp']
+                    exportedHeaders.srcDirs = ['src/file-events/headers']
                 }
             }
         }
@@ -317,6 +333,7 @@ afterEvaluate {
     // Realize the software model components, so we can create the corresponding publications.
     modelRegistry.realize('components.nativePlatform', NativeLibrarySpec)
     modelRegistry.realize('components.nativePlatformCurses', NativeLibrarySpec)
+    modelRegistry.realize('components.nativePlatformFileEvents', NativeLibrarySpec)
     modelRegistry.realize('components', ModelMap).each { ComponentSpec spec->
         spec.binaries.findAll { variantNames.contains(binaryToVariantName(it)) && it.buildable } each { NativeBinarySpec binary ->
             def variantName = binaryToVariantName(binary)
