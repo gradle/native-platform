@@ -111,6 +111,7 @@ void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransferred) {
 void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION* info) {
     wstring changedPathW = wstring(info->FileName, 0, info->FileNameLength / sizeof(wchar_t));
     u16string changedPath(changedPathW.begin(), changedPathW.end());
+    // TODO Do we ever get an empty path?
     if (!changedPath.empty()) {
         changedPath.insert(0, 1, u'\\');
         changedPath.insert(0, path);
