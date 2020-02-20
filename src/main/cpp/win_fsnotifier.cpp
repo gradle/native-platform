@@ -8,7 +8,7 @@ using namespace std;
 // WatchPoint
 //
 
-WatchPoint::WatchPoint(Server* server, const wstring& path, HANDLE directoryHandle) {
+WatchPoint::WatchPoint(Server* server, const u16string& path, HANDLE directoryHandle) {
     this->server = server;
     this->path = path;
     this->buffer = (FILE_NOTIFY_INFORMATION*) malloc(EVENT_BUFFER_SIZE);
@@ -109,13 +109,22 @@ void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransferred) {
 }
 
 void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION* info) {
-    wstring changedPath = wstring(info->FileName, 0, info->FileNameLength / sizeof(wchar_t));
+    wstring changedPathW = wstring(info->FileName, 0, info->FileNameLength / sizeof(wchar_t));
+    u16string changedPath(changedPathW.begin(), changedPathW.end());
     if (!changedPath.empty()) {
-        changedPath.insert(0, 1, L'\\');
+        changedPath.insert(0, 1, u'\\');
         changedPath.insert(0, path);
     }
+    // TODO Remove long prefix for path once?
+    if (changedPath.length() >= 4 && changedPath.substr(0, 4) == u"\\\\?\\") {
+        if (changedPath.length() >= 8 && changedPath.substr(0, 8) == u"\\\\?\\UNC\\") {
+            changedPath.erase(0, 8).insert(0, u"\\\\");
+        } else {
+            changedPath.erase(0, 4);
+        }
+    }
 
-    log_fine(server->getThreadEnv(), L"Change detected: 0x%x '%ls'", info->Action, changedPath.c_str());
+    log_fine(server->getThreadEnv(), L"Change detected: 0x%x '%ls'", info->Action, changedPathW.c_str());
 
     jint type;
     if (info->Action == FILE_ACTION_ADDED || info->Action == FILE_ACTION_RENAMED_NEW_NAME) {
@@ -125,7 +134,7 @@ void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION* info) {
     } else if (info->Action == FILE_ACTION_MODIFIED) {
         type = FILE_EVENT_MODIFIED;
     } else {
-        log_warning(server->getThreadEnv(), L"Unknown event 0x%x for %ls", info->Action, changedPath.c_str());
+        log_warning(server->getThreadEnv(), L"Unknown event 0x%x for %ls", info->Action, changedPathW.c_str());
         type = FILE_EVENT_UNKNOWN;
     }
 
@@ -158,9 +167,10 @@ void Server::runLoop(JNIEnv* env, function<void()> notifyStarted) {
     log_info(env, L"Server thread %d finishing", GetCurrentThreadId());
 }
 
-void Server::startWatching(JNIEnv* env, const wstring& path) {
+void Server::startWatching(JNIEnv* env, const u16string& path) {
+    wstring pathW(path.begin(), path.end());
     HANDLE directoryHandle = CreateFileW(
-        path.c_str(),           // pointer to the file name
+        pathW.c_str(),          // pointer to the file name
         FILE_LIST_DIRECTORY,    // access (read/write) mode
         CREATE_SHARE,           // share mode
         NULL,                   // security descriptor
@@ -170,7 +180,7 @@ void Server::startWatching(JNIEnv* env, const wstring& path) {
     );
 
     if (directoryHandle == INVALID_HANDLE_VALUE) {
-        log_severe(env, L"Couldn't get file handle for '%ls': %d", path.c_str(), GetLastError());
+        log_severe(env, L"Couldn't get file handle for '%ls': %d", pathW.c_str(), GetLastError());
         // TODO Error handling
         return;
     }
@@ -184,7 +194,7 @@ void Server::startWatching(JNIEnv* env, const wstring& path) {
             watchPoints.push_back(watchPoint);
             break;
         default:
-            log_severe(env, L"Couldn't start listening to '%ls': %d", path, ret);
+            log_severe(env, L"Couldn't start listening to '%ls': %d", pathW.c_str(), ret);
             delete watchPoint;
             // TODO Error handling
             break;
@@ -196,17 +206,9 @@ void Server::reportFinished(WatchPoint* watchPoint) {
     delete watchPoint;
 }
 
-void Server::reportEvent(jint type, const wstring& changedPath) {
+void Server::reportEvent(jint type, const u16string& changedPath) {
     JNIEnv* env = getThreadEnv();
-    u16string u16path(changedPath.begin(), changedPath.end());
-    if (u16path.length() >= 4 && u16path.substr(0, 4) == u"\\\\?\\") {
-        if (u16path.length() >= 8 && u16path.substr(0, 8) == u"\\\\?\\UNC\\") {
-            u16path.erase(0, 8).insert(0, u"\\\\");
-        } else {
-            u16path.erase(0, 4);
-        }
-    }
-    reportChange(env, type, u16path);
+    reportChange(env, type, changedPath);
 }
 
 static void CALLBACK requestTerminationCallback(_In_ ULONG_PTR arg) {
@@ -290,8 +292,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
         u16string pathStr((char16_t*) javaPathChars, javaPathLength);
         env->ReleaseStringCritical(javaPath, javaPathChars);
         convertToLongPathIfNeeded(pathStr);
-        wstring pathStrW(pathStr.begin(), pathStr.end());
-        server->startWatching(env, pathStrW);
+        server->startWatching(env, pathStr);
     }
 
     jclass clsWatch = env->FindClass("net/rubygrapefruit/platform/internal/jni/WindowsFileEventFunctions$WatcherImpl");
