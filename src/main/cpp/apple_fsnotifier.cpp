@@ -1,8 +1,24 @@
 #if defined(__APPLE__)
 
 #include "apple_fsnotifier.h"
+#include <codecvt>
+#include <locale>
+#include <string>
 
 using namespace std;
+
+// Utility wrapper to adapt locale-bound facets for wstring convert
+// See https://en.cppreference.com/w/cpp/locale/codecvt
+// TODO Understand what this does
+template <class Facet>
+struct deletable_facet : Facet {
+    template <class... Args>
+    deletable_facet(Args&&... args)
+        : Facet(std::forward<Args>(args)...) {
+    }
+    ~deletable_facet() {
+    }
+};
 
 EventStream::EventStream(CFArrayRef rootsToWatch, long latencyInMillis) {
     FSEventStreamContext context = {
@@ -147,8 +163,10 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
     }
 
     log_fine(env, "Changed: %s %d", path, type);
-
-    jstring javaPath = env->NewStringUTF(path);
+    // TODO Can we extract this to some static state? It should only be used from the server thread
+    wstring_convert<deletable_facet<codecvt<char16_t, char, mbstate_t>>, char16_t> conv16;
+    u16string pathStr = conv16.from_bytes(path);
+    jstring javaPath = env->NewString((jchar*) pathStr.c_str(), pathStr.length());
     reportChange(env, type, javaPath);
     env->DeleteLocalRef(javaPath);
 }

@@ -561,7 +561,13 @@ abstract class AbstractFileEventsTest extends Specification {
 
         @Override
         void pathChanged(Type type, String path) {
-            handleEvent(new FileEvent(type, new File(path).canonicalFile, true))
+            def canonicalFile
+            try {
+                canonicalFile = new File(path).canonicalFile
+            } catch (IOException e) {
+                throw new RuntimeException("Couldn't canonicalize path: '$path'", e)
+            }
+            handleEvent(new FileEvent(type, canonicalFile, true))
         }
 
         private void handleEvent(FileEvent event) {
