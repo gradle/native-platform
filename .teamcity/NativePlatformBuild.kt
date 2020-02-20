@@ -40,6 +40,7 @@ open class NativePlatformBuild(agent: Agent, init: BuildType.() -> Unit = {}) : 
 
     features {
         publishCommitStatus()
+        lowerRequiredFreeDiskSpace()
     }
 
     failureConditions {

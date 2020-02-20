@@ -90,6 +90,7 @@ open class NativePlatformPublishSnapshot(releaseType: ReleaseType, uploadTasks: 
 
     features {
         publishCommitStatus()
+        lowerRequiredFreeDiskSpace()
     }
 
     init(this)

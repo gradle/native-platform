@@ -2,6 +2,7 @@ import jetbrains.buildServer.configs.kotlin.v2019_2.BuildFeatures
 import jetbrains.buildServer.configs.kotlin.v2019_2.BuildType
 import jetbrains.buildServer.configs.kotlin.v2019_2.DslContext
 import jetbrains.buildServer.configs.kotlin.v2019_2.buildFeatures.commitStatusPublisher
+import jetbrains.buildServer.configs.kotlin.v2019_2.buildFeatures.freeDiskSpace
 
 /*
  * Copyright 2020 the original author or authors.
@@ -48,5 +49,13 @@ fun BuildFeatures.publishCommitStatus() {
                 token = "credentialsJSON:5306bfc7-041e-46e8-8d61-1d49424e7b04"
             }
         }
+    }
+}
+
+fun BuildFeatures.lowerRequiredFreeDiskSpace() {
+    freeDiskSpace {
+        // Configure less than the default 3GB, since the disk of the agents is only 5GB big.
+        requiredSpace = "1gb"
+        failBuild = false
     }
 }
