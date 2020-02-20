@@ -65,7 +65,7 @@ public:
     void close(JNIEnv* env);
 
 protected:
-    void Server::runLoop(JNIEnv* env, function<void()> notifyStarted) override;
+    void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) override;
 
 private:
     list<WatchPoint*> watchPoints;

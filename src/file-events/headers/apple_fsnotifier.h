@@ -20,21 +20,10 @@ static void handleEventsCallback(
 
 class EventStream {
 public:
-    EventStream(CFArrayRef rootsToWatch, long latencyInMillis);
+    EventStream(Server* server, CFRunLoopRef runLoop, CFArrayRef rootsToWatch, long latencyInMillis);
     ~EventStream();
 
-    void schedule(Server* server, CFRunLoopRef runLoop);
-    void unschedule();
-
 private:
-    friend void handleEventsCallback(
-        ConstFSEventStreamRef streamRef,
-        void* clientCallBackInfo,
-        size_t numEvents,
-        void* eventPaths,
-        const FSEventStreamEventFlags eventFlags[],
-        const FSEventStreamEventId eventIds[]);
-
     FSEventStreamRef watcherStream;
     Server* server;
 };
@@ -51,12 +40,14 @@ public:
         const FSEventStreamEventId eventIds[]);
 
 protected:
-    void runLoop(JNIEnv* env, function<void()> notifyStarted) override;
+    void runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) override;
 
 private:
     void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);
 
-    EventStream eventStream;
+    const CFArrayRef rootsToWatch;
+    const long latencyInMillis;
+
     CFRunLoopRef threadLoop;
 };
 

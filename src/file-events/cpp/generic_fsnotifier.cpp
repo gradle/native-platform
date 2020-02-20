@@ -41,6 +41,12 @@ void AbstractServer::startThread() {
     unique_lock<mutex> lock(watcherThreadMutex);
     this->watcherThread = thread(&AbstractServer::run, this);
     this->watcherThreadStarted.wait(lock);
+    if (initException) {
+        if (watcherThread.joinable()) {
+            watcherThread.join();
+        }
+        rethrow_exception(initException);
+    }
 }
 
 void AbstractServer::run() {
@@ -48,9 +54,11 @@ void AbstractServer::run() {
 
     log_fine(env, "Starting thread", NULL);
 
-    runLoop(env, [this] {
+    runLoop(env, [this](exception_ptr initException) {
         unique_lock<mutex> lock(watcherThreadMutex);
+        this->initException = initException;
         watcherThreadStarted.notify_all();
+        log_fine(getThreadEnv(), "Started thread", NULL);
     });
 
     log_fine(env, "Stopping thread", NULL);

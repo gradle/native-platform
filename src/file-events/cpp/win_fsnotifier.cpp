@@ -156,8 +156,8 @@ Server::Server(JNIEnv* env, jobject watcherCallback)
 Server::~Server() {
 }
 
-void Server::runLoop(JNIEnv* env, function<void()> notifyStarted) {
-    notifyStarted();
+void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
+    notifyStarted(nullptr);
 
     while (!terminate || watchPoints.size() > 0) {
         SleepEx(INFINITE, true);

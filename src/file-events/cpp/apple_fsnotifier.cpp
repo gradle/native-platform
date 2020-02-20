@@ -20,13 +20,13 @@ struct deletable_facet : Facet {
     }
 };
 
-EventStream::EventStream(CFArrayRef rootsToWatch, long latencyInMillis) {
+EventStream::EventStream(Server* server, CFRunLoopRef runLoop, CFArrayRef rootsToWatch, long latencyInMillis) {
     FSEventStreamContext context = {
-        0,               // version, must be 0
-        (void*) this,    // info
-        NULL,            // retain
-        NULL,            // release
-        NULL             // copyDescription
+        0,                 // version, must be 0
+        (void*) server,    // info
+        NULL,              // retain
+        NULL,              // release
+        NULL               // copyDescription
     };
     FSEventStreamRef watcherStream = FSEventStreamCreate(
         NULL,
@@ -39,16 +39,12 @@ EventStream::EventStream(CFArrayRef rootsToWatch, long latencyInMillis) {
     if (watcherStream == NULL) {
         throw FileWatcherException("Could not create FSEventStreamCreate to track changes");
     }
+    FSEventStreamScheduleWithRunLoop(watcherStream, runLoop, kCFRunLoopDefaultMode);
+    FSEventStreamStart(watcherStream);
     this->watcherStream = watcherStream;
 }
 
-void EventStream::schedule(Server* server, CFRunLoopRef runLoop) {
-    this->server = server;
-    FSEventStreamScheduleWithRunLoop(watcherStream, runLoop, kCFRunLoopDefaultMode);
-    FSEventStreamStart(watcherStream);
-}
-
-void EventStream::unschedule() {
+EventStream::~EventStream() {
     // Reading the Apple docs it seems we should call FSEventStreamFlushSync() here.
     // But doing so produces this log:
     //
@@ -61,9 +57,6 @@ void EventStream::unschedule() {
     // FSEventStreamFlushSync(watcherStream);
     FSEventStreamStop(watcherStream);
     FSEventStreamInvalidate(watcherStream);
-}
-
-EventStream::~EventStream() {
     FSEventStreamRelease(watcherStream);
 }
 
@@ -72,7 +65,8 @@ EventStream::~EventStream() {
 //
 
 Server::Server(JNIEnv* env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis)
-    : eventStream(rootsToWatch, latencyInMillis)
+    : rootsToWatch(rootsToWatch)
+    , latencyInMillis(latencyInMillis)
     , AbstractServer(env, watcherCallback) {
     // TODO Would be nice to inline this in AbstractServer(), but doing so results in pure virtual call
     startThread();
@@ -88,16 +82,17 @@ Server::~Server() {
     }
 }
 
-void Server::runLoop(JNIEnv* env, function<void()> notifyStarted) {
-    CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
-    eventStream.schedule(this, threadLoop);
-    this->threadLoop = threadLoop;
+void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
+    try {
+        CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
+        this->threadLoop = threadLoop;
+        EventStream eventStream(this, threadLoop, rootsToWatch, latencyInMillis);
+        notifyStarted(nullptr);
 
-    notifyStarted();
-
-    CFRunLoopRun();
-
-    eventStream.unschedule();
+        CFRunLoopRun();
+    } catch (...) {
+        notifyStarted(current_exception());
+    }
 }
 
 static void handleEventsCallback(
@@ -107,8 +102,8 @@ static void handleEventsCallback(
     void* eventPaths,
     const FSEventStreamEventFlags eventFlags[],
     const FSEventStreamEventId eventIds[]) {
-    EventStream* eventStream = (EventStream*) clientCallBackInfo;
-    eventStream->server->handleEvents(numEvents, (char**) eventPaths, eventFlags, eventIds);
+    Server* server = (Server*) clientCallBackInfo;
+    server->handleEvents(numEvents, (char**) eventPaths, eventFlags, eventIds);
 }
 
 void Server::handleEvents(

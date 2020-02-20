@@ -1,6 +1,7 @@
 #pragma once
 
 #include "logging.h"
+#include <exception>
 #include <functional>
 #include <mutex>
 #include <thread>
@@ -42,7 +43,7 @@ protected:
     void reportChange(JNIEnv* env, int type, const u16string& path);
 
     void startThread();
-    virtual void runLoop(JNIEnv* env, function<void()> notifyStarted) = 0;
+    virtual void runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) = 0;
 
     thread watcherThread;
 
@@ -50,6 +51,7 @@ private:
     void run();
     mutex watcherThreadMutex;
     condition_variable watcherThreadStarted;
+    exception_ptr initException;
 
     jobject watcherCallback;
     jmethodID watcherCallbackMethod;
