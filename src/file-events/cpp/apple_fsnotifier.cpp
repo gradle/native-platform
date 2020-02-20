@@ -20,12 +20,16 @@ struct deletable_facet : Facet {
     }
 };
 
-WatchPoint::WatchPoint(Server* server, CFRunLoopRef runLoop, CFStringRef path, long latencyInMillis) {
+WatchPoint::WatchPoint(Server* server, CFRunLoopRef runLoop, const u16string& path, long latencyInMillis) {
+    CFStringRef cfPath = CFStringCreateWithCharacters(NULL, (UniChar*) path.c_str(), path.length());
+    if (cfPath == nullptr) {
+        throw FileWatcherException("Could not allocate CFString for path");
+    }
     CFMutableArrayRef pathArray = CFArrayCreateMutable(NULL, 1, NULL);
     if (pathArray == NULL) {
         throw FileWatcherException("Could not allocate array to store roots to watch");
     }
-    CFArrayAppendValue(pathArray, path);
+    CFArrayAppendValue(pathArray, cfPath);
 
     FSEventStreamContext context = {
         0,                 // version, must be 0
@@ -43,6 +47,8 @@ WatchPoint::WatchPoint(Server* server, CFRunLoopRef runLoop, CFStringRef path, l
         latencyInMillis / 1000.0,
         kFSEventStreamCreateFlagNoDefer | kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagWatchRoot);
     CFRelease(pathArray);
+    // TODO Why releasing this before the stream is created causes a crash?
+    CFRelease(cfPath);
     if (watcherStream == NULL) {
         throw FileWatcherException("Could not create FSEventStreamCreate to track changes");
     }
@@ -102,12 +108,9 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
             if (javaPathChars == NULL) {
                 throw FileWatcherException("Could not get Java string character");
             }
-            CFStringRef stringPath = CFStringCreateWithCharacters(NULL, javaPathChars, javaPathLength);
+            u16string path((char16_t*) javaPathChars, javaPathLength);
             env->ReleaseStringCritical(javaPath, javaPathChars);
-            if (stringPath == NULL) {
-                throw FileWatcherException("Could not create CFStringRef");
-            }
-            watchPoints.emplace_back(this, threadLoop, stringPath, latencyInMillis);
+            watchPoints.emplace_back(this, threadLoop, path, latencyInMillis);
         }
 
         notifyStarted(nullptr);

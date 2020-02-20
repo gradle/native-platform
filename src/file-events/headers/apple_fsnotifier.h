@@ -21,7 +21,7 @@ static void handleEventsCallback(
 
 class WatchPoint {
 public:
-    WatchPoint(Server* server, CFRunLoopRef runLoop, CFStringRef path, long latencyInMillis);
+    WatchPoint(Server* server, CFRunLoopRef runLoop, const u16string& path, long latencyInMillis);
     ~WatchPoint();
 
 private:
