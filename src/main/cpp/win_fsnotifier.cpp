@@ -1,83 +1,8 @@
 #ifdef _WIN32
 
-#include "generic.h"
-#include "net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions.h"
-#include "win.h"
-#include <list>
-#include <process.h>
-#include <string>
+#include "win_fsnotifier.h"
 
 using namespace std;
-
-// TODO Find the right size for this
-#define EVENT_BUFFER_SIZE (16 * 1024)
-
-#define CREATE_SHARE (FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE)
-#define CREATE_FLAGS (FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED)
-
-#define EVENT_MASK (FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE)
-
-class Server;
-class WatchPoint;
-
-#define WATCH_LISTENING 1
-#define WATCH_NOT_LISTENING 2
-#define WATCH_FINISHED 3
-#define WATCH_UNINITIALIZED -1
-#define WATCH_FAILED_TO_LISTEN -2
-
-class WatchPoint {
-public:
-    WatchPoint(Server* server, wstring path, HANDLE directoryHandle);
-    ~WatchPoint();
-    void close();
-    void listen();
-    int awaitListeningStarted(DWORD dwMilliseconds);
-
-private:
-    Server* server;
-    wstring path;
-    HANDLE directoryHandle;
-    HANDLE listeningStartedEvent;
-    OVERLAPPED overlapped;
-    FILE_NOTIFY_INFORMATION* buffer;
-    volatile int status;
-
-    void handleEvent(DWORD errorCode, DWORD bytesTransfered);
-    void handlePathChanged(FILE_NOTIFY_INFORMATION* info);
-    friend static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransfered, LPOVERLAPPED overlapped);
-};
-
-class Server {
-public:
-    Server(JavaVM* jvm, JNIEnv* env, jobject watcherCallback);
-    ~Server();
-
-    void start(JNIEnv* env);
-    void startWatching(JNIEnv* env, wchar_t* path);
-    void reportEvent(jint type, const wstring changedPath);
-    void reportFinished(WatchPoint* watchPoint);
-
-    void close(JNIEnv* env);
-
-    // TODO: Move this to somewhere else
-    JNIEnv* getThreadEnv();
-
-private:
-    JavaVM* jvm;
-    list<WatchPoint*> watchPoints;
-    jobject watcherCallback;
-
-    HANDLE threadHandle;
-    HANDLE threadStartedEvent;
-    bool terminate = false;
-
-    friend static void CALLBACK requestTerminationCallback(_In_ ULONG_PTR arg);
-    void requestTermination();
-
-    friend static unsigned CALLBACK EventProcessingThread(void* data);
-    void run();
-};
 
 //
 // WatchPoint
@@ -89,22 +14,11 @@ WatchPoint::WatchPoint(Server* server, wstring path, HANDLE directoryHandle) {
     this->buffer = (FILE_NOTIFY_INFORMATION*) malloc(EVENT_BUFFER_SIZE);
     ZeroMemory(&this->overlapped, sizeof(OVERLAPPED));
     this->overlapped.hEvent = this;
-    HANDLE listeningStartedEvent = CreateEvent(
-        NULL,     // default security attributes
-        true,     // manual-reset event
-        false,    // initial state is nonsignaled
-        NULL      // object name
-    );
-    if (listeningStartedEvent == INVALID_HANDLE_VALUE) {
-        log_severe(server->getThreadEnv(), L"Couldn't create listening sterted event: %d", GetLastError());
-    }
-    this->listeningStartedEvent = listeningStartedEvent;
     this->directoryHandle = directoryHandle;
     this->status = WATCH_UNINITIALIZED;
 }
 
 WatchPoint::~WatchPoint() {
-    CloseHandle(listeningStartedEvent);
     free(buffer);
 }
 
@@ -119,17 +33,15 @@ void WatchPoint::close() {
     }
 }
 
-int WatchPoint::awaitListeningStarted(DWORD dwMilliseconds) {
-    DWORD ret = WaitForSingleObject(listeningStartedEvent, dwMilliseconds);
-    switch (ret) {
-        case WAIT_OBJECT_0:
-            // Server up and running
-            break;
-        default:
-            log_severe(server->getThreadEnv(), L"Couldn't wait for listening to start for '%ls': %d", path.c_str(), ret);
-            // TODO Error handling
-            break;
-    }
+static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg) {
+    WatchPoint* watchPoint = (WatchPoint*) arg;
+    watchPoint->listen();
+}
+
+int WatchPoint::awaitListeningStarted(HANDLE threadHandle) {
+    unique_lock<mutex> lock(listenerMutex);
+    QueueUserAPC(startWatchCallback, threadHandle, (ULONG_PTR) this);
+    listenerStarted.wait(lock);
     return status;
 }
 
@@ -144,6 +56,8 @@ void WatchPoint::listen() {
         &overlapped,            // overlapped buffer
         &handleEventCallback    // completion routine
     );
+
+    unique_lock<mutex> lock(listenerMutex);
     if (success) {
         status = WATCH_LISTENING;
     } else {
@@ -151,24 +65,16 @@ void WatchPoint::listen() {
         log_warning(server->getThreadEnv(), L"Couldn't start watching %p for '%ls', error = %d", directoryHandle, path.c_str(), GetLastError());
         // TODO Error handling
     }
-    if (!SetEvent(listeningStartedEvent)) {
-        log_severe(server->getThreadEnv(), L"Failed to signal listening started event with status %d, error = %d", status, GetLastError());
-        // TODO Error handling
-    } else {
-        log_fine(server->getThreadEnv(), L"Watching directory '%ls'", path.c_str());
-    }
+    listenerStarted.notify_all();
 }
 
-static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransfered, LPOVERLAPPED overlapped) {
+static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped) {
     WatchPoint* watchPoint = (WatchPoint*) overlapped->hEvent;
-    watchPoint->handleEvent(errorCode, bytesTransfered);
+    watchPoint->handleEvent(errorCode, bytesTransferred);
 }
 
-void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransfered) {
+void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransferred) {
     status = WATCH_NOT_LISTENING;
-    if (!ResetEvent(listeningStartedEvent)) {
-        log_severe(server->getThreadEnv(), L"Failed to reset listening started event: %d", GetLastError());
-    }
 
     if (errorCode == ERROR_OPERATION_ABORTED) {
         log_info(server->getThreadEnv(), L"Finished watching '%ls'", path.c_str());
@@ -177,7 +83,7 @@ void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransfered) {
         return;
     }
 
-    if (bytesTransfered == 0) {
+    if (bytesTransferred == 0) {
         // don't send dirty too much, everything is changed anyway
         // TODO Understand what this does
         // if (WaitForSingleObject(stopEventHandle, 500) == WAIT_OBJECT_0)
@@ -230,81 +136,26 @@ void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION* info) {
 // Server
 //
 
-Server::Server(JavaVM* jvm, JNIEnv* env, jobject watcherCallback) {
-    this->jvm = jvm;
-    this->watcherCallback = env->NewGlobalRef(watcherCallback);
-    HANDLE threadStartedEvent = CreateEvent(
-        nullptr,    // default security attributes
-        true,       // manual-reset event
-        false,      // initial state is nonsignaled
-        nullptr     // object name
-    );
-
-    if (threadStartedEvent == INVALID_HANDLE_VALUE) {
-        log_severe(env, L"Couldn't create server STARTED event: %d", GetLastError());
-    }
-
-    this->threadStartedEvent = threadStartedEvent;
-    this->threadHandle = (HANDLE) _beginthreadex(
-        nullptr,                  // default security attributes
-        0,                        // use default stack size
-        EventProcessingThread,    // thread function name
-        this,                     // argument to thread function
-        0,                        // use default creation flags
-        NULL                      // the thread identifier
-    );
+Server::Server(JNIEnv* env, jobject watcherCallback)
+    : AbstractServer(env, watcherCallback) {
+    startThread();
     // TODO Error handling
-    SetThreadPriority(this->threadHandle, THREAD_PRIORITY_ABOVE_NORMAL);
+    SetThreadPriority(this->watcherThread.native_handle(), THREAD_PRIORITY_ABOVE_NORMAL);
 }
 
 Server::~Server() {
-    CloseHandle(threadStartedEvent);
 }
 
-static unsigned CALLBACK EventProcessingThread(void* data) {
-    Server* server = (Server*) data;
-    server->run();
-    return 0;
-}
+void Server::runLoop(JNIEnv* env, function<void()> notifyStarted) {
+    log_info(env, L"Server thread %d with handle %p running", GetCurrentThreadId(), watcherThread.native_handle());
 
-void Server::run() {
-    JNIEnv* env = attach_jni(jvm, "File watcher server", true);
-    if (env == nullptr) {
-        fwprintf(stderr, L"!!! Couldn't attach JNI, stopping");
-        return;
-    }
-
-    log_info(env, L"Server thread %d with handle %p running", GetCurrentThreadId(), threadHandle);
-
-    if (!SetEvent(threadStartedEvent)) {
-        log_severe(env, L"Couldn't signal the start of thread %d", GetCurrentThreadId());
-    }
+    notifyStarted();
 
     while (!terminate || watchPoints.size() > 0) {
         SleepEx(INFINITE, true);
     }
 
     log_info(env, L"Server thread %d finishing", GetCurrentThreadId());
-
-    detach_jni(jvm);
-}
-
-void Server::start(JNIEnv* env) {
-    DWORD ret = WaitForSingleObject(threadStartedEvent, INFINITE);
-    switch (ret) {
-        case WAIT_OBJECT_0:
-            // Server up and running
-            break;
-        default:
-            log_severe(env, L"Couldn't wait for server to start: %d", ret);
-            // TODO Error handling
-            break;
-    }
-}
-
-static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg) {
-    WatchPoint* watchPoint = (WatchPoint*) arg;
-    watchPoint->listen();
 }
 
 void Server::startWatching(JNIEnv* env, wchar_t* path) {
@@ -325,9 +176,9 @@ void Server::startWatching(JNIEnv* env, wchar_t* path) {
     }
 
     WatchPoint* watchPoint = new WatchPoint(this, path, directoryHandle);
-    QueueUserAPC(startWatchCallback, threadHandle, (ULONG_PTR) watchPoint);
-    // TODO Timeout handling
-    int ret = watchPoint->awaitListeningStarted(INFINITE);
+
+    HANDLE threadHandle = watcherThread.native_handle();
+    int ret = watchPoint->awaitListeningStarted(threadHandle);
     switch (ret) {
         case WATCH_LISTENING:
             watchPoints.push_back(watchPoint);
@@ -345,27 +196,10 @@ void Server::reportFinished(WatchPoint* watchPoint) {
     delete watchPoint;
 }
 
-static JNIEnv* lookupThreadEnv(JavaVM* jvm) {
-    JNIEnv* env;
-    // TODO Verify that JNI 1.6 is the right version
-    jint ret = jvm->GetEnv((void**) &(env), JNI_VERSION_1_6);
-    if (ret != JNI_OK) {
-        fwprintf(stderr, L"Failed to get JNI env for current thread %d: %d\n", GetCurrentThreadId(), ret);
-        return NULL;
-    }
-    return env;
-}
-
-JNIEnv* Server::getThreadEnv() {
-    return lookupThreadEnv(jvm);
-}
-
 void Server::reportEvent(jint type, const wstring changedPath) {
     JNIEnv* env = getThreadEnv();
     jstring changedPathJava = wchar_to_java_path(env, changedPath.c_str());
-    jclass callback_class = env->GetObjectClass(watcherCallback);
-    jmethodID methodCallback = env->GetMethodID(callback_class, "pathChanged", "(ILjava/lang/String;)V");
-    env->CallVoidMethod(watcherCallback, methodCallback, type, changedPathJava);
+    reportChange(env, type, changedPathJava);
     env->DeleteLocalRef(changedPathJava);
 }
 
@@ -384,35 +218,14 @@ void Server::requestTermination() {
 }
 
 void Server::close(JNIEnv* env) {
+    HANDLE threadHandle = watcherThread.native_handle();
     log_fine(env, L"Requesting termination of server thread %p", threadHandle);
-    int ret = QueueUserAPC(requestTerminationCallback, this->threadHandle, (ULONG_PTR) this);
+    int ret = QueueUserAPC(requestTerminationCallback, threadHandle, (ULONG_PTR) this);
     if (ret == 0) {
         log_severe(env, L"Couldn't send termination request to thread %p: %d", threadHandle, GetLastError());
     } else {
-        ret = WaitForSingleObject(this->threadHandle, INFINITE);
-        switch (ret) {
-            case WAIT_OBJECT_0:
-                log_info(env, L"Termination of server thread %p finished normally", threadHandle);
-                break;
-            case WAIT_FAILED:
-                log_severe(env, L"Wait for terminating %p failed: %d", threadHandle, GetLastError());
-                break;
-            case WAIT_ABANDONED:
-                log_severe(env, L"Wait for terminating %p abandoned", threadHandle);
-                break;
-            case WAIT_TIMEOUT:
-                log_severe(env, L"Wait for terminating %p timed out", threadHandle);
-                break;
-            default:
-                log_severe(env, L"Wait for terminating %p failed with unknown reason: %d", threadHandle, ret);
-                break;
-        }
-        ret = CloseHandle(this->threadHandle);
-        if (ret == 0) {
-            log_severe(env, L"Closing handle for thread %p failed: %d", threadHandle, GetLastError());
-        }
+        watcherThread.join();
     }
-    env->DeleteGlobalRef(this->watcherCallback);
 }
 
 //
@@ -421,22 +234,9 @@ void Server::close(JNIEnv* env) {
 
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatching(JNIEnv* env, jclass target, jobjectArray paths, jobject javaCallback, jobject result) {
-    JavaVM* jvm;
-    int jvmStatus = env->GetJavaVM(&jvm);
-    if (jvmStatus != JNI_OK) {
-        mark_failed_with_errno(env, "Could not store JVM instance.", result);
-        return NULL;
-    }
+    Server* server = new Server(env, javaCallback);
 
     int watchPointCount = env->GetArrayLength(paths);
-    if (watchPointCount == 0) {
-        mark_failed_with_errno(env, "No paths given to watch.", result);
-        return NULL;
-    }
-
-    Server* server = new Server(jvm, env, javaCallback);
-    server->start(env);
-
     for (int i = 0; i < watchPointCount; i++) {
         jstring path = (jstring) env->GetObjectArrayElement(paths, i);
         wchar_t* watchPoint = java_to_wchar_path(env, path);

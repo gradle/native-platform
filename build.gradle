@@ -210,7 +210,7 @@ model {
             sources {
                 cpp {
                     source.srcDirs = ['src/shared/cpp', 'src/main/cpp']
-                    exportedHeaders.srcDirs = ['src/shared/headers']
+                    exportedHeaders.srcDirs = ['src/shared/headers', 'src/main/headers']
                 }
             }
         }
@@ -262,6 +262,7 @@ model {
                     cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
                     cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/linux"
                     cppCompiler.args '-D_FILE_OFFSET_BITS=64'
+                    cppCompiler.args "--std=c++11"
                 } else if (targetPlatform.operatingSystem.windows) {
                     if (name.contains("_min")) {
                         cppCompiler.define "WINDOWS_MIN"

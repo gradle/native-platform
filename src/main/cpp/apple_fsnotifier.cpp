@@ -1,92 +1,10 @@
 #if defined(__APPLE__)
 
-#include "generic.h"
-#include "net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions.h"
-#include <CoreServices/CoreServices.h>
-#include <thread>
+#include "apple_fsnotifier.h"
 
 using namespace std;
 
-struct FileWatcherException : public exception {
-public:
-    FileWatcherException(const char* message) {
-        this->message = message;
-    }
-
-    const char* what() const throw() {
-        return message;
-    }
-
-private:
-    const char* message;
-};
-
-class Server;
-
-static void handleEventsCallback(
-    ConstFSEventStreamRef streamRef,
-    void* clientCallBackInfo,
-    size_t numEvents,
-    void* eventPaths,
-    const FSEventStreamEventFlags eventFlags[],
-    const FSEventStreamEventId eventIds[]);
-
-class Server {
-public:
-    Server(JNIEnv* env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis);
-    ~Server();
-
-private:
-    void run();
-
-    void handleEvents(
-        size_t numEvents,
-        char** eventPaths,
-        const FSEventStreamEventFlags eventFlags[],
-        const FSEventStreamEventId eventIds[]);
-    friend void handleEventsCallback(
-        ConstFSEventStreamRef streamRef,
-        void* clientCallBackInfo,
-        size_t numEvents,
-        void* eventPaths,
-        const FSEventStreamEventFlags eventFlags[],
-        const FSEventStreamEventId eventIds[]);
-
-    void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);
-
-    // TODO: Move this to somewhere else
-    JNIEnv* getThreadEnv();
-
-    JavaVM* jvm;
-    jobject watcherCallback;
-    jmethodID watcherCallbackMethod;
-
-    FSEventStreamRef watcherStream;
-    thread watcherThread;
-    mutex watcherThreadMutex;
-    condition_variable watcherThreadStarted;
-    CFRunLoopRef threadLoop;
-};
-
-Server::Server(JNIEnv* env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis) {
-    JavaVM* jvm;
-    int jvmStatus = env->GetJavaVM(&jvm);
-    if (jvmStatus < 0) {
-        throw FileWatcherException("Could not store jvm instance");
-    }
-
-    this->jvm = jvm;
-    // TODO Handle if returns NULL
-    this->watcherCallback = env->NewGlobalRef(watcherCallback);
-    jclass callbackClass = env->GetObjectClass(watcherCallback);
-    this->watcherCallbackMethod = env->GetMethodID(callbackClass, "pathChanged", "(ILjava/lang/String;)V");
-
-    jobject globalWatcherCallback = env->NewGlobalRef(watcherCallback);
-    if (globalWatcherCallback == NULL) {
-        throw FileWatcherException("Could not get global ref for watcher callback");
-    }
-    this->watcherCallback = globalWatcherCallback;
-
+EventStream::EventStream(CFArrayRef rootsToWatch, long latencyInMillis) {
     FSEventStreamContext context = {
         0,               // version, must be 0
         (void*) this,    // info
@@ -106,50 +24,15 @@ Server::Server(JNIEnv* env, jobject watcherCallback, CFArrayRef rootsToWatch, lo
         throw FileWatcherException("Could not create FSEventStreamCreate to track changes");
     }
     this->watcherStream = watcherStream;
-
-    unique_lock<mutex> lock(watcherThreadMutex);
-    this->watcherThread = thread(&Server::run, this);
-    this->watcherThreadStarted.wait(lock);
-    lock.unlock();
 }
 
-Server::~Server() {
-    if (threadLoop != NULL) {
-        CFRunLoopStop(threadLoop);
-    }
-
-    if (watcherThread.joinable()) {
-        watcherThread.join();
-    }
-
-    if (watcherStream != NULL) {
-        FSEventStreamRelease(watcherStream);
-    }
-
-    if (watcherCallback != NULL) {
-        JNIEnv* env = getThreadEnv();
-        if (env != NULL) {
-            env->DeleteGlobalRef(watcherCallback);
-        }
-    }
-}
-
-void Server::run() {
-    JNIEnv* env = attach_jni(jvm, "File watcher server", true);
-
-    log_fine(env, "Starting thread", NULL);
-
-    CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
-    FSEventStreamScheduleWithRunLoop(watcherStream, threadLoop, kCFRunLoopDefaultMode);
+void EventStream::schedule(Server* server, CFRunLoopRef runLoop) {
+    this->server = server;
+    FSEventStreamScheduleWithRunLoop(watcherStream, runLoop, kCFRunLoopDefaultMode);
     FSEventStreamStart(watcherStream);
-    this->threadLoop = threadLoop;
+}
 
-    unique_lock<mutex> lock(watcherThreadMutex);
-    watcherThreadStarted.notify_all();
-    lock.unlock();
-
-    CFRunLoopRun();
-
+void EventStream::unschedule() {
     // Reading the Apple docs it seems we should call FSEventStreamFlushSync() here.
     // But doing so produces this log:
     //
@@ -162,10 +45,47 @@ void Server::run() {
     // FSEventStreamFlushSync(watcherStream);
     FSEventStreamStop(watcherStream);
     FSEventStreamInvalidate(watcherStream);
+}
+
+EventStream::~EventStream() {
+    FSEventStreamRelease(watcherStream);
+}
+
+//
+// Server
+//
+
+Server::Server(JNIEnv* env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis)
+    : eventStream(rootsToWatch, latencyInMillis)
+    , AbstractServer(env, watcherCallback) {
+    // TODO Would be nice to inline this in AbstractServer(), but doing so results in pure virtual call
+    startThread();
+}
+
+Server::~Server() {
+    if (threadLoop != NULL) {
+        CFRunLoopStop(threadLoop);
+    }
+
+    if (watcherThread.joinable()) {
+        watcherThread.join();
+    }
+}
+
+void Server::runLoop(JNIEnv* env, function<void()> notifyStarted) {
+    log_fine(env, "Starting thread", NULL);
+
+    CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
+    eventStream.schedule(this, threadLoop);
+    this->threadLoop = threadLoop;
+
+    notifyStarted();
+
+    CFRunLoopRun();
+
+    eventStream.unschedule();
 
     log_fine(env, "Stopping thread", NULL);
-
-    detach_jni(jvm);
 }
 
 static void handleEventsCallback(
@@ -175,8 +95,8 @@ static void handleEventsCallback(
     void* eventPaths,
     const FSEventStreamEventFlags eventFlags[],
     const FSEventStreamEventId eventIds[]) {
-    Server* server = (Server*) clientCallBackInfo;
-    server->handleEvents(numEvents, (char**) eventPaths, eventFlags, eventIds);
+    EventStream* eventStream = (EventStream*) clientCallBackInfo;
+    eventStream->server->handleEvents(numEvents, (char**) eventPaths, eventFlags, eventIds);
 }
 
 void Server::handleEvents(
@@ -229,23 +149,8 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
     log_fine(env, "Changed: %s %d", path, type);
 
     jstring javaPath = env->NewStringUTF(path);
-    env->CallVoidMethod(watcherCallback, watcherCallbackMethod, type, javaPath);
+    reportChange(env, type, javaPath);
     env->DeleteLocalRef(javaPath);
-}
-
-static JNIEnv* lookupThreadEnv(JavaVM* jvm) {
-    JNIEnv* env;
-    // TODO Verify that JNI 1.6 is the right version
-    jint ret = jvm->GetEnv((void**) &(env), JNI_VERSION_1_6);
-    if (ret != JNI_OK) {
-        fprintf(stderr, "Failed to get JNI env for current thread: %d\n", ret);
-        throw FileWatcherException("Failed to get JNI env for current thread");
-    }
-    return env;
-}
-
-JNIEnv* Server::getThreadEnv() {
-    return lookupThreadEnv(jvm);
 }
 
 Server* startWatching(JNIEnv* env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback) {

@@ -9,6 +9,7 @@
     "cSpell.words": [
         "JNICALL",
         "JNIEXPORT",
+        "LPOVERLAPPED",
         "Ljava",
         "jboolean",
         "jchar",
