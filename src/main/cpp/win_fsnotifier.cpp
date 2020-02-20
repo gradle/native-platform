@@ -198,9 +198,14 @@ void Server::reportFinished(WatchPoint* watchPoint) {
 
 void Server::reportEvent(jint type, const wstring changedPath) {
     JNIEnv* env = getThreadEnv();
-    jstring changedPathJava = wchar_to_java_path(env, changedPath.c_str());
-    reportChange(env, type, changedPathJava);
-    env->DeleteLocalRef(changedPathJava);
+    int start;
+    if (changedPath.length() >= 4 && changedPath.substr(0, 4) == L"\\\\?\\") {
+        start = 4;
+    } else {
+        start = 0;
+    }
+    u16string u16path(changedPath.begin() + start, changedPath.end());
+    reportChange(env, type, u16path);
 }
 
 static void CALLBACK requestTerminationCallback(_In_ ULONG_PTR arg) {
