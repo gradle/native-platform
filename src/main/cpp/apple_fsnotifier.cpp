@@ -180,14 +180,14 @@ Server* startWatching(JNIEnv* env, jclass target, jobjectArray paths, long laten
 
     try {
         for (int i = 0; i < count; i++) {
-            jstring path = (jstring) env->GetObjectArrayElement(paths, i);
-            char* watchedPath = java_to_char(env, path, NULL);
-            if (watchedPath == NULL) {
-                throw FileWatcherException("Could not allocate string to store root to watch");
+            jstring javaPath = (jstring) env->GetObjectArrayElement(paths, i);
+            jsize javaPathLength = env->GetStringLength(javaPath);
+            const jchar* javaPathChars = env->GetStringCritical(javaPath, nullptr);
+            if (javaPathChars == NULL) {
+                throw FileWatcherException("Could not get Java string character");
             }
-            log_fine(env, "Watching %s", watchedPath);
-            CFStringRef stringPath = CFStringCreateWithCString(NULL, watchedPath, kCFStringEncodingUTF8);
-            free(watchedPath);
+            CFStringRef stringPath = CFStringCreateWithCharacters(NULL, javaPathChars, javaPathLength);
+            env->ReleaseStringCritical(javaPath, javaPathChars);
             if (stringPath == NULL) {
                 throw FileWatcherException("Could not create CFStringRef");
             }
