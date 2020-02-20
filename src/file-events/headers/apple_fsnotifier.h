@@ -5,6 +5,7 @@
 #include "generic_fsnotifier.h"
 #include "net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions.h"
 #include <CoreServices/CoreServices.h>
+#include <list>
 
 using namespace std;
 
@@ -20,19 +21,19 @@ static void handleEventsCallback(
 
 class EventStream {
 public:
-    EventStream(Server* server, CFRunLoopRef runLoop, CFArrayRef rootsToWatch, long latencyInMillis);
+    EventStream(Server* server, CFRunLoopRef runLoop, CFStringRef path, long latencyInMillis);
     ~EventStream();
 
 private:
     FSEventStreamRef watcherStream;
-    Server* server;
 };
 
 class Server : AbstractServer {
 public:
-    Server(JNIEnv* env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis);
+    Server(JNIEnv* env, jobject watcherCallback, jobjectArray rootsToWatch, long latencyInMillis);
     ~Server();
 
+    void startWatching(CFStringRef path, long latencyInMillis);
     void handleEvents(
         size_t numEvents,
         char** eventPaths,
@@ -45,7 +46,8 @@ protected:
 private:
     void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);
 
-    const CFArrayRef rootsToWatch;
+    const jobjectArray rootsToWatch;
+    list<EventStream> watchPoints;
     const long latencyInMillis;
 
     CFRunLoopRef threadLoop;

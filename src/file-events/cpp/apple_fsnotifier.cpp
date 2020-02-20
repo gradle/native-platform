@@ -20,7 +20,13 @@ struct deletable_facet : Facet {
     }
 };
 
-EventStream::EventStream(Server* server, CFRunLoopRef runLoop, CFArrayRef rootsToWatch, long latencyInMillis) {
+EventStream::EventStream(Server* server, CFRunLoopRef runLoop, CFStringRef path, long latencyInMillis) {
+    CFMutableArrayRef pathArray = CFArrayCreateMutable(NULL, 1, NULL);
+    if (pathArray == NULL) {
+        throw FileWatcherException("Could not allocate array to store roots to watch");
+    }
+    CFArrayAppendValue(pathArray, path);
+
     FSEventStreamContext context = {
         0,                 // version, must be 0
         (void*) server,    // info
@@ -32,10 +38,11 @@ EventStream::EventStream(Server* server, CFRunLoopRef runLoop, CFArrayRef rootsT
         NULL,
         &handleEventsCallback,
         &context,
-        rootsToWatch,
+        pathArray,
         kFSEventStreamEventIdSinceNow,
         latencyInMillis / 1000.0,
         kFSEventStreamCreateFlagNoDefer | kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagWatchRoot);
+    CFRelease(pathArray);
     if (watcherStream == NULL) {
         throw FileWatcherException("Could not create FSEventStreamCreate to track changes");
     }
@@ -64,7 +71,7 @@ EventStream::~EventStream() {
 // Server
 //
 
-Server::Server(JNIEnv* env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis)
+Server::Server(JNIEnv* env, jobject watcherCallback, jobjectArray rootsToWatch, long latencyInMillis)
     : rootsToWatch(rootsToWatch)
     , latencyInMillis(latencyInMillis)
     , AbstractServer(env, watcherCallback) {
@@ -86,13 +93,29 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
     try {
         CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
         this->threadLoop = threadLoop;
-        EventStream eventStream(this, threadLoop, rootsToWatch, latencyInMillis);
-        notifyStarted(nullptr);
 
-        CFRunLoopRun();
+        int count = env->GetArrayLength(rootsToWatch);
+        for (int i = 0; i < count; i++) {
+            jstring javaPath = (jstring) env->GetObjectArrayElement(rootsToWatch, i);
+            jsize javaPathLength = env->GetStringLength(javaPath);
+            const jchar* javaPathChars = env->GetStringCritical(javaPath, nullptr);
+            if (javaPathChars == NULL) {
+                throw FileWatcherException("Could not get Java string character");
+            }
+            CFStringRef stringPath = CFStringCreateWithCharacters(NULL, javaPathChars, javaPathLength);
+            env->ReleaseStringCritical(javaPath, javaPathChars);
+            if (stringPath == NULL) {
+                throw FileWatcherException("Could not create CFStringRef");
+            }
+            watchPoints.emplace_back(this, threadLoop, stringPath, latencyInMillis);
+        }
+
+        notifyStarted(nullptr);
     } catch (...) {
         notifyStarted(current_exception());
     }
+
+    CFRunLoopRun();
 }
 
 static void handleEventsCallback(
@@ -160,41 +183,11 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
     reportChange(env, type, pathStr);
 }
 
-Server* startWatching(JNIEnv* env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback) {
-    int count = env->GetArrayLength(paths);
-    CFMutableArrayRef rootsToWatch = CFArrayCreateMutable(NULL, count, NULL);
-    if (rootsToWatch == NULL) {
-        throw FileWatcherException("Could not allocate array to store roots to watch");
-    }
-
-    try {
-        for (int i = 0; i < count; i++) {
-            jstring javaPath = (jstring) env->GetObjectArrayElement(paths, i);
-            jsize javaPathLength = env->GetStringLength(javaPath);
-            const jchar* javaPathChars = env->GetStringCritical(javaPath, nullptr);
-            if (javaPathChars == NULL) {
-                throw FileWatcherException("Could not get Java string character");
-            }
-            CFStringRef stringPath = CFStringCreateWithCharacters(NULL, javaPathChars, javaPathLength);
-            env->ReleaseStringCritical(javaPath, javaPathChars);
-            if (stringPath == NULL) {
-                throw FileWatcherException("Could not create CFStringRef");
-            }
-            CFArrayAppendValue(rootsToWatch, stringPath);
-        }
-
-        return new Server(env, javaCallback, rootsToWatch, latencyInMillis);
-    } catch (...) {
-        CFRelease(rootsToWatch);
-        throw;
-    }
-}
-
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatching(JNIEnv* env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback) {
     Server* server;
     try {
-        server = startWatching(env, target, paths, latencyInMillis, javaCallback);
+        server = new Server(env, javaCallback, paths, latencyInMillis);
     } catch (const exception& e) {
         log_severe(env, "Caught exception: %s", e.what());
         jclass exceptionClass = env->FindClass("net/rubygrapefruit/platform/NativeException");
