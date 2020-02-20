@@ -98,35 +98,4 @@ wchar_t* add_suffix(wchar_t* path, int path_len, wchar_t* suffix) {
     return str;
 }
 
-int minimumLogLevel;
-jclass clsLogger;
-jmethodID logMethod;
-
-JNIEXPORT void JNICALL Java_net_rubygrapefruit_platform_internal_jni_NativeLogger_initLogging(JNIEnv* env, jclass target, jint level) {
-    minimumLogLevel = (int) level;
-    clsLogger = env->FindClass("net/rubygrapefruit/platform/internal/jni/NativeLogger");
-    logMethod = env->GetStaticMethodID(clsLogger, "log", "(ILjava/lang/String;)V");
-    printlog(env, LOG_CONFIG, L"Initialized logging to level %d\n", level);
-}
-
-void printlog(JNIEnv* env, int level, const wchar_t* fmt, ...) {
-    if (minimumLogLevel > level) {
-        return;
-    }
-
-    wchar_t buffer[1024];
-    va_list args;
-    va_start(args, fmt);
-    _vsnwprintf(buffer, sizeof(buffer), fmt, args);
-    va_end(args);
-
-    if (env == nullptr) {
-        fwprintf(stderr, L"!!! %ls\n", buffer);
-    } else {
-        jstring logString = wchar_to_java(env, buffer, wcslen(buffer), NULL);
-        env->CallStaticVoidMethod(clsLogger, logMethod, level, logString);
-        env->DeleteLocalRef(logString);
-    }
-}
-
 #endif
