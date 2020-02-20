@@ -2,7 +2,6 @@
 
 #ifdef _WIN32
 
-#include "generic.h"
 #include "generic_fsnotifier.h"
 #include "net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions.h"
 #include "win.h"

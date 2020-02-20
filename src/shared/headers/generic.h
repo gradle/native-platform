@@ -43,16 +43,6 @@ extern "C" {
 #define FAILURE_NOT_A_DIRECTORY 2
 #define FAILURE_PERMISSIONS 3
 
-// Corresponds to values of FileWatcherCallback.Type
-#define FILE_EVENT_CREATED 0
-#define FILE_EVENT_REMOVED 1
-#define FILE_EVENT_MODIFIED 2
-#define FILE_EVENT_INVALIDATE 3
-#define FILE_EVENT_UNKNOWN 4
-
-#define IS_SET(flags, flag) (((flags) & (flag)) == (flag))
-#define IS_ANY_SET(flags, mask) (((flags) & (mask)) != 0)
-
 /*
  * Marks the given result as failed, using the given error message
  */
@@ -72,16 +62,6 @@ extern void mark_failed_with_code(JNIEnv* env, const char* message, int error_co
  * Maps system error code to a failure constant above.
  */
 extern int map_error_code(int error_code);
-
-/**
- * Attaches JNI to the current thread.
- */
-extern JNIEnv* attach_jni(JavaVM* jvm, const char* name, bool daemon);
-
-/**
- * Detaches JNI from the current thread.
- */
-extern int detach_jni(JavaVM* jvm);
 
 /*
  * Converts the given Java string to a NULL terminated wchar_str. Should call free() when finished.

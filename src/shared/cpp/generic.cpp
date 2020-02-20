@@ -38,34 +38,6 @@ void mark_failed_with_code(JNIEnv* env, const char* message, int error_code, con
     }
 }
 
-JNIEnv* attach_jni(JavaVM* jvm, const char* name, bool daemon) {
-    JNIEnv* env;
-    // Work around const char* issue
-    char* nameCopy = strdup(name);
-    JavaVMAttachArgs args = {
-        JNI_VERSION_1_6,    // version
-        nameCopy,           // thread name
-        NULL                // thread group
-    };
-    free(nameCopy);
-    jint ret = daemon
-        ? jvm->AttachCurrentThreadAsDaemon((void**) &(env), (void*) &args)
-        : jvm->AttachCurrentThread((void**) &(env), (void*) &args);
-    if (ret != JNI_OK) {
-        fprintf(stderr, "Failed to attach JNI to current thread: %d\n", ret);
-        return NULL;
-    }
-    return env;
-}
-
-int detach_jni(JavaVM* jvm) {
-    jint ret = jvm->DetachCurrentThread();
-    if (ret != JNI_OK) {
-        fprintf(stderr, "Failed to detach JNI from current thread: %d\n", ret);
-    }
-    return ret;
-}
-
 JNIEXPORT jstring JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getVersion(JNIEnv* env, jclass target) {
     return env->NewStringUTF(NATIVE_VERSION);
