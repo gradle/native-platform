@@ -1,3 +1,5 @@
+#pragma once
+
 #if defined(__APPLE__)
 
 #include "generic_fsnotifier.h"
