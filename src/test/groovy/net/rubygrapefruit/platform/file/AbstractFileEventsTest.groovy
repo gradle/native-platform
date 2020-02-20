@@ -59,6 +59,14 @@ abstract class AbstractFileEventsTest extends Specification {
         LOGGER.info("<<< Finished '${testName.methodName}'")
     }
 
+    def "can start and stop watcher without watching any paths"() {
+        when:
+        startWatcher()
+
+        then:
+        noExceptionThrown()
+    }
+
     def "can open and close watcher on a directory without receiving any events"() {
         when:
         startWatcher(rootDir)
