@@ -20,7 +20,7 @@ struct deletable_facet : Facet {
     }
 };
 
-EventStream::EventStream(Server* server, CFRunLoopRef runLoop, CFStringRef path, long latencyInMillis) {
+WatchPoint::WatchPoint(Server* server, CFRunLoopRef runLoop, CFStringRef path, long latencyInMillis) {
     CFMutableArrayRef pathArray = CFArrayCreateMutable(NULL, 1, NULL);
     if (pathArray == NULL) {
         throw FileWatcherException("Could not allocate array to store roots to watch");
@@ -51,7 +51,7 @@ EventStream::EventStream(Server* server, CFRunLoopRef runLoop, CFStringRef path,
     this->watcherStream = watcherStream;
 }
 
-EventStream::~EventStream() {
+WatchPoint::~WatchPoint() {
     // Reading the Apple docs it seems we should call FSEventStreamFlushSync() here.
     // But doing so produces this log:
     //

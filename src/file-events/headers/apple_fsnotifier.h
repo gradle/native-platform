@@ -19,10 +19,10 @@ static void handleEventsCallback(
     const FSEventStreamEventFlags eventFlags[],
     const FSEventStreamEventId eventIds[]);
 
-class EventStream {
+class WatchPoint {
 public:
-    EventStream(Server* server, CFRunLoopRef runLoop, CFStringRef path, long latencyInMillis);
-    ~EventStream();
+    WatchPoint(Server* server, CFRunLoopRef runLoop, CFStringRef path, long latencyInMillis);
+    ~WatchPoint();
 
 private:
     FSEventStreamRef watcherStream;
@@ -47,7 +47,7 @@ private:
     void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);
 
     const jobjectArray rootsToWatch;
-    list<EventStream> watchPoints;
+    list<WatchPoint> watchPoints;
     const long latencyInMillis;
 
     CFRunLoopRef threadLoop;
