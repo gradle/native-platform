@@ -29,8 +29,7 @@ public:
     JNIEnv* getThreadEnv();
 
 protected:
-    // TODO Make this take a native string and free up the local JNI ref
-    void reportChange(JNIEnv* env, int type, jstring path);
+    void reportChange(JNIEnv* env, int type, const u16string& path);
 
     void startThread();
     virtual void runLoop(JNIEnv* env, function<void()> notifyStarted) = 0;

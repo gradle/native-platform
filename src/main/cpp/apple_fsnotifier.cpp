@@ -166,9 +166,7 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
     // TODO Can we extract this to some static state? It should only be used from the server thread
     wstring_convert<deletable_facet<codecvt<char16_t, char, mbstate_t>>, char16_t> conv16;
     u16string pathStr = conv16.from_bytes(path);
-    jstring javaPath = env->NewString((jchar*) pathStr.c_str(), pathStr.length());
-    reportChange(env, type, javaPath);
-    env->DeleteLocalRef(javaPath);
+    reportChange(env, type, pathStr);
 }
 
 Server* startWatching(JNIEnv* env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback) {
