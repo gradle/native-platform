@@ -157,15 +157,11 @@ Server::~Server() {
 }
 
 void Server::runLoop(JNIEnv* env, function<void()> notifyStarted) {
-    log_info(env, "Server thread %d with handle %p running", GetCurrentThreadId(), watcherThread.native_handle());
-
     notifyStarted();
 
     while (!terminate || watchPoints.size() > 0) {
         SleepEx(INFINITE, true);
     }
-
-    log_info(env, "Server thread %d finishing", GetCurrentThreadId());
 }
 
 void Server::startWatching(JNIEnv* env, const u16string& path) {

@@ -89,8 +89,6 @@ Server::~Server() {
 }
 
 void Server::runLoop(JNIEnv* env, function<void()> notifyStarted) {
-    log_fine(env, "Starting thread", NULL);
-
     CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
     eventStream.schedule(this, threadLoop);
     this->threadLoop = threadLoop;
@@ -100,8 +98,6 @@ void Server::runLoop(JNIEnv* env, function<void()> notifyStarted) {
     CFRunLoopRun();
 
     eventStream.unschedule();
-
-    log_fine(env, "Stopping thread", NULL);
 }
 
 static void handleEventsCallback(
