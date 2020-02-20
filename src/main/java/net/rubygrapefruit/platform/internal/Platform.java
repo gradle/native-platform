@@ -16,6 +16,7 @@
 
 package net.rubygrapefruit.platform.internal;
 
+import net.rubygrapefruit.platform.Native;
 import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.NativeIntegration;
 import net.rubygrapefruit.platform.NativeIntegrationUnavailableException;
@@ -27,6 +28,7 @@ import net.rubygrapefruit.platform.file.FileSystems;
 import net.rubygrapefruit.platform.file.Files;
 import net.rubygrapefruit.platform.file.PosixFiles;
 import net.rubygrapefruit.platform.file.WindowsFiles;
+import net.rubygrapefruit.platform.internal.jni.NativeLogger;
 import net.rubygrapefruit.platform.internal.jni.NativeVersion;
 import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions;
 import net.rubygrapefruit.platform.internal.jni.PosixTypeFunctions;
@@ -189,6 +191,8 @@ public abstract class Platform {
                 return type.cast(new DefaultWindowsRegistry());
             }
             if (type.equals(WindowsFileEventFunctions.class)) {
+                nativeLibraryLoader.load(getFileEventsLibraryName(), getLibraryVariants());
+                NativeLogger.initLogging(Native.class);
                 return type.cast(new WindowsFileEventFunctions());
             }
             return super.get(type, nativeLibraryLoader);
@@ -372,6 +376,7 @@ public abstract class Platform {
             }
             if (type.equals(OsxFileEventFunctions.class)) {
                 nativeLibraryLoader.load(getFileEventsLibraryName(), getLibraryVariants());
+                NativeLogger.initLogging(Native.class);
                 // TODO: Check version
 //                String nativeVersion = TerminfoFunctions.getVersion();
 //                if (!nativeVersion.equals(NativeVersion.VERSION)) {

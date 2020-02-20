@@ -20,7 +20,6 @@ import net.rubygrapefruit.platform.internal.NativeLibraryLoader;
 import net.rubygrapefruit.platform.internal.NativeLibraryLocator;
 import net.rubygrapefruit.platform.internal.Platform;
 import net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions;
-import net.rubygrapefruit.platform.internal.jni.NativeLogger;
 import net.rubygrapefruit.platform.internal.jni.NativeVersion;
 
 import java.io.File;
@@ -59,7 +58,6 @@ public class Native {
                     if (!nativeVersion.equals(NativeVersion.VERSION)) {
                         throw new NativeException(String.format("Unexpected native library version loaded. Expected %s, was %s.", NativeVersion.VERSION, nativeVersion));
                     }
-                    NativeLogger.initLogging(Native.class);
                 } catch (NativeException e) {
                     throw e;
                 } catch (Throwable t) {
