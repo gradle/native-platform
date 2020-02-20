@@ -254,8 +254,8 @@ model {
             }
             sources {
                 cpp {
-                    source.srcDirs = ['src/shared/cpp', 'src/file-events/cpp']
-                    exportedHeaders.srcDirs = ['src/shared/headers', 'src/file-events/headers']
+                    source.srcDirs = ['src/file-events/cpp']
+                    exportedHeaders.srcDirs = ['src/file-events/headers']
                 }
             }
         }
