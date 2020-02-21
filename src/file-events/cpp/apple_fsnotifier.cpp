@@ -84,7 +84,6 @@ Server::Server(JNIEnv* env, jobject watcherCallback)
 }
 
 Server::~Server() {
-    // TODO Can we somehow get the standard destruction take care of this?
     watchPoints.clear();
 
     if (threadLoop != NULL) {
