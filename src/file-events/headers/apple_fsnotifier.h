@@ -30,10 +30,10 @@ private:
 
 class Server : AbstractServer {
 public:
-    Server(JNIEnv* env, jobject watcherCallback, jobjectArray rootsToWatch, long latencyInMillis);
+    Server(JNIEnv* env, jobject watcherCallback);
     ~Server();
 
-    void startWatching(CFStringRef path, long latencyInMillis);
+    void startWatching(const u16string& path, long latencyInMillis);
     void handleEvents(
         size_t numEvents,
         char** eventPaths,
@@ -46,10 +46,7 @@ protected:
 private:
     void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);
 
-    const jobjectArray rootsToWatch;
     list<WatchPoint> watchPoints;
-    const long latencyInMillis;
-
     CFRunLoopRef threadLoop;
     CFRunLoopTimerRef keepAlive;
 };

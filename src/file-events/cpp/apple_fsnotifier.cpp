@@ -77,10 +77,8 @@ WatchPoint::~WatchPoint() {
 // Server
 //
 
-Server::Server(JNIEnv* env, jobject watcherCallback, jobjectArray rootsToWatch, long latencyInMillis)
-    : rootsToWatch(rootsToWatch)
-    , latencyInMillis(latencyInMillis)
-    , AbstractServer(env, watcherCallback) {
+Server::Server(JNIEnv* env, jobject watcherCallback)
+    : AbstractServer(env, watcherCallback) {
     // TODO Would be nice to inline this in AbstractServer(), but doing so results in pure virtual call
     startThread();
 }
@@ -121,19 +119,6 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
             NULL                    // context
         );
         CFRunLoopAddTimer(threadLoop, keepAlive, kCFRunLoopDefaultMode);
-
-        int count = env->GetArrayLength(rootsToWatch);
-        for (int i = 0; i < count; i++) {
-            jstring javaPath = (jstring) env->GetObjectArrayElement(rootsToWatch, i);
-            jsize javaPathLength = env->GetStringLength(javaPath);
-            const jchar* javaPathChars = env->GetStringCritical(javaPath, nullptr);
-            if (javaPathChars == NULL) {
-                throw FileWatcherException("Could not get Java string character");
-            }
-            u16string path((char16_t*) javaPathChars, javaPathLength);
-            env->ReleaseStringCritical(javaPath, javaPathChars);
-            watchPoints.emplace_back(this, threadLoop, path, latencyInMillis);
-        }
 
         notifyStarted(nullptr);
     } catch (...) {
@@ -208,11 +193,29 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
     reportChange(env, type, pathStr);
 }
 
+void Server::startWatching(const u16string& path, long latencyInMillis) {
+    watchPoints.emplace_back(this, threadLoop, path, latencyInMillis);
+}
+
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatching(JNIEnv* env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback) {
     Server* server;
     try {
-        server = new Server(env, javaCallback, paths, latencyInMillis);
+        server = new Server(env, javaCallback);
+
+        int count = env->GetArrayLength(paths);
+        for (int i = 0; i < count; i++) {
+            jstring javaPath = (jstring) env->GetObjectArrayElement(paths, i);
+            jsize javaPathLength = env->GetStringLength(javaPath);
+            const jchar* javaPathChars = env->GetStringCritical(javaPath, nullptr);
+            if (javaPathChars == NULL) {
+                throw FileWatcherException("Could not get Java string character");
+            }
+            u16string path((char16_t*) javaPathChars, javaPathLength);
+            env->ReleaseStringCritical(javaPath, javaPathChars);
+
+            server->startWatching(path, latencyInMillis);
+        }
     } catch (const exception& e) {
         log_severe(env, "Caught exception: %s", e.what());
         jclass exceptionClass = env->FindClass("net/rubygrapefruit/platform/NativeException");
