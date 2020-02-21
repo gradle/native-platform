@@ -17,7 +17,7 @@ static void handleEventsCallback(
     size_t numEvents,
     void* eventPaths,
     const FSEventStreamEventFlags eventFlags[],
-    const FSEventStreamEventId eventIds[]);
+    const FSEventStreamEventId*);
 
 class WatchPoint {
 public:
@@ -37,8 +37,7 @@ public:
     void handleEvents(
         size_t numEvents,
         char** eventPaths,
-        const FSEventStreamEventFlags eventFlags[],
-        const FSEventStreamEventId eventIds[]);
+        const FSEventStreamEventFlags eventFlags[]);
 
 protected:
     void runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) override;

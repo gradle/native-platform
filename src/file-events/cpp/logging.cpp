@@ -4,7 +4,7 @@ int minimumLogLevel;
 jclass clsLogger;
 jmethodID logMethod;
 
-JNIEXPORT void JNICALL Java_net_rubygrapefruit_platform_internal_jni_NativeLogger_initLogging(JNIEnv* env, jclass target, jint level) {
+JNIEXPORT void JNICALL Java_net_rubygrapefruit_platform_internal_jni_NativeLogger_initLogging(JNIEnv* env, jclass, jint level) {
     minimumLogLevel = (int) level;
     clsLogger = env->FindClass("net/rubygrapefruit/platform/internal/jni/NativeLogger");
     logMethod = env->GetStaticMethodID(clsLogger, "log", "(ILjava/lang/String;)V");

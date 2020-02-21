@@ -255,6 +255,33 @@ model {
                 }
                 targetPlatform p.name
             }
+            binaries.all {
+                if (targetPlatform.operatingSystem.macOsX
+                    || targetPlatform.operatingSystem.linux) {
+                    cppCompiler.args "-g"
+                    cppCompiler.args "-pthread"
+                    cppCompiler.args "-pedantic"
+                    cppCompiler.args "--std=c++11"
+                    cppCompiler.args "-Wall"                    // All warnings
+                    cppCompiler.args "-Wextra"                  // Plus extra
+                    cppCompiler.args "-Wformat=2"               // Check printf format strings
+                    cppCompiler.args "-Werror"                  // Warnings are errors
+                    cppCompiler.args "-Wno-format-nonliteral"   // Allow printf to have dynamic format string
+                    linker.args "-pthread"
+                } else if (targetPlatform.operatingSystem.windows) {
+                    cppCompiler.args "/DEBUG"              // Produce debug output
+                    cppCompiler.args "/std:c++17"          // Won't hurt
+                    cppCompiler.args "/permissive-"        // Make compiler more standards compatible
+                    cppCompiler.args "/EHsc"               // Force exception handling mode
+                    cppCompiler.args "/Zi"                 // Force PDB debugging
+                    cppCompiler.args "/FS"                 // Force synchronous PDB writes
+                    cppCompiler.args "/Zc:inline"          // Hack
+                    cppCompiler.args "/Zc:throwingNew"     // Assume new throws on error
+                    // cppCompiler.args "/W3"              // Enable lots of warnings, disbale individual warnings with /WD<NUM>
+                    cppCompiler.args "/WX"                 // Warnings are errors
+                    linker.args "/DEBUG:FULL"              // Generate all PDBs
+                }
+            }
             sources {
                 cpp {
                     source.srcDirs = ['src/file-events/cpp']
@@ -274,14 +301,12 @@ model {
                     cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
                     cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/darwin"
                     cppCompiler.args '-mmacosx-version-min=10.9'
-                    cppCompiler.args "--std=c++11"
                     linker.args '-mmacosx-version-min=10.9'
                     linker.args '-framework', 'CoreServices'
                 } else if (targetPlatform.operatingSystem.linux) {
                     cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
                     cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/linux"
                     cppCompiler.args '-D_FILE_OFFSET_BITS=64'
-                    cppCompiler.args "--std=c++11"
                 } else if (targetPlatform.operatingSystem.windows) {
                     if (name.contains("_min")) {
                         cppCompiler.define "WINDOWS_MIN"

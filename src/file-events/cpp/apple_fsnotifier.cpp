@@ -101,7 +101,7 @@ Server::~Server() {
     }
 }
 
-void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
+void Server::runLoop(JNIEnv*, function<void(exception_ptr)> notifyStarted) {
     try {
         CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
         this->threadLoop = threadLoop;
@@ -128,24 +128,23 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
 }
 
 static void handleEventsCallback(
-    ConstFSEventStreamRef streamRef,
+    ConstFSEventStreamRef,
     void* clientCallBackInfo,
     size_t numEvents,
     void* eventPaths,
     const FSEventStreamEventFlags eventFlags[],
-    const FSEventStreamEventId eventIds[]) {
+    const FSEventStreamEventId*) {
     Server* server = (Server*) clientCallBackInfo;
-    server->handleEvents(numEvents, (char**) eventPaths, eventFlags, eventIds);
+    server->handleEvents(numEvents, (char**) eventPaths, eventFlags);
 }
 
 void Server::handleEvents(
     size_t numEvents,
     char** eventPaths,
-    const FSEventStreamEventFlags eventFlags[],
-    const FSEventStreamEventId eventIds[]) {
+    const FSEventStreamEventFlags eventFlags[]) {
     JNIEnv* env = getThreadEnv();
 
-    for (int i = 0; i < numEvents; i++) {
+    for (size_t i = 0; i < numEvents; i++) {
         handleEvent(env, eventPaths[i], eventFlags[i]);
     }
 }
@@ -197,7 +196,7 @@ void Server::startWatching(const u16string& path, long latencyInMillis) {
 }
 
 JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatching(JNIEnv* env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback) {
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatching(JNIEnv* env, jclass, jobjectArray paths, long latencyInMillis, jobject javaCallback) {
     Server* server;
     try {
         server = new Server(env, javaCallback);
@@ -232,7 +231,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_stopWatching(JNIEnv* env, jclass target, jobject detailsObj) {
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_stopWatching(JNIEnv* env, jclass, jobject detailsObj) {
     Server* server = (Server*) env->GetDirectBufferAddress(detailsObj);
     assert(server != NULL);
     delete server;
