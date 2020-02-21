@@ -185,7 +185,6 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
     }
 
     log_fine(env, "Changed: %s %d", path, type);
-    // TODO Can we extract this to some static state? It should only be used from the server thread
     wstring_convert<deletable_facet<codecvt<char16_t, char, mbstate_t>>, char16_t> conv16;
     u16string pathStr = conv16.from_bytes(path);
     reportChange(env, type, pathStr);
