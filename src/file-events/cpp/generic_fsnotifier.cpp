@@ -2,15 +2,38 @@
 
 #include "generic_fsnotifier.h"
 
-/**
- * Attaches JNI to the current thread.
- */
-extern JNIEnv* attach_jni(JavaVM* jvm, const char* name, bool daemon);
+class JNIThread {
+public:
+    JNIThread(JavaVM* jvm, const char* name, bool daemon) {
+        this->jvm = jvm;
 
-/**
- * Detaches JNI from the current thread.
- */
-extern int detach_jni(JavaVM* jvm);
+        JNIEnv* env;
+        // Work around const char* issue
+        char* nameCopy = strdup(name);
+        JavaVMAttachArgs args = {
+            JNI_VERSION_1_6,    // version
+            nameCopy,           // thread name
+            NULL                // thread group
+        };
+        free(nameCopy);
+        jint ret = daemon
+            ? jvm->AttachCurrentThreadAsDaemon((void**) &env, (void*) &args)
+            : jvm->AttachCurrentThread((void**) &env, (void*) &args);
+        if (ret != JNI_OK) {
+            fprintf(stderr, "Failed to attach JNI to current thread: %d\n", ret);
+            throw new FileWatcherException("Failed to attach JNI to current thread");
+        }
+    }
+    ~JNIThread() {
+        jint ret = jvm->DetachCurrentThread();
+        if (ret != JNI_OK) {
+            fprintf(stderr, "Failed to detach JNI from current thread: %d\n", ret);
+        }
+    }
+
+private:
+    JavaVM* jvm;
+};
 
 AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback) {
     JavaVM* jvm;
@@ -50,7 +73,8 @@ void AbstractServer::startThread() {
 }
 
 void AbstractServer::run() {
-    JNIEnv* env = attach_jni(jvm, "File watcher server", true);
+    JNIThread jniThread(jvm, "File watcher server", true);
+    JNIEnv* env = getThreadEnv();
 
     log_fine(env, "Starting thread", NULL);
 
@@ -62,8 +86,6 @@ void AbstractServer::run() {
     });
 
     log_fine(env, "Stopping thread", NULL);
-
-    detach_jni(jvm);
 }
 
 JNIEnv* AbstractServer::getThreadEnv() {
@@ -80,34 +102,6 @@ void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) 
     jstring javaPath = env->NewString((jchar*) path.c_str(), path.length());
     env->CallVoidMethod(watcherCallback, watcherCallbackMethod, type, javaPath);
     env->DeleteLocalRef(javaPath);
-}
-
-JNIEnv* attach_jni(JavaVM* jvm, const char* name, bool daemon) {
-    JNIEnv* env;
-    // Work around const char* issue
-    char* nameCopy = strdup(name);
-    JavaVMAttachArgs args = {
-        JNI_VERSION_1_6,    // version
-        nameCopy,           // thread name
-        NULL                // thread group
-    };
-    free(nameCopy);
-    jint ret = daemon
-        ? jvm->AttachCurrentThreadAsDaemon((void**) &(env), (void*) &args)
-        : jvm->AttachCurrentThread((void**) &(env), (void*) &args);
-    if (ret != JNI_OK) {
-        fprintf(stderr, "Failed to attach JNI to current thread: %d\n", ret);
-        return NULL;
-    }
-    return env;
-}
-
-int detach_jni(JavaVM* jvm) {
-    jint ret = jvm->DetachCurrentThread();
-    if (ret != JNI_OK) {
-        fprintf(stderr, "Failed to detach JNI from current thread: %d\n", ret);
-    }
-    return ret;
 }
 
 #endif
