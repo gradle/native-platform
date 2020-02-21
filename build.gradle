@@ -277,7 +277,7 @@ model {
                     cppCompiler.args "/FS"                 // Force synchronous PDB writes
                     cppCompiler.args "/Zc:inline"          // Hack
                     cppCompiler.args "/Zc:throwingNew"     // Assume new throws on error
-                    // cppCompiler.args "/W3"              // Enable lots of warnings, disbale individual warnings with /WD<NUM>
+                    cppCompiler.args "/W3"                 // Enable lots of warnings, disbale individual warnings with /WD<NUM>
                     cppCompiler.args "/WX"                 // Warnings are errors
                     linker.args "/DEBUG:FULL"              // Generate all PDBs
                 }
