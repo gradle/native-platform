@@ -45,6 +45,11 @@ int WatchPoint::awaitListeningStarted(HANDLE threadHandle) {
     return status;
 }
 
+static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped) {
+    WatchPoint* watchPoint = (WatchPoint*) overlapped->hEvent;
+    watchPoint->handleEvent(errorCode, bytesTransferred);
+}
+
 void WatchPoint::listen() {
     BOOL success = ReadDirectoryChangesW(
         directoryHandle,        // handle to directory
@@ -66,11 +71,6 @@ void WatchPoint::listen() {
         // TODO Error handling
     }
     listenerStarted.notify_all();
-}
-
-static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped) {
-    WatchPoint* watchPoint = (WatchPoint*) overlapped->hEvent;
-    watchPoint->handleEvent(errorCode, bytesTransferred);
 }
 
 void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransferred) {
@@ -284,7 +284,9 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
         jsize javaPathLength = env->GetStringLength(javaPath);
         const jchar* javaPathChars = env->GetStringCritical(javaPath, nullptr);
         if (javaPathChars == NULL) {
-            throw FileWatcherException("Could not get Java string character");
+            // TODO Throw Java exception
+            fprintf(stderr, "Could not get Java string character");
+            return NULL;
         }
         u16string pathStr((char16_t*) javaPathChars, javaPathLength);
         env->ReleaseStringCritical(javaPath, javaPathChars);
