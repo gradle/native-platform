@@ -16,7 +16,6 @@
 
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.Native;
 import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.NativeIntegration;
 import net.rubygrapefruit.platform.NativeIntegrationUnavailableException;
@@ -28,6 +27,7 @@ import net.rubygrapefruit.platform.file.FileSystems;
 import net.rubygrapefruit.platform.file.Files;
 import net.rubygrapefruit.platform.file.PosixFiles;
 import net.rubygrapefruit.platform.file.WindowsFiles;
+import net.rubygrapefruit.platform.internal.jni.AbstractFileEventFunctions;
 import net.rubygrapefruit.platform.internal.jni.NativeLogger;
 import net.rubygrapefruit.platform.internal.jni.NativeVersion;
 import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions;
@@ -39,6 +39,7 @@ import net.rubygrapefruit.platform.memory.OsxMemory;
 import net.rubygrapefruit.platform.terminal.Terminals;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public abstract class Platform {
@@ -125,7 +126,7 @@ public abstract class Platform {
     }
 
     public List<String> getLibraryVariants() {
-        return Arrays.asList(getId());
+        return Collections.singletonList(getId());
     }
 
     public abstract String getId();
@@ -136,6 +137,19 @@ public abstract class Platform {
 
     private static String getArchitecture() {
         return System.getProperty("os.arch");
+    }
+
+    protected void initFileEventFunctions(NativeLibraryLoader nativeLibraryLoader) {
+        nativeLibraryLoader.load(getFileEventsLibraryName(), getLibraryVariants());
+        NativeLogger.initLogging(AbstractFileEventFunctions.class);
+        String nativeVersion = AbstractFileEventFunctions.getVersion();
+        if (!nativeVersion.equals(NativeVersion.VERSION)) {
+            throw new NativeException(String.format(
+                "Unexpected native file events library version loaded. Expected %s, was %s.",
+                nativeVersion,
+                NativeVersion.VERSION
+            ));
+        }
     }
 
     private abstract static class Windows extends Platform {
@@ -191,8 +205,7 @@ public abstract class Platform {
                 return type.cast(new DefaultWindowsRegistry());
             }
             if (type.equals(WindowsFileEventFunctions.class)) {
-                nativeLibraryLoader.load(getFileEventsLibraryName(), getLibraryVariants());
-                NativeLogger.initLogging(Native.class);
+                initFileEventFunctions(nativeLibraryLoader);
                 return type.cast(new WindowsFileEventFunctions());
             }
             return super.get(type, nativeLibraryLoader);
@@ -375,15 +388,7 @@ public abstract class Platform {
                 return type.cast(new DefaultMemory());
             }
             if (type.equals(OsxFileEventFunctions.class)) {
-                nativeLibraryLoader.load(getFileEventsLibraryName(), getLibraryVariants());
-                NativeLogger.initLogging(Native.class);
-                // TODO: Check version
-//                String nativeVersion = TerminfoFunctions.getVersion();
-//                if (!nativeVersion.equals(NativeVersion.VERSION)) {
-//                    throw new NativeException(String.format(
-//                        "Unexpected native library version loaded. Expected %s, was %s.", nativeVersion,
-//                        NativeVersion.VERSION));
-//                }
+                initFileEventFunctions(nativeLibraryLoader);
                 return type.cast(new OsxFileEventFunctions());
             }
             return super.get(type, nativeLibraryLoader);
