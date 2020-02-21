@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Windows",
+            "type": "cppvsdbg",
+            "request": "attach",
+            "processId": "${command:pickProcess}"
+        },
+        {
+            "name": "macOS",
+            "type": "cppdbg",
+            "request": "attach",
+            "program": "${workspaceFolder}/build/libs/nativePlatform/shared/osx_amd64/libnative-platform.dylib",
+            "processId": "${command:pickProcess}",
+            "MIMode": "lldb"
+        }
+    ]
+}
