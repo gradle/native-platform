@@ -27,7 +27,7 @@ WatchPoint::WatchPoint(Server* server, CFRunLoopRef runLoop, const u16string& pa
     }
     CFMutableArrayRef pathArray = CFArrayCreateMutable(NULL, 1, NULL);
     if (pathArray == NULL) {
-        throw FileWatcherException("Could not allocate array to store roots to watch");
+        throw FileWatcherException("Could not allocate array to store root to watch");
     }
     CFArrayAppendValue(pathArray, cfPath);
 
