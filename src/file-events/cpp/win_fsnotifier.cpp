@@ -156,16 +156,12 @@ Server::Server(JNIEnv* env, jobject watcherCallback)
 Server::~Server() {
 }
 
-void Server::runLoop(JNIEnv* env, function<void()> notifyStarted) {
-    log_info(env, "Server thread %d with handle %p running", GetCurrentThreadId(), watcherThread.native_handle());
-
-    notifyStarted();
+void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
+    notifyStarted(nullptr);
 
     while (!terminate || watchPoints.size() > 0) {
         SleepEx(INFINITE, true);
     }
-
-    log_info(env, "Server thread %d finishing", GetCurrentThreadId());
 }
 
 void Server::startWatching(JNIEnv* env, const u16string& path) {

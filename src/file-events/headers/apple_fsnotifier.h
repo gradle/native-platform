@@ -5,6 +5,7 @@
 #include "generic_fsnotifier.h"
 #include "net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions.h"
 #include <CoreServices/CoreServices.h>
+#include <list>
 
 using namespace std;
 
@@ -18,32 +19,21 @@ static void handleEventsCallback(
     const FSEventStreamEventFlags eventFlags[],
     const FSEventStreamEventId eventIds[]);
 
-class EventStream {
+class WatchPoint {
 public:
-    EventStream(CFArrayRef rootsToWatch, long latencyInMillis);
-    ~EventStream();
-
-    void schedule(Server* server, CFRunLoopRef runLoop);
-    void unschedule();
+    WatchPoint(Server* server, CFRunLoopRef runLoop, const u16string& path, long latencyInMillis);
+    ~WatchPoint();
 
 private:
-    friend void handleEventsCallback(
-        ConstFSEventStreamRef streamRef,
-        void* clientCallBackInfo,
-        size_t numEvents,
-        void* eventPaths,
-        const FSEventStreamEventFlags eventFlags[],
-        const FSEventStreamEventId eventIds[]);
-
     FSEventStreamRef watcherStream;
-    Server* server;
 };
 
 class Server : AbstractServer {
 public:
-    Server(JNIEnv* env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis);
+    Server(JNIEnv* env, jobject watcherCallback);
     ~Server();
 
+    void startWatching(const u16string& path, long latencyInMillis);
     void handleEvents(
         size_t numEvents,
         char** eventPaths,
@@ -51,13 +41,14 @@ public:
         const FSEventStreamEventId eventIds[]);
 
 protected:
-    void runLoop(JNIEnv* env, function<void()> notifyStarted) override;
+    void runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) override;
 
 private:
     void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);
 
-    EventStream eventStream;
+    list<WatchPoint> watchPoints;
     CFRunLoopRef threadLoop;
+    CFRunLoopTimerRef keepAlive;
 };
 
 #endif

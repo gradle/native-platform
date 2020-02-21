@@ -13,9 +13,6 @@ import java.util.List;
 
 public class AbstractFileEventFunctions implements NativeIntegration {
     protected FileWatcher createWatcher(Collection<String> paths, FileWatcherCallback callback, WatcherFactory starter) {
-        if (paths.isEmpty()) {
-            return FileWatcher.EMPTY;
-        }
         List<String> canonicalPaths = canonicalizeAbsolutePaths(paths);
         return starter.createWatcher(
             canonicalPaths.toArray(new String[0]),

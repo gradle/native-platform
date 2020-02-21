@@ -20,35 +20,44 @@ struct deletable_facet : Facet {
     }
 };
 
-EventStream::EventStream(CFArrayRef rootsToWatch, long latencyInMillis) {
+WatchPoint::WatchPoint(Server* server, CFRunLoopRef runLoop, const u16string& path, long latencyInMillis) {
+    CFStringRef cfPath = CFStringCreateWithCharacters(NULL, (UniChar*) path.c_str(), path.length());
+    if (cfPath == nullptr) {
+        throw FileWatcherException("Could not allocate CFString for path");
+    }
+    CFMutableArrayRef pathArray = CFArrayCreateMutable(NULL, 1, NULL);
+    if (pathArray == NULL) {
+        throw FileWatcherException("Could not allocate array to store root to watch");
+    }
+    CFArrayAppendValue(pathArray, cfPath);
+
     FSEventStreamContext context = {
-        0,               // version, must be 0
-        (void*) this,    // info
-        NULL,            // retain
-        NULL,            // release
-        NULL             // copyDescription
+        0,                 // version, must be 0
+        (void*) server,    // info
+        NULL,              // retain
+        NULL,              // release
+        NULL               // copyDescription
     };
     FSEventStreamRef watcherStream = FSEventStreamCreate(
         NULL,
         &handleEventsCallback,
         &context,
-        rootsToWatch,
+        pathArray,
         kFSEventStreamEventIdSinceNow,
         latencyInMillis / 1000.0,
         kFSEventStreamCreateFlagNoDefer | kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagWatchRoot);
+    CFRelease(pathArray);
+    // TODO Why releasing this before the stream is created causes a crash?
+    CFRelease(cfPath);
     if (watcherStream == NULL) {
         throw FileWatcherException("Could not create FSEventStreamCreate to track changes");
     }
+    FSEventStreamScheduleWithRunLoop(watcherStream, runLoop, kCFRunLoopDefaultMode);
+    FSEventStreamStart(watcherStream);
     this->watcherStream = watcherStream;
 }
 
-void EventStream::schedule(Server* server, CFRunLoopRef runLoop) {
-    this->server = server;
-    FSEventStreamScheduleWithRunLoop(watcherStream, runLoop, kCFRunLoopDefaultMode);
-    FSEventStreamStart(watcherStream);
-}
-
-void EventStream::unschedule() {
+WatchPoint::~WatchPoint() {
     // Reading the Apple docs it seems we should call FSEventStreamFlushSync() here.
     // But doing so produces this log:
     //
@@ -61,9 +70,6 @@ void EventStream::unschedule() {
     // FSEventStreamFlushSync(watcherStream);
     FSEventStreamStop(watcherStream);
     FSEventStreamInvalidate(watcherStream);
-}
-
-EventStream::~EventStream() {
     FSEventStreamRelease(watcherStream);
 }
 
@@ -71,16 +77,24 @@ EventStream::~EventStream() {
 // Server
 //
 
-Server::Server(JNIEnv* env, jobject watcherCallback, CFArrayRef rootsToWatch, long latencyInMillis)
-    : eventStream(rootsToWatch, latencyInMillis)
-    , AbstractServer(env, watcherCallback) {
+Server::Server(JNIEnv* env, jobject watcherCallback)
+    : AbstractServer(env, watcherCallback) {
     // TODO Would be nice to inline this in AbstractServer(), but doing so results in pure virtual call
     startThread();
 }
 
 Server::~Server() {
+    // TODO Can we somehow get the standard destruction take care of this?
+    watchPoints.clear();
+
     if (threadLoop != NULL) {
-        CFRunLoopStop(threadLoop);
+        if (keepAlive != NULL) {
+            CFRunLoopRemoveTimer(threadLoop, keepAlive, kCFRunLoopDefaultMode);
+            CFRelease(keepAlive);
+        }
+        if (CFRunLoopIsWaiting(threadLoop)) {
+            CFRunLoopStop(threadLoop);
+        }
     }
 
     if (watcherThread.joinable()) {
@@ -88,20 +102,30 @@ Server::~Server() {
     }
 }
 
-void Server::runLoop(JNIEnv* env, function<void()> notifyStarted) {
-    log_fine(env, "Starting thread", NULL);
+void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
+    try {
+        CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
+        this->threadLoop = threadLoop;
 
-    CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
-    eventStream.schedule(this, threadLoop);
-    this->threadLoop = threadLoop;
+        // Make sure we have at least one source for our run loop, otherwise it would exit immediately
+        CFAbsoluteTime forever = numeric_limits<double>::max();
+        keepAlive = CFRunLoopTimerCreate(
+            kCFAllocatorDefault,    // allocator
+            forever,                // fireDate
+            0,                      // interval
+            0,                      // flags, must be 0
+            0,                      // order, must be 0
+            NULL,                   // callout
+            NULL                    // context
+        );
+        CFRunLoopAddTimer(threadLoop, keepAlive, kCFRunLoopDefaultMode);
 
-    notifyStarted();
+        notifyStarted(nullptr);
+    } catch (...) {
+        notifyStarted(current_exception());
+    }
 
     CFRunLoopRun();
-
-    eventStream.unschedule();
-
-    log_fine(env, "Stopping thread", NULL);
 }
 
 static void handleEventsCallback(
@@ -111,8 +135,8 @@ static void handleEventsCallback(
     void* eventPaths,
     const FSEventStreamEventFlags eventFlags[],
     const FSEventStreamEventId eventIds[]) {
-    EventStream* eventStream = (EventStream*) clientCallBackInfo;
-    eventStream->server->handleEvents(numEvents, (char**) eventPaths, eventFlags, eventIds);
+    Server* server = (Server*) clientCallBackInfo;
+    server->handleEvents(numEvents, (char**) eventPaths, eventFlags, eventIds);
 }
 
 void Server::handleEvents(
@@ -169,14 +193,17 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
     reportChange(env, type, pathStr);
 }
 
-Server* startWatching(JNIEnv* env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback) {
-    int count = env->GetArrayLength(paths);
-    CFMutableArrayRef rootsToWatch = CFArrayCreateMutable(NULL, count, NULL);
-    if (rootsToWatch == NULL) {
-        throw FileWatcherException("Could not allocate array to store roots to watch");
-    }
+void Server::startWatching(const u16string& path, long latencyInMillis) {
+    watchPoints.emplace_back(this, threadLoop, path, latencyInMillis);
+}
 
+JNIEXPORT jobject JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatching(JNIEnv* env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback) {
+    Server* server;
     try {
+        server = new Server(env, javaCallback);
+
+        int count = env->GetArrayLength(paths);
         for (int i = 0; i < count; i++) {
             jstring javaPath = (jstring) env->GetObjectArrayElement(paths, i);
             jsize javaPathLength = env->GetStringLength(javaPath);
@@ -184,26 +211,11 @@ Server* startWatching(JNIEnv* env, jclass target, jobjectArray paths, long laten
             if (javaPathChars == NULL) {
                 throw FileWatcherException("Could not get Java string character");
             }
-            CFStringRef stringPath = CFStringCreateWithCharacters(NULL, javaPathChars, javaPathLength);
+            u16string path((char16_t*) javaPathChars, javaPathLength);
             env->ReleaseStringCritical(javaPath, javaPathChars);
-            if (stringPath == NULL) {
-                throw FileWatcherException("Could not create CFStringRef");
-            }
-            CFArrayAppendValue(rootsToWatch, stringPath);
+
+            server->startWatching(path, latencyInMillis);
         }
-
-        return new Server(env, javaCallback, rootsToWatch, latencyInMillis);
-    } catch (...) {
-        CFRelease(rootsToWatch);
-        throw;
-    }
-}
-
-JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatching(JNIEnv* env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback) {
-    Server* server;
-    try {
-        server = startWatching(env, target, paths, latencyInMillis, javaCallback);
     } catch (const exception& e) {
         log_severe(env, "Caught exception: %s", e.what());
         jclass exceptionClass = env->FindClass("net/rubygrapefruit/platform/NativeException");
