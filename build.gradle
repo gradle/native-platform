@@ -250,6 +250,9 @@ model {
                 if (p.operatingSystem.freeBSD) {
                     return
                 }
+                if (p.name.contains("ncurses")) {
+                    return
+                }
                 targetPlatform p.name
             }
             sources {
@@ -297,6 +300,7 @@ model {
                     return
                 }
                 def variantName = binaryToVariantName(binary)
+                println (variantName)
                 variantNames << variantName
             }
         }
