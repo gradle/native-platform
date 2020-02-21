@@ -86,7 +86,9 @@ Server::Server(JNIEnv* env, jobject watcherCallback, jobjectArray rootsToWatch, 
 }
 
 Server::~Server() {
-    if (threadLoop != NULL) {
+    watchPoints.clear();
+
+    if (threadLoop != NULL && CFRunLoopIsWaiting(threadLoop)) {
         CFRunLoopStop(threadLoop);
     }
 
