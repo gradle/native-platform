@@ -325,7 +325,6 @@ model {
                     return
                 }
                 def variantName = binaryToVariantName(binary)
-                println (variantName)
                 variantNames << variantName
             }
         }
