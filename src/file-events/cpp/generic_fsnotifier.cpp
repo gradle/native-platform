@@ -8,14 +8,11 @@ public:
         this->jvm = jvm;
 
         JNIEnv* env;
-        // Work around const char* issue
-        char* nameCopy = strdup(name);
         JavaVMAttachArgs args = {
-            JNI_VERSION_1_6,    // version
-            nameCopy,           // thread name
-            NULL                // thread group
+            JNI_VERSION_1_6,            // version
+            const_cast<char*>(name),    // thread name
+            NULL                        // thread group
         };
-        free(nameCopy);
         jint ret = daemon
             ? jvm->AttachCurrentThreadAsDaemon((void**) &env, (void*) &args)
             : jvm->AttachCurrentThread((void**) &env, (void*) &args);
@@ -99,7 +96,7 @@ JNIEnv* AbstractServer::getThreadEnv() {
 }
 
 void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) {
-    jstring javaPath = env->NewString((jchar*) path.c_str(), path.length());
+    jstring javaPath = env->NewString((jchar*) path.c_str(), (jsize) path.length());
     env->CallVoidMethod(watcherCallback, watcherCallbackMethod, type, javaPath);
     env->DeleteLocalRef(javaPath);
 }
