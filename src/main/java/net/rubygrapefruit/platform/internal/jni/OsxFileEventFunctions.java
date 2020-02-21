@@ -18,7 +18,6 @@ package net.rubygrapefruit.platform.internal.jni;
 
 import net.rubygrapefruit.platform.file.FileWatcher;
 import net.rubygrapefruit.platform.file.FileWatcherCallback;
-import net.rubygrapefruit.platform.internal.FunctionResult;
 
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
@@ -64,15 +63,15 @@ public class OsxFileEventFunctions extends AbstractFileEventFunctions {
     public FileWatcher startWatching(Collection<String> paths, final long latency, final TimeUnit unit, FileWatcherCallback callback) {
         return createWatcher(paths, callback, new WatcherFactory() {
             @Override
-            public FileWatcher createWatcher(String[] canonicalPaths, NativeFileWatcherCallback callback, FunctionResult result) {
-                return startWatching(canonicalPaths, unit.toMillis(latency), callback, result);
+            public FileWatcher createWatcher(String[] canonicalPaths, NativeFileWatcherCallback callback) {
+                return startWatching(canonicalPaths, unit.toMillis(latency), callback);
             }
         });
     }
 
-    private static native FileWatcher startWatching(String[] paths, long latencyInMillis, NativeFileWatcherCallback callback, FunctionResult result);
+    private static native FileWatcher startWatching(String[] paths, long latencyInMillis, NativeFileWatcherCallback callback);
 
-    private static native void stopWatching(Object details, FunctionResult result);
+    private static native void stopWatching(Object details);
 
     // Created from native code
     @SuppressWarnings("unused")
@@ -82,8 +81,8 @@ public class OsxFileEventFunctions extends AbstractFileEventFunctions {
         }
 
         @Override
-        protected void stop(Object details, FunctionResult result) {
-            stopWatching(details, result);
+        protected void stop(Object details) {
+            stopWatching(details);
         }
     }
 }

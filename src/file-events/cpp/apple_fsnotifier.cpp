@@ -200,7 +200,7 @@ Server* startWatching(JNIEnv* env, jclass target, jobjectArray paths, long laten
 }
 
 JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatching(JNIEnv* env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatching(JNIEnv* env, jclass target, jobjectArray paths, long latencyInMillis, jobject javaCallback) {
     Server* server;
     try {
         server = startWatching(env, target, paths, latencyInMillis, javaCallback);
@@ -221,7 +221,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_stopWatching(JNIEnv* env, jclass target, jobject detailsObj, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_stopWatching(JNIEnv* env, jclass target, jobject detailsObj) {
     Server* server = (Server*) env->GetDirectBufferAddress(detailsObj);
     assert(server != NULL);
     delete server;

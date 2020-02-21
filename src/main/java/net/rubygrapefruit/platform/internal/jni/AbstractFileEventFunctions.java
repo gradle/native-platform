@@ -4,7 +4,6 @@ import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.NativeIntegration;
 import net.rubygrapefruit.platform.file.FileWatcher;
 import net.rubygrapefruit.platform.file.FileWatcherCallback;
-import net.rubygrapefruit.platform.internal.FunctionResult;
 
 import java.io.File;
 import java.io.IOException;
@@ -17,17 +16,11 @@ public class AbstractFileEventFunctions implements NativeIntegration {
         if (paths.isEmpty()) {
             return FileWatcher.EMPTY;
         }
-        FunctionResult result = new FunctionResult();
         List<String> canonicalPaths = canonicalizeAbsolutePaths(paths);
-        FileWatcher watcher = starter.createWatcher(
+        return starter.createWatcher(
             canonicalPaths.toArray(new String[0]),
-            new NativeFileWatcherCallback(callback),
-            result
+            new NativeFileWatcherCallback(callback)
         );
-        if (result.isFailed()) {
-            throw new NativeException("Failed to start watching. Reason: " + result.getMessage());
-        }
-        return watcher;
     }
 
     /**
@@ -52,7 +45,7 @@ public class AbstractFileEventFunctions implements NativeIntegration {
     }
 
     protected interface WatcherFactory {
-        FileWatcher createWatcher(String[] canonicalPaths, NativeFileWatcherCallback callback, FunctionResult result);
+        FileWatcher createWatcher(String[] canonicalPaths, NativeFileWatcherCallback callback);
     }
 
     protected static abstract class AbstractFileWatcher implements FileWatcher {
@@ -71,15 +64,11 @@ public class AbstractFileEventFunctions implements NativeIntegration {
             if (details == null) {
                 return;
             }
-            FunctionResult result = new FunctionResult();
-            stop(details, result);
+            stop(details);
             details = null;
-            if (result.isFailed()) {
-                throw new NativeException("Failed to stop watching. Reason: " + result.getMessage());
-            }
         }
 
-        protected abstract void stop(Object details, FunctionResult result);
+        protected abstract void stop(Object details);
     }
 
     protected static class NativeFileWatcherCallback {
@@ -89,6 +78,8 @@ public class AbstractFileEventFunctions implements NativeIntegration {
             this.delegate = delegate;
         }
 
+        // Called from the native side
+        @SuppressWarnings("unused")
         public void pathChanged(int type, String path) {
             delegate.pathChanged(FileWatcherCallback.Type.values()[type], path);
         }

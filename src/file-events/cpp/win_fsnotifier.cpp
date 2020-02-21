@@ -279,7 +279,7 @@ void convertToLongPathIfNeeded(u16string& path) {
 //
 
 JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatching(JNIEnv* env, jclass target, jobjectArray paths, jobject javaCallback, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatching(JNIEnv* env, jclass target, jobjectArray paths, jobject javaCallback) {
     Server* server = new Server(env, javaCallback);
 
     int watchPointCount = env->GetArrayLength(paths);
@@ -302,7 +302,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_stopWatching(JNIEnv* env, jclass target, jobject detailsObj, jobject result) {
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_stopWatching(JNIEnv* env, jclass target, jobject detailsObj) {
     Server* server = (Server*) env->GetDirectBufferAddress(detailsObj);
     server->close(env);
     delete server;
