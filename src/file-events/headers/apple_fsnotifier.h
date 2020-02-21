@@ -51,6 +51,7 @@ private:
     const long latencyInMillis;
 
     CFRunLoopRef threadLoop;
+    CFRunLoopTimerRef keepAlive;
 };
 
 #endif

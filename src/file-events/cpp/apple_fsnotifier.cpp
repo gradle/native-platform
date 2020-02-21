@@ -86,10 +86,17 @@ Server::Server(JNIEnv* env, jobject watcherCallback, jobjectArray rootsToWatch, 
 }
 
 Server::~Server() {
+    // TODO Can we somehow get the standard destruction take care of this?
     watchPoints.clear();
 
-    if (threadLoop != NULL && CFRunLoopIsWaiting(threadLoop)) {
-        CFRunLoopStop(threadLoop);
+    if (threadLoop != NULL) {
+        if (keepAlive != NULL) {
+            CFRunLoopRemoveTimer(threadLoop, keepAlive, kCFRunLoopDefaultMode);
+            CFRelease(keepAlive);
+        }
+        if (CFRunLoopIsWaiting(threadLoop)) {
+            CFRunLoopStop(threadLoop);
+        }
     }
 
     if (watcherThread.joinable()) {
@@ -101,6 +108,19 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
     try {
         CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
         this->threadLoop = threadLoop;
+
+        // Make sure we have at least one source for our run loop, otherwise it would exit immediately
+        CFAbsoluteTime forever = numeric_limits<double>::max();
+        keepAlive = CFRunLoopTimerCreate(
+            kCFAllocatorDefault,    // allocator
+            forever,                // fireDate
+            0,                      // interval
+            0,                      // flags, must be 0
+            0,                      // order, must be 0
+            NULL,                   // callout
+            NULL                    // context
+        );
+        CFRunLoopAddTimer(threadLoop, keepAlive, kCFRunLoopDefaultMode);
 
         int count = env->GetArrayLength(rootsToWatch);
         for (int i = 0; i < count; i++) {
