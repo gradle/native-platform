@@ -300,7 +300,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWat
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_stopWatching(JNIEnv* env, jclass target, jobject detailsObj) {
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_00024WatcherImpl_stop(JNIEnv* env, jobject, jobject detailsObj) {
     Server* server = (Server*) env->GetDirectBufferAddress(detailsObj);
     server->close(env);
     delete server;

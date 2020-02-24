@@ -71,8 +71,6 @@ public class OsxFileEventFunctions extends AbstractFileEventFunctions {
 
     private static native FileWatcher startWatching(String[] paths, long latencyInMillis, NativeFileWatcherCallback callback);
 
-    private static native void stopWatching(Object details);
-
     // Created from native code
     @SuppressWarnings("unused")
     private static class WatcherImpl extends AbstractFileWatcher {
@@ -81,8 +79,6 @@ public class OsxFileEventFunctions extends AbstractFileEventFunctions {
         }
 
         @Override
-        protected void stop(Object details) {
-            stopWatching(details);
-        }
+        protected native void stop(Object details);
     }
 }
