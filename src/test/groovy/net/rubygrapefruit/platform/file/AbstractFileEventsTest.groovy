@@ -280,6 +280,21 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
+    def "does not receive events after directory is unwatched"() {
+        given:
+        def file = new File(rootDir, "first.txt")
+        def callback = Mock(FileWatcherCallback)
+        startWatcher(callback, rootDir)
+        watcher.stopWatching(rootDir)
+
+        when:
+        createNewFile(file)
+
+        then:
+        0 * callback.pathChanged(_ as FileWatcherCallback.Type, _ as String)
+        0 * _
+    }
+
     def "can receive multiple events from multiple watched directories"() {
         given:
         def firstWatchedDir = tmpDir.newFolder("first")
@@ -540,6 +555,10 @@ abstract class AbstractFileEventsTest extends Specification {
     }
 
     protected abstract void stopWatcher(FileWatcher watcher)
+
+    protected AsyncConditions expectNoEvents(FileWatcherCallback callback = this.callback) {
+        expectEvents(callback, [])
+    }
 
     protected AsyncConditions expectEvents(FileWatcherCallback callback = this.callback, FileEvent... events) {
         expectEvents(callback, events as List)
