@@ -3,7 +3,7 @@
 #if defined(__APPLE__)
 
 #include <CoreServices/CoreServices.h>
-#include <list>
+#include <unordered_map>
 
 #include "generic_fsnotifier.h"
 #include "net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions.h"
@@ -47,7 +47,7 @@ protected:
 private:
     void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);
 
-    list<WatchPoint> watchPoints;
+    unordered_map<u16string, WatchPoint> watchPoints;
     CFRunLoopRef threadLoop;
     CFRunLoopTimerRef keepAlive;
 };

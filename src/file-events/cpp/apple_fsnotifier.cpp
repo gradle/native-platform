@@ -191,7 +191,10 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
 }
 
 void Server::startWatching(const u16string& path, long latencyInMillis) {
-    watchPoints.emplace_back(this, threadLoop, path, latencyInMillis);
+    // TODO Is this necessary
+    watchPoints.emplace(piecewise_construct,
+        forward_as_tuple(path),
+        forward_as_tuple(this, threadLoop, path, latencyInMillis));
 }
 
 JNIEXPORT jobject JNICALL
