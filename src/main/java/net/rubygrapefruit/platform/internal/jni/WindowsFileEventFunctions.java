@@ -72,6 +72,12 @@ public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
         }
 
         @Override
+        protected native void startWatching(Object server, String absolutePath);
+
+        @Override
+        protected native void stopWatching(Object server, String absolutePath);
+
+        @Override
         protected native void stop(Object details);
     }
 }

@@ -372,7 +372,7 @@ public class Main {
         System.out.println();
     }
 
-    private static void watch(String path) {
+    private static void watch(String path) throws IOException {
         FileWatcher watcher;
         FileWatcherCallback callback = new FileWatcherCallback() {
             public void pathChanged(Type type, String changedPath) {
@@ -406,7 +406,7 @@ public class Main {
         System.out.println("Done");
     }
 
-    private static FileWatcher createMacOsFileWatcher(String path, FileWatcherCallback callback) {
+    private static FileWatcher createMacOsFileWatcher(String path, FileWatcherCallback callback) throws IOException {
         return Native.get(OsxFileEventFunctions.class).startWatching(Collections.singletonList(path), 300, TimeUnit.MILLISECONDS, callback);
     }
 

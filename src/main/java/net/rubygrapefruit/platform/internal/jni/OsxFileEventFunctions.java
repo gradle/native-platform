@@ -19,6 +19,8 @@ package net.rubygrapefruit.platform.internal.jni;
 import net.rubygrapefruit.platform.file.FileWatcher;
 import net.rubygrapefruit.platform.file.FileWatcherCallback;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
@@ -60,16 +62,15 @@ public class OsxFileEventFunctions extends AbstractFileEventFunctions {
      * </ul>
      */
     // TODO How to set kFSEventStreamCreateFlagNoDefer when latency is non-zero?
-    public FileWatcher startWatching(Collection<String> paths, final long latency, final TimeUnit unit, FileWatcherCallback callback) {
-        return createWatcher(paths, callback, new WatcherFactory() {
-            @Override
-            public FileWatcher createWatcher(String[] canonicalPaths, NativeFileWatcherCallback callback) {
-                return startWatching(canonicalPaths, unit.toMillis(latency), callback);
-            }
-        });
+    public FileWatcher startWatching(Collection<String> paths, final long latency, final TimeUnit unit, FileWatcherCallback callback) throws IOException {
+        FileWatcher watcher = startWatching(unit.toMillis(latency), new NativeFileWatcherCallback(callback));
+        for (String path : paths) {
+            watcher.startWatching(new File(path).getCanonicalFile());
+        }
+        return watcher;
     }
 
-    private static native FileWatcher startWatching(String[] paths, long latencyInMillis, NativeFileWatcherCallback callback);
+    private static native FileWatcher startWatching(long latencyInMillis, NativeFileWatcherCallback callback);
 
     // Created from native code
     @SuppressWarnings("unused")
@@ -77,6 +78,12 @@ public class OsxFileEventFunctions extends AbstractFileEventFunctions {
         public WatcherImpl(Object details) {
             super(details);
         }
+
+        @Override
+        protected native void startWatching(Object server, String absolutePath);
+
+        @Override
+        protected native void stopWatching(Object server, String absolutePath);
 
         @Override
         protected native void stop(Object details);

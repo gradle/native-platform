@@ -49,22 +49,41 @@ public class AbstractFileEventFunctions implements NativeIntegration {
 
     protected static abstract class AbstractFileWatcher implements FileWatcher {
         /**
-         * Details is a Java object wrapper around whatever data the native implementation
-         * needs to keep track of.
+         * A Java object wrapper around the native server object.
          */
-        private Object details;
+        private Object server;
 
-        public AbstractFileWatcher(Object details) {
-            this.details = details;
+        public AbstractFileWatcher(Object server) {
+            this.server = server;
         }
 
         @Override
+        public void startWatching(File path) {
+            if (server == null) {
+                throw new IllegalStateException("Watcher already closed");
+            }
+            startWatching(server, path.getAbsolutePath());
+        }
+
+        protected abstract void startWatching(Object server, String absolutePath);
+
+        @Override
+        public void stopWatching(File path) {
+            if (server == null) {
+                throw new IllegalStateException("Watcher already closed");
+            }
+            stopWatching(server, path.getAbsolutePath());
+        }
+
+        protected abstract void stopWatching(Object server, String absolutePath);
+
+        @Override
         public void close() {
-            if (details == null) {
+            if (server == null) {
                 return;
             }
-            stop(details);
-            details = null;
+            stop(server);
+            server = null;
         }
 
         protected abstract void stop(Object details);
