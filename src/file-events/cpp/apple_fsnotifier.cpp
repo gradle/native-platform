@@ -234,17 +234,6 @@ Server* getServer(JNIEnv* env, jobject javaServer) {
     return server;
 }
 
-u16string javaToNativeString(JNIEnv* env, jstring javaString) {
-    jsize length = env->GetStringLength(javaString);
-    const jchar* javaChars = env->GetStringCritical(javaString, nullptr);
-    if (javaChars == NULL) {
-        throw FileWatcherException("Could not get Java string character");
-    }
-    u16string path((char16_t*) javaChars, length);
-    env->ReleaseStringCritical(javaString, javaChars);
-    return path;
-}
-
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_00024WatcherImpl_startWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
     Server* server = getServer(env, javaServer);
