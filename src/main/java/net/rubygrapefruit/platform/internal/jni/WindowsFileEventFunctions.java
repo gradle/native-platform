@@ -64,8 +64,6 @@ public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
 
     private static native FileWatcher startWatching(String[] paths, NativeFileWatcherCallback callback);
 
-    private static native void stopWatching(Object details);
-
     // Created from native code
     @SuppressWarnings("unused")
     private static class WatcherImpl extends AbstractFileWatcher {
@@ -74,8 +72,6 @@ public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
         }
 
         @Override
-        protected void stop(Object details) {
-            stopWatching(details);
-        }
+        protected native void stop(Object details);
     }
 }

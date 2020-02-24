@@ -2,10 +2,12 @@
 
 #if defined(__APPLE__)
 
-#include "generic_fsnotifier.h"
-#include "net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions.h"
 #include <CoreServices/CoreServices.h>
 #include <list>
+
+#include "generic_fsnotifier.h"
+#include "net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_WatcherImpl.h"
 
 using namespace std;
 

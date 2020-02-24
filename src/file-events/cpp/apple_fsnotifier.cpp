@@ -230,7 +230,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_stopWatching(JNIEnv* env, jclass, jobject detailsObj) {
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_00024WatcherImpl_stop(JNIEnv* env, jobject, jobject detailsObj) {
     Server* server = (Server*) env->GetDirectBufferAddress(detailsObj);
     assert(server != NULL);
     delete server;
