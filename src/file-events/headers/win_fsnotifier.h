@@ -3,8 +3,8 @@
 #ifdef _WIN32
 
 #include <Shlwapi.h>
-#include <list>
 #include <string>
+#include <unordered_map>
 #include <wchar.h>
 #include <windows.h>
 
@@ -34,11 +34,12 @@ class WatchPoint;
 
 class WatchPoint {
 public:
-    WatchPoint(Server* server, const u16string& path, HANDLE directoryHandle);
+    WatchPoint(Server* server, const u16string& path, HANDLE directoryHandle, HANDLE serverThreadHandle);
     ~WatchPoint();
     void close();
     void listen();
     int awaitListeningStarted(HANDLE threadHandle);
+    int status;
 
 private:
     Server* server;
@@ -47,7 +48,6 @@ private:
     OVERLAPPED overlapped;
     FILE_NOTIFY_INFORMATION* buffer;
 
-    volatile int status;
     mutex listenerMutex;
     condition_variable listenerStarted;
 
@@ -63,7 +63,7 @@ public:
 
     void startWatching(JNIEnv* env, const u16string& path);
     void reportEvent(jint type, const u16string& changedPath);
-    void reportFinished(WatchPoint* watchPoint);
+    void reportFinished(const u16string& path);
 
     void close(JNIEnv* env);
 
@@ -71,7 +71,7 @@ protected:
     void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) override;
 
 private:
-    list<WatchPoint*> watchPoints;
+    unordered_map<u16string, WatchPoint> watchPoints;
 
     bool terminate = false;
 
