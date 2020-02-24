@@ -408,9 +408,11 @@ abstract class AbstractFileEventsTest extends Specification {
         def secondCallback = new TestCallback()
 
         LOGGER.info("> Starting first watcher")
-        def firstWatcher = startNewWatcher(firstCallback, firstRoot)
+        def firstWatcher = startNewWatcher(firstCallback)
+        firstWatcher.startWatching(firstRoot)
         LOGGER.info("> Starting second watcher")
-        def secondWatcher = startNewWatcher(secondCallback, secondRoot)
+        def secondWatcher = startNewWatcher(secondCallback)
+        secondWatcher.startWatching(secondRoot)
         LOGGER.info("> Watchers started")
 
         when:
@@ -523,10 +525,13 @@ abstract class AbstractFileEventsTest extends Specification {
     }
 
     protected void startWatcher(FileWatcherCallback callback = this.callback, File... roots) {
-        watcher = startNewWatcher(callback, roots)
+        watcher = startNewWatcher(callback)
+        roots*.absoluteFile.each { root ->
+            watcher.startWatching(root)
+        }
     }
 
-    protected abstract FileWatcher startNewWatcher(FileWatcherCallback callback, File... roots)
+    protected abstract FileWatcher startNewWatcher(FileWatcherCallback callback)
 
     protected void stopWatcher() {
         def copyWatcher = watcher

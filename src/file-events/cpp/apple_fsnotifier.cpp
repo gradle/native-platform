@@ -208,7 +208,7 @@ void Server::stopWatching(const u16string& path) {
 }
 
 JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatching(JNIEnv* env, jclass, long latencyInMillis, jobject javaCallback) {
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatcher(JNIEnv* env, jclass, long latencyInMillis, jobject javaCallback) {
     Server* server;
     try {
         server = new Server(env, javaCallback, latencyInMillis);

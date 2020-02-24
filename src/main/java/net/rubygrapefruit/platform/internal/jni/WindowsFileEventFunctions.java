@@ -19,8 +19,6 @@ package net.rubygrapefruit.platform.internal.jni;
 import net.rubygrapefruit.platform.file.FileWatcher;
 import net.rubygrapefruit.platform.file.FileWatcherCallback;
 
-import java.util.Collection;
-
 public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
 
     /**
@@ -53,16 +51,11 @@ public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
      */
     // TODO What about symlinks?
     // TODO What about SUBST drives?
-    public FileWatcher startWatching(Collection<String> paths, FileWatcherCallback callback) {
-        return createWatcher(paths, callback, new WatcherFactory() {
-            @Override
-            public FileWatcher createWatcher(String[] canonicalPaths, NativeFileWatcherCallback callback) {
-                return startWatching(canonicalPaths, callback);
-            }
-        });
+    public FileWatcher startWatcher(FileWatcherCallback callback) {
+        return startWatcher(new NativeFileWatcherCallback(callback));
     }
 
-    private static native FileWatcher startWatching(String[] paths, NativeFileWatcherCallback callback);
+    private static native FileWatcher startWatcher(NativeFileWatcherCallback callback);
 
     // Created from native code
     @SuppressWarnings("unused")

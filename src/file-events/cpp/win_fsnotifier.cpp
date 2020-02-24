@@ -275,7 +275,7 @@ void convertToLongPathIfNeeded(u16string& path) {
 //
 
 JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatching(JNIEnv* env, jclass target, jobjectArray paths, jobject javaCallback) {
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatcher(JNIEnv* env, jclass target, jobjectArray paths, jobject javaCallback) {
     Server* server = new Server(env, javaCallback);
 
     int watchPointCount = env->GetArrayLength(paths);
