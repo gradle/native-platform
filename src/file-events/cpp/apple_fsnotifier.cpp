@@ -229,7 +229,9 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
 }
 
 Server* getServer(JNIEnv* env, jobject javaServer) {
-    return (Server*) env->GetDirectBufferAddress(javaServer);
+    Server* server = (Server*) env->GetDirectBufferAddress(javaServer);
+    assert(server != NULL);
+    return server;
 }
 
 u16string javaToNativeString(JNIEnv* env, jstring javaString) {
@@ -260,7 +262,6 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_00024Watcher
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_00024WatcherImpl_stop(JNIEnv* env, jobject, jobject javaServer) {
     Server* server = getServer(env, javaServer);
-    assert(server != NULL);
     delete server;
 }
 
