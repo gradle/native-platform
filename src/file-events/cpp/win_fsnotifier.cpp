@@ -1,5 +1,7 @@
 #ifdef _WIN32
 
+#include <assert.h>
+
 #include "win_fsnotifier.h"
 
 using namespace std;
@@ -187,6 +189,10 @@ void Server::startWatching(JNIEnv* env, const u16string& path) {
         forward_as_tuple(this, path, directoryHandle, threadHandle));
 }
 
+void Server::stopWatching(JNIEnv* env, const u16string& path) {
+    watchPoints.find(path)->second.close();
+}
+
 void Server::reportFinished(const u16string& path) {
     watchPoints.erase(path);
 }
@@ -261,33 +267,39 @@ void convertToLongPathIfNeeded(u16string& path) {
 //
 
 JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatcher(JNIEnv* env, jclass target, jobjectArray paths, jobject javaCallback) {
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatcher(JNIEnv* env, jclass target, jobject javaCallback) {
     Server* server = new Server(env, javaCallback);
-
-    int watchPointCount = env->GetArrayLength(paths);
-    for (int i = 0; i < watchPointCount; i++) {
-        jstring javaPath = (jstring) env->GetObjectArrayElement(paths, i);
-        jsize javaPathLength = env->GetStringLength(javaPath);
-        const jchar* javaPathChars = env->GetStringCritical(javaPath, nullptr);
-        if (javaPathChars == NULL) {
-            // TODO Throw Java exception
-            fprintf(stderr, "Could not get Java string character");
-            return NULL;
-        }
-        u16string pathStr((char16_t*) javaPathChars, javaPathLength);
-        env->ReleaseStringCritical(javaPath, javaPathChars);
-        convertToLongPathIfNeeded(pathStr);
-        server->startWatching(env, pathStr);
-    }
 
     jclass clsWatch = env->FindClass("net/rubygrapefruit/platform/internal/jni/WindowsFileEventFunctions$WatcherImpl");
     jmethodID constructor = env->GetMethodID(clsWatch, "<init>", "(Ljava/lang/Object;)V");
     return env->NewObject(clsWatch, constructor, env->NewDirectByteBuffer(server, sizeof(server)));
 }
 
+Server* getServer(JNIEnv* env, jobject javaServer) {
+    Server* server = (Server*) env->GetDirectBufferAddress(javaServer);
+    assert(server != NULL);
+    return server;
+}
+
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_00024WatcherImpl_stop(JNIEnv* env, jobject, jobject detailsObj) {
-    Server* server = (Server*) env->GetDirectBufferAddress(detailsObj);
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_00024WatcherImpl_startWatching(JNIEnv *env, jobject, jobject javaServer, jstring javaPath) {
+    Server* server = getServer(env, javaServer);
+    u16string pathStr = javaToNativeString(env, javaPath);
+    convertToLongPathIfNeeded(pathStr);
+    server->startWatching(env, pathStr);
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_00024WatcherImpl_stopWatching(JNIEnv *env, jobject, jobject javaServer, jstring javaPath) {
+    Server* server = getServer(env, javaServer);
+    u16string pathStr = javaToNativeString(env, javaPath);
+    convertToLongPathIfNeeded(pathStr);
+    server->stopWatching(env, pathStr);
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_00024WatcherImpl_stop(JNIEnv* env, jobject, jobject javaServer) {
+    Server* server = getServer(env, javaServer);
     server->close(env);
     delete server;
 }

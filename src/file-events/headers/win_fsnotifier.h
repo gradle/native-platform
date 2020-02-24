@@ -62,6 +62,8 @@ public:
     ~Server();
 
     void startWatching(JNIEnv* env, const u16string& path);
+    void stopWatching(JNIEnv* env, const u16string& path);
+
     void reportEvent(jint type, const u16string& changedPath);
     void reportFinished(const u16string& path);
 
