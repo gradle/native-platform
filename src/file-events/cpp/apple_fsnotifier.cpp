@@ -245,7 +245,7 @@ JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_00024WatcherImpl_stopWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
     Server* server = getServer(env, javaServer);
     u16string path = javaToNativeString(env, javaPath);
-    server->startWatching(path);
+    server->stopWatching(path);
 }
 
 JNIEXPORT void JNICALL
