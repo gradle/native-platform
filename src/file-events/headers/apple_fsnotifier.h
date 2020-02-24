@@ -37,6 +37,8 @@ public:
 
     void startWatching(const u16string& path);
     void stopWatching(const u16string& path);
+
+    // TODO This should be private
     void handleEvents(
         size_t numEvents,
         char** eventPaths,
