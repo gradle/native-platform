@@ -49,7 +49,6 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -372,7 +371,7 @@ public class Main {
         System.out.println();
     }
 
-    private static void watch(String path) {
+    private static void watch(String path) throws IOException {
         FileWatcher watcher;
         FileWatcherCallback callback = new FileWatcherCallback() {
             public void pathChanged(Type type, String changedPath) {
@@ -406,12 +405,17 @@ public class Main {
         System.out.println("Done");
     }
 
-    private static FileWatcher createMacOsFileWatcher(String path, FileWatcherCallback callback) {
-        return Native.get(OsxFileEventFunctions.class).startWatching(Collections.singletonList(path), 300, TimeUnit.MILLISECONDS, callback);
+    private static FileWatcher createMacOsFileWatcher(String path, FileWatcherCallback callback) throws IOException {
+        FileWatcher fileWatcher = Native.get(OsxFileEventFunctions.class)
+            .startWatcher(300, TimeUnit.MILLISECONDS, callback);
+        fileWatcher.startWatching(new File(path));
+        return fileWatcher;
     }
 
     private static FileWatcher createWindowsFileWatcher(String path, FileWatcherCallback callback) {
-        return Native.get(WindowsFileEventFunctions.class).startWatching(Collections.singletonList(path), callback);
+        FileWatcher fileWatcher = Native.get(WindowsFileEventFunctions.class).startWatcher(callback);
+        fileWatcher.startWatching(new File(path));
+        return fileWatcher;
     }
 
     private static void ls(String path) {

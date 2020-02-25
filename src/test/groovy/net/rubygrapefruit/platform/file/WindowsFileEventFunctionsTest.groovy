@@ -29,7 +29,7 @@ class WindowsFileEventFunctionsTest extends AbstractFileEventsTest {
         expect:
         Native.get(WindowsFileEventFunctions.class) is fileEvents
     }
-    
+
     // TODO Add test for watching file
     // TODO Promote test to AbstractFileEventsTest
     def "fails when registering watch for non-existent directory"() {
@@ -45,10 +45,10 @@ class WindowsFileEventFunctionsTest extends AbstractFileEventsTest {
     }
 
     @Override
-    protected FileWatcher startNewWatcher(FileWatcherCallback callback, File... roots) {
+    protected FileWatcher startNewWatcher(FileWatcherCallback callback) {
         // Avoid setup operations to be reported
         waitForChangeEventLatency()
-        fileEvents.startWatching(roots*.absolutePath.toList(), callback)
+        fileEvents.startWatcher(callback)
     }
 
     @Override

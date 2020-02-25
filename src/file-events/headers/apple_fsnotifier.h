@@ -3,7 +3,7 @@
 #if defined(__APPLE__)
 
 #include <CoreServices/CoreServices.h>
-#include <list>
+#include <unordered_map>
 
 #include "generic_fsnotifier.h"
 #include "net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions.h"
@@ -32,10 +32,13 @@ private:
 
 class Server : AbstractServer {
 public:
-    Server(JNIEnv* env, jobject watcherCallback);
+    Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis);
     ~Server();
 
-    void startWatching(const u16string& path, long latencyInMillis);
+    void startWatching(const u16string& path);
+    void stopWatching(const u16string& path);
+
+    // TODO This should be private
     void handleEvents(
         size_t numEvents,
         char** eventPaths,
@@ -47,7 +50,8 @@ protected:
 private:
     void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);
 
-    list<WatchPoint> watchPoints;
+    const long latencyInMillis;
+    unordered_map<u16string, WatchPoint> watchPoints;
     CFRunLoopRef threadLoop;
     CFRunLoopTimerRef keepAlive;
 };

@@ -35,11 +35,10 @@ class OsxFileEventFunctionsTest extends AbstractFileEventsTest {
     }
 
     @Override
-    protected FileWatcher startNewWatcher(FileWatcherCallback callback, File... roots) {
+    protected FileWatcher startNewWatcher(FileWatcherCallback callback) {
         // Avoid setup operations to be reported
         waitForChangeEventLatency()
-        fileEvents.startWatching(
-            roots*.absolutePath.toList(),
+        fileEvents.startWatcher(
             LATENCY_IN_MILLIS, TimeUnit.MILLISECONDS,
             callback
         )

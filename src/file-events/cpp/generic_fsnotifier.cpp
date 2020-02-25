@@ -101,4 +101,15 @@ void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) 
     env->DeleteLocalRef(javaPath);
 }
 
+u16string javaToNativeString(JNIEnv* env, jstring javaString) {
+    jsize length = env->GetStringLength(javaString);
+    const jchar* javaChars = env->GetStringCritical(javaString, nullptr);
+    if (javaChars == NULL) {
+        throw FileWatcherException("Could not get Java string character");
+    }
+    u16string path((char16_t*) javaChars, length);
+    env->ReleaseStringCritical(javaString, javaChars);
+    return path;
+}
+
 #endif

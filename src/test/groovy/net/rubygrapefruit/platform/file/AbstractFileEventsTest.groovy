@@ -280,6 +280,21 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
+    def "does not receive events after directory is unwatched"() {
+        given:
+        def file = new File(rootDir, "first.txt")
+        def callback = Mock(FileWatcherCallback)
+        startWatcher(callback, rootDir)
+        watcher.stopWatching(rootDir)
+
+        when:
+        createNewFile(file)
+
+        then:
+        0 * callback.pathChanged(_ as FileWatcherCallback.Type, _ as String)
+        0 * _
+    }
+
     def "can receive multiple events from multiple watched directories"() {
         given:
         def firstWatchedDir = tmpDir.newFolder("first")
@@ -408,9 +423,11 @@ abstract class AbstractFileEventsTest extends Specification {
         def secondCallback = new TestCallback()
 
         LOGGER.info("> Starting first watcher")
-        def firstWatcher = startNewWatcher(firstCallback, firstRoot)
+        def firstWatcher = startNewWatcher(firstCallback)
+        firstWatcher.startWatching(firstRoot)
         LOGGER.info("> Starting second watcher")
-        def secondWatcher = startNewWatcher(secondCallback, secondRoot)
+        def secondWatcher = startNewWatcher(secondCallback)
+        secondWatcher.startWatching(secondRoot)
         LOGGER.info("> Watchers started")
 
         when:
@@ -523,10 +540,13 @@ abstract class AbstractFileEventsTest extends Specification {
     }
 
     protected void startWatcher(FileWatcherCallback callback = this.callback, File... roots) {
-        watcher = startNewWatcher(callback, roots)
+        watcher = startNewWatcher(callback)
+        roots*.absoluteFile.each { root ->
+            watcher.startWatching(root)
+        }
     }
 
-    protected abstract FileWatcher startNewWatcher(FileWatcherCallback callback, File... roots)
+    protected abstract FileWatcher startNewWatcher(FileWatcherCallback callback)
 
     protected void stopWatcher() {
         def copyWatcher = watcher
@@ -535,6 +555,10 @@ abstract class AbstractFileEventsTest extends Specification {
     }
 
     protected abstract void stopWatcher(FileWatcher watcher)
+
+    protected AsyncConditions expectNoEvents(FileWatcherCallback callback = this.callback) {
+        expectEvents(callback, [])
+    }
 
     protected AsyncConditions expectEvents(FileWatcherCallback callback = this.callback, FileEvent... events) {
         expectEvents(callback, events as List)

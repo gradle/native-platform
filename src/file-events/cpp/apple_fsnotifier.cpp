@@ -77,8 +77,9 @@ WatchPoint::~WatchPoint() {
 // Server
 //
 
-Server::Server(JNIEnv* env, jobject watcherCallback)
-    : AbstractServer(env, watcherCallback) {
+Server::Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis)
+    : AbstractServer(env, watcherCallback)
+    , latencyInMillis(latencyInMillis) {
     // TODO Would be nice to inline this in AbstractServer(), but doing so results in pure virtual call
     startThread();
 }
@@ -190,29 +191,27 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
     reportChange(env, type, pathStr);
 }
 
-void Server::startWatching(const u16string& path, long latencyInMillis) {
-    watchPoints.emplace_back(this, threadLoop, path, latencyInMillis);
+void Server::startWatching(const u16string& path) {
+    if (watchPoints.find(path) != watchPoints.end()) {
+        throw new FileWatcherException("Already watching path");
+    }
+    // TODO Is this necessary
+    watchPoints.emplace(piecewise_construct,
+        forward_as_tuple(path),
+        forward_as_tuple(this, threadLoop, path, latencyInMillis));
+}
+
+void Server::stopWatching(const u16string& path) {
+    if (watchPoints.erase(path) == 0) {
+        throw new FileWatcherException("Cannot stop watching path that was never watched");
+    }
 }
 
 JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatching(JNIEnv* env, jclass, jobjectArray paths, long latencyInMillis, jobject javaCallback) {
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatcher(JNIEnv* env, jclass, long latencyInMillis, jobject javaCallback) {
     Server* server;
     try {
-        server = new Server(env, javaCallback);
-
-        int count = env->GetArrayLength(paths);
-        for (int i = 0; i < count; i++) {
-            jstring javaPath = (jstring) env->GetObjectArrayElement(paths, i);
-            jsize javaPathLength = env->GetStringLength(javaPath);
-            const jchar* javaPathChars = env->GetStringCritical(javaPath, nullptr);
-            if (javaPathChars == NULL) {
-                throw FileWatcherException("Could not get Java string character");
-            }
-            u16string path((char16_t*) javaPathChars, javaPathLength);
-            env->ReleaseStringCritical(javaPath, javaPathChars);
-
-            server->startWatching(path, latencyInMillis);
-        }
+        server = new Server(env, javaCallback, latencyInMillis);
     } catch (const exception& e) {
         log_severe(env, "Caught exception: %s", e.what());
         jclass exceptionClass = env->FindClass("net/rubygrapefruit/platform/NativeException");
@@ -229,10 +228,29 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatchin
     return env->NewObject(clsWatcher, constructor, env->NewDirectByteBuffer(server, sizeof(server)));
 }
 
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_00024WatcherImpl_stop(JNIEnv* env, jobject, jobject detailsObj) {
-    Server* server = (Server*) env->GetDirectBufferAddress(detailsObj);
+Server* getServer(JNIEnv* env, jobject javaServer) {
+    Server* server = (Server*) env->GetDirectBufferAddress(javaServer);
     assert(server != NULL);
+    return server;
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_00024WatcherImpl_startWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
+    Server* server = getServer(env, javaServer);
+    u16string path = javaToNativeString(env, javaPath);
+    server->startWatching(path);
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_00024WatcherImpl_stopWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
+    Server* server = getServer(env, javaServer);
+    u16string path = javaToNativeString(env, javaPath);
+    server->stopWatching(path);
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_00024WatcherImpl_stop(JNIEnv* env, jobject, jobject javaServer) {
+    Server* server = getServer(env, javaServer);
     delete server;
 }
 

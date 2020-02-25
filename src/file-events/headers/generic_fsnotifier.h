@@ -4,6 +4,7 @@
 #include <exception>
 #include <functional>
 #include <mutex>
+#include <string>
 #include <thread>
 
 #include "logging.h"
@@ -60,3 +61,5 @@ private:
 
     JavaVM* jvm;
 };
+
+u16string javaToNativeString(JNIEnv* env, jstring javaString);

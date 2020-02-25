@@ -1,5 +1,7 @@
 #ifdef _WIN32
 
+#include <assert.h>
+
 #include "win_fsnotifier.h"
 
 using namespace std;
@@ -8,7 +10,12 @@ using namespace std;
 // WatchPoint
 //
 
-WatchPoint::WatchPoint(Server* server, const u16string& path, HANDLE directoryHandle) {
+static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg) {
+    WatchPoint* watchPoint = (WatchPoint*) arg;
+    watchPoint->listen();
+}
+
+WatchPoint::WatchPoint(Server* server, const u16string& path, HANDLE directoryHandle, HANDLE serverThreadHandle) {
     this->server = server;
     this->path = path;
     this->buffer = (FILE_NOTIFY_INFORMATION*) malloc(EVENT_BUFFER_SIZE);
@@ -16,6 +23,12 @@ WatchPoint::WatchPoint(Server* server, const u16string& path, HANDLE directoryHa
     this->overlapped.hEvent = this;
     this->directoryHandle = directoryHandle;
     this->status = WATCH_UNINITIALIZED;
+    unique_lock<mutex> lock(listenerMutex);
+    QueueUserAPC(startWatchCallback, serverThreadHandle, (ULONG_PTR) this);
+    listenerStarted.wait(lock);
+    if (status != WATCH_LISTENING) {
+        throw new FileWatcherException("Couldn't start listening");
+    }
 }
 
 WatchPoint::~WatchPoint() {
@@ -31,18 +44,6 @@ void WatchPoint::close() {
     if (!ret) {
         log_severe(server->getThreadEnv(), "Couldn't close handle %p for '%ls': %d", directoryHandle, path.c_str(), GetLastError());
     }
-}
-
-static void CALLBACK startWatchCallback(_In_ ULONG_PTR arg) {
-    WatchPoint* watchPoint = (WatchPoint*) arg;
-    watchPoint->listen();
-}
-
-int WatchPoint::awaitListeningStarted(HANDLE threadHandle) {
-    unique_lock<mutex> lock(listenerMutex);
-    QueueUserAPC(startWatchCallback, threadHandle, (ULONG_PTR) this);
-    listenerStarted.wait(lock);
-    return status;
 }
 
 static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped) {
@@ -79,7 +80,7 @@ void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransferred) {
     if (errorCode == ERROR_OPERATION_ABORTED) {
         log_info(server->getThreadEnv(), "Finished watching '%ls'", path.c_str());
         status = WATCH_FINISHED;
-        server->reportFinished(this);
+        server->reportFinished(path);
         return;
     }
 
@@ -104,7 +105,7 @@ void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransferred) {
 
     listen();
     if (status != WATCH_LISTENING) {
-        server->reportFinished(this);
+        server->reportFinished(path);
     }
 }
 
@@ -182,25 +183,18 @@ void Server::startWatching(JNIEnv* env, const u16string& path) {
         return;
     }
 
-    WatchPoint* watchPoint = new WatchPoint(this, path, directoryHandle);
-
     HANDLE threadHandle = watcherThread.native_handle();
-    int ret = watchPoint->awaitListeningStarted(threadHandle);
-    switch (ret) {
-        case WATCH_LISTENING:
-            watchPoints.push_back(watchPoint);
-            break;
-        default:
-            log_severe(env, "Couldn't start listening to '%ls': %d", pathW.c_str(), ret);
-            delete watchPoint;
-            // TODO Error handling
-            break;
-    }
+    watchPoints.emplace(piecewise_construct,
+        forward_as_tuple(path),
+        forward_as_tuple(this, path, directoryHandle, threadHandle));
 }
 
-void Server::reportFinished(WatchPoint* watchPoint) {
-    watchPoints.remove(watchPoint);
-    delete watchPoint;
+void Server::stopWatching(JNIEnv* env, const u16string& path) {
+    watchPoints.find(path)->second.close();
+}
+
+void Server::reportFinished(const u16string& path) {
+    watchPoints.erase(path);
 }
 
 void Server::reportEvent(jint type, const u16string& changedPath) {
@@ -215,10 +209,8 @@ static void CALLBACK requestTerminationCallback(_In_ ULONG_PTR arg) {
 
 void Server::requestTermination() {
     terminate = true;
-    // Make copy so terminated entries can be removed
-    list<WatchPoint*> copyWatchPoints(watchPoints);
-    for (auto& watchPoint : copyWatchPoints) {
-        watchPoint->close();
+    for (auto& watchPoint : watchPoints) {
+        watchPoint.second.close();
     }
 }
 
@@ -275,33 +267,39 @@ void convertToLongPathIfNeeded(u16string& path) {
 //
 
 JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatching(JNIEnv* env, jclass target, jobjectArray paths, jobject javaCallback) {
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatcher(JNIEnv* env, jclass target, jobject javaCallback) {
     Server* server = new Server(env, javaCallback);
-
-    int watchPointCount = env->GetArrayLength(paths);
-    for (int i = 0; i < watchPointCount; i++) {
-        jstring javaPath = (jstring) env->GetObjectArrayElement(paths, i);
-        jsize javaPathLength = env->GetStringLength(javaPath);
-        const jchar* javaPathChars = env->GetStringCritical(javaPath, nullptr);
-        if (javaPathChars == NULL) {
-            // TODO Throw Java exception
-            fprintf(stderr, "Could not get Java string character");
-            return NULL;
-        }
-        u16string pathStr((char16_t*) javaPathChars, javaPathLength);
-        env->ReleaseStringCritical(javaPath, javaPathChars);
-        convertToLongPathIfNeeded(pathStr);
-        server->startWatching(env, pathStr);
-    }
 
     jclass clsWatch = env->FindClass("net/rubygrapefruit/platform/internal/jni/WindowsFileEventFunctions$WatcherImpl");
     jmethodID constructor = env->GetMethodID(clsWatch, "<init>", "(Ljava/lang/Object;)V");
     return env->NewObject(clsWatch, constructor, env->NewDirectByteBuffer(server, sizeof(server)));
 }
 
+Server* getServer(JNIEnv* env, jobject javaServer) {
+    Server* server = (Server*) env->GetDirectBufferAddress(javaServer);
+    assert(server != NULL);
+    return server;
+}
+
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_00024WatcherImpl_stop(JNIEnv* env, jobject, jobject detailsObj) {
-    Server* server = (Server*) env->GetDirectBufferAddress(detailsObj);
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_00024WatcherImpl_startWatching(JNIEnv *env, jobject, jobject javaServer, jstring javaPath) {
+    Server* server = getServer(env, javaServer);
+    u16string pathStr = javaToNativeString(env, javaPath);
+    convertToLongPathIfNeeded(pathStr);
+    server->startWatching(env, pathStr);
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_00024WatcherImpl_stopWatching(JNIEnv *env, jobject, jobject javaServer, jstring javaPath) {
+    Server* server = getServer(env, javaServer);
+    u16string pathStr = javaToNativeString(env, javaPath);
+    convertToLongPathIfNeeded(pathStr);
+    server->stopWatching(env, pathStr);
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_00024WatcherImpl_stop(JNIEnv* env, jobject, jobject javaServer) {
+    Server* server = getServer(env, javaServer);
     server->close(env);
     delete server;
 }
