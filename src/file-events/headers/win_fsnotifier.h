@@ -76,6 +76,8 @@ private:
 
     friend static void CALLBACK requestTerminationCallback(_In_ ULONG_PTR arg);
     void requestTermination();
+
+    static void convertToLongPathIfNeeded(u16string& path);
 };
 
 #endif

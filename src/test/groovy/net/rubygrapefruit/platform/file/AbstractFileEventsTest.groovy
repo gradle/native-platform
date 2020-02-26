@@ -311,6 +311,8 @@ abstract class AbstractFileEventsTest extends Specification {
         watcher.stopWatching(rootDir)
 
         when:
+        // TODO On Windows we don't wait for the unwatching to finish, so we need to sleep; fix this
+        waitForChangeEventLatency()
         watcher.stopWatching(rootDir)
 
         then:

@@ -1,3 +1,5 @@
+#include <assert.h>
+
 #include "generic_fsnotifier.h"
 
 class JNIThread {
