@@ -67,8 +67,6 @@ public:
     void reportEvent(jint type, const u16string& changedPath);
     void reportFinished(const WatchPoint& watchPoint);
 
-    void close(JNIEnv* env);
-
 protected:
     void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) override;
 

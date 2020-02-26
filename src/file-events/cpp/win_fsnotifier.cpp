@@ -156,7 +156,22 @@ Server::Server(JNIEnv* env, jobject watcherCallback)
     SetThreadPriority(this->watcherThread.native_handle(), THREAD_PRIORITY_ABOVE_NORMAL);
 }
 
+static void CALLBACK requestTerminationCallback(_In_ ULONG_PTR arg) {
+    Server* server = (Server*) arg;
+    server->requestTermination();
+}
+
 Server::~Server() {
+    JNIEnv* env = getThreadEnv();
+    HANDLE threadHandle = watcherThread.native_handle();
+    log_fine(env, "Requesting termination of server thread %p", threadHandle);
+    int ret = QueueUserAPC(requestTerminationCallback, threadHandle, (ULONG_PTR) this);
+    if (ret == 0) {
+        log_severe(env, "Couldn't send termination request to thread %p: %d", threadHandle, GetLastError());
+    }
+    if (watcherThread.joinable()) {
+        watcherThread.join();
+    }
 }
 
 void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
@@ -205,26 +220,10 @@ void Server::reportEvent(jint type, const u16string& changedPath) {
     reportChange(env, type, changedPath);
 }
 
-static void CALLBACK requestTerminationCallback(_In_ ULONG_PTR arg) {
-    Server* server = (Server*) arg;
-    server->requestTermination();
-}
-
 void Server::requestTermination() {
     terminate = true;
     for (auto& watchPoint : watchPoints) {
         watchPoint.second.close();
-    }
-}
-
-void Server::close(JNIEnv* env) {
-    HANDLE threadHandle = watcherThread.native_handle();
-    log_fine(env, "Requesting termination of server thread %p", threadHandle);
-    int ret = QueueUserAPC(requestTerminationCallback, threadHandle, (ULONG_PTR) this);
-    if (ret == 0) {
-        log_severe(env, "Couldn't send termination request to thread %p: %d", threadHandle, GetLastError());
-    } else {
-        watcherThread.join();
     }
 }
 
@@ -303,7 +302,6 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_00024Wat
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_00024WatcherImpl_stop(JNIEnv* env, jobject, jobject javaServer) {
     Server* server = getServer(env, javaServer);
-    server->close(env);
     delete server;
 }
 
