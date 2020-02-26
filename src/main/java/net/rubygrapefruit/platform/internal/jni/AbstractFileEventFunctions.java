@@ -1,5 +1,6 @@
 package net.rubygrapefruit.platform.internal.jni;
 
+import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.NativeIntegration;
 import net.rubygrapefruit.platform.file.FileWatcher;
 import net.rubygrapefruit.platform.file.FileWatcherCallback;
@@ -56,7 +57,7 @@ public class AbstractFileEventFunctions implements NativeIntegration {
         @Override
         public void close() {
             if (server == null) {
-                return;
+                throw new NativeException("Closed already");
             }
             stop(server);
             server = null;

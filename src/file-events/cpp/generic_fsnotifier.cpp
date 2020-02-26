@@ -112,8 +112,19 @@ u16string javaToNativeString(JNIEnv* env, jstring javaString) {
 
 AbstractServer* getServer(JNIEnv* env, jobject javaServer) {
     AbstractServer* server = (AbstractServer*) env->GetDirectBufferAddress(javaServer);
-    assert(server != NULL);
+    if (server == NULL) {
+        throw FileWatcherException("Closed already");
+    }
     return server;
+}
+
+jobject rethrowAsJavaException(JNIEnv* env, const exception& e) {
+    log_severe(env, "Caught exception: %s", e.what());
+    jclass exceptionClass = env->FindClass("net/rubygrapefruit/platform/NativeException");
+    assert(exceptionClass != NULL);
+    jint ret = env->ThrowNew(exceptionClass, e.what());
+    assert(ret == 0);
+    return NULL;
 }
 
 jobject wrapServer(JNIEnv* env, function<void*()> serverStarter) {
@@ -121,12 +132,7 @@ jobject wrapServer(JNIEnv* env, function<void*()> serverStarter) {
     try {
         server = serverStarter();
     } catch (const exception& e) {
-        log_severe(env, "Caught exception: %s", e.what());
-        jclass exceptionClass = env->FindClass("net/rubygrapefruit/platform/NativeException");
-        assert(exceptionClass != NULL);
-        jint ret = env->ThrowNew(exceptionClass, e.what());
-        assert(ret == 0);
-        return NULL;
+        return rethrowAsJavaException(env, e);
     }
 
     jclass clsWatcher = env->FindClass("net/rubygrapefruit/platform/internal/jni/AbstractFileEventFunctions$NativeFileWatcher");
@@ -138,20 +144,32 @@ jobject wrapServer(JNIEnv* env, function<void*()> serverStarter) {
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_startWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
-    AbstractServer* server = getServer(env, javaServer);
-    u16string path = javaToNativeString(env, javaPath);
-    server->startWatching(path);
+    try {
+        AbstractServer* server = getServer(env, javaServer);
+        auto path = javaToNativeString(env, javaPath);
+        server->startWatching(path);
+    } catch (const exception& e) {
+        rethrowAsJavaException(env, e);
+    }
 }
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_stopWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
-    AbstractServer* server = getServer(env, javaServer);
-    u16string path = javaToNativeString(env, javaPath);
-    server->stopWatching(path);
+    try {
+        AbstractServer* server = getServer(env, javaServer);
+        auto path = javaToNativeString(env, javaPath);
+        server->stopWatching(path);
+    } catch (const exception& e) {
+        rethrowAsJavaException(env, e);
+    }
 }
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_stop(JNIEnv* env, jobject, jobject javaServer) {
-    AbstractServer* server = getServer(env, javaServer);
-    delete server;
+    try {
+        AbstractServer* server = getServer(env, javaServer);
+        delete server;
+    } catch (const exception& e) {
+        rethrowAsJavaException(env, e);
+    }
 }
