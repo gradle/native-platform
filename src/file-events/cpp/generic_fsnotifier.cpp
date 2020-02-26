@@ -1,5 +1,3 @@
-#if defined(_WIN32) || defined(__APPLE__)
-
 #include "generic_fsnotifier.h"
 
 class JNIThread {
@@ -111,5 +109,3 @@ u16string javaToNativeString(JNIEnv* env, jstring javaString) {
     env->ReleaseStringCritical(javaString, javaChars);
     return path;
 }
-
-#endif
