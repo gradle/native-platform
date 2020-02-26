@@ -294,6 +294,7 @@ public abstract class Platform {
         @Override
         public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
             if (type.equals(LinuxFileEventFunctions.class)) {
+                initFileEventFunctions(nativeLibraryLoader);
                 return type.cast(new LinuxFileEventFunctions());
             }
             return super.get(type, nativeLibraryLoader);
