@@ -8,7 +8,6 @@
 
 #include "linux_fsnotifier.h"
 
-// TODO What's a good number for this?
 #define EVENT_BUFFER_SIZE 16 * 1024
 
 // TODO Should we include IN_DONT_FOLLOW?
