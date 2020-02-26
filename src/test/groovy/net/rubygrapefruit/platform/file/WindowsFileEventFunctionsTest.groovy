@@ -52,11 +52,6 @@ class WindowsFileEventFunctionsTest extends AbstractFileEventsTest {
     }
 
     @Override
-    protected void stopWatcher(FileWatcher watcher) {
-        watcher?.close()
-    }
-
-    @Override
     protected void waitForChangeEventLatency() {
         Thread.sleep(50)
     }

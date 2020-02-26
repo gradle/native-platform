@@ -484,8 +484,8 @@ abstract class AbstractFileEventsTest extends Specification {
         secondChanges.await()
 
         cleanup:
-        stopWatcher(firstWatcher)
-        stopWatcher(secondWatcher)
+        firstWatcher.close()
+        secondWatcher.close()
     }
 
     def "can receive event about a non-direct descendant change"() {
@@ -590,10 +590,8 @@ abstract class AbstractFileEventsTest extends Specification {
     protected void stopWatcher() {
         def copyWatcher = watcher
         watcher = null
-        stopWatcher(copyWatcher)
+        copyWatcher?.close()
     }
-
-    protected abstract void stopWatcher(FileWatcher watcher)
 
     protected AsyncConditions expectNoEvents(FileWatcherCallback callback = this.callback) {
         expectEvents(callback, [])
