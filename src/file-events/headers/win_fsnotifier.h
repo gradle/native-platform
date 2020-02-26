@@ -15,7 +15,6 @@
 
 using namespace std;
 
-// TODO Find the right size for this
 #define EVENT_BUFFER_SIZE (16 * 1024)
 
 #define CREATE_SHARE (FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE)

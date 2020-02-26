@@ -8,13 +8,13 @@
 using namespace std;
 
 // Utility wrapper to adapt locale-bound facets for wstring convert
+// Exposes the protected destructor as public
 // See https://en.cppreference.com/w/cpp/locale/codecvt
-// TODO Understand what this does
 template <class Facet>
 struct deletable_facet : Facet {
     template <class... Args>
     deletable_facet(Args&&... args)
-        : Facet(std::forward<Args>(args)...) {
+        : Facet(forward<Args>(args)...) {
     }
     ~deletable_facet() {
     }
@@ -47,7 +47,6 @@ WatchPoint::WatchPoint(Server* server, CFRunLoopRef runLoop, const u16string& pa
         latencyInMillis / 1000.0,
         kFSEventStreamCreateFlagNoDefer | kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagWatchRoot);
     CFRelease(pathArray);
-    // TODO Why releasing this before the stream is created causes a crash?
     CFRelease(cfPath);
     if (watcherStream == NULL) {
         throw FileWatcherException("Could not create FSEventStreamCreate to track changes");
@@ -80,7 +79,6 @@ WatchPoint::~WatchPoint() {
 Server::Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis)
     : AbstractServer(env, watcherCallback)
     , latencyInMillis(latencyInMillis) {
-    // TODO Would be nice to inline this in AbstractServer(), but doing so results in pure virtual call
     startThread();
 }
 
