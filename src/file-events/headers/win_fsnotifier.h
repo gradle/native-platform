@@ -43,6 +43,7 @@ public:
 private:
     Server* server;
     u16string path;
+    friend class Server;
     HANDLE directoryHandle;
     OVERLAPPED overlapped;
     FILE_NOTIFY_INFORMATION* buffer;
@@ -64,7 +65,7 @@ public:
     void stopWatching(JNIEnv* env, const u16string& path);
 
     void reportEvent(jint type, const u16string& changedPath);
-    void reportFinished(const u16string& path);
+    void reportFinished(const WatchPoint& watchPoint);
 
     void close(JNIEnv* env);
 
