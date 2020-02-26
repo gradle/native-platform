@@ -8,6 +8,7 @@
 #include <thread>
 
 #include "logging.h"
+#include "net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_NativeFileWatcher.h"
 
 using namespace std;
 
@@ -39,6 +40,9 @@ class AbstractServer {
 public:
     AbstractServer(JNIEnv* env, jobject watcherCallback);
     virtual ~AbstractServer();
+
+    virtual void startWatching(const u16string& path) = 0;
+    virtual void stopWatching(const u16string& path) = 0;
 
     JNIEnv* getThreadEnv();
 

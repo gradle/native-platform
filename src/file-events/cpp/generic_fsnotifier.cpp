@@ -109,3 +109,29 @@ u16string javaToNativeString(JNIEnv* env, jstring javaString) {
     env->ReleaseStringCritical(javaString, javaChars);
     return path;
 }
+
+AbstractServer* getServer(JNIEnv* env, jobject javaServer) {
+    AbstractServer* server = (AbstractServer*) env->GetDirectBufferAddress(javaServer);
+    assert(server != NULL);
+    return server;
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_startWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
+    AbstractServer* server = getServer(env, javaServer);
+    u16string path = javaToNativeString(env, javaPath);
+    server->startWatching(path);
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_stopWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
+    AbstractServer* server = getServer(env, javaServer);
+    u16string path = javaToNativeString(env, javaPath);
+    server->stopWatching(path);
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_stop(JNIEnv* env, jobject, jobject javaServer) {
+    AbstractServer* server = getServer(env, javaServer);
+    delete server;
+}

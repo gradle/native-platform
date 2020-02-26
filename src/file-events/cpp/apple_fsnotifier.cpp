@@ -218,37 +218,11 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatcher
         return NULL;
     }
 
-    jclass clsWatcher = env->FindClass("net/rubygrapefruit/platform/internal/jni/OsxFileEventFunctions$WatcherImpl");
+    jclass clsWatcher = env->FindClass("net/rubygrapefruit/platform/internal/jni/AbstractFileEventFunctions$NativeFileWatcher");
     assert(clsWatcher != NULL);
     jmethodID constructor = env->GetMethodID(clsWatcher, "<init>", "(Ljava/lang/Object;)V");
     assert(constructor != NULL);
     return env->NewObject(clsWatcher, constructor, env->NewDirectByteBuffer(server, sizeof(server)));
-}
-
-Server* getServer(JNIEnv* env, jobject javaServer) {
-    Server* server = (Server*) env->GetDirectBufferAddress(javaServer);
-    assert(server != NULL);
-    return server;
-}
-
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_00024WatcherImpl_startWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
-    Server* server = getServer(env, javaServer);
-    u16string path = javaToNativeString(env, javaPath);
-    server->startWatching(path);
-}
-
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_00024WatcherImpl_stopWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
-    Server* server = getServer(env, javaServer);
-    u16string path = javaToNativeString(env, javaPath);
-    server->stopWatching(path);
-}
-
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_00024WatcherImpl_stop(JNIEnv* env, jobject, jobject javaServer) {
-    Server* server = getServer(env, javaServer);
-    delete server;
 }
 
 #endif
