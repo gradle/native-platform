@@ -1,5 +1,3 @@
-#if defined(_WIN32) || defined(__APPLE__)
-
 #include "generic_fsnotifier.h"
 
 class JNIThread {
@@ -18,7 +16,7 @@ public:
             : jvm->AttachCurrentThread((void**) &env, (void*) &args);
         if (ret != JNI_OK) {
             fprintf(stderr, "Failed to attach JNI to current thread: %d\n", ret);
-            throw new FileWatcherException("Failed to attach JNI to current thread");
+            throw FileWatcherException("Failed to attach JNI to current thread");
         }
     }
     ~JNIThread() {
@@ -111,5 +109,3 @@ u16string javaToNativeString(JNIEnv* env, jstring javaString) {
     env->ReleaseStringCritical(javaString, javaChars);
     return path;
 }
-
-#endif

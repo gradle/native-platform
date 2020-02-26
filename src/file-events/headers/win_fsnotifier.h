@@ -15,7 +15,6 @@
 
 using namespace std;
 
-// TODO Find the right size for this
 #define EVENT_BUFFER_SIZE (16 * 1024)
 
 #define CREATE_SHARE (FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE)
@@ -44,6 +43,7 @@ public:
 private:
     Server* server;
     u16string path;
+    friend class Server;
     HANDLE directoryHandle;
     OVERLAPPED overlapped;
     FILE_NOTIFY_INFORMATION* buffer;
@@ -65,9 +65,7 @@ public:
     void stopWatching(JNIEnv* env, const u16string& path);
 
     void reportEvent(jint type, const u16string& changedPath);
-    void reportFinished(const u16string& path);
-
-    void close(JNIEnv* env);
+    void reportFinished(const WatchPoint& watchPoint);
 
 protected:
     void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) override;
