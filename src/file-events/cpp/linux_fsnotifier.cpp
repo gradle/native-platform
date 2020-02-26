@@ -68,6 +68,7 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
                 break;
             default:
                 // Handle events
+                log_fine(env, "Received event!", NULL);
                 break;
         }
     }
@@ -93,49 +94,11 @@ void Server::stopWatching(const u16string& path) {
     watchPoints.erase(it);
 }
 
-Server* getServer(JNIEnv* env, jobject javaServer) {
-    Server* server = (Server*) env->GetDirectBufferAddress(javaServer);
-    assert(server != NULL);
-    return server;
-}
-
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_startWatcher(JNIEnv* env, jclass, jobject javaCallback) {
-    Server* server;
-    try {
-        server = new Server(env, javaCallback);
-    } catch (const exception& e) {
-        log_severe(env, "Caught exception: %s", e.what());
-        jclass exceptionClass = env->FindClass("net/rubygrapefruit/platform/NativeException");
-        assert(exceptionClass != NULL);
-        jint ret = env->ThrowNew(exceptionClass, e.what());
-        assert(ret == 0);
-        return NULL;
-    }
-
-    jclass clsWatcher = env->FindClass("net/rubygrapefruit/platform/internal/jni/LinuxFileEventFunctions$WatcherImpl");
-    jmethodID constructor = env->GetMethodID(clsWatcher, "<init>", "(Ljava/lang/Object;)V");
-    return env->NewObject(clsWatcher, constructor, env->NewDirectByteBuffer(server, sizeof(server)));
-}
-
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_00024WatcherImpl_startWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
-    Server* server = getServer(env, javaServer);
-    u16string path = javaToNativeString(env, javaPath);
-    server->startWatching(path);
-}
-
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_00024WatcherImpl_stopWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
-    Server* server = getServer(env, javaServer);
-    u16string path = javaToNativeString(env, javaPath);
-    server->stopWatching(path);
-}
-
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_00024WatcherImpl_stop(JNIEnv* env, jobject, jobject javaServer) {
-    Server* server = getServer(env, javaServer);
-    delete server;
+    return wrapServer(env, [env, javaCallback]() {
+        return new Server(env, javaCallback);
+    });
 }
 
 #endif

@@ -40,11 +40,6 @@ class LinuxFileEventFunctionsTest extends AbstractFileEventsTest {
     }
 
     @Override
-    protected void stopWatcher(FileWatcher watcher) {
-        watcher?.close()
-    }
-
-    @Override
     protected void waitForChangeEventLatency() {
         TimeUnit.MILLISECONDS.sleep(50)
     }

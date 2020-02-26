@@ -37,21 +37,4 @@ public class LinuxFileEventFunctions extends AbstractFileEventFunctions {
     }
 
     private static native FileWatcher startWatcher(NativeFileWatcherCallback callback);
-
-    // Created from native code
-    @SuppressWarnings("unused")
-    private static class WatcherImpl extends AbstractFileWatcher {
-        public WatcherImpl(Object details) {
-            super(details);
-        }
-
-        @Override
-        protected native void startWatching(Object server, String absolutePath);
-
-        @Override
-        protected native void stopWatching(Object server, String absolutePath);
-
-        @Override
-        protected native void stop(Object details);
-    }
 }
