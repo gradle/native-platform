@@ -36,7 +36,7 @@ class LinuxFileEventFunctionsTest extends AbstractFileEventsTest {
     protected FileWatcher startNewWatcher(FileWatcherCallback callback) {
         // Avoid setup operations to be reported
         waitForChangeEventLatency()
-        fileEvents.startWatching(callback)
+        fileEvents.startWatcher(callback)
     }
 
     @Override
