@@ -277,11 +277,9 @@ void convertToLongPathIfNeeded(u16string& path) {
 
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatcher(JNIEnv* env, jclass target, jobject javaCallback) {
-    Server* server = new Server(env, javaCallback);
-
-    jclass clsWatcher = env->FindClass("net/rubygrapefruit/platform/internal/jni/AbstractFileEventFunctions$NativeFileWatcher");
-    jmethodID constructor = env->GetMethodID(clsWatch, "<init>", "(Ljava/lang/Object;)V");
-    return env->NewObject(clsWatch, constructor, env->NewDirectByteBuffer(server, sizeof(server)));
+    return wrapServer(env, [env, javaCallback]() {
+        return new Server(env, javaCallback);
+    });
 }
 
 #endif

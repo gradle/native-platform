@@ -67,3 +67,6 @@ private:
 };
 
 u16string javaToNativeString(JNIEnv* env, jstring javaString);
+
+// TODO Use a template for the server type?
+jobject wrapServer(JNIEnv* env, function<void*()> serverStarter);

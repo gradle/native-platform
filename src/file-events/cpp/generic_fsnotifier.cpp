@@ -116,6 +116,26 @@ AbstractServer* getServer(JNIEnv* env, jobject javaServer) {
     return server;
 }
 
+jobject wrapServer(JNIEnv* env, function<void*()> serverStarter) {
+    void* server;
+    try {
+        server = serverStarter();
+    } catch (const exception& e) {
+        log_severe(env, "Caught exception: %s", e.what());
+        jclass exceptionClass = env->FindClass("net/rubygrapefruit/platform/NativeException");
+        assert(exceptionClass != NULL);
+        jint ret = env->ThrowNew(exceptionClass, e.what());
+        assert(ret == 0);
+        return NULL;
+    }
+
+    jclass clsWatcher = env->FindClass("net/rubygrapefruit/platform/internal/jni/AbstractFileEventFunctions$NativeFileWatcher");
+    assert(clsWatcher != NULL);
+    jmethodID constructor = env->GetMethodID(clsWatcher, "<init>", "(Ljava/lang/Object;)V");
+    assert(constructor != NULL);
+    return env->NewObject(clsWatcher, constructor, env->NewDirectByteBuffer(server, sizeof(server)));
+}
+
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_startWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
     AbstractServer* server = getServer(env, javaServer);
