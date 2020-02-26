@@ -77,10 +77,11 @@ void Server::startWatching(const u16string& path) {
     if (watchPoints.find(path) != watchPoints.end()) {
         throw new FileWatcherException("Already watching path");
     }
-    auto it = watchPoints.emplace(piecewise_construct,
+    auto result = watchPoints.emplace(piecewise_construct,
         forward_as_tuple(path),
         forward_as_tuple(path, fdInotify));
-    watchDescriptors.emplace(make_pair(it.first->second.watchDescriptor, path));
+    auto it = result.first;
+    watchDescriptors[it->second.watchDescriptor] = path;
 }
 
 void Server::stopWatching(const u16string& path) {
