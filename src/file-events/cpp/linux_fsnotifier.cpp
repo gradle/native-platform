@@ -68,7 +68,26 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
                 break;
             default:
                 // Handle events
-                log_fine(env, "Received event!", NULL);
+                int index = 0;
+                while (index < bytesRead) {
+                    struct inotify_event* event = (struct inotify_event*) &buffer[index];
+                    if (event->len) {
+                        if (event->mask & IN_CREATE) {
+                            if (event->mask & IN_ISDIR) {
+                                log_fine(env, "New directory %s created", event->name);
+                            } else {
+                                log_fine(env, "New file %s created", event->name);
+                            }
+                        } else if (event->mask & IN_DELETE) {
+                            if (event->mask & IN_ISDIR) {
+                                log_fine(env, "Directory %s deleted", event->name);
+                            } else {
+                                log_fine(env, "File %s deleted", event->name);
+                            }
+                        }
+                    }
+                    index += sizeof(struct inotify_event) + event->len;
+                }
                 break;
         }
     }
