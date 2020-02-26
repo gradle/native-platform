@@ -183,6 +183,9 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
 }
 
 void Server::startWatching(JNIEnv* env, const u16string& path) {
+    if (watchPoints.find(path) != watchPoints.end()) {
+        throw FileWatcherException("Already watching path");
+    }
     wstring pathW(path.begin(), path.end());
     HANDLE directoryHandle = CreateFileW(
         pathW.c_str(),          // pointer to the file name
@@ -207,7 +210,11 @@ void Server::startWatching(JNIEnv* env, const u16string& path) {
 }
 
 void Server::stopWatching(JNIEnv* env, const u16string& path) {
-    watchPoints.find(path)->second.close();
+    auto it = watchPoints.find(path);
+    if (it == watchPoints.end()) {
+        throw FileWatcherException("Cannot stop watching path that was never watched");
+    }
+    it->second.close();
 }
 
 void Server::reportFinished(const WatchPoint& watchPoint) {
