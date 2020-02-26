@@ -287,11 +287,6 @@ public abstract class Platform {
         String getCursesLibraryName() {
             return "libnative-platform-curses.so";
         }
-
-        @Override
-        public String getFileEventsLibraryName() {
-            return "libnative-platform-file-events.so";
-        }
     }
 
     private abstract static class Linux extends Unix {
@@ -308,6 +303,11 @@ public abstract class Platform {
         @Override
         public boolean isLinux() {
             return true;
+        }
+
+        @Override
+        public String getFileEventsLibraryName() {
+            return "libnative-platform-file-events.so";
         }
     }
 
