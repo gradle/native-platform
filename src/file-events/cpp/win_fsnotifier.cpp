@@ -28,7 +28,7 @@ WatchPoint::WatchPoint(Server* server, const u16string& path, HANDLE directoryHa
     QueueUserAPC(listenCallback, serverThreadHandle, (ULONG_PTR) this);
     listenerStarted.wait(lock);
     if (status != WATCH_LISTENING) {
-        throw new FileWatcherException("Couldn't start listening");
+        throw FileWatcherException("Couldn't start listening");
     }
 }
 

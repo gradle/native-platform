@@ -16,7 +16,7 @@ public:
             : jvm->AttachCurrentThread((void**) &env, (void*) &args);
         if (ret != JNI_OK) {
             fprintf(stderr, "Failed to attach JNI to current thread: %d\n", ret);
-            throw new FileWatcherException("Failed to attach JNI to current thread");
+            throw FileWatcherException("Failed to attach JNI to current thread");
         }
     }
     ~JNIThread() {

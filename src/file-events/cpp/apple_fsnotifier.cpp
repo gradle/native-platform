@@ -191,7 +191,7 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
 
 void Server::startWatching(const u16string& path) {
     if (watchPoints.find(path) != watchPoints.end()) {
-        throw new FileWatcherException("Already watching path");
+        throw FileWatcherException("Already watching path");
     }
     watchPoints.emplace(piecewise_construct,
         forward_as_tuple(path),
@@ -200,7 +200,7 @@ void Server::startWatching(const u16string& path) {
 
 void Server::stopWatching(const u16string& path) {
     if (watchPoints.erase(path) == 0) {
-        throw new FileWatcherException("Cannot stop watching path that was never watched");
+        throw FileWatcherException("Cannot stop watching path that was never watched");
     }
 }
 
