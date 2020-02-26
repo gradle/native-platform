@@ -30,7 +30,7 @@ private:
     FSEventStreamRef watcherStream;
 };
 
-class Server : AbstractServer {
+class Server : public AbstractServer {
 public:
     Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis);
     ~Server();
