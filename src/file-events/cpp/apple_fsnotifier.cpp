@@ -193,7 +193,6 @@ void Server::startWatching(const u16string& path) {
     if (watchPoints.find(path) != watchPoints.end()) {
         throw new FileWatcherException("Already watching path");
     }
-    // TODO Is this necessary
     watchPoints.emplace(piecewise_construct,
         forward_as_tuple(path),
         forward_as_tuple(this, threadLoop, path, latencyInMillis));
