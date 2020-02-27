@@ -50,7 +50,7 @@ private:
     mutex listenerMutex;
     condition_variable listenerStarted;
 
-    void handleEvent(DWORD errorCode, DWORD bytesTransferred);
+    void handleEvent(DWORD bytesTransferred);
     void handlePathChanged(FILE_NOTIFY_INFORMATION* info);
     friend static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped);
 };
