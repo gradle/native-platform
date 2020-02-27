@@ -31,18 +31,14 @@ public:
     void startWatching(const u16string& path) override;
     void stopWatching(const u16string& path) override;
 
-    // TODO This should be private
-    void handleEvents(
-        size_t numEvents);
-
 protected:
     void runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) override;
 
 private:
-    void handleEvent(JNIEnv* env, char* path, int flags);
+    void handleEvent(JNIEnv* env, inotify_event* event);
 
     unordered_map<u16string, WatchPoint> watchPoints;
-    unordered_map<int, u16string> watchDescriptors;
+    unordered_map<int, u16string> watchRoots;
     const int fdInotify;
 };
 

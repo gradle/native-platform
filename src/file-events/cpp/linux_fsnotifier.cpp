@@ -71,26 +71,64 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
                 int index = 0;
                 while (index < bytesRead) {
                     struct inotify_event* event = (struct inotify_event*) &buffer[index];
-                    if (event->len) {
-                        if (event->mask & IN_CREATE) {
-                            if (event->mask & IN_ISDIR) {
-                                log_fine(env, "New directory %s created", event->name);
-                            } else {
-                                log_fine(env, "New file %s created", event->name);
-                            }
-                        } else if (event->mask & IN_DELETE) {
-                            if (event->mask & IN_ISDIR) {
-                                log_fine(env, "Directory %s deleted", event->name);
-                            } else {
-                                log_fine(env, "File %s deleted", event->name);
-                            }
-                        }
-                    }
+                    handleEvent(env, event);
                     index += sizeof(struct inotify_event) + event->len;
                 }
                 break;
         }
     }
+}
+
+void Server::handleEvent(JNIEnv* env, inotify_event* event) {
+    uint32_t mask = event->mask;
+    log_fine(env, "Event mask: 0x%x for %s (wd = %d, cookie = %d)", mask, event->name, event->wd, event->cookie);
+    if (IS_ANY_SET(mask, IN_UNMOUNT)) {
+        return;
+    }
+    // TODO Do we need error handling here?
+    u16string path = watchRoots[event->wd];
+    if (IS_SET(mask, IN_IGNORED)) {
+        // Finished with watch point
+        log_fine(env, "Finished watching", NULL);
+        watchPoints.erase(path);
+        watchRoots.erase(event->wd);
+        return;
+    }
+    int type;
+    const u16string name = utf8ToUtf16String(event->name);
+    // TODO How to handle MOVE_SELF?
+    if (IS_SET(mask, IN_Q_OVERFLOW)) {
+        type = FILE_EVENT_INVALIDATE;
+    } else if (IS_ANY_SET(mask, IN_CREATE | IN_MOVED_TO)) {
+        type = FILE_EVENT_CREATED;
+    } else if (IS_ANY_SET(mask, IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM)) {
+        type = FILE_EVENT_REMOVED;
+    } else if (IS_SET(mask, IN_MODIFY)) {
+        type = FILE_EVENT_MODIFIED;
+    } else {
+        type = FILE_EVENT_UNKNOWN;
+        watchPoints.erase(path);
+    path.append(name);
+    reportChange(env, type, path);
+        watchRoots.erase(event->wd);
+        return;
+    }
+    int type;
+    const u16string name = utf8ToUtf16String(event->name);
+    // TODO How to handle MOVE_SELF?
+    if (IS_SET(mask, IN_Q_OVERFLOW)) {
+        type = FILE_EVENT_INVALIDATE;
+    } else if (IS_ANY_SET(mask, IN_CREATE | IN_MOVED_TO)) {
+        type = FILE_EVENT_CREATED;
+    watchRoots[it->second.watchDescriptor] = path;
+        type = FILE_EVENT_REMOVED;
+    } else if (IS_SET(mask, IN_MODIFY)) {
+        type = FILE_EVENT_MODIFIED;
+    } else {
+        type = FILE_EVENT_UNKNOWN;
+    }
+    path.append(name);
+    watchRoots.erase(it->second.watchDescriptor);
 }
 
 void Server::startWatching(const u16string& path) {
@@ -101,7 +139,7 @@ void Server::startWatching(const u16string& path) {
         forward_as_tuple(path),
         forward_as_tuple(path, fdInotify));
     auto it = result.first;
-    watchDescriptors[it->second.watchDescriptor] = path;
+    watchRoots[it->second.watchDescriptor] = path;
 }
 
 void Server::stopWatching(const u16string& path) {
@@ -109,7 +147,7 @@ void Server::stopWatching(const u16string& path) {
     if (it == watchPoints.end()) {
         throw new FileWatcherException("Cannot stop watching path that was never watched");
     }
-    watchDescriptors.erase(it->second.watchDescriptor);
+    watchRoots.erase(it->second.watchDescriptor);
     watchPoints.erase(it);
 }
 
