@@ -45,11 +45,6 @@ class OsxFileEventFunctionsTest extends AbstractFileEventsTest {
     }
 
     @Override
-    protected void stopWatcher(FileWatcher watcher) {
-        watcher?.close()
-    }
-
-    @Override
     protected void waitForChangeEventLatency() {
         TimeUnit.MILLISECONDS.sleep(LATENCY_IN_MILLIS + 20)
     }

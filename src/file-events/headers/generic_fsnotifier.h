@@ -8,6 +8,7 @@
 #include <thread>
 
 #include "logging.h"
+#include "net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_NativeFileWatcher.h"
 
 using namespace std;
 
@@ -40,6 +41,9 @@ public:
     AbstractServer(JNIEnv* env, jobject watcherCallback);
     virtual ~AbstractServer();
 
+    virtual void startWatching(const u16string& path) = 0;
+    virtual void stopWatching(const u16string& path) = 0;
+
     JNIEnv* getThreadEnv();
 
 protected:
@@ -63,3 +67,6 @@ private:
 };
 
 u16string javaToNativeString(JNIEnv* env, jstring javaString);
+
+// TODO Use a template for the server type?
+jobject wrapServer(JNIEnv* env, function<void*()> serverStarter);

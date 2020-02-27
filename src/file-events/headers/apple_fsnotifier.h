@@ -7,7 +7,6 @@
 
 #include "generic_fsnotifier.h"
 #include "net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions.h"
-#include "net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_WatcherImpl.h"
 
 using namespace std;
 
@@ -35,8 +34,8 @@ public:
     Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis);
     ~Server();
 
-    void startWatching(const u16string& path);
-    void stopWatching(const u16string& path);
+    void startWatching(const u16string& path) override;
+    void stopWatching(const u16string& path) override;
 
     // TODO This should be private
     void handleEvents(

@@ -6,88 +6,9 @@ import net.rubygrapefruit.platform.file.FileWatcher;
 import net.rubygrapefruit.platform.file.FileWatcherCallback;
 
 import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
 
 public class AbstractFileEventFunctions implements NativeIntegration {
-    protected FileWatcher createWatcher(Collection<String> paths, FileWatcherCallback callback, WatcherFactory starter) {
-        List<String> canonicalPaths = canonicalizeAbsolutePaths(paths);
-        return starter.createWatcher(
-            canonicalPaths.toArray(new String[0]),
-            new NativeFileWatcherCallback(callback)
-        );
-    }
-
     public static native String getVersion();
-
-    /**
-     * Canonicalizes the given paths using {@link File#getCanonicalPath()}.
-     * Throws {@link NativeException} if any of the given paths is not absolute,
-     * or if they cannot be canonicalized for any reason.
-     */
-    private static List<String> canonicalizeAbsolutePaths(Collection<String> watchRoots) {
-        List<String> canonicalPaths = new ArrayList<String>(watchRoots.size());
-        for (String watchRoot : watchRoots) {
-            File fileRoot = new File(watchRoot);
-            if (!fileRoot.isAbsolute()) {
-                throw new NativeException("Watched root is not absolute: " + fileRoot);
-            }
-            try {
-                canonicalPaths.add(fileRoot.getCanonicalPath());
-            } catch (IOException ex) {
-                throw new NativeException("Couldn't resolve canonical path for: " + watchRoot, ex);
-            }
-        }
-        return canonicalPaths;
-    }
-
-    protected interface WatcherFactory {
-        FileWatcher createWatcher(String[] canonicalPaths, NativeFileWatcherCallback callback);
-    }
-
-    protected static abstract class AbstractFileWatcher implements FileWatcher {
-        /**
-         * A Java object wrapper around the native server object.
-         */
-        private Object server;
-
-        public AbstractFileWatcher(Object server) {
-            this.server = server;
-        }
-
-        @Override
-        public void startWatching(File path) {
-            if (server == null) {
-                throw new IllegalStateException("Watcher already closed");
-            }
-            startWatching(server, path.getAbsolutePath());
-        }
-
-        protected abstract void startWatching(Object server, String absolutePath);
-
-        @Override
-        public void stopWatching(File path) {
-            if (server == null) {
-                throw new IllegalStateException("Watcher already closed");
-            }
-            stopWatching(server, path.getAbsolutePath());
-        }
-
-        protected abstract void stopWatching(Object server, String absolutePath);
-
-        @Override
-        public void close() {
-            if (server == null) {
-                return;
-            }
-            stop(server);
-            server = null;
-        }
-
-        protected abstract void stop(Object details);
-    }
 
     protected static class NativeFileWatcherCallback {
         private final FileWatcherCallback delegate;
@@ -101,5 +22,49 @@ public class AbstractFileEventFunctions implements NativeIntegration {
         public void pathChanged(int type, String path) {
             delegate.pathChanged(FileWatcherCallback.Type.values()[type], path);
         }
+    }
+
+    // Instantiated from native code
+    @SuppressWarnings("unused")
+    protected static class NativeFileWatcher implements FileWatcher {
+        /**
+         * A Java object wrapper around the native server object.
+         */
+        private Object server;
+
+        public NativeFileWatcher(Object server) {
+            this.server = server;
+        }
+
+        @Override
+        public void startWatching(File path) {
+            if (server == null) {
+                throw new IllegalStateException("Watcher already closed");
+            }
+            startWatching(server, path.getAbsolutePath());
+        }
+
+        private native void startWatching(Object server, String absolutePath);
+
+        @Override
+        public void stopWatching(File path) {
+            if (server == null) {
+                throw new IllegalStateException("Watcher already closed");
+            }
+            stopWatching(server, path.getAbsolutePath());
+        }
+
+        private native void stopWatching(Object server, String absolutePath);
+
+        @Override
+        public void close() {
+            if (server == null) {
+                throw new NativeException("Closed already");
+            }
+            stop(server);
+            server = null;
+        }
+
+        protected native void stop(Object details);
     }
 }

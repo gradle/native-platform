@@ -11,7 +11,6 @@
 // Needs to stay below <windows.h> otherwise byte symbol gets confused with std::byte
 #include "generic_fsnotifier.h"
 #include "net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions.h"
-#include "net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_WatcherImpl.h"
 
 using namespace std;
 
@@ -61,8 +60,8 @@ public:
     Server(JNIEnv* env, jobject watcherCallback);
     ~Server();
 
-    void startWatching(JNIEnv* env, const u16string& path);
-    void stopWatching(JNIEnv* env, const u16string& path);
+    void startWatching(const u16string& path) override;
+    void stopWatching(const u16string& path) override;
 
     void reportEvent(jint type, const u16string& changedPath);
     void reportFinished(const WatchPoint& watchPoint);
@@ -77,6 +76,8 @@ private:
 
     friend static void CALLBACK requestTerminationCallback(_In_ ULONG_PTR arg);
     void requestTermination();
+
+    static void convertToLongPathIfNeeded(u16string& path);
 };
 
 #endif

@@ -206,49 +206,9 @@ void Server::stopWatching(const u16string& path) {
 
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatcher(JNIEnv* env, jclass, long latencyInMillis, jobject javaCallback) {
-    Server* server;
-    try {
-        server = new Server(env, javaCallback, latencyInMillis);
-    } catch (const exception& e) {
-        log_severe(env, "Caught exception: %s", e.what());
-        jclass exceptionClass = env->FindClass("net/rubygrapefruit/platform/NativeException");
-        assert(exceptionClass != NULL);
-        jint ret = env->ThrowNew(exceptionClass, e.what());
-        assert(ret == 0);
-        return NULL;
-    }
-
-    jclass clsWatcher = env->FindClass("net/rubygrapefruit/platform/internal/jni/OsxFileEventFunctions$WatcherImpl");
-    assert(clsWatcher != NULL);
-    jmethodID constructor = env->GetMethodID(clsWatcher, "<init>", "(Ljava/lang/Object;)V");
-    assert(constructor != NULL);
-    return env->NewObject(clsWatcher, constructor, env->NewDirectByteBuffer(server, sizeof(server)));
-}
-
-Server* getServer(JNIEnv* env, jobject javaServer) {
-    Server* server = (Server*) env->GetDirectBufferAddress(javaServer);
-    assert(server != NULL);
-    return server;
-}
-
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_00024WatcherImpl_startWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
-    Server* server = getServer(env, javaServer);
-    u16string path = javaToNativeString(env, javaPath);
-    server->startWatching(path);
-}
-
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_00024WatcherImpl_stopWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
-    Server* server = getServer(env, javaServer);
-    u16string path = javaToNativeString(env, javaPath);
-    server->stopWatching(path);
-}
-
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_00024WatcherImpl_stop(JNIEnv* env, jobject, jobject javaServer) {
-    Server* server = getServer(env, javaServer);
-    delete server;
+    return wrapServer(env, [env, javaCallback, latencyInMillis]() {
+        return new Server(env, javaCallback, latencyInMillis);
+    });
 }
 
 #endif

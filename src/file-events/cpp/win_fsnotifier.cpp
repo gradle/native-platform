@@ -182,11 +182,13 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
     }
 }
 
-void Server::startWatching(JNIEnv* env, const u16string& path) {
-    if (watchPoints.find(path) != watchPoints.end()) {
+void Server::startWatching(const u16string& path) {
+    u16string longPath = path;
+    convertToLongPathIfNeeded(longPath);
+    if (watchPoints.find(longPath) != watchPoints.end()) {
         throw FileWatcherException("Already watching path");
     }
-    wstring pathW(path.begin(), path.end());
+    wstring pathW(longPath.begin(), longPath.end());
     HANDLE directoryHandle = CreateFileW(
         pathW.c_str(),          // pointer to the file name
         FILE_LIST_DIRECTORY,    // access (read/write) mode
@@ -198,19 +200,21 @@ void Server::startWatching(JNIEnv* env, const u16string& path) {
     );
 
     if (directoryHandle == INVALID_HANDLE_VALUE) {
-        log_severe(env, "Couldn't get file handle for '%ls': %d", pathW.c_str(), GetLastError());
+        log_severe(getThreadEnv(), "Couldn't get file handle for '%ls': %d", pathW.c_str(), GetLastError());
         // TODO Error handling
         return;
     }
 
     HANDLE threadHandle = watcherThread.native_handle();
     watchPoints.emplace(piecewise_construct,
-        forward_as_tuple(path),
-        forward_as_tuple(this, path, directoryHandle, threadHandle));
+        forward_as_tuple(longPath),
+        forward_as_tuple(this, longPath, directoryHandle, threadHandle));
 }
 
-void Server::stopWatching(JNIEnv* env, const u16string& path) {
-    auto it = watchPoints.find(path);
+void Server::stopWatching(const u16string& path) {
+    u16string longPath = path;
+    convertToLongPathIfNeeded(longPath);
+    auto it = watchPoints.find(longPath);
     if (it == watchPoints.end()) {
         throw FileWatcherException("Cannot stop watching path that was never watched");
     }
@@ -250,7 +254,7 @@ bool isAbsoluteUncPath(const u16string& path) {
     return path[0] == u'\\' && path[1] == u'\\';
 }
 
-void convertToLongPathIfNeeded(u16string& path) {
+void Server::convertToLongPathIfNeeded(u16string& path) {
     // Technically, this should be MAX_PATH (i.e. 260), except some Win32 API related
     // to working with directory paths are actually limited to 240. It is just
     // safer/simpler to cover both cases in one code path.
@@ -277,39 +281,9 @@ void convertToLongPathIfNeeded(u16string& path) {
 
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatcher(JNIEnv* env, jclass target, jobject javaCallback) {
-    Server* server = new Server(env, javaCallback);
-
-    jclass clsWatch = env->FindClass("net/rubygrapefruit/platform/internal/jni/WindowsFileEventFunctions$WatcherImpl");
-    jmethodID constructor = env->GetMethodID(clsWatch, "<init>", "(Ljava/lang/Object;)V");
-    return env->NewObject(clsWatch, constructor, env->NewDirectByteBuffer(server, sizeof(server)));
-}
-
-Server* getServer(JNIEnv* env, jobject javaServer) {
-    Server* server = (Server*) env->GetDirectBufferAddress(javaServer);
-    assert(server != NULL);
-    return server;
-}
-
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_00024WatcherImpl_startWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
-    Server* server = getServer(env, javaServer);
-    u16string pathStr = javaToNativeString(env, javaPath);
-    convertToLongPathIfNeeded(pathStr);
-    server->startWatching(env, pathStr);
-}
-
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_00024WatcherImpl_stopWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
-    Server* server = getServer(env, javaServer);
-    u16string pathStr = javaToNativeString(env, javaPath);
-    convertToLongPathIfNeeded(pathStr);
-    server->stopWatching(env, pathStr);
-}
-
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_00024WatcherImpl_stop(JNIEnv* env, jobject, jobject javaServer) {
-    Server* server = getServer(env, javaServer);
-    delete server;
+    return wrapServer(env, [env, javaCallback]() {
+        return new Server(env, javaCallback);
+    });
 }
 
 #endif

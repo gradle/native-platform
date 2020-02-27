@@ -16,6 +16,7 @@
 package net.rubygrapefruit.platform.file
 
 import groovy.transform.EqualsAndHashCode
+import net.rubygrapefruit.platform.NativeException
 import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.AbstractFileEventFunctions
 import net.rubygrapefruit.platform.testfixture.JulLogging
@@ -280,6 +281,45 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
+    def "fails when watching directory twice"() {
+        given:
+        startWatcher(rootDir)
+
+        when:
+        watcher.startWatching(rootDir)
+
+        then:
+        def ex = thrown NativeException
+        ex.message == "Already watching path"
+    }
+
+    def "fails when un-watching path that was not watched"() {
+        given:
+        startWatcher()
+
+        when:
+        watcher.stopWatching(rootDir)
+
+        then:
+        def ex = thrown NativeException
+        ex.message == "Cannot stop watching path that was never watched"
+    }
+
+    def "fails when un-watching watched directory twice"() {
+        given:
+        startWatcher(rootDir)
+        watcher.stopWatching(rootDir)
+
+        when:
+        // TODO On Windows we don't wait for the unwatching to finish, so we need to sleep; fix this
+        waitForChangeEventLatency()
+        watcher.stopWatching(rootDir)
+
+        then:
+        def ex = thrown NativeException
+        ex.message == "Cannot stop watching path that was never watched"
+    }
+
     def "does not receive events after directory is unwatched"() {
         given:
         def file = new File(rootDir, "first.txt")
@@ -364,16 +404,17 @@ abstract class AbstractFileEventsTest extends Specification {
         noExceptionThrown()
     }
 
-    def "can be started once and stopped multiple times"() {
+    def "fails when stopped multiple times"() {
         given:
-        startWatcher(rootDir)
+        def watcher = startNewWatcher(callback)
+        watcher.close()
 
         when:
         watcher.close()
-        watcher.close()
 
         then:
-        noExceptionThrown()
+        def ex = thrown NativeException
+        ex.message == "Closed already"
     }
 
     def "can be started and stopped multiple times"() {
@@ -445,8 +486,8 @@ abstract class AbstractFileEventsTest extends Specification {
         secondChanges.await()
 
         cleanup:
-        stopWatcher(firstWatcher)
-        stopWatcher(secondWatcher)
+        firstWatcher.close()
+        secondWatcher.close()
     }
 
     def "can receive event about a non-direct descendant change"() {
@@ -551,10 +592,8 @@ abstract class AbstractFileEventsTest extends Specification {
     protected void stopWatcher() {
         def copyWatcher = watcher
         watcher = null
-        stopWatcher(copyWatcher)
+        copyWatcher?.close()
     }
-
-    protected abstract void stopWatcher(FileWatcher watcher)
 
     protected AsyncConditions expectNoEvents(FileWatcherCallback callback = this.callback) {
         expectEvents(callback, [])
