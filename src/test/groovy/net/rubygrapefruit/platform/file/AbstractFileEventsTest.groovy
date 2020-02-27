@@ -28,17 +28,21 @@ import spock.lang.Ignore
 import spock.lang.IgnoreIf
 import spock.lang.Requires
 import spock.lang.Specification
+import spock.lang.Timeout
 import spock.lang.Unroll
 import spock.util.concurrent.AsyncConditions
 
+import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
 
+import static java.util.concurrent.TimeUnit.SECONDS
 import static java.util.logging.Level.FINE
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.INVALIDATE
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 
+@Timeout(value = 15, unit = SECONDS)
 abstract class AbstractFileEventsTest extends Specification {
     private static final Logger LOGGER = Logger.getLogger(AbstractFileEventsTest.name)
 
