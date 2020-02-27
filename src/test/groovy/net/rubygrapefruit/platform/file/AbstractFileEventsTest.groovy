@@ -32,7 +32,6 @@ import spock.lang.Timeout
 import spock.lang.Unroll
 import spock.util.concurrent.AsyncConditions
 
-import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
 
 import static java.util.concurrent.TimeUnit.SECONDS
@@ -498,6 +497,7 @@ abstract class AbstractFileEventsTest extends Specification {
         secondWatcher.close()
     }
 
+    @Requires({ !Platform.current().linux })
     def "can receive event about a non-direct descendant change"() {
         given:
         def subDir = new File(rootDir, "sub-dir")
@@ -511,6 +511,23 @@ abstract class AbstractFileEventsTest extends Specification {
 
         then:
         expectedChanges.await()
+    }
+
+    @Requires({ Platform.current().linux })
+    def "does not receive event about a non-direct descendant change"() {
+        given:
+        def callback = Mock(FileWatcherCallback)
+        def subDir = new File(rootDir, "sub-dir")
+        subDir.mkdirs()
+        def fileInSubDir = new File(subDir, "unwatched-descendant.txt")
+        startWatcher(callback, rootDir)
+
+        when:
+        createNewFile(fileInSubDir)
+
+        then:
+        0 * callback.pathChanged(_ as FileWatcherCallback.Type, _ as String)
+        0 * _
     }
 
     def "can watch directory with long path"() {
