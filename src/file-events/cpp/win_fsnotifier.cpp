@@ -57,7 +57,7 @@ static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred
         return;
     }
 
-    watchPoint->handleEvent(errorCode, bytesTransferred);
+    watchPoint->handleEvent(bytesTransferred);
 }
 
 void WatchPoint::listen() {
@@ -83,16 +83,12 @@ void WatchPoint::listen() {
     listenerStarted.notify_all();
 }
 
-void WatchPoint::handleEvent(DWORD errorCode, DWORD bytesTransferred) {
+void WatchPoint::handleEvent(DWORD bytesTransferred) {
     status = WATCH_NOT_LISTENING;
 
     if (bytesTransferred == 0) {
-        // don't send dirty too much, everything is changed anyway
-        // TODO Understand what this does
-        // if (WaitForSingleObject(stopEventHandle, 500) == WAIT_OBJECT_0)
-        //    break;
-
         // Got a buffer overflow => current changes lost => send INVALIDATE on root
+        log_info(server->getThreadEnv(), "Detected overflow for %ls", path.c_str());
         server->reportEvent(FILE_EVENT_INVALIDATE, path);
     } else {
         FILE_NOTIFY_INFORMATION* current = buffer;
