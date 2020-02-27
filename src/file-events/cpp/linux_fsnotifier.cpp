@@ -28,6 +28,9 @@ WatchPoint::WatchPoint(const u16string& path, int fdInotify)
 }
 
 WatchPoint::~WatchPoint() {
+}
+
+void WatchPoint::close() {
     inotify_rm_watch(fdInotify, watchDescriptor);
 }
 
@@ -38,11 +41,17 @@ Server::Server(JNIEnv* env, jobject watcherCallback)
 }
 
 Server::~Server() {
-    watchPoints.clear();
+    terminate = true;
+
+    for (auto& it : watchPoints) {
+        it.second.close();
+    }
 
     if (watcherThread.joinable()) {
         watcherThread.join();
     }
+
+    close(fdInotify);
 }
 
 void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
@@ -52,25 +61,26 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
         notifyStarted(current_exception());
     }
 
-    char* buffer[EVENT_BUFFER_SIZE];
+    char buffer[EVENT_BUFFER_SIZE]
+        __attribute__((aligned(__alignof__(struct inotify_event))));
 
-    bool process = true;
-    while (process) {
+    while (!terminate) {
+        log_fine(env, "Waiting for events (fdInotify = 0x%x)", fdInotify);
         ssize_t bytesRead = read(fdInotify, buffer, EVENT_BUFFER_SIZE);
         switch (bytesRead) {
             case -1:
                 // TODO EINTR is the normal termination, right?
                 log_severe(env, "Failed to fetch change notifications, errno = %d", errno);
-                process = false;
+                terminate = true;
                 break;
             case 0:
-                process = false;
+                terminate = true;
                 break;
             default:
                 // Handle events
                 int index = 0;
                 while (index < bytesRead) {
-                    struct inotify_event* event = (struct inotify_event*) &buffer[index];
+                    const struct inotify_event* event = (struct inotify_event*) &buffer[index];
                     handleEvent(env, event);
                     index += sizeof(struct inotify_event) + event->len;
                 }
@@ -79,9 +89,9 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
     }
 }
 
-void Server::handleEvent(JNIEnv* env, inotify_event* event) {
+void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
     uint32_t mask = event->mask;
-    log_fine(env, "Event mask: 0x%x for %s (wd = %d, cookie = %d)", mask, event->name, event->wd, event->cookie);
+    log_fine(env, "Event mask: 0x%x for %s (wd = %d, cookie = 0x%x)", mask, event->name, event->wd, event->cookie);
     if (IS_ANY_SET(mask, IN_UNMOUNT)) {
         return;
     }
@@ -107,28 +117,12 @@ void Server::handleEvent(JNIEnv* env, inotify_event* event) {
         type = FILE_EVENT_MODIFIED;
     } else {
         type = FILE_EVENT_UNKNOWN;
-        watchPoints.erase(path);
-    path.append(name);
+    }
+    if (!name.empty()) {
+        path.append(u"/");
+        path.append(name);
+    }
     reportChange(env, type, path);
-        watchRoots.erase(event->wd);
-        return;
-    }
-    int type;
-    const u16string name = utf8ToUtf16String(event->name);
-    // TODO How to handle MOVE_SELF?
-    if (IS_SET(mask, IN_Q_OVERFLOW)) {
-        type = FILE_EVENT_INVALIDATE;
-    } else if (IS_ANY_SET(mask, IN_CREATE | IN_MOVED_TO)) {
-        type = FILE_EVENT_CREATED;
-    watchRoots[it->second.watchDescriptor] = path;
-        type = FILE_EVENT_REMOVED;
-    } else if (IS_SET(mask, IN_MODIFY)) {
-        type = FILE_EVENT_MODIFIED;
-    } else {
-        type = FILE_EVENT_UNKNOWN;
-    }
-    path.append(name);
-    watchRoots.erase(it->second.watchDescriptor);
 }
 
 void Server::startWatching(const u16string& path) {
@@ -147,8 +141,7 @@ void Server::stopWatching(const u16string& path) {
     if (it == watchPoints.end()) {
         throw FileWatcherException("Cannot stop watching path that was never watched");
     }
-    watchRoots.erase(it->second.watchDescriptor);
-    watchPoints.erase(it);
+    it->second.close();
 }
 
 JNIEXPORT jobject JNICALL

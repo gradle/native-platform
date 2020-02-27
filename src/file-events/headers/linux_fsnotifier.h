@@ -17,6 +17,8 @@ public:
     WatchPoint(const u16string& path, int fdInotify);
     ~WatchPoint();
 
+    void close();
+
     const int watchDescriptor;
 
 private:
@@ -35,11 +37,12 @@ protected:
     void runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) override;
 
 private:
-    void handleEvent(JNIEnv* env, inotify_event* event);
+    void handleEvent(JNIEnv* env, const inotify_event* event);
 
     unordered_map<u16string, WatchPoint> watchPoints;
     unordered_map<int, u16string> watchRoots;
     const int fdInotify;
+    bool terminate = false;
 };
 
 #endif
