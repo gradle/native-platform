@@ -1,4 +1,7 @@
 #include <assert.h>
+#include <codecvt>
+#include <locale>
+#include <string>
 
 #include "generic_fsnotifier.h"
 
@@ -128,6 +131,24 @@ u16string javaToNativeString(JNIEnv* env, jstring javaString) {
     u16string path((char16_t*) javaChars, length);
     env->ReleaseStringCritical(javaString, javaChars);
     return path;
+}
+
+// Utility wrapper to adapt locale-bound facets for wstring convert
+// Exposes the protected destructor as public
+// See https://en.cppreference.com/w/cpp/locale/codecvt
+template <class Facet>
+struct deletable_facet : Facet {
+    template <class... Args>
+    deletable_facet(Args&&... args)
+        : Facet(forward<Args>(args)...) {
+    }
+    ~deletable_facet() {
+    }
+};
+
+u16string utf8ToUtf16String(const char* string) {
+    wstring_convert<deletable_facet<codecvt<char16_t, char, mbstate_t>>, char16_t> conv16;
+    return conv16.from_bytes(string);
 }
 
 AbstractServer* getServer(JNIEnv* env, jobject javaServer) {

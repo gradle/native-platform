@@ -1,24 +1,8 @@
 #if defined(__APPLE__)
 
 #include "apple_fsnotifier.h"
-#include <codecvt>
-#include <locale>
-#include <string>
 
 using namespace std;
-
-// Utility wrapper to adapt locale-bound facets for wstring convert
-// Exposes the protected destructor as public
-// See https://en.cppreference.com/w/cpp/locale/codecvt
-template <class Facet>
-struct deletable_facet : Facet {
-    template <class... Args>
-    deletable_facet(Args&&... args)
-        : Facet(forward<Args>(args)...) {
-    }
-    ~deletable_facet() {
-    }
-};
 
 WatchPoint::WatchPoint(Server* server, CFRunLoopRef runLoop, const u16string& path, long latencyInMillis) {
     CFStringRef cfPath = CFStringCreateWithCharacters(NULL, (UniChar*) path.c_str(), path.length());
@@ -203,8 +187,7 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
     }
 
     log_fine(env, "Changed: %s %d", path, type);
-    wstring_convert<deletable_facet<codecvt<char16_t, char, mbstate_t>>, char16_t> conv16;
-    u16string pathStr = conv16.from_bytes(path);
+    u16string pathStr = utf8ToUtf16String(path);
     reportChange(env, type, pathStr);
 }
 
