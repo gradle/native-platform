@@ -24,6 +24,8 @@ public class AbstractFileEventFunctions implements NativeIntegration {
         }
     }
 
+    // Instantiated from native code
+    @SuppressWarnings("unused")
     protected static class NativeFileWatcher implements FileWatcher {
         /**
          * A Java object wrapper around the native server object.
