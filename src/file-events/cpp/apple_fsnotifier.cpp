@@ -111,9 +111,9 @@ Server::~Server() {
         paths.push_back(watchPoint.first);
     }
     for (auto& path : paths) {
-        executeOnThread(new UnregisterCommand(path));
+        executeOnThread(shared_ptr<Command>(new UnregisterCommand(path)));
     }
-    executeOnThread(new TerminateCommand());
+    executeOnThread(shared_ptr<Command>(new TerminateCommand()));
 
     if (watcherThread.joinable()) {
         watcherThread.join();

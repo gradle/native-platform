@@ -85,28 +85,22 @@ void AbstractServer::run() {
     log_fine(env, "Stopping thread", NULL);
 }
 
-void AbstractServer::executeOnThread(Command* command) {
+void AbstractServer::executeOnThread(shared_ptr<Command> command) {
     unique_lock<mutex> lock(mtxCommands);
-    commands.emplace_back(command);
+    commands.push_back(command);
     wakeUpRunLoop();
-    commandsProcessed.wait(lock);
-    if (executionException) {
-        rethrow_exception(executionException);
+    command->executed.wait(lock);
+    if (command->except) {
+        rethrow_exception(command->except);
     }
 }
 
 void AbstractServer::processCommands() {
     unique_lock<mutex> lock(mtxCommands);
-    executionException = current_exception();
-    try {
-        for (auto& command : commands) {
-            command->perform(this);
-        }
-    } catch (const exception& e) {
-        executionException = current_exception();
+    for (auto& command : commands) {
+        command->execute(this);
     }
     commands.clear();
-    commandsProcessed.notify_all();
 }
 
 JNIEnv* AbstractServer::getThreadEnv() {
@@ -173,7 +167,7 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
     try {
         AbstractServer* server = getServer(env, javaServer);
         auto path = javaToNativeString(env, javaPath);
-        server->executeOnThread(new RegisterCommand(path));
+        server->executeOnThread(shared_ptr<Command>(new RegisterCommand(path)));
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
     }
@@ -184,7 +178,7 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
     try {
         AbstractServer* server = getServer(env, javaServer);
         auto path = javaToNativeString(env, javaPath);
-        server->executeOnThread(new UnregisterCommand(path));
+        server->executeOnThread(shared_ptr<Command>(new UnregisterCommand(path)));
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
     }

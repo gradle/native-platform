@@ -45,7 +45,19 @@ class Command {
 public:
     Command(){};
     virtual ~Command(){};
+    void execute(AbstractServer* server) {
+        try {
+            perform(server);
+        } catch (const exception&) {
+            except = current_exception();
+        }
+        executed.notify_all();
+    }
+
     virtual void perform(AbstractServer* server) = 0;
+
+    condition_variable executed;
+    exception_ptr except;
 };
 
 class AbstractServer {
@@ -53,7 +65,7 @@ public:
     AbstractServer(JNIEnv* env, jobject watcherCallback);
     virtual ~AbstractServer();
 
-    void executeOnThread(Command* command);
+    void executeOnThread(shared_ptr<Command> command);
     void processCommands();
 
     virtual void startWatching(const u16string& path) = 0;
@@ -79,9 +91,7 @@ private:
     exception_ptr initException;
 
     mutex mtxCommands;
-    condition_variable commandsProcessed;
-    deque<unique_ptr<Command>> commands;
-    exception_ptr executionException;
+    deque<shared_ptr<Command>> commands;
 
     jobject watcherCallback;
     jmethodID watcherCallbackMethod;
