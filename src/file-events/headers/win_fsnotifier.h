@@ -64,11 +64,7 @@ protected:
 
 private:
     unordered_map<u16string, WatchPoint> watchPoints;
-
     bool terminated = false;
-
-    friend static void CALLBACK requestTerminationCallback(_In_ ULONG_PTR arg);
-    void requestTermination();
 };
 
 #endif
