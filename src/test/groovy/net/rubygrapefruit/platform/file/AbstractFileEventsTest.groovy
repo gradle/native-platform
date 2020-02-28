@@ -280,6 +280,7 @@ abstract class AbstractFileEventsTest extends Specification {
         def expectedChanges = expectEvents event(CREATED, watchedFile)
         createNewFile(unwatchedFile)
         createNewFile(watchedFile)
+        waitForChangeEventLatency()
 
         then:
         expectedChanges.await()
@@ -524,6 +525,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
         when:
         createNewFile(fileInSubDir)
+        waitForChangeEventLatency()
 
         then:
         0 * callback.pathChanged(_ as FileWatcherCallback.Type, _ as String)

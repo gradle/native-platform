@@ -43,4 +43,10 @@ class LinuxFileEventFunctionsTest extends AbstractFileEventsTest {
     protected void waitForChangeEventLatency() {
         TimeUnit.MILLISECONDS.sleep(50)
     }
+
+    @Override
+    protected void stopWatcher() {
+        waitForChangeEventLatency()
+        super.stopWatcher()
+    }
 }
