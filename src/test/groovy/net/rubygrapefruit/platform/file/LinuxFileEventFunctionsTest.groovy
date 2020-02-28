@@ -46,6 +46,7 @@ class LinuxFileEventFunctionsTest extends AbstractFileEventsTest {
 
     @Override
     protected void stopWatcher() {
+        // FIXME This is necessary to avoid a race condition
         waitForChangeEventLatency()
         super.stopWatcher()
     }
