@@ -70,14 +70,14 @@ public:
      */
     void executeOnThread(shared_ptr<Command> command);
 
+    //
+    // Methods running on the processing thread
+    //
+
     /**
      * Processes queued commands, should be called from processing thread.
      */
     void processCommands();
-
-    //
-    // Methods running on the background thread
-    //
 
     /**
      * Registers a new watch point with the server.
