@@ -85,6 +85,26 @@ void AbstractServer::run() {
     log_fine(env, "Stopping thread", NULL);
 }
 
+void AbstractServer::enqueue(Command* command) {
+    unique_lock<mutex> lock(mtxCommands);
+    commands.emplace_back(command);
+    wakeUpRunLoop();
+    commandsProcessed.wait(lock);
+}
+
+void AbstractServer::wakeUpRunLoop() {
+    // Do nothing
+}
+
+void AbstractServer::processCommands() {
+    unique_lock<mutex> lock(mtxCommands);
+    for (auto& command : commands) {
+        command->perform(this);
+    }
+    commands.clear();
+    commandsProcessed.notify_all();
+}
+
 JNIEnv* AbstractServer::getThreadEnv() {
     JNIEnv* env;
     jint ret = jvm->GetEnv((void**) &(env), JNI_VERSION_1_6);

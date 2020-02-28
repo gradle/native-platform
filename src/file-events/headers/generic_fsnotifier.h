@@ -3,7 +3,10 @@
 #include <condition_variable>
 #include <exception>
 #include <functional>
+#include <list>
+#include <memory>
 #include <mutex>
+#include <queue>
 #include <string>
 #include <thread>
 
@@ -36,18 +39,33 @@ private:
     const char* message;
 };
 
+class AbstractServer;
+
+class Command {
+public:
+    Command(){};
+    virtual ~Command(){};
+    virtual void perform(AbstractServer* server) = 0;
+};
+
 class AbstractServer {
 public:
     AbstractServer(JNIEnv* env, jobject watcherCallback);
     virtual ~AbstractServer();
 
+    void enqueue(Command* command);
+    void processCommands();
+
     virtual void startWatching(const u16string& path) = 0;
     virtual void stopWatching(const u16string& path) = 0;
+    virtual void terminate() = 0;
 
     JNIEnv* getThreadEnv();
 
 protected:
     void reportChange(JNIEnv* env, int type, const u16string& path);
+
+    virtual void wakeUpRunLoop();
 
     void startThread();
     virtual void runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) = 0;
@@ -60,10 +78,21 @@ private:
     condition_variable watcherThreadStarted;
     exception_ptr initException;
 
+    mutex mtxCommands;
+    condition_variable commandsProcessed;
+    deque<unique_ptr<Command>> commands;
+
     jobject watcherCallback;
     jmethodID watcherCallbackMethod;
 
     JavaVM* jvm;
+};
+
+class TerminateCommand : public Command {
+public:
+    void perform(AbstractServer* server) override {
+        server->terminate();
+    }
 };
 
 u16string javaToNativeString(JNIEnv* env, jstring javaString);

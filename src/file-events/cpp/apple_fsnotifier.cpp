@@ -76,28 +76,43 @@ WatchPoint::~WatchPoint() {
 // Server
 //
 
+void processCommandsCallback(void* info) {
+    Server* server = (Server*) info;
+    server->processCommands();
+}
+
 Server::Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis)
     : AbstractServer(env, watcherCallback)
     , latencyInMillis(latencyInMillis) {
+    CFRunLoopSourceContext context = {
+        0,                         // version;
+        (void*) this,              // info;
+        NULL,                      // retain()
+        NULL,                      // release()
+        NULL,                      // copyDescription()
+        NULL,                      // equal()
+        NULL,                      // hash()
+        NULL,                      // schedule()
+        NULL,                      // cancel()
+        processCommandsCallback    // perform()
+    };
+    messageSource = CFRunLoopSourceCreate(
+        kCFAllocatorDefault,    // allocator
+        0,                      // index
+        &context                // context
+    );
     startThread();
 }
 
 Server::~Server() {
-    watchPoints.clear();
+    enqueue(new TerminateCommand());
 
-    if (threadLoop != NULL) {
-        if (keepAlive != NULL) {
-            CFRunLoopRemoveTimer(threadLoop, keepAlive, kCFRunLoopDefaultMode);
-            CFRelease(keepAlive);
-        }
-        if (CFRunLoopIsWaiting(threadLoop)) {
-            CFRunLoopStop(threadLoop);
-        }
-    }
+    watchPoints.clear();
 
     if (watcherThread.joinable()) {
         watcherThread.join();
     }
+    CFRelease(messageSource);
 }
 
 void Server::runLoop(JNIEnv*, function<void(exception_ptr)> notifyStarted) {
@@ -105,18 +120,7 @@ void Server::runLoop(JNIEnv*, function<void(exception_ptr)> notifyStarted) {
         CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
         this->threadLoop = threadLoop;
 
-        // Make sure we have at least one source for our run loop, otherwise it would exit immediately
-        CFAbsoluteTime forever = numeric_limits<double>::max();
-        keepAlive = CFRunLoopTimerCreate(
-            kCFAllocatorDefault,    // allocator
-            forever,                // fireDate
-            0,                      // interval
-            0,                      // flags, must be 0
-            0,                      // order, must be 0
-            NULL,                   // callout
-            NULL                    // context
-        );
-        CFRunLoopAddTimer(threadLoop, keepAlive, kCFRunLoopDefaultMode);
+        CFRunLoopAddSource(threadLoop, messageSource, kCFRunLoopDefaultMode);
 
         notifyStarted(nullptr);
     } catch (...) {
@@ -124,6 +128,15 @@ void Server::runLoop(JNIEnv*, function<void(exception_ptr)> notifyStarted) {
     }
 
     CFRunLoopRun();
+}
+
+void Server::wakeUpRunLoop() {
+    CFRunLoopSourceSignal(messageSource);
+    CFRunLoopWakeUp(threadLoop);
+}
+
+void Server::terminate() {
+    CFRunLoopStop(threadLoop);
 }
 
 static void handleEventsCallback(
