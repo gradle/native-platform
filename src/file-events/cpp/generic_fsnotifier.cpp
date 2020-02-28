@@ -151,6 +151,11 @@ u16string utf8ToUtf16String(const char* string) {
     return conv16.from_bytes(string);
 }
 
+string utf16ToUtf8String(const u16string& string) {
+    wstring_convert<deletable_facet<codecvt<char16_t, char, mbstate_t>>, char16_t> conv16;
+    return conv16.to_bytes(string);
+}
+
 AbstractServer* getServer(JNIEnv* env, jobject javaServer) {
     AbstractServer* server = (AbstractServer*) env->GetDirectBufferAddress(javaServer);
     if (server == NULL) {
