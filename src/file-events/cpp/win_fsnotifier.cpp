@@ -76,7 +76,6 @@ void WatchPoint::handleEvent(DWORD bytesTransferred) {
             FILE_NOTIFY_INFORMATION* current = (FILE_NOTIFY_INFORMATION*) &buffer[index];
             handlePathChanged(current);
             if (current->NextEntryOffset == 0) {
-                fprintf(stderr, ">>>> Done\n");
                 break;
             }
             index += current->NextEntryOffset;
