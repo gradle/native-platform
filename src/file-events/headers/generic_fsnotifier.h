@@ -81,11 +81,40 @@ private:
     mutex mtxCommands;
     condition_variable commandsProcessed;
     deque<unique_ptr<Command>> commands;
+    exception_ptr executionException;
 
     jobject watcherCallback;
     jmethodID watcherCallbackMethod;
 
     JavaVM* jvm;
+};
+
+class RegisterCommand : public Command {
+public:
+    RegisterCommand(const u16string& path)
+        : path(path) {
+    }
+
+    void perform(AbstractServer* server) override {
+        server->startWatching(path);
+    }
+
+private:
+    u16string path;
+};
+
+class UnregisterCommand : public Command {
+public:
+    UnregisterCommand(const u16string& path)
+        : path(path) {
+    }
+
+    void perform(AbstractServer* server) override {
+        server->stopWatching(path);
+    }
+
+private:
+    u16string path;
 };
 
 class TerminateCommand : public Command {
