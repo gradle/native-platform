@@ -46,8 +46,6 @@ class WindowsFileEventFunctionsTest extends AbstractFileEventsTest {
 
     @Override
     protected FileWatcher startNewWatcher(FileWatcherCallback callback) {
-        // Avoid setup operations to be reported
-        waitForChangeEventLatency()
         fileEvents.startWatcher(callback)
     }
 
