@@ -111,7 +111,7 @@ Server::~Server() {
         paths.push_back(watchPoint.first);
     }
     for (auto& path : paths) {
-        executeOnThread(shared_ptr<Command>(new UnregisterCommand(path)));
+        executeOnThread(shared_ptr<Command>(new UnregisterPathCommand(path)));
     }
     executeOnThread(shared_ptr<Command>(new TerminateCommand()));
 
@@ -208,7 +208,7 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
     reportChange(env, type, pathStr);
 }
 
-void Server::startWatching(const u16string& path) {
+void Server::registerPath(const u16string& path) {
     if (watchPoints.find(path) != watchPoints.end()) {
         throw FileWatcherException("Already watching path");
     }
@@ -217,7 +217,7 @@ void Server::startWatching(const u16string& path) {
         forward_as_tuple(this, threadLoop, path, latencyInMillis));
 }
 
-void Server::stopWatching(const u16string& path) {
+void Server::unregisterPath(const u16string& path) {
     if (watchPoints.erase(path) == 0) {
         throw FileWatcherException("Cannot stop watching path that was never watched");
     }

@@ -167,7 +167,7 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
     try {
         AbstractServer* server = getServer(env, javaServer);
         auto path = javaToNativeString(env, javaPath);
-        server->executeOnThread(shared_ptr<Command>(new RegisterCommand(path)));
+        server->executeOnThread(shared_ptr<Command>(new RegisterPathCommand(path)));
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
     }
@@ -178,7 +178,7 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
     try {
         AbstractServer* server = getServer(env, javaServer);
         auto path = javaToNativeString(env, javaPath);
-        server->executeOnThread(shared_ptr<Command>(new UnregisterCommand(path)));
+        server->executeOnThread(shared_ptr<Command>(new UnregisterPathCommand(path)));
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
     }

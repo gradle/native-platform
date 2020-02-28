@@ -65,11 +65,36 @@ public:
     AbstractServer(JNIEnv* env, jobject watcherCallback);
     virtual ~AbstractServer();
 
+    /**
+     * Execute command on processing thread.
+     */
     void executeOnThread(shared_ptr<Command> command);
+
+    /**
+     * Processes queued commands, should be called from processing thread.
+     */
     void processCommands();
 
-    virtual void startWatching(const u16string& path) = 0;
-    virtual void stopWatching(const u16string& path) = 0;
+    //
+    // Methods running on the background thread
+    //
+
+    /**
+     * Registers a new watch point with the server.
+     * Runs on processing thread.
+     */
+    virtual void registerPath(const u16string& path) = 0;
+
+    /**
+     * Unregisters a new watch point with the server.
+     * Runs on processing thread.
+     */
+    virtual void unregisterPath(const u16string& path) = 0;
+
+    /**
+     * Terminates server.
+     * Runs on processing thread.
+     */
     virtual void terminate() = 0;
 
     JNIEnv* getThreadEnv();
@@ -77,15 +102,15 @@ public:
 protected:
     void reportChange(JNIEnv* env, int type, const u16string& path);
 
-    virtual void wakeUpRunLoop() = 0;
-
     void startThread();
     virtual void runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) = 0;
+    virtual void wakeUpRunLoop() = 0;
 
     thread watcherThread;
 
 private:
     void run();
+
     mutex watcherThreadMutex;
     condition_variable watcherThreadStarted;
     exception_ptr initException;
@@ -99,28 +124,28 @@ private:
     JavaVM* jvm;
 };
 
-class RegisterCommand : public Command {
+class RegisterPathCommand : public Command {
 public:
-    RegisterCommand(const u16string& path)
+    RegisterPathCommand(const u16string& path)
         : path(path) {
     }
 
     void perform(AbstractServer* server) override {
-        server->startWatching(path);
+        server->registerPath(path);
     }
 
 private:
     u16string path;
 };
 
-class UnregisterCommand : public Command {
+class UnregisterPathCommand : public Command {
 public:
-    UnregisterCommand(const u16string& path)
+    UnregisterPathCommand(const u16string& path)
         : path(path) {
     }
 
     void perform(AbstractServer* server) override {
-        server->stopWatching(path);
+        server->unregisterPath(path);
     }
 
 private:
