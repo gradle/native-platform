@@ -46,7 +46,7 @@ public:
 
 protected:
     void runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) override;
-    void wakeUpRunLoop() override;
+    void processCommandsOnThread() override;
 
 private:
     void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);

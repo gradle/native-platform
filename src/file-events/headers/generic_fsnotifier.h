@@ -104,7 +104,7 @@ protected:
 
     void startThread();
     virtual void runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) = 0;
-    virtual void wakeUpRunLoop() = 0;
+    virtual void processCommandsOnThread() = 0;
 
     thread watcherThread;
 

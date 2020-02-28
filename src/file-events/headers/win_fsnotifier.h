@@ -60,7 +60,7 @@ public:
 
 protected:
     void runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) override;
-    void wakeUpRunLoop() override;
+    void processCommandsOnThread() override;
 
 private:
     unordered_map<u16string, WatchPoint> watchPoints;

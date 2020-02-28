@@ -224,7 +224,7 @@ static void CALLBACK processCommandsCallback(_In_ ULONG_PTR info) {
     server->processCommands();
 }
 
-void Server::wakeUpRunLoop() {
+void Server::processCommandsOnThread() {
     QueueUserAPC(processCommandsCallback, watcherThread.native_handle(), (ULONG_PTR) this);
 }
 

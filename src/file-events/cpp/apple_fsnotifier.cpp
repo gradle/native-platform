@@ -120,7 +120,7 @@ void Server::runLoop(JNIEnv*, function<void(exception_ptr)> notifyStarted) {
     CFRunLoopRun();
 }
 
-void Server::wakeUpRunLoop() {
+void Server::processCommandsOnThread() {
     CFRunLoopSourceSignal(messageSource);
     CFRunLoopWakeUp(threadLoop);
 }

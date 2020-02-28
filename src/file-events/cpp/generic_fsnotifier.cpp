@@ -91,7 +91,7 @@ void AbstractServer::run() {
 void AbstractServer::executeOnThread(shared_ptr<Command> command) {
     unique_lock<mutex> lock(mtxCommands);
     commands.push_back(command);
-    wakeUpRunLoop();
+    processCommandsOnThread();
     command->executed.wait(lock);
     if (command->except) {
         rethrow_exception(command->except);
