@@ -18,22 +18,14 @@ static void CALLBACK listenCallback(_In_ ULONG_PTR arg) {
 WatchPoint::WatchPoint(Server* server, const u16string& path, HANDLE directoryHandle, HANDLE serverThreadHandle) {
     this->server = server;
     this->path = path;
-    this->buffer = (FILE_NOTIFY_INFORMATION*) malloc(EVENT_BUFFER_SIZE);
+    this->buffer.reserve(EVENT_BUFFER_SIZE);
     ZeroMemory(&this->overlapped, sizeof(OVERLAPPED));
     this->overlapped.hEvent = this;
     this->directoryHandle = directoryHandle;
-    this->status = WATCH_UNINITIALIZED;
-
-    unique_lock<mutex> lock(listenerMutex);
-    QueueUserAPC(listenCallback, serverThreadHandle, (ULONG_PTR) this);
-    listenerStarted.wait(lock);
-    if (status != WATCH_LISTENING) {
-        throw FileWatcherException("Couldn't start listening");
-    }
+    listen();
 }
 
 WatchPoint::~WatchPoint() {
-    free(buffer);
 }
 
 void WatchPoint::close() {
@@ -56,6 +48,7 @@ static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred
         server->reportFinished(*watchPoint);
         return;
     }
+    // TODO Handle other error codes
 
     watchPoint->handleEvent(bytesTransferred);
 }
@@ -63,7 +56,7 @@ static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred
 void WatchPoint::listen() {
     BOOL success = ReadDirectoryChangesW(
         directoryHandle,        // handle to directory
-        buffer,                 // read results buffer
+        &buffer[0],             // read results buffer
         EVENT_BUFFER_SIZE,      // length of buffer
         TRUE,                   // include children
         EVENT_MASK,             // filter conditions
@@ -71,39 +64,85 @@ void WatchPoint::listen() {
         &overlapped,            // overlapped buffer
         &handleEventCallback    // completion routine
     );
-
-    unique_lock<mutex> lock(listenerMutex);
-    if (success) {
-        status = WATCH_LISTENING;
-    } else {
-        status = WATCH_FAILED_TO_LISTEN;
+    if (!success) {
         log_warning(server->getThreadEnv(), "Couldn't start watching %p for '%ls', error = %d", directoryHandle, path.c_str(), GetLastError());
-        // TODO Error handling
+        throw FileWatcherException("Couldn't start watching");
     }
-    listenerStarted.notify_all();
 }
 
 void WatchPoint::handleEvent(DWORD bytesTransferred) {
-    status = WATCH_NOT_LISTENING;
-
     if (bytesTransferred == 0) {
         // Got a buffer overflow => current changes lost => send INVALIDATE on root
         log_info(server->getThreadEnv(), "Detected overflow for %ls", path.c_str());
         server->reportEvent(FILE_EVENT_INVALIDATE, path);
     } else {
-        FILE_NOTIFY_INFORMATION* current = buffer;
+        int index = 0;
         for (;;) {
+            FILE_NOTIFY_INFORMATION* current = (FILE_NOTIFY_INFORMATION*) &buffer[index];
             handlePathChanged(current);
             if (current->NextEntryOffset == 0) {
+                fprintf(stderr, ">>>> Done\n");
                 break;
             }
-            current = (FILE_NOTIFY_INFORMATION*) (((BYTE*) current) + current->NextEntryOffset);
+            index += current->NextEntryOffset;
         }
     }
 
-    listen();
-    if (status != WATCH_LISTENING) {
+    try {
+        listen();
+    } catch (const exception& e) {
+        log_severe(server->getThreadEnv(), "Watching failed: %s", e.what());
         server->reportFinished(*this);
+    }
+}
+
+bool isAbsoluteLocalPath(const u16string& path) {
+    if (path.length() < 3) {
+        return false;
+    }
+    return ((u'a' <= path[0] && path[0] <= u'z') || (u'A' <= path[0] && path[0] <= u'Z'))
+        && path[1] == u':'
+        && path[2] == u'\\';
+}
+
+bool isAbsoluteUncPath(const u16string& path) {
+    if (path.length() < 3) {
+        return false;
+    }
+    return path[0] == u'\\' && path[1] == u'\\';
+}
+
+bool isLongPath(const u16string& path) {
+    return path.length() >= 4 && path.substr(0, 4) == u"\\\\?\\";
+}
+
+bool isUncLongPath(const u16string& path) {
+    return path.length() >= 8 && path.substr(0, 8) == u"\\\\?\\UNC\\";
+}
+
+void convertToLongPathIfNeeded(u16string& path) {
+    // Technically, this should be MAX_PATH (i.e. 260), except some Win32 API related
+    // to working with directory paths are actually limited to 240. It is just
+    // safer/simpler to cover both cases in one code path.
+    if (path.length() <= 240) {
+        return;
+    }
+
+    // It is already a long path, nothing to do here
+    if (isLongPath(path)) {
+        return;
+    }
+
+    if (isAbsoluteLocalPath(path)) {
+        // Format: C:\... -> \\?\C:\...
+        path.insert(0, u"\\\\?\\");
+    } else if (isAbsoluteUncPath(path)) {
+        // In this case, we need to skip the first 2 characters:
+        // Format: \\server\share\... -> \\?\UNC\server\share\...
+        path.erase(0, 2);
+        path.insert(0, u"\\\\?\\UNC\\");
+    } else {
+        // It is some sort of unknown format, don't mess with it
     }
 }
 
@@ -116,8 +155,8 @@ void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION* info) {
         changedPath.insert(0, path);
     }
     // TODO Remove long prefix for path once?
-    if (changedPath.length() >= 4 && changedPath.substr(0, 4) == u"\\\\?\\") {
-        if (changedPath.length() >= 8 && changedPath.substr(0, 8) == u"\\\\?\\UNC\\") {
+    if (isLongPath(changedPath)) {
+        if (isUncLongPath(changedPath)) {
             changedPath.erase(0, 8).insert(0, u"\\\\");
         } else {
             changedPath.erase(0, 4);
@@ -152,19 +191,20 @@ Server::Server(JNIEnv* env, jobject watcherCallback)
     SetThreadPriority(this->watcherThread.native_handle(), THREAD_PRIORITY_ABOVE_NORMAL);
 }
 
-static void CALLBACK requestTerminationCallback(_In_ ULONG_PTR arg) {
-    Server* server = (Server*) arg;
-    server->requestTermination();
+void Server::terminate() {
+    terminated = true;
 }
 
 Server::~Server() {
-    JNIEnv* env = getThreadEnv();
-    HANDLE threadHandle = watcherThread.native_handle();
-    log_fine(env, "Requesting termination of server thread %p", threadHandle);
-    int ret = QueueUserAPC(requestTerminationCallback, threadHandle, (ULONG_PTR) this);
-    if (ret == 0) {
-        log_severe(env, "Couldn't send termination request to thread %p: %d", threadHandle, GetLastError());
+    list<u16string> paths;
+    for (auto& watchPoint : watchPoints) {
+        paths.push_back(watchPoint.first);
     }
+    for (auto& path : paths) {
+        executeOnThread(shared_ptr<Command>(new UnregisterPathCommand(path)));
+    }
+    executeOnThread(shared_ptr<Command>(new TerminateCommand()));
+
     if (watcherThread.joinable()) {
         watcherThread.join();
     }
@@ -173,12 +213,21 @@ Server::~Server() {
 void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
     notifyStarted(nullptr);
 
-    while (!terminate || watchPoints.size() > 0) {
+    while (!terminated || watchPoints.size() > 0) {
         SleepEx(INFINITE, true);
     }
 }
 
-void Server::startWatching(const u16string& path) {
+static void CALLBACK processCommandsCallback(_In_ ULONG_PTR info) {
+    Server* server = (Server*) info;
+    server->processCommands();
+}
+
+void Server::wakeUpRunLoop() {
+    QueueUserAPC(processCommandsCallback, watcherThread.native_handle(), (ULONG_PTR) this);
+}
+
+void Server::registerPath(const u16string& path) {
     u16string longPath = path;
     convertToLongPathIfNeeded(longPath);
     if (watchPoints.find(longPath) != watchPoints.end()) {
@@ -201,13 +250,13 @@ void Server::startWatching(const u16string& path) {
         return;
     }
 
-    HANDLE threadHandle = watcherThread.native_handle();
+    HANDLE threadHandle = GetCurrentThread();
     watchPoints.emplace(piecewise_construct,
         forward_as_tuple(longPath),
         forward_as_tuple(this, longPath, directoryHandle, threadHandle));
 }
 
-void Server::stopWatching(const u16string& path) {
+void Server::unregisterPath(const u16string& path) {
     u16string longPath = path;
     convertToLongPathIfNeeded(longPath);
     auto it = watchPoints.find(longPath);
@@ -225,50 +274,6 @@ void Server::reportFinished(const WatchPoint& watchPoint) {
 void Server::reportEvent(jint type, const u16string& changedPath) {
     JNIEnv* env = getThreadEnv();
     reportChange(env, type, changedPath);
-}
-
-void Server::requestTermination() {
-    terminate = true;
-    for (auto& watchPoint : watchPoints) {
-        watchPoint.second.close();
-    }
-}
-
-bool isAbsoluteLocalPath(const u16string& path) {
-    if (path.length() < 3) {
-        return false;
-    }
-    return ((u'a' <= path[0] && path[0] <= u'z') || (u'A' <= path[0] && path[0] <= u'Z'))
-        && path[1] == u':'
-        && path[2] == u'\\';
-}
-
-bool isAbsoluteUncPath(const u16string& path) {
-    if (path.length() < 3) {
-        return false;
-    }
-    return path[0] == u'\\' && path[1] == u'\\';
-}
-
-void Server::convertToLongPathIfNeeded(u16string& path) {
-    // Technically, this should be MAX_PATH (i.e. 260), except some Win32 API related
-    // to working with directory paths are actually limited to 240. It is just
-    // safer/simpler to cover both cases in one code path.
-    if (path.length() <= 240) {
-        return;
-    }
-
-    if (isAbsoluteLocalPath(path)) {
-        // Format: C:\... -> \\?\C:\...
-        path.insert(0, u"\\\\?\\");
-    } else if (isAbsoluteUncPath(path)) {
-        // In this case, we need to skip the first 2 characters:
-        // Format: \\server\share\... -> \\?\UNC\server\share\...
-        path.erase(0, 2);
-        path.insert(0, u"\\\\?\\UNC\\");
-    } else {
-        // It is some sort of unknown format, don't mess with it
-    }
 }
 
 //
