@@ -46,7 +46,7 @@ static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred
     if (errorCode == ERROR_OPERATION_ABORTED) {
         Server* server = watchPoint->server;
         log_fine(server->getThreadEnv(), "Finished watching '%ls'", watchPoint->path.c_str());
-        server->reportFinished(*watchPoint);
+        server->reportFinished(watchPoint->path);
         return;
     }
     // TODO Handle other error codes
@@ -92,7 +92,7 @@ void WatchPoint::handleEventsInBuffer(DWORD bytesTransferred) {
         listen();
     } catch (const exception& e) {
         log_severe(server->getThreadEnv(), "Watching failed: %s", e.what());
-        server->reportFinished(*this);
+        server->reportFinished(path);
     }
 }
 
@@ -267,8 +267,7 @@ void Server::unregisterPath(const u16string& path) {
     it->second.close();
 }
 
-void Server::reportFinished(const WatchPoint& watchPoint) {
-    u16string path = watchPoint.path;
+void Server::reportFinished(const u16string path) {
     watchPoints.erase(path);
 }
 

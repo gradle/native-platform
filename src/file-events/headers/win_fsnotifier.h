@@ -56,7 +56,7 @@ public:
     void terminate() override;
 
     void reportEvent(jint type, const u16string& changedPath);
-    void reportFinished(const WatchPoint& watchPoint);
+    void reportFinished(const u16string path);
 
 protected:
     void runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) override;
