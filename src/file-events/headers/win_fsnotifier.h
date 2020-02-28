@@ -41,7 +41,7 @@ private:
     OVERLAPPED overlapped;
     vector<BYTE> buffer;
 
-    void handleEvent(DWORD bytesTransferred);
+    void handleEventsInBuffer(DWORD bytesTransferred);
     void handlePathChanged(FILE_NOTIFY_INFORMATION* info);
     friend static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped);
 };

@@ -51,7 +51,7 @@ static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred
     }
     // TODO Handle other error codes
 
-    watchPoint->handleEvent(bytesTransferred);
+    watchPoint->handleEventsInBuffer(bytesTransferred);
 }
 
 void WatchPoint::listen() {
@@ -71,7 +71,7 @@ void WatchPoint::listen() {
     }
 }
 
-void WatchPoint::handleEvent(DWORD bytesTransferred) {
+void WatchPoint::handleEventsInBuffer(DWORD bytesTransferred) {
     if (bytesTransferred == 0) {
         // Got a buffer overflow => current changes lost => send INVALIDATE on root
         log_info(server->getThreadEnv(), "Detected overflow for %ls", path.c_str());
