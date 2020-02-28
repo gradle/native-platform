@@ -53,7 +53,7 @@ public:
     AbstractServer(JNIEnv* env, jobject watcherCallback);
     virtual ~AbstractServer();
 
-    void enqueue(Command* command);
+    void executeOnThread(Command* command);
     void processCommands();
 
     virtual void startWatching(const u16string& path) = 0;
@@ -65,7 +65,7 @@ public:
 protected:
     void reportChange(JNIEnv* env, int type, const u16string& path);
 
-    virtual void wakeUpRunLoop();
+    virtual void wakeUpRunLoop() = 0;
 
     void startThread();
     virtual void runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) = 0;

@@ -85,15 +85,11 @@ void AbstractServer::run() {
     log_fine(env, "Stopping thread", NULL);
 }
 
-void AbstractServer::enqueue(Command* command) {
+void AbstractServer::executeOnThread(Command* command) {
     unique_lock<mutex> lock(mtxCommands);
     commands.emplace_back(command);
     wakeUpRunLoop();
     commandsProcessed.wait(lock);
-}
-
-void AbstractServer::wakeUpRunLoop() {
-    // Do nothing
 }
 
 void AbstractServer::processCommands() {

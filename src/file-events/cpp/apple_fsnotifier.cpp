@@ -105,7 +105,7 @@ Server::Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis)
 }
 
 Server::~Server() {
-    enqueue(new TerminateCommand());
+    executeOnThread(new TerminateCommand());
 
     watchPoints.clear();
 
