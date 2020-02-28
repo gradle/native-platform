@@ -115,6 +115,7 @@ bool isUncLongPath(const u16string& path) {
     return path.length() >= 8 && path.substr(0, 8) == u"\\\\?\\UNC\\";
 }
 
+// TODO How can this be done nicer, wihtout both unnecessary copy and in-place mutation?
 void convertToLongPathIfNeeded(u16string& path) {
     // Technically, this should be MAX_PATH (i.e. 260), except some Win32 API related
     // to working with directory paths are actually limited to 240. It is just
