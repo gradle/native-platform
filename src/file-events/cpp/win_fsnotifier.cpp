@@ -10,11 +10,6 @@ using namespace std;
 // WatchPoint
 //
 
-static void CALLBACK listenCallback(_In_ ULONG_PTR arg) {
-    WatchPoint* watchPoint = (WatchPoint*) arg;
-    watchPoint->listen();
-}
-
 WatchPoint::WatchPoint(Server* server, const u16string& path, HANDLE directoryHandle, HANDLE serverThreadHandle) {
     this->server = server;
     this->path = path;
