@@ -80,7 +80,7 @@ void WatchPoint::handleEventsInBuffer(DWORD bytesTransferred) {
         int index = 0;
         for (;;) {
             FILE_NOTIFY_INFORMATION* current = (FILE_NOTIFY_INFORMATION*) &buffer[index];
-            handlePathChanged(current);
+            handleEvent(current);
             if (current->NextEntryOffset == 0) {
                 break;
             }
@@ -147,7 +147,7 @@ void convertToLongPathIfNeeded(u16string& path) {
     }
 }
 
-void WatchPoint::handlePathChanged(FILE_NOTIFY_INFORMATION* info) {
+void WatchPoint::handleEvent(FILE_NOTIFY_INFORMATION* info) {
     wstring changedPathW = wstring(info->FileName, 0, info->FileNameLength / sizeof(wchar_t));
     u16string changedPath(changedPathW.begin(), changedPathW.end());
     // TODO Do we ever get an empty path?
