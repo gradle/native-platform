@@ -105,9 +105,15 @@ Server::Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis)
 }
 
 Server::~Server() {
+    // Make copy of watch point paths to avoid race conditions
+    list<u16string> paths;
+    for (auto& watchPoint : watchPoints) {
+        paths.push_back(watchPoint.first);
+    }
+    for (auto& path : paths) {
+        executeOnThread(new UnregisterCommand(path));
+    }
     executeOnThread(new TerminateCommand());
-
-    watchPoints.clear();
 
     if (watcherThread.joinable()) {
         watcherThread.join();
