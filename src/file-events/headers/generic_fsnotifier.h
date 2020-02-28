@@ -45,11 +45,12 @@ class Command {
 public:
     Command(){};
     virtual ~Command(){};
+
     void execute(AbstractServer* server) {
         try {
             perform(server);
         } catch (const exception&) {
-            except = current_exception();
+            failure = current_exception();
         }
         executed.notify_all();
     }
@@ -57,7 +58,7 @@ public:
     virtual void perform(AbstractServer* server) = 0;
 
     condition_variable executed;
-    exception_ptr except;
+    exception_ptr failure;
 };
 
 class AbstractServer {

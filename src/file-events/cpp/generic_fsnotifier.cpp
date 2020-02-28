@@ -93,8 +93,8 @@ void AbstractServer::executeOnThread(shared_ptr<Command> command) {
     commands.push_back(command);
     processCommandsOnThread();
     command->executed.wait(lock);
-    if (command->except) {
-        rethrow_exception(command->except);
+    if (command->failure) {
+        rethrow_exception(command->failure);
     }
 }
 
