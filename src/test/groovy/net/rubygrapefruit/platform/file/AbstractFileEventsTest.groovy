@@ -280,6 +280,8 @@ abstract class AbstractFileEventsTest extends Specification {
         def expectedChanges = expectEvents event(CREATED, watchedFile)
         createNewFile(unwatchedFile)
         createNewFile(watchedFile)
+        // Let's make sure there are no events for the unwatched file,
+        // and we don't just miss them because of timing
         waitForChangeEventLatency()
 
         then:
@@ -525,6 +527,8 @@ abstract class AbstractFileEventsTest extends Specification {
 
         when:
         createNewFile(fileInSubDir)
+        // Let's make sure there are no events occurring,
+        // and we don't just miss them because of timing
         waitForChangeEventLatency()
 
         then:
