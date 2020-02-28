@@ -18,8 +18,7 @@
 static int registerWatchPoint(const u16string& path, int fdInotify) {
     wstring_convert<codecvt_utf8_utf16<char16_t>, char16_t> conv16;
     string pathNarrow = conv16.to_bytes(path);
-    int wd = inotify_add_watch(fdInotify, pathNarrow.c_str(), EVENT_MASK);
-    return wd;
+    return inotify_add_watch(fdInotify, pathNarrow.c_str(), EVENT_MASK);
 }
 
 WatchPoint::WatchPoint(const u16string& path, int fdInotify)
