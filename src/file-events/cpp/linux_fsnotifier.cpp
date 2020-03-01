@@ -27,9 +27,7 @@ WatchPoint::WatchPoint(const u16string& path, int fdInotify)
 }
 
 WatchPoint::~WatchPoint() {
-}
-
-void WatchPoint::close() {
+    // TODO Error handling
     inotify_rm_watch(fdInotify, watchDescriptor);
 }
 
@@ -183,7 +181,9 @@ void Server::unregisterPath(const u16string& path) {
     if (it == watchPoints.end()) {
         throw FileWatcherException("Cannot stop watching path that was never watched");
     }
-    it->second.close();
+    int wd = it->second.watchDescriptor;
+    watchPoints.erase(path);
+    watchRoots.erase(wd);
 }
 
 JNIEXPORT jobject JNICALL

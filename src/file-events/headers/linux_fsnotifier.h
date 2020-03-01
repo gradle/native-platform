@@ -19,8 +19,6 @@ public:
     WatchPoint(const u16string& path, int fdInotify);
     ~WatchPoint();
 
-    void close();
-
     const int watchDescriptor;
 
 private:

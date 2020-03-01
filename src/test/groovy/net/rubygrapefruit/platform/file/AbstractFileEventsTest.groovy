@@ -311,7 +311,6 @@ abstract class AbstractFileEventsTest extends Specification {
         ex.message == "Cannot stop watching path that was never watched"
     }
 
-    @IgnoreIf({ Platform.current().linux })
     def "fails when un-watching watched directory twice"() {
         given:
         startWatcher(rootDir)
