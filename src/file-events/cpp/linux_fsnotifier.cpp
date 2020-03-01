@@ -35,22 +35,33 @@ void WatchPoint::close() {
 
 Server::Server(JNIEnv* env, jobject watcherCallback)
     : AbstractServer(env, watcherCallback)
-    , fdInotify(inotify_init1(IN_CLOEXEC)) {
+    // TODO Error handling for these two
+    , fdInotify(inotify_init1(IN_CLOEXEC))
+    , fdProcessCommandsEvent(eventfd(0, 0)) {
     startThread();
 }
 
-Server::~Server() {
-    terminate = true;
+void Server::terminate() {
+    terminated = true;
+}
 
-    for (auto& it : watchPoints) {
-        it.second.close();
+Server::~Server() {
+    // Make copy of watch point paths to avoid race conditions
+    list<u16string> paths;
+    for (auto& watchPoint : watchPoints) {
+        paths.push_back(watchPoint.first);
     }
+    for (auto& path : paths) {
+        executeOnThread(shared_ptr<Command>(new UnregisterPathCommand(path)));
+    }
+    executeOnThread(shared_ptr<Command>(new TerminateCommand()));
 
     if (watcherThread.joinable()) {
         watcherThread.join();
     }
 
     close(fdInotify);
+    close(fdProcessCommandsEvent);
 }
 
 void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
@@ -63,29 +74,61 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
     char buffer[EVENT_BUFFER_SIZE]
         __attribute__((aligned(__alignof__(struct inotify_event))));
 
-    while (!terminate) {
+    struct pollfd fds[2];
+    fds[0].fd = fdProcessCommandsEvent;
+    fds[1].fd = fdInotify;
+    fds[0].events = POLLIN;
+    fds[1].events = POLLIN;
+
+    while (!terminated) {
         log_fine(env, "Waiting for events (fdInotify = 0x%x)", fdInotify);
-        ssize_t bytesRead = read(fdInotify, buffer, EVENT_BUFFER_SIZE);
-        switch (bytesRead) {
-            case -1:
-                // TODO EINTR is the normal termination, right?
-                log_severe(env, "Failed to fetch change notifications, errno = %d", errno);
-                terminate = true;
-                break;
-            case 0:
-                terminate = true;
-                break;
-            default:
-                // Handle events
-                int index = 0;
-                while (index < bytesRead) {
-                    const struct inotify_event* event = (struct inotify_event*) &buffer[index];
-                    handleEvent(env, event);
-                    index += sizeof(struct inotify_event) + event->len;
-                }
-                break;
+
+        int forever = numeric_limits<int>::max();
+        int ret = poll(fds, 2, forever);
+        if (ret < 0) {
+            log_severe(env, "Couldn't poll: %d, errno = %d", ret, errno);
+            // TODO Error handling
+            break;
+        }
+        if (IS_SET(fds[0].revents, POLLIN)) {
+            uint64_t counter;
+            read(fdProcessCommandsEvent, &counter, sizeof(counter));
+            // Ignore counter, we only care about the notification itself
+            processCommands();
+        }
+
+        if (IS_SET(fds[1].revents, POLLIN)) {
+            ssize_t bytesRead = read(fdInotify, buffer, EVENT_BUFFER_SIZE);
+            handleEventsInBuffer(env, buffer, bytesRead);
         }
     }
+}
+
+void Server::handleEventsInBuffer(JNIEnv* env, const char* buffer, ssize_t bytesRead) {
+    switch (bytesRead) {
+        case -1:
+            // TODO EINTR is the normal termination, right?
+            log_severe(env, "Failed to fetch change notifications, errno = %d", errno);
+            terminated = true;
+            break;
+        case 0:
+            terminated = true;
+            break;
+        default:
+            // Handle events
+            int index = 0;
+            while (index < bytesRead) {
+                const struct inotify_event* event = (struct inotify_event*) &buffer[index];
+                handleEvent(env, event);
+                index += sizeof(struct inotify_event) + event->len;
+            }
+            break;
+    }
+}
+
+void Server::processCommandsOnThread() {
+    const uint64_t increment = 1;
+    write(fdProcessCommandsEvent, &increment, sizeof(increment));
 }
 
 void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
@@ -124,7 +167,7 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
     reportChange(env, type, path);
 }
 
-void Server::startWatching(const u16string& path) {
+void Server::registerPath(const u16string& path) {
     if (watchPoints.find(path) != watchPoints.end()) {
         throw FileWatcherException("Already watching path");
     }
@@ -135,7 +178,7 @@ void Server::startWatching(const u16string& path) {
     watchRoots[it->second.watchDescriptor] = path;
 }
 
-void Server::stopWatching(const u16string& path) {
+void Server::unregisterPath(const u16string& path) {
     auto it = watchPoints.find(path);
     if (it == watchPoints.end()) {
         throw FileWatcherException("Cannot stop watching path that was never watched");

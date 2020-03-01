@@ -63,7 +63,6 @@ abstract class AbstractFileEventsTest extends Specification {
         LOGGER.info("<<< Finished '${testName.methodName}'")
     }
 
-    @IgnoreIf({ Platform.current().linux })
     def "can start and stop watcher without watching any paths"() {
         when:
         startWatcher()
@@ -300,7 +299,6 @@ abstract class AbstractFileEventsTest extends Specification {
         ex.message == "Already watching path"
     }
 
-    @IgnoreIf({ Platform.current().linux })
     def "fails when un-watching path that was not watched"() {
         given:
         startWatcher()
@@ -327,7 +325,6 @@ abstract class AbstractFileEventsTest extends Specification {
         ex.message == "Cannot stop watching path that was never watched"
     }
 
-    @IgnoreIf({ Platform.current().linux })
     def "does not receive events after directory is unwatched"() {
         given:
         def file = new File(rootDir, "first.txt")
@@ -413,7 +410,6 @@ abstract class AbstractFileEventsTest extends Specification {
         noExceptionThrown()
     }
 
-    @IgnoreIf({ Platform.current().linux })
     def "fails when stopped multiple times"() {
         given:
         def watcher = startNewWatcher(callback)
