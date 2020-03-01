@@ -19,8 +19,8 @@
         {
             "name": "Linux",
             "includePath": [
-                "/opt/jdk/open-jdk-11/include",
-                "/opt/jdk/open-jdk-11/include/linux",
+                "${env:JAVA_HOME}/include",
+                "${env:JAVA_HOME}/include/linux",
                 "${workspaceFolder}/**",
                 "${default}"
             ],
