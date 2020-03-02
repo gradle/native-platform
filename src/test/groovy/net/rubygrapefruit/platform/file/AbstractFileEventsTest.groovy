@@ -296,7 +296,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
         then:
         def ex = thrown NativeException
-        ex.message == "Already watching path"
+        ex.message == "Already watching path: ${rootDir.absolutePath}"
     }
 
     def "fails when un-watching path that was not watched"() {
@@ -308,7 +308,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
         then:
         def ex = thrown NativeException
-        ex.message == "Cannot stop watching path that was never watched"
+        ex.message == "Cannot stop watching path that was never watched: ${rootDir.absolutePath}"
     }
 
     def "fails when un-watching watched directory twice"() {
@@ -321,7 +321,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
         then:
         def ex = thrown NativeException
-        ex.message == "Cannot stop watching path that was never watched"
+        ex.message == "Cannot stop watching path that was never watched: ${rootDir.absolutePath}"
     }
 
     def "does not receive events after directory is unwatched"() {

@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <codecvt>
 #include <locale>
+#include <sstream>
 #include <string>
 
 #include "generic_fsnotifier.h"
@@ -21,7 +22,7 @@ public:
             : jvm->AttachCurrentThread((void**) &env, (void*) &args);
         if (ret != JNI_OK) {
             fprintf(stderr, "Failed to attach JNI to current thread: %d\n", ret);
-            throw FileWatcherException("Failed to attach JNI to current thread");
+            throw FileWatcherException("Failed to attach JNI to current thread", ret);
         }
     }
     ~JNIThread() {
@@ -35,11 +36,53 @@ private:
     JavaVM* jvm;
 };
 
+inline string createMessage(const string& message, const u16string& path) {
+    stringstream ss;
+    ss << message;
+    ss << ": ";
+    ss << utf16ToUtf8String(path);
+    return ss.str();
+}
+
+inline string createMessage(const string& message, int errorCode) {
+    stringstream ss;
+    ss << message;
+    ss << ", error = ";
+    ss << errorCode;
+    return ss.str();
+}
+
+inline string createMessage(const string& message, const u16string& path, int errorCode) {
+    stringstream ss;
+    ss << message;
+    ss << ", error = ";
+    ss << errorCode;
+    ss << ": ";
+    ss << utf16ToUtf8String(path);
+    return ss.str();
+}
+
+FileWatcherException::FileWatcherException(const string& message, const u16string& path, int errorCode)
+    : runtime_error(createMessage(message, path, errorCode)) {
+}
+
+FileWatcherException::FileWatcherException(const string& message, const u16string& path)
+    : runtime_error(createMessage(message, path)) {
+}
+
+FileWatcherException::FileWatcherException(const string& message, int errorCode)
+    : runtime_error(createMessage(message, errorCode)) {
+}
+
+FileWatcherException::FileWatcherException(const string& message)
+    : runtime_error(message) {
+}
+
 AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback) {
     JavaVM* jvm;
     int jvmStatus = env->GetJavaVM(&jvm);
     if (jvmStatus < 0) {
-        throw FileWatcherException("Could not store jvm instance");
+        throw FileWatcherException("Could not store jvm instance", jvmStatus);
     }
     this->jvm = jvm;
 
@@ -111,7 +154,7 @@ JNIEnv* AbstractServer::getThreadEnv() {
     jint ret = jvm->GetEnv((void**) &(env), JNI_VERSION_1_6);
     if (ret != JNI_OK) {
         fprintf(stderr, "Failed to get JNI env for current thread: %d\n", ret);
-        throw FileWatcherException("Failed to get JNI env for current thread");
+        throw FileWatcherException("Failed to get JNI env for current thread", ret);
     }
     return env;
 }

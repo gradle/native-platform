@@ -7,11 +7,11 @@ using namespace std;
 WatchPoint::WatchPoint(Server* server, CFRunLoopRef runLoop, const u16string& path, long latencyInMillis) {
     CFStringRef cfPath = CFStringCreateWithCharacters(NULL, (UniChar*) path.c_str(), path.length());
     if (cfPath == nullptr) {
-        throw FileWatcherException("Could not allocate CFString for path");
+        throw FileWatcherException("Could not allocate CFString for path", path);
     }
     CFMutableArrayRef pathArray = CFArrayCreateMutable(NULL, 1, NULL);
     if (pathArray == NULL) {
-        throw FileWatcherException("Could not allocate array to store root to watch");
+        throw FileWatcherException("Could not allocate array to store root to watch", path);
     }
     CFArrayAppendValue(pathArray, cfPath);
 
@@ -33,7 +33,7 @@ WatchPoint::WatchPoint(Server* server, CFRunLoopRef runLoop, const u16string& pa
     CFRelease(pathArray);
     CFRelease(cfPath);
     if (watcherStream == NULL) {
-        throw FileWatcherException("Could not create FSEventStreamCreate to track changes");
+        throw FileWatcherException("Could not create FSEventStreamCreate to track changes", path);
     }
     FSEventStreamScheduleWithRunLoop(watcherStream, runLoop, kCFRunLoopDefaultMode);
     FSEventStreamStart(watcherStream);
@@ -193,7 +193,7 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
 
 void Server::registerPath(const u16string& path) {
     if (watchPoints.find(path) != watchPoints.end()) {
-        throw FileWatcherException("Already watching path");
+        throw FileWatcherException("Already watching path", path);
     }
     watchPoints.emplace(piecewise_construct,
         forward_as_tuple(path),
@@ -202,7 +202,7 @@ void Server::registerPath(const u16string& path) {
 
 void Server::unregisterPath(const u16string& path) {
     if (watchPoints.erase(path) == 0) {
-        throw FileWatcherException("Cannot stop watching path that was never watched");
+        throw FileWatcherException("Cannot stop watching path that was never watched", path);
     }
 }
 
