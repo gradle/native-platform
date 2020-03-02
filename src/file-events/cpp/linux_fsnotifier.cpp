@@ -10,15 +10,16 @@
 
 #define EVENT_BUFFER_SIZE 16 * 1024
 
-// TODO Should we include IN_DONT_FOLLOW?
-// TODO Should we include IN_EXCL_UNLINK?
-// TODO Use IN_MASK_CREATE for safety? (only from Linux 4.18)
-#define EVENT_MASK (IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO | IN_ONLYDIR)
+#define EVENT_MASK (IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_DONT_FOLLOW | IN_EXCL_UNLINK | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO | IN_ONLYDIR)
 
 static int registerWatchPoint(const u16string& path, int fdInotify) {
-    wstring_convert<codecvt_utf8_utf16<char16_t>, char16_t> conv16;
-    string pathNarrow = conv16.to_bytes(path);
-    return inotify_add_watch(fdInotify, pathNarrow.c_str(), EVENT_MASK);
+    string pathNarrow = utf16ToUtf8String(path);
+    int fdWatch = inotify_add_watch(fdInotify, pathNarrow.c_str(), EVENT_MASK);
+    if (fdWatch == -1) {
+        fprintf(stderr, "Couldn't add watch for %s, errno = %d\n", pathNarrow.c_str(), errno);
+        throw FileWatcherException("Couldn't add watch");
+    }
+    return fdWatch;
 }
 
 WatchPoint::WatchPoint(const u16string& path, int fdInotify)
@@ -27,15 +28,33 @@ WatchPoint::WatchPoint(const u16string& path, int fdInotify)
 }
 
 WatchPoint::~WatchPoint() {
-    // TODO Error handling
-    inotify_rm_watch(fdInotify, watchDescriptor);
+    if (inotify_rm_watch(fdInotify, watchDescriptor) != 0) {
+        fprintf(stderr, "Couldn't stop watching (inotify = %d, watch descriptor = %d), errno = %d\n", fdInotify, watchDescriptor, errno);
+    }
+}
+
+static int createInotify() {
+    int fdInotify = inotify_init1(IN_CLOEXEC);
+    if (fdInotify == -1) {
+        fprintf(stderr, "Couldn't register inotify handle, errno = %d\n", errno);
+        throw FileWatcherException("register inotify handle");
+    }
+    return fdInotify;
+}
+
+static int createEvent() {
+    int fdEvent = eventfd(0, 0);
+    if (fdEvent == -1) {
+        fprintf(stderr, "Couldn't register inotify handle, errno = %d\n", errno);
+        throw FileWatcherException("register inotify handle");
+    }
+    return fdEvent;
 }
 
 Server::Server(JNIEnv* env, jobject watcherCallback)
     : AbstractServer(env, watcherCallback)
-    // TODO Error handling for these two
-    , fdInotify(inotify_init1(IN_CLOEXEC))
-    , fdProcessCommandsEvent(eventfd(0, 0)) {
+    , fdInotify(createInotify())
+    , fdProcessCommandsEvent(createEvent()) {
     startThread();
 }
 
