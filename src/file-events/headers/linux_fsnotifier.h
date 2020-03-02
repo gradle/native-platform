@@ -14,6 +14,23 @@ using namespace std;
 
 class Server;
 
+struct Inotify {
+    Inotify();
+    ~Inotify();
+
+    const int fd;
+};
+
+struct EventSource {
+    EventSource();
+    ~EventSource();
+
+    void trigger() const;
+    void consume() const;
+
+    const int fd;
+};
+
 class WatchPoint {
 public:
     WatchPoint(const u16string& path, int fdInotify);
@@ -44,8 +61,8 @@ private:
 
     unordered_map<u16string, WatchPoint> watchPoints;
     unordered_map<int, u16string> watchRoots;
-    const int fdInotify;
-    const int fdProcessCommandsEvent;
+    const Inotify inotify;
+    const EventSource eventSource;
     bool terminated = false;
 };
 

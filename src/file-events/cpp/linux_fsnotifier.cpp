@@ -32,26 +32,42 @@ WatchPoint::~WatchPoint() {
     }
 }
 
-static int createInotify() {
-    int fdInotify = inotify_init1(IN_CLOEXEC);
-    if (fdInotify == -1) {
+Inotify::Inotify()
+    : fd(inotify_init1(IN_CLOEXEC)) {
+    if (fd == -1) {
         throw FileWatcherException("Couldn't register inotify handle", errno);
     }
-    return fdInotify;
 }
 
-static int createEvent() {
-    int fdEvent = eventfd(0, 0);
-    if (fdEvent == -1) {
-        throw FileWatcherException("Couldn't register inotify handle", errno);
+Inotify::~Inotify() {
+    close(fd);
+}
+
+EventSource::EventSource()
+    : fd(eventfd(0, 0)) {
+    if (fd == -1) {
+        throw FileWatcherException("Couldn't register event source", errno);
     }
-    return fdEvent;
+}
+EventSource::~EventSource() {
+    close(fd);
+}
+
+void EventSource::trigger() const {
+    const uint64_t increment = 1;
+    write(fd, &increment, sizeof(increment));
+}
+
+void EventSource::consume() const {
+    uint64_t counter;
+    ssize_t bytesRead = read(fd, &counter, sizeof(counter));
+    if (bytesRead == -1) {
+        throw FileWatcherException("Couldn't read from event notifier", errno);
+    }
 }
 
 Server::Server(JNIEnv* env, jobject watcherCallback)
-    : AbstractServer(env, watcherCallback)
-    , fdInotify(createInotify())
-    , fdProcessCommandsEvent(createEvent()) {
+    : AbstractServer(env, watcherCallback) {
     startThread();
 }
 
@@ -73,9 +89,6 @@ Server::~Server() {
     if (watcherThread.joinable()) {
         watcherThread.join();
     }
-
-    close(fdInotify);
-    close(fdProcessCommandsEvent);
 }
 
 void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
@@ -85,14 +98,12 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
         __attribute__((aligned(__alignof__(struct inotify_event))));
 
     struct pollfd fds[2];
-    fds[0].fd = fdProcessCommandsEvent;
-    fds[1].fd = fdInotify;
+    fds[0].fd = eventSource.fd;
+    fds[1].fd = inotify.fd;
     fds[0].events = POLLIN;
     fds[1].events = POLLIN;
 
     while (!terminated) {
-        log_fine(env, "Waiting for events (fdInotify = 0x%x)", fdInotify);
-
         int forever = numeric_limits<int>::max();
         int ret = poll(fds, 2, forever);
         if (ret == -1) {
@@ -100,17 +111,13 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
         }
 
         if (IS_SET(fds[0].revents, POLLIN)) {
-            uint64_t counter;
-            ssize_t bytesRead = read(fdProcessCommandsEvent, &counter, sizeof(counter));
-            if (bytesRead == -1) {
-                throw FileWatcherException("Couldn't read from event notifier", errno);
-            }
+            eventSource.consume();
             // Ignore counter, we only care about the notification itself
             processCommands();
         }
 
         if (IS_SET(fds[1].revents, POLLIN)) {
-            ssize_t bytesRead = read(fdInotify, buffer, EVENT_BUFFER_SIZE);
+            ssize_t bytesRead = read(inotify.fd, buffer, EVENT_BUFFER_SIZE);
             if (bytesRead == -1) {
                 throw FileWatcherException("Couldn't read from inotify", errno);
             }
@@ -142,8 +149,7 @@ void Server::handleEventsInBuffer(JNIEnv* env, const char* buffer, ssize_t bytes
 }
 
 void Server::processCommandsOnThread() {
-    const uint64_t increment = 1;
-    write(fdProcessCommandsEvent, &increment, sizeof(increment));
+    eventSource.trigger();
 }
 
 void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
@@ -188,7 +194,7 @@ void Server::registerPath(const u16string& path) {
     }
     auto result = watchPoints.emplace(piecewise_construct,
         forward_as_tuple(path),
-        forward_as_tuple(path, fdInotify));
+        forward_as_tuple(path, inotify.fd));
     auto it = result.first;
     watchRoots[it->second.watchDescriptor] = path;
 }
