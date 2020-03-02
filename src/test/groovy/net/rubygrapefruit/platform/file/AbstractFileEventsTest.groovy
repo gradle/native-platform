@@ -594,6 +594,7 @@ abstract class AbstractFileEventsTest extends Specification {
     }
 
     @Unroll
+    // TODO We currently don't detect if the whole directory is removed on Windows and Linux
     @IgnoreIf({ Platform.current().windows || Platform.current().linux })
     def "can detect #removedAncestry removed"() {
         given:
