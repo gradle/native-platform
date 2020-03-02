@@ -34,8 +34,9 @@ public:
     Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis);
     ~Server();
 
-    void startWatching(const u16string& path) override;
-    void stopWatching(const u16string& path) override;
+    void registerPath(const u16string& path) override;
+    void unregisterPath(const u16string& path) override;
+    void terminate() override;
 
     // TODO This should be private
     void handleEvents(
@@ -45,14 +46,16 @@ public:
 
 protected:
     void runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) override;
+    void processCommandsOnThread() override;
 
 private:
     void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);
 
     const long latencyInMillis;
     unordered_map<u16string, WatchPoint> watchPoints;
+
     CFRunLoopRef threadLoop;
-    CFRunLoopTimerRef keepAlive;
+    CFRunLoopSourceRef messageSource;
 };
 
 #endif

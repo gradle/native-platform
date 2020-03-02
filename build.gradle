@@ -279,6 +279,8 @@ model {
                     cppCompiler.args "/Zc:throwingNew"          // Assume new throws on error
                     cppCompiler.args "/W3"                      // Enable lots of warnings, disbale individual warnings with /WD<NUM>
                     cppCompiler.args "/WX"                      // Warnings are errors
+                    cppCompiler.args "/D_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING"
+                                                                // Don't issue warnings for wstring_convert in generic_fsnotifier.cpp
                     linker.args "/DEBUG:FULL"                   // Generate all PDBs
                 }
             }

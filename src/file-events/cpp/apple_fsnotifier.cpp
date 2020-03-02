@@ -1,24 +1,8 @@
 #if defined(__APPLE__)
 
 #include "apple_fsnotifier.h"
-#include <codecvt>
-#include <locale>
-#include <string>
 
 using namespace std;
-
-// Utility wrapper to adapt locale-bound facets for wstring convert
-// Exposes the protected destructor as public
-// See https://en.cppreference.com/w/cpp/locale/codecvt
-template <class Facet>
-struct deletable_facet : Facet {
-    template <class... Args>
-    deletable_facet(Args&&... args)
-        : Facet(forward<Args>(args)...) {
-    }
-    ~deletable_facet() {
-    }
-};
 
 WatchPoint::WatchPoint(Server* server, CFRunLoopRef runLoop, const u16string& path, long latencyInMillis) {
     CFStringRef cfPath = CFStringCreateWithCharacters(NULL, (UniChar*) path.c_str(), path.length());
@@ -76,28 +60,49 @@ WatchPoint::~WatchPoint() {
 // Server
 //
 
+void processCommandsCallback(void* info) {
+    Server* server = (Server*) info;
+    server->processCommands();
+}
+
 Server::Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis)
     : AbstractServer(env, watcherCallback)
     , latencyInMillis(latencyInMillis) {
+    CFRunLoopSourceContext context = {
+        0,                         // version;
+        (void*) this,              // info;
+        NULL,                      // retain()
+        NULL,                      // release()
+        NULL,                      // copyDescription()
+        NULL,                      // equal()
+        NULL,                      // hash()
+        NULL,                      // schedule()
+        NULL,                      // cancel()
+        processCommandsCallback    // perform()
+    };
+    messageSource = CFRunLoopSourceCreate(
+        kCFAllocatorDefault,    // allocator
+        0,                      // index
+        &context                // context
+    );
     startThread();
 }
 
 Server::~Server() {
-    watchPoints.clear();
-
-    if (threadLoop != NULL) {
-        if (keepAlive != NULL) {
-            CFRunLoopRemoveTimer(threadLoop, keepAlive, kCFRunLoopDefaultMode);
-            CFRelease(keepAlive);
-        }
-        if (CFRunLoopIsWaiting(threadLoop)) {
-            CFRunLoopStop(threadLoop);
-        }
+    // Make copy of watch point paths to avoid race conditions
+    list<u16string> paths;
+    for (auto& watchPoint : watchPoints) {
+        paths.push_back(watchPoint.first);
     }
+    for (auto& path : paths) {
+        executeOnThread(shared_ptr<Command>(new UnregisterPathCommand(path)));
+    }
+    executeOnThread(shared_ptr<Command>(new TerminateCommand()));
 
     if (watcherThread.joinable()) {
         watcherThread.join();
     }
+    CFRelease(messageSource);
 }
 
 void Server::runLoop(JNIEnv*, function<void(exception_ptr)> notifyStarted) {
@@ -105,18 +110,7 @@ void Server::runLoop(JNIEnv*, function<void(exception_ptr)> notifyStarted) {
         CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
         this->threadLoop = threadLoop;
 
-        // Make sure we have at least one source for our run loop, otherwise it would exit immediately
-        CFAbsoluteTime forever = numeric_limits<double>::max();
-        keepAlive = CFRunLoopTimerCreate(
-            kCFAllocatorDefault,    // allocator
-            forever,                // fireDate
-            0,                      // interval
-            0,                      // flags, must be 0
-            0,                      // order, must be 0
-            NULL,                   // callout
-            NULL                    // context
-        );
-        CFRunLoopAddTimer(threadLoop, keepAlive, kCFRunLoopDefaultMode);
+        CFRunLoopAddSource(threadLoop, messageSource, kCFRunLoopDefaultMode);
 
         notifyStarted(nullptr);
     } catch (...) {
@@ -124,6 +118,15 @@ void Server::runLoop(JNIEnv*, function<void(exception_ptr)> notifyStarted) {
     }
 
     CFRunLoopRun();
+}
+
+void Server::processCommandsOnThread() {
+    CFRunLoopSourceSignal(messageSource);
+    CFRunLoopWakeUp(threadLoop);
+}
+
+void Server::terminate() {
+    CFRunLoopStop(threadLoop);
 }
 
 static void handleEventsCallback(
@@ -184,12 +187,11 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
     }
 
     log_fine(env, "Changed: %s %d", path, type);
-    wstring_convert<deletable_facet<codecvt<char16_t, char, mbstate_t>>, char16_t> conv16;
-    u16string pathStr = conv16.from_bytes(path);
+    u16string pathStr = utf8ToUtf16String(path);
     reportChange(env, type, pathStr);
 }
 
-void Server::startWatching(const u16string& path) {
+void Server::registerPath(const u16string& path) {
     if (watchPoints.find(path) != watchPoints.end()) {
         throw FileWatcherException("Already watching path");
     }
@@ -198,7 +200,7 @@ void Server::startWatching(const u16string& path) {
         forward_as_tuple(this, threadLoop, path, latencyInMillis));
 }
 
-void Server::stopWatching(const u16string& path) {
+void Server::unregisterPath(const u16string& path) {
     if (watchPoints.erase(path) == 0) {
         throw FileWatcherException("Cannot stop watching path that was never watched");
     }

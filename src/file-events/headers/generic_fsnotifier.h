@@ -3,7 +3,10 @@
 #include <condition_variable>
 #include <exception>
 #include <functional>
+#include <list>
+#include <memory>
 #include <mutex>
+#include <queue>
 #include <string>
 #include <thread>
 
@@ -36,13 +39,64 @@ private:
     const char* message;
 };
 
+class AbstractServer;
+
+class Command {
+public:
+    Command(){};
+    virtual ~Command(){};
+
+    void execute(AbstractServer* server) {
+        try {
+            perform(server);
+        } catch (const exception&) {
+            failure = current_exception();
+        }
+        executed.notify_all();
+    }
+
+    virtual void perform(AbstractServer* server) = 0;
+
+    condition_variable executed;
+    exception_ptr failure;
+};
+
 class AbstractServer {
 public:
     AbstractServer(JNIEnv* env, jobject watcherCallback);
     virtual ~AbstractServer();
 
-    virtual void startWatching(const u16string& path) = 0;
-    virtual void stopWatching(const u16string& path) = 0;
+    /**
+     * Execute command on processing thread.
+     */
+    void executeOnThread(shared_ptr<Command> command);
+
+    //
+    // Methods running on the processing thread
+    //
+
+    /**
+     * Processes queued commands, should be called from processing thread.
+     */
+    void processCommands();
+
+    /**
+     * Registers a new watch point with the server.
+     * Runs on processing thread.
+     */
+    virtual void registerPath(const u16string& path) = 0;
+
+    /**
+     * Unregisters a new watch point with the server.
+     * Runs on processing thread.
+     */
+    virtual void unregisterPath(const u16string& path) = 0;
+
+    /**
+     * Terminates server.
+     * Runs on processing thread.
+     */
+    virtual void terminate() = 0;
 
     JNIEnv* getThreadEnv();
 
@@ -51,14 +105,19 @@ protected:
 
     void startThread();
     virtual void runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) = 0;
+    virtual void processCommandsOnThread() = 0;
 
     thread watcherThread;
 
 private:
     void run();
+
     mutex watcherThreadMutex;
     condition_variable watcherThreadStarted;
     exception_ptr initException;
+
+    mutex mtxCommands;
+    deque<shared_ptr<Command>> commands;
 
     jobject watcherCallback;
     jmethodID watcherCallbackMethod;
@@ -66,7 +125,46 @@ private:
     JavaVM* jvm;
 };
 
+class RegisterPathCommand : public Command {
+public:
+    RegisterPathCommand(const u16string& path)
+        : path(path) {
+    }
+
+    void perform(AbstractServer* server) override {
+        server->registerPath(path);
+    }
+
+private:
+    u16string path;
+};
+
+class UnregisterPathCommand : public Command {
+public:
+    UnregisterPathCommand(const u16string& path)
+        : path(path) {
+    }
+
+    void perform(AbstractServer* server) override {
+        server->unregisterPath(path);
+    }
+
+private:
+    u16string path;
+};
+
+class TerminateCommand : public Command {
+public:
+    void perform(AbstractServer* server) override {
+        server->terminate();
+    }
+};
+
 u16string javaToNativeString(JNIEnv* env, jstring javaString);
+
+u16string utf8ToUtf16String(const char* string);
+
+string utf16ToUtf8String(const u16string& string);
 
 // TODO Use a template for the server type?
 jobject wrapServer(JNIEnv* env, function<void*()> serverStarter);

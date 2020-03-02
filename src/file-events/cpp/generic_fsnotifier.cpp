@@ -1,4 +1,7 @@
 #include <assert.h>
+#include <codecvt>
+#include <locale>
+#include <string>
 
 #include "generic_fsnotifier.h"
 
@@ -85,6 +88,24 @@ void AbstractServer::run() {
     log_fine(env, "Stopping thread", NULL);
 }
 
+void AbstractServer::executeOnThread(shared_ptr<Command> command) {
+    unique_lock<mutex> lock(mtxCommands);
+    commands.push_back(command);
+    processCommandsOnThread();
+    command->executed.wait(lock);
+    if (command->failure) {
+        rethrow_exception(command->failure);
+    }
+}
+
+void AbstractServer::processCommands() {
+    unique_lock<mutex> lock(mtxCommands);
+    for (auto& command : commands) {
+        command->execute(this);
+    }
+    commands.clear();
+}
+
 JNIEnv* AbstractServer::getThreadEnv() {
     JNIEnv* env;
     jint ret = jvm->GetEnv((void**) &(env), JNI_VERSION_1_6);
@@ -110,6 +131,29 @@ u16string javaToNativeString(JNIEnv* env, jstring javaString) {
     u16string path((char16_t*) javaChars, length);
     env->ReleaseStringCritical(javaString, javaChars);
     return path;
+}
+
+// Utility wrapper to adapt locale-bound facets for wstring convert
+// Exposes the protected destructor as public
+// See https://en.cppreference.com/w/cpp/locale/codecvt
+template <class Facet>
+struct deletable_facet : Facet {
+    template <class... Args>
+    deletable_facet(Args&&... args)
+        : Facet(forward<Args>(args)...) {
+    }
+    ~deletable_facet() {
+    }
+};
+
+u16string utf8ToUtf16String(const char* string) {
+    wstring_convert<deletable_facet<codecvt<char16_t, char, mbstate_t>>, char16_t> conv16;
+    return conv16.from_bytes(string);
+}
+
+string utf16ToUtf8String(const u16string& string) {
+    wstring_convert<deletable_facet<codecvt<char16_t, char, mbstate_t>>, char16_t> conv16;
+    return conv16.to_bytes(string);
 }
 
 AbstractServer* getServer(JNIEnv* env, jobject javaServer) {
@@ -149,7 +193,7 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
     try {
         AbstractServer* server = getServer(env, javaServer);
         auto path = javaToNativeString(env, javaPath);
-        server->startWatching(path);
+        server->executeOnThread(shared_ptr<Command>(new RegisterPathCommand(path)));
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
     }
@@ -160,7 +204,7 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
     try {
         AbstractServer* server = getServer(env, javaServer);
         auto path = javaToNativeString(env, javaPath);
-        server->stopWatching(path);
+        server->executeOnThread(shared_ptr<Command>(new UnregisterPathCommand(path)));
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
     }
