@@ -33,13 +33,13 @@ struct Event {
 
 class WatchPoint {
 public:
-    WatchPoint(const u16string& path, int fdInotify);
+    WatchPoint(const u16string& path, const shared_ptr<Inotify> inotify);
     ~WatchPoint();
 
     const int watchDescriptor;
 
 private:
-    const int fdInotify;
+    const shared_ptr<Inotify> inotify;
 };
 
 class Server : public AbstractServer {
@@ -61,7 +61,7 @@ private:
 
     unordered_map<u16string, WatchPoint> watchPoints;
     unordered_map<int, u16string> watchRoots;
-    const Inotify inotify;
+    const shared_ptr<Inotify> inotify;
     const Event processCommandsEvent;
     bool terminated = false;
 };

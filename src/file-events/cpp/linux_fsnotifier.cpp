@@ -12,23 +12,23 @@
 
 #define EVENT_MASK (IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_DONT_FOLLOW | IN_EXCL_UNLINK | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO | IN_ONLYDIR)
 
-static int registerWatchPoint(const u16string& path, int fdInotify) {
+static int registerWatchPoint(const u16string& path, shared_ptr<Inotify> inotify) {
     string pathNarrow = utf16ToUtf8String(path);
-    int fdWatch = inotify_add_watch(fdInotify, pathNarrow.c_str(), EVENT_MASK);
+    int fdWatch = inotify_add_watch(inotify->fd, pathNarrow.c_str(), EVENT_MASK);
     if (fdWatch == -1) {
         throw FileWatcherException("Couldn't add watch", path, errno);
     }
     return fdWatch;
 }
 
-WatchPoint::WatchPoint(const u16string& path, int fdInotify)
-    : watchDescriptor(registerWatchPoint(path, fdInotify))
-    , fdInotify(fdInotify) {
+WatchPoint::WatchPoint(const u16string& path, shared_ptr<Inotify> inotify)
+    : watchDescriptor(registerWatchPoint(path, inotify))
+    , inotify(inotify) {
 }
 
 WatchPoint::~WatchPoint() {
-    if (inotify_rm_watch(fdInotify, watchDescriptor) != 0) {
-        fprintf(stderr, "Couldn't stop watching (inotify = %d, watch descriptor = %d), errno = %d\n", fdInotify, watchDescriptor, errno);
+    if (inotify_rm_watch(inotify->fd, watchDescriptor) != 0) {
+        fprintf(stderr, "Couldn't stop watching (inotify = %d, watch descriptor = %d), errno = %d\n", inotify->fd, watchDescriptor, errno);
     }
 }
 
@@ -67,7 +67,8 @@ void Event::consume() const {
 }
 
 Server::Server(JNIEnv* env, jobject watcherCallback)
-    : AbstractServer(env, watcherCallback) {
+    : AbstractServer(env, watcherCallback)
+    , inotify(new Inotify()) {
     startThread();
 }
 
@@ -99,7 +100,7 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
 
     struct pollfd fds[2];
     fds[0].fd = processCommandsEvent.fd;
-    fds[1].fd = inotify.fd;
+    fds[1].fd = inotify->fd;
     fds[0].events = POLLIN;
     fds[1].events = POLLIN;
 
@@ -117,7 +118,7 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
         }
 
         if (IS_SET(fds[1].revents, POLLIN)) {
-            ssize_t bytesRead = read(inotify.fd, buffer, EVENT_BUFFER_SIZE);
+            ssize_t bytesRead = read(inotify->fd, buffer, EVENT_BUFFER_SIZE);
             if (bytesRead == -1) {
                 throw FileWatcherException("Couldn't read from inotify", errno);
             }
@@ -194,7 +195,7 @@ void Server::registerPath(const u16string& path) {
     }
     auto result = watchPoints.emplace(piecewise_construct,
         forward_as_tuple(path),
-        forward_as_tuple(path, inotify.fd));
+        forward_as_tuple(path, inotify));
     auto it = result.first;
     watchRoots[it->second.watchDescriptor] = path;
 }
