@@ -33,6 +33,7 @@ import spock.lang.Unroll
 import spock.util.concurrent.AsyncConditions
 
 import java.util.logging.Logger
+import java.util.regex.Pattern
 
 import static java.util.concurrent.TimeUnit.SECONDS
 import static java.util.logging.Level.FINE
@@ -285,6 +286,30 @@ abstract class AbstractFileEventsTest extends Specification {
 
         then:
         expectedChanges.await()
+    }
+
+    def "fails when watching non-existent directory"() {
+        given:
+        def missingDirectory = new File(rootDir, "missing")
+
+        when:
+        startWatcher(missingDirectory)
+
+        then:
+        def ex = thrown NativeException
+        ex.message ==~ /Couldn't add watch.*: ${Pattern.quote(missingDirectory.absolutePath)}/
+    }
+
+    def "fails when watching file"() {
+        given:
+        def file = new File(rootDir, "file.txt")
+
+        when:
+        startWatcher(file)
+
+        then:
+        def ex = thrown NativeException
+        ex.message ==~ /Couldn't add watch.*: ${Pattern.quote(file.absolutePath)}/
     }
 
     def "fails when watching directory twice"() {

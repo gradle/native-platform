@@ -31,20 +31,6 @@ class WindowsFileEventFunctionsTest extends AbstractFileEventsTest {
         Native.get(WindowsFileEventFunctions.class) is fileEvents
     }
 
-    // TODO Add test for watching file
-    // TODO Promote test to AbstractFileEventsTest
-    def "fails when registering watch for non-existent directory"() {
-        given:
-        def missingDirectory = new File(rootDir, "missing")
-
-        when:
-        startWatcher(missingDirectory)
-
-        then:
-        def ex = thrown NativeException
-        ex.message == "Couldn't get file handle, error = 2: " + missingDirectory.absolutePath
-    }
-
     @Override
     protected FileWatcher startNewWatcher(FileWatcherCallback callback) {
         fileEvents.startWatcher(callback)

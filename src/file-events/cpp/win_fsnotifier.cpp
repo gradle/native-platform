@@ -245,7 +245,7 @@ void Server::registerPath(const u16string& path) {
     );
 
     if (directoryHandle == INVALID_HANDLE_VALUE) {
-        throw FileWatcherException("Couldn't get file handle", path, GetLastError());
+        throw FileWatcherException("Couldn't add watch", path, GetLastError());
     }
 
     HANDLE threadHandle = GetCurrentThread();

@@ -33,7 +33,7 @@ WatchPoint::WatchPoint(Server* server, CFRunLoopRef runLoop, const u16string& pa
     CFRelease(pathArray);
     CFRelease(cfPath);
     if (watcherStream == NULL) {
-        throw FileWatcherException("Could not create FSEventStreamCreate to track changes", path);
+        throw FileWatcherException("Couldn't add watch", path);
     }
     FSEventStreamScheduleWithRunLoop(watcherStream, runLoop, kCFRunLoopDefaultMode);
     FSEventStreamStart(watcherStream);
