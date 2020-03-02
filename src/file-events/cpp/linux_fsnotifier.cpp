@@ -43,22 +43,22 @@ Inotify::~Inotify() {
     close(fd);
 }
 
-EventSource::EventSource()
+Event::Event()
     : fd(eventfd(0, 0)) {
     if (fd == -1) {
         throw FileWatcherException("Couldn't register event source", errno);
     }
 }
-EventSource::~EventSource() {
+Event::~Event() {
     close(fd);
 }
 
-void EventSource::trigger() const {
+void Event::trigger() const {
     const uint64_t increment = 1;
     write(fd, &increment, sizeof(increment));
 }
 
-void EventSource::consume() const {
+void Event::consume() const {
     uint64_t counter;
     ssize_t bytesRead = read(fd, &counter, sizeof(counter));
     if (bytesRead == -1) {
@@ -98,7 +98,7 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
         __attribute__((aligned(__alignof__(struct inotify_event))));
 
     struct pollfd fds[2];
-    fds[0].fd = eventSource.fd;
+    fds[0].fd = processCommandsEvent.fd;
     fds[1].fd = inotify.fd;
     fds[0].events = POLLIN;
     fds[1].events = POLLIN;
@@ -111,7 +111,7 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
         }
 
         if (IS_SET(fds[0].revents, POLLIN)) {
-            eventSource.consume();
+            processCommandsEvent.consume();
             // Ignore counter, we only care about the notification itself
             processCommands();
         }
@@ -149,7 +149,7 @@ void Server::handleEventsInBuffer(JNIEnv* env, const char* buffer, ssize_t bytes
 }
 
 void Server::processCommandsOnThread() {
-    eventSource.trigger();
+    processCommandsEvent.trigger();
 }
 
 void Server::handleEvent(JNIEnv* env, const inotify_event* event) {

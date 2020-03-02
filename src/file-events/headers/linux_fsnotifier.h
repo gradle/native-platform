@@ -21,9 +21,9 @@ struct Inotify {
     const int fd;
 };
 
-struct EventSource {
-    EventSource();
-    ~EventSource();
+struct Event {
+    Event();
+    ~Event();
 
     void trigger() const;
     void consume() const;
@@ -62,7 +62,7 @@ private:
     unordered_map<u16string, WatchPoint> watchPoints;
     unordered_map<int, u16string> watchRoots;
     const Inotify inotify;
-    const EventSource eventSource;
+    const Event processCommandsEvent;
     bool terminated = false;
 };
 
