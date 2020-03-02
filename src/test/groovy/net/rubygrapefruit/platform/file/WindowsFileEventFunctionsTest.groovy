@@ -17,6 +17,7 @@
 package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.Native
+import net.rubygrapefruit.platform.NativeException
 import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions
 import spock.lang.Requires
@@ -40,8 +41,8 @@ class WindowsFileEventFunctionsTest extends AbstractFileEventsTest {
         startWatcher(missingDirectory)
 
         then:
-        logging.messages.any { it ==~ /Couldn't get file handle for.*/ }
-        noExceptionThrown()
+        def ex = thrown NativeException
+        ex.message == "Couldn't get file handle, error = 2: " + missingDirectory.absolutePath
     }
 
     @Override
