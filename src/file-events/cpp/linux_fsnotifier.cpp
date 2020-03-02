@@ -82,11 +82,7 @@ Server::~Server() {
 }
 
 void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
-    try {
-        notifyStarted(nullptr);
-    } catch (...) {
-        notifyStarted(current_exception());
-    }
+    notifyStarted(nullptr);
 
     char buffer[EVENT_BUFFER_SIZE]
         __attribute__((aligned(__alignof__(struct inotify_event))));
@@ -102,20 +98,28 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
 
         int forever = numeric_limits<int>::max();
         int ret = poll(fds, 2, forever);
-        if (ret < 0) {
+        if (ret == -1) {
             log_severe(env, "Couldn't poll: %d, errno = %d", ret, errno);
-            // TODO Error handling
-            break;
+            throw FileWatcherException("Couldn't poll for events");
         }
+
         if (IS_SET(fds[0].revents, POLLIN)) {
             uint64_t counter;
-            read(fdProcessCommandsEvent, &counter, sizeof(counter));
+            ssize_t bytesRead = read(fdProcessCommandsEvent, &counter, sizeof(counter));
+            if (bytesRead == -1) {
+                fprintf(stderr, "Couldn't read from event notifier, errno = %d\n", errno);
+                throw FileWatcherException("Couldn't read from event notifier");
+            }
             // Ignore counter, we only care about the notification itself
             processCommands();
         }
 
         if (IS_SET(fds[1].revents, POLLIN)) {
             ssize_t bytesRead = read(fdInotify, buffer, EVENT_BUFFER_SIZE);
+            if (bytesRead == -1) {
+                fprintf(stderr, "Couldn't read from inotify, errno = %d\n", errno);
+                throw FileWatcherException("Couldn't read from inotify");
+            }
             handleEventsInBuffer(env, buffer, bytesRead);
         }
     }
