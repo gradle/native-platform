@@ -147,22 +147,6 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
-    @Ignore("This actually alternates between MODIFIED and CREATED, no idea how to better identify the events")
-    @Requires({ Platform.current().macOs })
-    def "changing metadata immediately after creation is reported as modified"() {
-        given:
-        def createdFile = new File(rootDir, "file.txt")
-        startWatcher(rootDir)
-
-        when:
-        def expectedChanges = expectEvents event(MODIFIED, createdFile)
-        createNewFile(createdFile)
-        createdFile.setReadable(false)
-
-        then:
-        expectedChanges.await()
-    }
-
     @Requires({ Platform.current().macOs })
     def "changing metadata doesn't mask content change"() {
         given:

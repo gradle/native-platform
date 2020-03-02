@@ -23,6 +23,8 @@ import spock.lang.Requires
 
 import java.util.concurrent.TimeUnit
 
+import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
+
 @Requires({ Platform.current().macOs })
 class OsxFileEventFunctionsTest extends AbstractFileEventsTest {
     private static final LATENCY_IN_MILLIS = 0
@@ -47,5 +49,20 @@ class OsxFileEventFunctionsTest extends AbstractFileEventsTest {
     @Override
     protected void waitForChangeEventLatency() {
         TimeUnit.MILLISECONDS.sleep(LATENCY_IN_MILLIS + 20)
+    }
+
+    // This is a macOS-specific behavior
+    def "changing metadata immediately after creation is reported as modified"() {
+        given:
+        def createdFile = new File(rootDir, "file.txt")
+        startWatcher(rootDir)
+
+        when:
+        def expectedChanges = expectEvents event(MODIFIED, createdFile)
+        createNewFile(createdFile)
+        createdFile.setReadable(false)
+
+        then:
+        expectedChanges.await()
     }
 }
