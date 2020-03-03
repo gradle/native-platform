@@ -46,9 +46,12 @@ import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 abstract class AbstractFileEventsTest extends Specification {
     private static final Logger LOGGER = Logger.getLogger(AbstractFileEventsTest.name)
 
-    @Rule TemporaryFolder tmpDir
-    @Rule TestName testName
-    @Rule JulLogging logging = new JulLogging(AbstractFileEventFunctions, FINE)
+    @Rule
+    TemporaryFolder tmpDir
+    @Rule
+    TestName testName
+    @Rule
+    JulLogging logging = new JulLogging(AbstractFileEventFunctions, FINE)
 
     def callback = new TestCallback()
     File rootDir
@@ -110,14 +113,13 @@ abstract class AbstractFileEventsTest extends Specification {
         given:
         def removedFile = new File(rootDir, "removed.txt")
         createNewFile(removedFile)
-        // Windows reports the file as modified before removing it
-        def expectedEvents = Platform.current().windows
-            ? [event(MODIFIED, removedFile), event(REMOVED, removedFile)]
-            : [event(REMOVED, removedFile)]
         startWatcher(rootDir)
 
         when:
-        def expectedChanges = expectEvents expectedEvents
+        // Windows reports the file as modified before removing it
+        def expectedChanges = expectEvents Platform.current().windows
+            ? [event(MODIFIED, removedFile), event(REMOVED, removedFile)]
+            : [event(REMOVED, removedFile)]
         removedFile.delete()
 
         then:
@@ -128,14 +130,10 @@ abstract class AbstractFileEventsTest extends Specification {
         given:
         def removedDir = new File(rootDir, "removed")
         assert removedDir.mkdirs()
-        // Windows reports the file as modified before removing it
-        def expectedEvents = Platform.current().windows
-            ? [event(MODIFIED, removedDir), event(REMOVED, removedDir)]
-            : [event(REMOVED, removedDir)]
         startWatcher(rootDir)
 
         when:
-        def expectedChanges = expectEvents expectedEvents
+        def expectedChanges = expectEvents event(REMOVED, removedDir)
         removedDir.deleteDir()
 
         then:
@@ -635,12 +633,10 @@ abstract class AbstractFileEventsTest extends Specification {
         def removedFile = new File(watchedDir, "file.txt")
         createNewFile(removedFile)
         File removedDir = removedDirectory(watchedDir)
-
-        def expectedEvents = [event(INVALIDATE, watchedDir)]
         startWatcher(watchedDir)
 
         when:
-        def expectedChanges = expectEvents expectedEvents
+        def expectedChanges = expectEvents event(INVALIDATE, watchedDir)
         assert removedDir.deleteDir()
 
         then:
