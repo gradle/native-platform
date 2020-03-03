@@ -93,6 +93,19 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
+    def "can detect directory created"() {
+        given:
+        def createdDir = new File(rootDir, "created")
+        startWatcher(rootDir)
+
+        when:
+        def expectedChanges = expectEvents event(CREATED, createdDir)
+        assert createdDir.mkdirs()
+
+        then:
+        expectedChanges.await()
+    }
+
     def "can detect file removed"() {
         given:
         def removedFile = new File(rootDir, "removed.txt")
@@ -106,6 +119,24 @@ abstract class AbstractFileEventsTest extends Specification {
         when:
         def expectedChanges = expectEvents expectedEvents
         removedFile.delete()
+
+        then:
+        expectedChanges.await()
+    }
+
+    def "can detect directory removed"() {
+        given:
+        def removedDir = new File(rootDir, "removed")
+        assert removedDir.mkdirs()
+        // Windows reports the file as modified before removing it
+        def expectedEvents = Platform.current().windows
+            ? [event(MODIFIED, removedDir), event(REMOVED, removedDir)]
+            : [event(REMOVED, removedDir)]
+        startWatcher(rootDir)
+
+        when:
+        def expectedChanges = expectEvents expectedEvents
+        removedDir.deleteDir()
 
         then:
         expectedChanges.await()
