@@ -154,7 +154,9 @@ public:
     }
 };
 
-u16string javaToNativeString(JNIEnv* env, jstring javaString);
+string javaToUtf8String(JNIEnv* env, jstring javaString);
+
+u16string javaToUtf16String(JNIEnv* env, jstring javaString);
 
 u16string utf8ToUtf16String(const char* string);
 

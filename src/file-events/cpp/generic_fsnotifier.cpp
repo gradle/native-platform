@@ -165,7 +165,11 @@ void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) 
     env->DeleteLocalRef(javaPath);
 }
 
-u16string javaToNativeString(JNIEnv* env, jstring javaString) {
+string javaToUtf8String(JNIEnv* env, jstring javaString) {
+    return utf16ToUtf8String(javaToUtf16String(env, javaString));
+}
+
+u16string javaToUtf16String(JNIEnv* env, jstring javaString) {
     jsize length = env->GetStringLength(javaString);
     const jchar* javaChars = env->GetStringCritical(javaString, nullptr);
     if (javaChars == NULL) {
@@ -235,7 +239,7 @@ JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_startWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
     try {
         AbstractServer* server = getServer(env, javaServer);
-        auto path = javaToNativeString(env, javaPath);
+        auto path = javaToUtf16String(env, javaPath);
         server->executeOnThread(shared_ptr<Command>(new RegisterPathCommand(path)));
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
@@ -246,7 +250,7 @@ JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_stopWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
     try {
         AbstractServer* server = getServer(env, javaServer);
-        auto path = javaToNativeString(env, javaPath);
+        auto path = javaToUtf16String(env, javaPath);
         server->executeOnThread(shared_ptr<Command>(new UnregisterPathCommand(path)));
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
