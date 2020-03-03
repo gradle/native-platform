@@ -84,7 +84,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
 
     try {
         if (errorCode == ERROR_OPERATION_ABORTED) {
-            log_fine(getThreadEnv(), "Finished watching '%ls'", path.c_str());
+            log_fine(env, "Finished watching '%s'", utf16ToUtf8String(path).c_str());
             reportFinished(path);
             return;
         }
