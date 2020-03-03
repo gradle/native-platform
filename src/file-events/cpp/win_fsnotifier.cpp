@@ -108,7 +108,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
 
         watchPoint->listen();
     } catch (const exception& ex) {
-        reportError(getThreadEnv(), ex);
+        reportError(env, ex);
         reportFinished(path);
     }
 }
