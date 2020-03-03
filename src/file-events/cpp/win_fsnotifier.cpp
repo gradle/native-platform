@@ -66,8 +66,7 @@ void WatchPoint::listen() {
         &handleEventCallback    // completion routine
     );
     if (!success) {
-        log_warning(server->getThreadEnv(), "Couldn't start watching %p for '%ls', error = %d", directoryHandle, path.c_str(), GetLastError());
-        throw FileWatcherException("Couldn't start watching");
+        throw FileWatcherException("Couldn't start watching", path, GetLastError());
     }
 }
 
@@ -232,7 +231,7 @@ void Server::registerPath(const u16string& path) {
     u16string longPath = path;
     convertToLongPathIfNeeded(longPath);
     if (watchPoints.find(longPath) != watchPoints.end()) {
-        throw FileWatcherException("Already watching path");
+        throw FileWatcherException("Already watching path", path);
     }
     wstring pathW(longPath.begin(), longPath.end());
     HANDLE directoryHandle = CreateFileW(
@@ -246,9 +245,7 @@ void Server::registerPath(const u16string& path) {
     );
 
     if (directoryHandle == INVALID_HANDLE_VALUE) {
-        log_severe(getThreadEnv(), "Couldn't get file handle for '%ls': %d", pathW.c_str(), GetLastError());
-        // TODO Error handling
-        return;
+        throw FileWatcherException("Couldn't add watch", path, GetLastError());
     }
 
     HANDLE threadHandle = GetCurrentThread();
@@ -262,7 +259,7 @@ void Server::unregisterPath(const u16string& path) {
     convertToLongPathIfNeeded(longPath);
     auto it = watchPoints.find(longPath);
     if (it == watchPoints.end()) {
-        throw FileWatcherException("Cannot stop watching path that was never watched");
+        throw FileWatcherException("Cannot stop watching path that was never watched", path);
     }
     it->second.close();
 }

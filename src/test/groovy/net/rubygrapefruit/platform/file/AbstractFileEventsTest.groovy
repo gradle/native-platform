@@ -28,17 +28,21 @@ import spock.lang.Ignore
 import spock.lang.IgnoreIf
 import spock.lang.Requires
 import spock.lang.Specification
+import spock.lang.Timeout
 import spock.lang.Unroll
 import spock.util.concurrent.AsyncConditions
 
 import java.util.logging.Logger
+import java.util.regex.Pattern
 
+import static java.util.concurrent.TimeUnit.SECONDS
 import static java.util.logging.Level.FINE
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.INVALIDATE
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 
+@Timeout(value = 15, unit = SECONDS)
 abstract class AbstractFileEventsTest extends Specification {
     private static final Logger LOGGER = Logger.getLogger(AbstractFileEventsTest.name)
 
@@ -138,22 +142,6 @@ abstract class AbstractFileEventsTest extends Specification {
         when:
         expectedChanges = expectEvents event(MODIFIED, modifiedFile)
         modifiedFile.setReadable(true)
-
-        then:
-        expectedChanges.await()
-    }
-
-    @Ignore("This actually alternates between MODIFIED and CREATED, no idea how to better identify the events")
-    @Requires({ Platform.current().macOs })
-    def "changing metadata immediately after creation is reported as modified"() {
-        given:
-        def createdFile = new File(rootDir, "file.txt")
-        startWatcher(rootDir)
-
-        when:
-        def expectedChanges = expectEvents event(MODIFIED, createdFile)
-        createNewFile(createdFile)
-        createdFile.setReadable(false)
 
         then:
         expectedChanges.await()
@@ -276,9 +264,42 @@ abstract class AbstractFileEventsTest extends Specification {
         def expectedChanges = expectEvents event(CREATED, watchedFile)
         createNewFile(unwatchedFile)
         createNewFile(watchedFile)
+        // Let's make sure there are no events for the unwatched file,
+        // and we don't just miss them because of timing
+        waitForChangeEventLatency()
 
         then:
         expectedChanges.await()
+    }
+
+    // Apparently on macOS we can watch non-existent directories
+    // TODO Should we fail for this?
+    @IgnoreIf({ Platform.current().macOs })
+    def "fails when watching non-existent directory"() {
+        given:
+        def missingDirectory = new File(rootDir, "missing")
+
+        when:
+        startWatcher(missingDirectory)
+
+        then:
+        def ex = thrown NativeException
+        ex.message ==~ /Couldn't add watch.*: ${Pattern.quote(missingDirectory.absolutePath)}/
+    }
+
+    // Apparently on macOS we can watch files
+    // TODO Should we fail for this?
+    @IgnoreIf({ Platform.current().macOs })
+    def "fails when watching file"() {
+        given:
+        def file = new File(rootDir, "file.txt")
+
+        when:
+        startWatcher(file)
+
+        then:
+        def ex = thrown NativeException
+        ex.message ==~ /Couldn't add watch.*: ${Pattern.quote(file.absolutePath)}/
     }
 
     def "fails when watching directory twice"() {
@@ -290,7 +311,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
         then:
         def ex = thrown NativeException
-        ex.message == "Already watching path"
+        ex.message == "Already watching path: ${rootDir.absolutePath}"
     }
 
     def "fails when un-watching path that was not watched"() {
@@ -302,7 +323,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
         then:
         def ex = thrown NativeException
-        ex.message == "Cannot stop watching path that was never watched"
+        ex.message == "Cannot stop watching path that was never watched: ${rootDir.absolutePath}"
     }
 
     def "fails when un-watching watched directory twice"() {
@@ -315,7 +336,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
         then:
         def ex = thrown NativeException
-        ex.message == "Cannot stop watching path that was never watched"
+        ex.message == "Cannot stop watching path that was never watched: ${rootDir.absolutePath}"
     }
 
     def "does not receive events after directory is unwatched"() {
@@ -356,6 +377,7 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
+    @Requires({ !Platform.current().linux })
     def "can receive events from directory with different casing"() {
         given:
         def lowercaseDir = new File(rootDir, "watch-this")
@@ -488,6 +510,7 @@ abstract class AbstractFileEventsTest extends Specification {
         secondWatcher.close()
     }
 
+    @Requires({ !Platform.current().linux })
     def "can receive event about a non-direct descendant change"() {
         given:
         def subDir = new File(rootDir, "sub-dir")
@@ -501,6 +524,26 @@ abstract class AbstractFileEventsTest extends Specification {
 
         then:
         expectedChanges.await()
+    }
+
+    @Requires({ Platform.current().linux })
+    def "does not receive event about a non-direct descendant change"() {
+        given:
+        def callback = Mock(FileWatcherCallback)
+        def subDir = new File(rootDir, "sub-dir")
+        subDir.mkdirs()
+        def fileInSubDir = new File(subDir, "unwatched-descendant.txt")
+        startWatcher(callback, rootDir)
+
+        when:
+        createNewFile(fileInSubDir)
+        // Let's make sure there are no events occurring,
+        // and we don't just miss them because of timing
+        waitForChangeEventLatency()
+
+        then:
+        0 * callback.pathChanged(_ as FileWatcherCallback.Type, _ as String)
+        0 * _
     }
 
     def "can watch directory with long path"() {
@@ -551,7 +594,8 @@ abstract class AbstractFileEventsTest extends Specification {
     }
 
     @Unroll
-    @IgnoreIf({ Platform.current().windows })
+    // TODO We currently don't detect if the whole directory is removed on Windows and Linux
+    @IgnoreIf({ Platform.current().windows || Platform.current().linux })
     def "can detect #removedAncestry removed"() {
         given:
         def parentDir = new File(rootDir, "parent")

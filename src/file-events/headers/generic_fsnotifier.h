@@ -25,18 +25,12 @@ using namespace std;
 #define IS_SET(flags, flag) (((flags) & (flag)) == (flag))
 #define IS_ANY_SET(flags, mask) (((flags) & (mask)) != 0)
 
-struct FileWatcherException : public exception {
+struct FileWatcherException : public runtime_error {
 public:
-    FileWatcherException(const char* message) {
-        this->message = message;
-    }
-
-    const char* what() const throw() {
-        return message;
-    }
-
-private:
-    const char* message;
+    FileWatcherException(const string& message, const u16string& path, int errorCode);
+    FileWatcherException(const string& message, const u16string& path);
+    FileWatcherException(const string& message, int errorCode);
+    FileWatcherException(const string& message);
 };
 
 class AbstractServer;

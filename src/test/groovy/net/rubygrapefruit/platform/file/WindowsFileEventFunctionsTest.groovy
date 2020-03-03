@@ -17,6 +17,7 @@
 package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.Native
+import net.rubygrapefruit.platform.NativeException
 import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions
 import spock.lang.Requires
@@ -28,20 +29,6 @@ class WindowsFileEventFunctionsTest extends AbstractFileEventsTest {
     def "caches file events instance"() {
         expect:
         Native.get(WindowsFileEventFunctions.class) is fileEvents
-    }
-
-    // TODO Add test for watching file
-    // TODO Promote test to AbstractFileEventsTest
-    def "fails when registering watch for non-existent directory"() {
-        given:
-        def missingDirectory = new File(rootDir, "missing")
-
-        when:
-        startWatcher(missingDirectory)
-
-        then:
-        logging.messages.any { it ==~ /Couldn't get file handle for.*/ }
-        noExceptionThrown()
     }
 
     @Override

@@ -18,51 +18,34 @@ package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.internal.Platform
-import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions
+import net.rubygrapefruit.platform.internal.jni.LinuxFileEventFunctions
 import spock.lang.Requires
 
 import java.util.concurrent.TimeUnit
 
-import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
-
-@Requires({ Platform.current().macOs })
-class OsxFileEventFunctionsTest extends AbstractFileEventsTest {
-    private static final LATENCY_IN_MILLIS = 0
-
-    final OsxFileEventFunctions fileEvents = Native.get(OsxFileEventFunctions.class)
+@Requires({ Platform.current().linux })
+class LinuxFileEventFunctionsTest extends AbstractFileEventsTest {
+    final LinuxFileEventFunctions fileEvents = Native.get(LinuxFileEventFunctions.class)
 
     def "caches file events instance"() {
         expect:
-        Native.get(OsxFileEventFunctions.class) is fileEvents
+        Native.get(LinuxFileEventFunctions.class) is fileEvents
     }
 
     @Override
     protected FileWatcher startNewWatcher(FileWatcherCallback callback) {
         // Avoid setup operations to be reported
         waitForChangeEventLatency()
-        fileEvents.startWatcher(
-            LATENCY_IN_MILLIS, TimeUnit.MILLISECONDS,
-            callback
-        )
+        fileEvents.startWatcher(callback)
     }
 
     @Override
     protected void waitForChangeEventLatency() {
-        TimeUnit.MILLISECONDS.sleep(LATENCY_IN_MILLIS + 20)
+        TimeUnit.MILLISECONDS.sleep(50)
     }
 
-    // This is a macOS-specific behavior
-    def "changing metadata immediately after creation is reported as modified"() {
-        given:
-        def createdFile = new File(rootDir, "file.txt")
-        startWatcher(rootDir)
-
-        when:
-        def expectedChanges = expectEvents event(MODIFIED, createdFile)
-        createNewFile(createdFile)
-        createdFile.setReadable(false)
-
-        then:
-        expectedChanges.await()
+    @Override
+    protected void stopWatcher() {
+        super.stopWatcher()
     }
 }
