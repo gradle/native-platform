@@ -36,6 +36,8 @@ public:
     WatchPoint(const u16string& path, const shared_ptr<Inotify> inotify);
     ~WatchPoint();
 
+    void close();
+
     const int watchDescriptor;
 
 private:

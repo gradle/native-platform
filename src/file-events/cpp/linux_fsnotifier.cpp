@@ -27,6 +27,9 @@ WatchPoint::WatchPoint(const u16string& path, shared_ptr<Inotify> inotify)
 }
 
 WatchPoint::~WatchPoint() {
+}
+
+void WatchPoint::close() {
     if (inotify_rm_watch(inotify->fd, watchDescriptor) != 0) {
         fprintf(stderr, "Couldn't stop watching (inotify = %d, watch descriptor = %d), errno = %d\n", inotify->fd, watchDescriptor, errno);
     }
@@ -163,21 +166,29 @@ void Server::processCommandsOnThread() {
 
 void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
     uint32_t mask = event->mask;
-    log_fine(env, "Event mask: 0x%x for %s (wd = %d, cookie = 0x%x)", mask, event->name, event->wd, event->cookie);
+    const char* eventName = (event->len == 0)
+        ? ""
+        : event->name;
+    log_fine(env, "Event mask: 0x%x for %s (wd = %d, cookie = 0x%x, len = %d)", mask, eventName, event->wd, event->cookie, event->len);
     if (IS_ANY_SET(mask, IN_UNMOUNT)) {
         return;
     }
-    // TODO Do we need error handling here?
+
     u16string path = watchRoots[event->wd];
+    if (path.empty()) {
+        throw FileWatcherException("Couldn't find registered path for watch descriptor");
+    }
+
     if (IS_SET(mask, IN_IGNORED)) {
         // Finished with watch point
-        log_fine(env, "Finished watching", NULL);
+        log_fine(env, "Finished watching '%s'", utf16ToUtf8String(path).c_str());
         watchPoints.erase(path);
         watchRoots.erase(event->wd);
         return;
     }
+
     int type;
-    const u16string name = utf8ToUtf16String(event->name);
+    const u16string name = utf8ToUtf16String(eventName);
     // TODO How to handle MOVE_SELF?
     if (IS_SET(mask, IN_Q_OVERFLOW)) {
         type = FILE_EVENT_INVALIDATE;
@@ -190,6 +201,7 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
     } else {
         type = FILE_EVENT_UNKNOWN;
     }
+
     if (!name.empty()) {
         path.append(u"/");
         path.append(name);
@@ -206,6 +218,7 @@ void Server::registerPath(const u16string& path) {
         forward_as_tuple(path, inotify));
     auto it = result.first;
     watchRoots[it->second.watchDescriptor] = path;
+    log_fine(getThreadEnv(), "Registered %s", utf16ToUtf8String(path).c_str());
 }
 
 void Server::unregisterPath(const u16string& path) {
@@ -214,9 +227,10 @@ void Server::unregisterPath(const u16string& path) {
         log_fine(getThreadEnv(), "Path is not watched: %s", utf16ToUtf8String(path).c_str());
         return;
     }
-    int wd = it->second.watchDescriptor;
-    watchPoints.erase(path);
-    watchRoots.erase(wd);
+    it->second.close();
+    // Handle IN_IGNORED event
+    processQueues(0);
+    log_fine(getThreadEnv(), "Unregistered %s", utf16ToUtf8String(path).c_str());
 }
 
 JNIEXPORT jobject JNICALL
