@@ -83,12 +83,16 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
     const u16string& path = watchPoint->path;
 
     try {
-        if (errorCode == ERROR_OPERATION_ABORTED) {
-            log_fine(env, "Finished watching '%s'", utf16ToUtf8String(path).c_str());
-            reportFinished(path);
-            return;
+        switch (errorCode) {
+            case ERROR_SUCCESS:
+                break;
+            case ERROR_OPERATION_ABORTED:
+                log_fine(env, "Finished watching '%s'", utf16ToUtf8String(path).c_str());
+                reportFinished(path);
+                return;
+            default:
+                throw FileWatcherException("Error received when handling events", errorCode);
         }
-        // TODO Handle other error codes
 
         if (bytesTransferred == 0) {
             // Got a buffer overflow => current changes lost => send INVALIDATE on root
