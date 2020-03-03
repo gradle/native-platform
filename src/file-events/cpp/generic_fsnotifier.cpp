@@ -163,6 +163,30 @@ void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) 
     jstring javaPath = env->NewString((jchar*) path.c_str(), (jsize) path.length());
     env->CallVoidMethod(watcherCallback, watcherCallbackMethod, type, javaPath);
     env->DeleteLocalRef(javaPath);
+
+    jthrowable exception = env->ExceptionOccurred();
+    if (exception != nullptr) {
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+
+        jclass exceptionClass = env->GetObjectClass(exception);
+        jmethodID getMessage = env->GetMethodID(exceptionClass, "getMessage", "()Ljava/lang/String;");
+        jstring javaMessage = (jstring) env->CallObjectMethod(exception, getMessage);
+        string message = javaToUtf8String(env, javaMessage);
+        env->DeleteLocalRef(javaMessage);
+
+        jclass classClass = env->FindClass("java/lang/Class");
+        jmethodID getClassName = env->GetMethodID(classClass, "getName", "()Ljava/lang/String;");
+        jstring javaExceptionType = (jstring) env->CallObjectMethod(exceptionClass, getClassName);
+        string exceptionType = javaToUtf8String(env, javaExceptionType);
+        env->DeleteLocalRef(javaExceptionType);
+
+        env->DeleteLocalRef(classClass);
+        env->DeleteLocalRef(exceptionClass);
+        env->DeleteLocalRef(exception);
+
+        throw FileWatcherException("Caught " + exceptionType + " while calling callback: " + message);
+    }
 }
 
 string javaToUtf8String(JNIEnv* env, jstring javaString) {
