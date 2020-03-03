@@ -211,7 +211,8 @@ void Server::registerPath(const u16string& path) {
 void Server::unregisterPath(const u16string& path) {
     auto it = watchPoints.find(path);
     if (it == watchPoints.end()) {
-        throw FileWatcherException("Cannot stop watching path that was never watched", path);
+        log_fine(getThreadEnv(), "Path is not watched: %s", utf16ToUtf8String(path).c_str());
+        return;
     }
     int wd = it->second.watchDescriptor;
     watchPoints.erase(path);
