@@ -10,9 +10,9 @@ using namespace std;
 // WatchPoint
 //
 
-WatchPoint::WatchPoint(Server* server, const u16string& path, HANDLE directoryHandle, HANDLE serverThreadHandle) {
+WatchPoint::WatchPoint(Server* server, const u16string& path, HANDLE directoryHandle, HANDLE serverThreadHandle)
+    : path(path) {
     this->server = server;
-    this->path = path;
     this->buffer.reserve(EVENT_BUFFER_SIZE);
     ZeroMemory(&this->overlapped, sizeof(OVERLAPPED));
     this->overlapped.hEvent = this;
@@ -21,6 +21,10 @@ WatchPoint::WatchPoint(Server* server, const u16string& path, HANDLE directoryHa
 }
 
 WatchPoint::~WatchPoint() {
+    BOOL ret = CloseHandle(directoryHandle);
+    if (!ret) {
+        log_severe(server->getThreadEnv(), "Couldn't close handle %p for '%ls': %d", directoryHandle, path.c_str(), GetLastError());
+    }
 }
 
 void WatchPoint::close() {
@@ -33,29 +37,11 @@ void WatchPoint::close() {
     // Without this the abort event is handled after close() returns
     // Which means we'll unlock the calling thread before the watch point is truly cleaned up
     SleepEx(0, true);
-
-    ret = CloseHandle(directoryHandle);
-    if (!ret) {
-        log_severe(server->getThreadEnv(), "Couldn't close handle %p for '%ls': %d", directoryHandle, path.c_str(), GetLastError());
-    }
 }
 
 static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped) {
     WatchPoint* watchPoint = (WatchPoint*) overlapped->hEvent;
-
-    if (errorCode == ERROR_OPERATION_ABORTED) {
-        Server* server = watchPoint->server;
-        log_fine(server->getThreadEnv(), "Finished watching '%ls'", watchPoint->path.c_str());
-        server->reportFinished(watchPoint->path);
-        return;
-    }
-    // TODO Handle other error codes
-
-    try {
-        watchPoint->handleEventsInBuffer(bytesTransferred);
-    } catch (const exception& ex) {
-        reportError(getThreadEnv(), ex);
-    }
+    watchPoint->handleEventsInBuffer(errorCode, bytesTransferred);
 }
 
 void WatchPoint::listen() {
@@ -74,28 +60,42 @@ void WatchPoint::listen() {
     }
 }
 
-void WatchPoint::handleEventsInBuffer(DWORD bytesTransferred) {
-    if (bytesTransferred == 0) {
-        // Got a buffer overflow => current changes lost => send INVALIDATE on root
-        log_info(server->getThreadEnv(), "Detected overflow for %ls", path.c_str());
-        server->reportEvent(FILE_EVENT_INVALIDATE, path);
-    } else {
-        int index = 0;
-        for (;;) {
-            FILE_NOTIFY_INFORMATION* current = (FILE_NOTIFY_INFORMATION*) &buffer[index];
-            handleEvent(current);
-            if (current->NextEntryOffset == 0) {
-                break;
-            }
-            index += current->NextEntryOffset;
-        }
-    }
+void WatchPoint::handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred) {
+    server->handleEvents(this, errorCode, buffer, bytesTransferred);
+}
+
+void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& buffer, DWORD bytesTransferred) {
+    JNIEnv* env = getThreadEnv();
+    const u16string& path = watchPoint->path;
 
     try {
-        listen();
-    } catch (const exception& e) {
-        log_severe(server->getThreadEnv(), "Watching failed: %s", e.what());
-        server->reportFinished(path);
+        if (errorCode == ERROR_OPERATION_ABORTED) {
+            log_fine(getThreadEnv(), "Finished watching '%ls'", path.c_str());
+            reportFinished(path);
+            return;
+        }
+        // TODO Handle other error codes
+
+        if (bytesTransferred == 0) {
+            // Got a buffer overflow => current changes lost => send INVALIDATE on root
+            log_info(env, "Detected overflow for %s", utf16ToUtf8String(path).c_str());
+            reportChange(env, FILE_EVENT_INVALIDATE, path);
+        } else {
+            int index = 0;
+            for (;;) {
+                FILE_NOTIFY_INFORMATION* current = (FILE_NOTIFY_INFORMATION*) &buffer[index];
+                handleEvent(env, path, current);
+                if (current->NextEntryOffset == 0) {
+                    break;
+                }
+                index += current->NextEntryOffset;
+            }
+        }
+
+        watchPoint->listen();
+    } catch (const exception& ex) {
+        reportError(getThreadEnv(), ex);
+        reportFinished(path);
     }
 }
 
@@ -150,7 +150,7 @@ void convertToLongPathIfNeeded(u16string& path) {
     }
 }
 
-void WatchPoint::handleEvent(FILE_NOTIFY_INFORMATION* info) {
+void Server::handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMATION* info) {
     wstring changedPathW = wstring(info->FileName, 0, info->FileNameLength / sizeof(wchar_t));
     u16string changedPath(changedPathW.begin(), changedPathW.end());
     // TODO Do we ever get an empty path?
@@ -167,7 +167,7 @@ void WatchPoint::handleEvent(FILE_NOTIFY_INFORMATION* info) {
         }
     }
 
-    log_fine(server->getThreadEnv(), "Change detected: 0x%x '%ls'", info->Action, changedPathW.c_str());
+    log_fine(env, "Change detected: 0x%x '%ls'", info->Action, changedPathW.c_str());
 
     jint type;
     if (info->Action == FILE_ACTION_ADDED || info->Action == FILE_ACTION_RENAMED_NEW_NAME) {
@@ -177,11 +177,11 @@ void WatchPoint::handleEvent(FILE_NOTIFY_INFORMATION* info) {
     } else if (info->Action == FILE_ACTION_MODIFIED) {
         type = FILE_EVENT_MODIFIED;
     } else {
-        log_warning(server->getThreadEnv(), "Unknown event 0x%x for %ls", info->Action, changedPathW.c_str());
+        log_warning(env, "Unknown event 0x%x for %ls", info->Action, changedPathW.c_str());
         type = FILE_EVENT_UNKNOWN;
     }
 
-    server->reportEvent(type, changedPath);
+    reportChange(env, type, changedPath);
 }
 
 //
@@ -271,11 +271,6 @@ void Server::unregisterPath(const u16string& path) {
 
 void Server::reportFinished(const u16string path) {
     watchPoints.erase(path);
-}
-
-void Server::reportEvent(jint type, const u16string& changedPath) {
-    JNIEnv* env = getThreadEnv();
-    reportChange(env, type, changedPath);
 }
 
 //
