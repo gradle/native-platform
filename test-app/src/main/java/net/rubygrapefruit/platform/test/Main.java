@@ -374,8 +374,14 @@ public class Main {
     private static void watch(String path) throws IOException {
         FileWatcher watcher;
         FileWatcherCallback callback = new FileWatcherCallback() {
+            @Override
             public void pathChanged(Type type, String changedPath) {
                 System.out.printf("Change detected: %s / '%s'%n", type, changedPath);
+            }
+
+            @Override
+            public void reportError(Throwable ex) {
+                ex.printStackTrace();
             }
         };
         if (Platform.current().isMacOs()) {

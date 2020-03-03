@@ -24,7 +24,6 @@ import org.junit.Assume
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import org.junit.rules.TestName
-import spock.lang.Ignore
 import spock.lang.IgnoreIf
 import spock.lang.Requires
 import spock.lang.Specification
@@ -57,6 +56,7 @@ abstract class AbstractFileEventsTest extends Specification {
     File testDir
     File rootDir
     FileWatcher watcher
+    Throwable uncaughtFailureOnThread
 
     def setup() {
         LOGGER.info(">>> Running '${testName.methodName}'")
@@ -67,6 +67,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def cleanup() {
         stopWatcher()
+        assert uncaughtFailureOnThread == null
         LOGGER.info("<<< Finished '${testName.methodName}'")
     }
 
@@ -437,26 +438,29 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
-    // TODO Handle exceptions happening in callbacks
-    @Ignore("Exceptions in callbacks are now silently ignored")
     def "can handle exception in callback"() {
         given:
-        def error = new RuntimeException("Error")
         def createdFile = new File(rootDir, "created.txt")
         def conditions = new AsyncConditions()
         when:
-        startWatcher({ type, path ->
-            try {
-                throw error
-            } finally {
-                conditions.evaluate {}
+        startWatcher(new FileWatcherCallback() {
+            @Override
+            void pathChanged(FileWatcherCallback.Type type, String path) {
+                throw new RuntimeException("Error")
+            }
+
+            @Override
+            void reportError(Throwable ex) {
+                conditions.evaluate {
+                    assert ex instanceof NativeException
+                    assert ex.message == "Caught java.lang.RuntimeException while calling callback: Error"
+                }
             }
         }, rootDir)
         createNewFile(createdFile)
-        conditions.await()
 
         then:
-        noExceptionThrown()
+        conditions.await()
     }
 
     def "fails when stopped multiple times"() {
@@ -710,6 +714,11 @@ abstract class AbstractFileEventsTest extends Specification {
         @Override
         void pathChanged(Type type, String path) {
             handleEvent(new FileEvent(type, new File(path), true))
+        }
+
+        @Override
+        void reportError(Throwable ex) {
+            uncaughtFailureOnThread = ex;
         }
 
         private void handleEvent(FileEvent event) {

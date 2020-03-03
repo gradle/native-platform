@@ -88,6 +88,7 @@ AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback) {
 
     jclass callbackClass = env->GetObjectClass(watcherCallback);
     this->watcherCallbackMethod = env->GetMethodID(callbackClass, "pathChanged", "(ILjava/lang/String;)V");
+    this->watcherReportErrorMethod = env->GetMethodID(callbackClass, "reportError", "(Ljava/lang/Throwable;)V");
 
     jobject globalWatcherCallback = env->NewGlobalRef(watcherCallback);
     if (globalWatcherCallback == NULL) {
@@ -170,14 +171,20 @@ void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) 
         env->ExceptionClear();
 
         jclass exceptionClass = env->GetObjectClass(exception);
+        assert(exceptionClass != nullptr);
         jmethodID getMessage = env->GetMethodID(exceptionClass, "getMessage", "()Ljava/lang/String;");
+        assert(getMessage != nullptr);
         jstring javaMessage = (jstring) env->CallObjectMethod(exception, getMessage);
+        assert(javaMessage != nullptr);
         string message = javaToUtf8String(env, javaMessage);
         env->DeleteLocalRef(javaMessage);
 
         jclass classClass = env->FindClass("java/lang/Class");
+        assert(classClass != nullptr);
         jmethodID getClassName = env->GetMethodID(classClass, "getName", "()Ljava/lang/String;");
+        assert(getClassName != nullptr);
         jstring javaExceptionType = (jstring) env->CallObjectMethod(exceptionClass, getClassName);
+        assert(javaExceptionType != nullptr);
         string exceptionType = javaToUtf8String(env, javaExceptionType);
         env->DeleteLocalRef(javaExceptionType);
 
@@ -187,6 +194,18 @@ void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) 
 
         throw FileWatcherException("Caught " + exceptionType + " while calling callback: " + message);
     }
+}
+
+void AbstractServer::reportError(JNIEnv* env, const exception& exception) {
+    jclass exceptionClass = env->FindClass("net/rubygrapefruit/platform/NativeException");
+    assert(exceptionClass != nullptr);
+    u16string message = utf8ToUtf16String(exception.what());
+    jstring javaMessage = env->NewString((jchar*) message.c_str(), (jsize) message.length());
+    jmethodID constructor = env->GetMethodID(exceptionClass, "<init>", "(Ljava/lang/String;)V");
+    jobject javaException = env->NewObject(exceptionClass, constructor, javaMessage);
+    assert(javaException != nullptr);
+    env->CallVoidMethod(watcherCallback, watcherReportErrorMethod, javaException);
+    env->DeleteLocalRef(exceptionClass);
 }
 
 string javaToUtf8String(JNIEnv* env, jstring javaString) {
@@ -241,6 +260,7 @@ jobject rethrowAsJavaException(JNIEnv* env, const exception& e) {
     assert(exceptionClass != NULL);
     jint ret = env->ThrowNew(exceptionClass, e.what());
     assert(ret == 0);
+    env->DeleteLocalRef(exceptionClass);
     return NULL;
 }
 

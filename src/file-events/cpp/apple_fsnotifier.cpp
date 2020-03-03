@@ -146,8 +146,12 @@ void Server::handleEvents(
     const FSEventStreamEventFlags eventFlags[]) {
     JNIEnv* env = getThreadEnv();
 
-    for (size_t i = 0; i < numEvents; i++) {
-        handleEvent(env, eventPaths[i], eventFlags[i]);
+    try {
+        for (size_t i = 0; i < numEvents; i++) {
+            handleEvent(env, eventPaths[i], eventFlags[i]);
+        }
+    } catch (const exception& ex) {
+        reportError(env, ex);
     }
 }
 

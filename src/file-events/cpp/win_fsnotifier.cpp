@@ -51,7 +51,11 @@ static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred
     }
     // TODO Handle other error codes
 
-    watchPoint->handleEventsInBuffer(bytesTransferred);
+    try {
+        watchPoint->handleEventsInBuffer(bytesTransferred);
+    } catch (const exception& ex) {
+        reportError(getThreadEnv(), ex);
+    }
 }
 
 void WatchPoint::listen() {

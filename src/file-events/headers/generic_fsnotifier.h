@@ -96,6 +96,7 @@ public:
 
 protected:
     void reportChange(JNIEnv* env, int type, const u16string& path);
+    void reportError(JNIEnv* env, const exception& ex);
 
     void startThread();
     virtual void runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) = 0;
@@ -115,6 +116,7 @@ private:
 
     jobject watcherCallback;
     jmethodID watcherCallbackMethod;
+    jmethodID watcherReportErrorMethod;
 
     JavaVM* jvm;
 };
