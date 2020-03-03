@@ -54,12 +54,15 @@ abstract class AbstractFileEventsTest extends Specification {
     JulLogging logging = new JulLogging(AbstractFileEventFunctions, FINE)
 
     def callback = new TestCallback()
+    File testDir
     File rootDir
     FileWatcher watcher
 
     def setup() {
         LOGGER.info(">>> Running '${testName.methodName}'")
-        rootDir = tmpDir.newFolder(testName.methodName)
+        testDir = tmpDir.newFolder(testName.methodName).canonicalFile
+        rootDir = new File(testDir, "root")
+        assert rootDir.mkdirs()
     }
 
     def cleanup() {
@@ -227,7 +230,8 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can detect file moved out"() {
         given:
-        def outsideDir = tmpDir.newFolder()
+        def outsideDir = new File(testDir, "outside")
+        assert outsideDir.mkdirs()
         def sourceFileInside = new File(rootDir, "source-inside.txt")
         def targetFileOutside = new File(outsideDir, "target-outside.txt")
         createNewFile(sourceFileInside)
@@ -243,7 +247,8 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can detect file moved in"() {
         given:
-        def outsideDir = tmpDir.newFolder()
+        def outsideDir = new File(testDir, "outside")
+        assert outsideDir.mkdirs()
         def sourceFileOutside = new File(outsideDir, "source-outside.txt")
         def targetFileInside = new File(rootDir, "target-inside.txt")
         createNewFile(sourceFileOutside)
@@ -285,7 +290,8 @@ abstract class AbstractFileEventsTest extends Specification {
     def "does not receive events from unwatched directory"() {
         given:
         def watchedFile = new File(rootDir, "watched.txt")
-        def unwatchedDir = tmpDir.newFolder()
+        def unwatchedDir = new File(testDir, "unwatched")
+        assert unwatchedDir.mkdirs()
         def unwatchedFile = new File(unwatchedDir, "unwatched.txt")
         startWatcher(rootDir)
 
@@ -385,9 +391,11 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can receive multiple events from multiple watched directories"() {
         given:
-        def firstWatchedDir = tmpDir.newFolder("first")
+        def firstWatchedDir = new File(testDir, "first")
+        assert firstWatchedDir.mkdirs()
         def firstFileInFirstWatchedDir = new File(firstWatchedDir, "first-watched.txt")
-        def secondWatchedDir = tmpDir.newFolder("second")
+        def secondWatchedDir = new File(testDir, "second")
+        assert secondWatchedDir.mkdirs()
         def secondFileInSecondWatchedDir = new File(secondWatchedDir, "sibling-watched.txt")
         startWatcher(firstWatchedDir, secondWatchedDir)
 
@@ -417,14 +425,14 @@ abstract class AbstractFileEventsTest extends Specification {
         startWatcher(lowercaseDir)
 
         when:
-        def expectedChanges = expectEvents event(CREATED, fileInLowercaseDir)
+        def expectedChanges = expectEvents event(CREATED, fileInLowercaseDir.canonicalFile)
         createNewFile(fileInLowercaseDir)
 
         then:
         expectedChanges.await()
 
         when:
-        expectedChanges = expectEvents event(CREATED, fileInUppercaseDir)
+        expectedChanges = expectEvents event(CREATED, fileInUppercaseDir.canonicalFile)
         createNewFile(fileInUppercaseDir)
 
         then:
@@ -703,7 +711,7 @@ abstract class AbstractFileEventsTest extends Specification {
         void pathChanged(Type type, String path) {
             def canonicalFile
             try {
-                canonicalFile = new File(path).canonicalFile
+                canonicalFile = new File(path)
             } catch (IOException e) {
                 throw new RuntimeException("Couldn't canonicalize path: '$path'", e)
             }
@@ -732,7 +740,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
         FileEvent(FileWatcherCallback.Type type, File file, boolean mandatory) {
             this.type = type
-            this.file = file.canonicalFile
+            this.file = file
             this.mandatory = mandatory
         }
 
