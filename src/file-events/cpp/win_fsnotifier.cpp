@@ -10,13 +10,27 @@ using namespace std;
 // WatchPoint
 //
 
-WatchPoint::WatchPoint(Server* server, const u16string& path, HANDLE directoryHandle, HANDLE serverThreadHandle)
+WatchPoint::WatchPoint(Server* server, const u16string& path)
     : path(path) {
+    wstring pathW(path.begin(), path.end());
+    HANDLE directoryHandle = CreateFileW(
+        pathW.c_str(),          // pointer to the file name
+        FILE_LIST_DIRECTORY,    // access (read/write) mode
+        CREATE_SHARE,           // share mode
+        NULL,                   // security descriptor
+        OPEN_EXISTING,          // how to create
+        CREATE_FLAGS,           // file attributes
+        NULL                    // file with attributes to copy
+    );
+    if (directoryHandle == INVALID_HANDLE_VALUE) {
+        throw FileWatcherException("Couldn't add watch:", path, GetLastError());
+    }
+    this->directoryHandle = directoryHandle;
+
     this->server = server;
     this->buffer.reserve(EVENT_BUFFER_SIZE);
     ZeroMemory(&this->overlapped, sizeof(OVERLAPPED));
     this->overlapped.hEvent = this;
-    this->directoryHandle = directoryHandle;
     listen();
 }
 
@@ -237,25 +251,9 @@ void Server::registerPath(const u16string& path) {
     if (watchPoints.find(longPath) != watchPoints.end()) {
         throw FileWatcherException("Already watching path", path);
     }
-    wstring pathW(longPath.begin(), longPath.end());
-    HANDLE directoryHandle = CreateFileW(
-        pathW.c_str(),          // pointer to the file name
-        FILE_LIST_DIRECTORY,    // access (read/write) mode
-        CREATE_SHARE,           // share mode
-        NULL,                   // security descriptor
-        OPEN_EXISTING,          // how to create
-        CREATE_FLAGS,           // file attributes
-        NULL                    // file with attributes to copy
-    );
-
-    if (directoryHandle == INVALID_HANDLE_VALUE) {
-        throw FileWatcherException("Couldn't add watch", path, GetLastError());
-    }
-
-    HANDLE threadHandle = GetCurrentThread();
     watchPoints.emplace(piecewise_construct,
         forward_as_tuple(longPath),
-        forward_as_tuple(this, longPath, directoryHandle, threadHandle));
+        forward_as_tuple(this, longPath));
 }
 
 void Server::unregisterPath(const u16string& path) {
