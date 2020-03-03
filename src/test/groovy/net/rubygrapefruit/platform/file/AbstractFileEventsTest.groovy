@@ -349,7 +349,7 @@ abstract class AbstractFileEventsTest extends Specification {
         ex.message == "Already watching path: ${rootDir.absolutePath}"
     }
 
-    def "fails when un-watching path that was not watched"() {
+    def "can un-watch path that was not watched"() {
         given:
         startWatcher()
 
@@ -357,11 +357,10 @@ abstract class AbstractFileEventsTest extends Specification {
         watcher.stopWatching(rootDir)
 
         then:
-        def ex = thrown NativeException
-        ex.message == "Cannot stop watching path that was never watched: ${rootDir.absolutePath}"
+        noExceptionThrown()
     }
 
-    def "fails when un-watching watched directory twice"() {
+    def "can un-watch watched directory twice"() {
         given:
         startWatcher(rootDir)
         watcher.stopWatching(rootDir)
@@ -370,8 +369,7 @@ abstract class AbstractFileEventsTest extends Specification {
         watcher.stopWatching(rootDir)
 
         then:
-        def ex = thrown NativeException
-        ex.message == "Cannot stop watching path that was never watched: ${rootDir.absolutePath}"
+        noExceptionThrown()
     }
 
     def "does not receive events after directory is unwatched"() {
@@ -631,8 +629,8 @@ abstract class AbstractFileEventsTest extends Specification {
     }
 
     @Unroll
-    // TODO We currently don't detect if the whole directory is removed on Windows and Linux
-    @IgnoreIf({ Platform.current().windows || Platform.current().linux })
+    // TODO We currently don't detect if the whole watched directory is removed on Windows
+    @IgnoreIf({ Platform.current().windows })
     def "can detect #removedAncestry removed"() {
         given:
         def parentDir = new File(rootDir, "parent")
@@ -644,7 +642,9 @@ abstract class AbstractFileEventsTest extends Specification {
         startWatcher(watchedDir)
 
         when:
-        def expectedChanges = expectEvents event(INVALIDATE, watchedDir)
+        def expectedChanges = expectEvents Platform.current().macOs
+            ? [event(INVALIDATE, watchedDir)]
+            : [event(REMOVED, removedFile), event(REMOVED, watchedDir)]
         assert removedDir.deleteDir()
 
         then:

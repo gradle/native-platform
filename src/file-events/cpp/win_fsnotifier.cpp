@@ -259,7 +259,8 @@ void Server::unregisterPath(const u16string& path) {
     convertToLongPathIfNeeded(longPath);
     auto it = watchPoints.find(longPath);
     if (it == watchPoints.end()) {
-        throw FileWatcherException("Cannot stop watching path that was never watched", path);
+        log_fine(getThreadEnv(), "Path is not watched: %s", utf16ToUtf8String(path).c_str());
+        return;
     }
     it->second.close();
 }

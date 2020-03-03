@@ -36,6 +36,8 @@ public:
     WatchPoint(const u16string& path, const shared_ptr<Inotify> inotify);
     ~WatchPoint();
 
+    void close();
+
     const int watchDescriptor;
 
 private:
@@ -56,7 +58,8 @@ protected:
     void terminate() override;
 
 private:
-    void handleEventsInBuffer(JNIEnv* env, const char* buffer, ssize_t bytesRead);
+    void processQueues(int timeout);
+    void handleEvents();
     void handleEvent(JNIEnv* env, const inotify_event* event);
 
     unordered_map<u16string, WatchPoint> watchPoints;
