@@ -46,17 +46,23 @@ import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 abstract class AbstractFileEventsTest extends Specification {
     private static final Logger LOGGER = Logger.getLogger(AbstractFileEventsTest.name)
 
-    @Rule TemporaryFolder tmpDir
-    @Rule TestName testName
-    @Rule JulLogging logging = new JulLogging(AbstractFileEventFunctions, FINE)
+    @Rule
+    TemporaryFolder tmpDir
+    @Rule
+    TestName testName
+    @Rule
+    JulLogging logging = new JulLogging(AbstractFileEventFunctions, FINE)
 
     def callback = new TestCallback()
+    File testDir
     File rootDir
     FileWatcher watcher
 
     def setup() {
         LOGGER.info(">>> Running '${testName.methodName}'")
-        rootDir = tmpDir.newFolder(testName.methodName)
+        testDir = tmpDir.newFolder(testName.methodName).canonicalFile
+        rootDir = new File(testDir, "root")
+        assert rootDir.mkdirs()
     }
 
     def cleanup() {
@@ -93,19 +99,45 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
+    def "can detect directory created"() {
+        given:
+        def createdDir = new File(rootDir, "created")
+        startWatcher(rootDir)
+
+        when:
+        def expectedChanges = expectEvents event(CREATED, createdDir)
+        assert createdDir.mkdirs()
+
+        then:
+        expectedChanges.await()
+    }
+
     def "can detect file removed"() {
         given:
         def removedFile = new File(rootDir, "removed.txt")
         createNewFile(removedFile)
-        // Windows reports the file as modified before removing it
-        def expectedEvents = Platform.current().windows
-            ? [event(MODIFIED, removedFile), event(REMOVED, removedFile)]
-            : [event(REMOVED, removedFile)]
         startWatcher(rootDir)
 
         when:
-        def expectedChanges = expectEvents expectedEvents
+        // Windows reports the file as modified before removing it
+        def expectedChanges = expectEvents Platform.current().windows
+            ? [event(MODIFIED, removedFile), event(REMOVED, removedFile)]
+            : [event(REMOVED, removedFile)]
         removedFile.delete()
+
+        then:
+        expectedChanges.await()
+    }
+
+    def "can detect directory removed"() {
+        given:
+        def removedDir = new File(rootDir, "removed")
+        assert removedDir.mkdirs()
+        startWatcher(rootDir)
+
+        when:
+        def expectedChanges = expectEvents event(REMOVED, removedDir)
+        removedDir.deleteDir()
 
         then:
         expectedChanges.await()
@@ -198,7 +230,8 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can detect file moved out"() {
         given:
-        def outsideDir = tmpDir.newFolder()
+        def outsideDir = new File(testDir, "outside")
+        assert outsideDir.mkdirs()
         def sourceFileInside = new File(rootDir, "source-inside.txt")
         def targetFileOutside = new File(outsideDir, "target-outside.txt")
         createNewFile(sourceFileInside)
@@ -214,7 +247,8 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can detect file moved in"() {
         given:
-        def outsideDir = tmpDir.newFolder()
+        def outsideDir = new File(testDir, "outside")
+        assert outsideDir.mkdirs()
         def sourceFileOutside = new File(outsideDir, "source-outside.txt")
         def targetFileInside = new File(rootDir, "target-inside.txt")
         createNewFile(sourceFileOutside)
@@ -256,7 +290,8 @@ abstract class AbstractFileEventsTest extends Specification {
     def "does not receive events from unwatched directory"() {
         given:
         def watchedFile = new File(rootDir, "watched.txt")
-        def unwatchedDir = tmpDir.newFolder()
+        def unwatchedDir = new File(testDir, "unwatched")
+        assert unwatchedDir.mkdirs()
         def unwatchedFile = new File(unwatchedDir, "unwatched.txt")
         startWatcher(rootDir)
 
@@ -356,9 +391,11 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can receive multiple events from multiple watched directories"() {
         given:
-        def firstWatchedDir = tmpDir.newFolder("first")
+        def firstWatchedDir = new File(testDir, "first")
+        assert firstWatchedDir.mkdirs()
         def firstFileInFirstWatchedDir = new File(firstWatchedDir, "first-watched.txt")
-        def secondWatchedDir = tmpDir.newFolder("second")
+        def secondWatchedDir = new File(testDir, "second")
+        assert secondWatchedDir.mkdirs()
         def secondFileInSecondWatchedDir = new File(secondWatchedDir, "sibling-watched.txt")
         startWatcher(firstWatchedDir, secondWatchedDir)
 
@@ -388,14 +425,14 @@ abstract class AbstractFileEventsTest extends Specification {
         startWatcher(lowercaseDir)
 
         when:
-        def expectedChanges = expectEvents event(CREATED, fileInLowercaseDir)
+        def expectedChanges = expectEvents event(CREATED, fileInLowercaseDir.canonicalFile)
         createNewFile(fileInLowercaseDir)
 
         then:
         expectedChanges.await()
 
         when:
-        expectedChanges = expectEvents event(CREATED, fileInUppercaseDir)
+        expectedChanges = expectEvents event(CREATED, fileInUppercaseDir.canonicalFile)
         createNewFile(fileInUppercaseDir)
 
         then:
@@ -604,12 +641,10 @@ abstract class AbstractFileEventsTest extends Specification {
         def removedFile = new File(watchedDir, "file.txt")
         createNewFile(removedFile)
         File removedDir = removedDirectory(watchedDir)
-
-        def expectedEvents = [event(INVALIDATE, watchedDir)]
         startWatcher(watchedDir)
 
         when:
-        def expectedChanges = expectEvents expectedEvents
+        def expectedChanges = expectEvents event(INVALIDATE, watchedDir)
         assert removedDir.deleteDir()
 
         then:
@@ -674,13 +709,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
         @Override
         void pathChanged(Type type, String path) {
-            def canonicalFile
-            try {
-                canonicalFile = new File(path).canonicalFile
-            } catch (IOException e) {
-                throw new RuntimeException("Couldn't canonicalize path: '$path'", e)
-            }
-            handleEvent(new FileEvent(type, canonicalFile, true))
+            handleEvent(new FileEvent(type, new File(path), true))
         }
 
         private void handleEvent(FileEvent event) {
@@ -705,7 +734,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
         FileEvent(FileWatcherCallback.Type type, File file, boolean mandatory) {
             this.type = type
-            this.file = file.canonicalFile
+            this.file = file
             this.mandatory = mandatory
         }
 
