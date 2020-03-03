@@ -92,42 +92,50 @@ Server::~Server() {
     }
 }
 
-void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
+void Server::runLoop(JNIEnv*, function<void(exception_ptr)> notifyStarted) {
     notifyStarted(nullptr);
 
-    char buffer[EVENT_BUFFER_SIZE]
-        __attribute__((aligned(__alignof__(struct inotify_event))));
+    int forever = numeric_limits<int>::max();
 
+    while (!terminated) {
+        processQueues(forever);
+    }
+}
+
+void Server::processQueues(int timeout) {
     struct pollfd fds[2];
     fds[0].fd = processCommandsEvent.fd;
     fds[1].fd = inotify->fd;
     fds[0].events = POLLIN;
     fds[1].events = POLLIN;
 
-    while (!terminated) {
-        int forever = numeric_limits<int>::max();
-        int ret = poll(fds, 2, forever);
-        if (ret == -1) {
-            throw FileWatcherException("Couldn't poll for events", errno);
-        }
+    int ret = poll(fds, 2, timeout);
+    if (ret == -1) {
+        throw FileWatcherException("Couldn't poll for events", errno);
+    }
 
-        if (IS_SET(fds[0].revents, POLLIN)) {
-            processCommandsEvent.consume();
-            // Ignore counter, we only care about the notification itself
-            processCommands();
-        }
+    if (IS_SET(fds[0].revents, POLLIN)) {
+        processCommandsEvent.consume();
+        // Ignore counter, we only care about the notification itself
+        processCommands();
+    }
 
-        if (IS_SET(fds[1].revents, POLLIN)) {
-            ssize_t bytesRead = read(inotify->fd, buffer, EVENT_BUFFER_SIZE);
-            if (bytesRead == -1) {
-                throw FileWatcherException("Couldn't read from inotify", errno);
-            }
-            handleEventsInBuffer(env, buffer, bytesRead);
-        }
+    if (IS_SET(fds[1].revents, POLLIN)) {
+        handleEvents();
     }
 }
 
-void Server::handleEventsInBuffer(JNIEnv* env, const char* buffer, ssize_t bytesRead) {
+void Server::handleEvents() {
+    char buffer[EVENT_BUFFER_SIZE]
+        __attribute__((aligned(__alignof__(struct inotify_event))));
+
+    ssize_t bytesRead = read(inotify->fd, buffer, EVENT_BUFFER_SIZE);
+    if (bytesRead == -1) {
+        throw FileWatcherException("Couldn't read from inotify", errno);
+    }
+
+    JNIEnv* env = getThreadEnv();
+
     switch (bytesRead) {
         case -1:
             // TODO EINTR is the normal termination, right?

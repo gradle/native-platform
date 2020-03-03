@@ -56,7 +56,8 @@ protected:
     void terminate() override;
 
 private:
-    void handleEventsInBuffer(JNIEnv* env, const char* buffer, ssize_t bytesRead);
+    void processQueues(int timeout);
+    void handleEvents();
     void handleEvent(JNIEnv* env, const inotify_event* event);
 
     unordered_map<u16string, WatchPoint> watchPoints;
