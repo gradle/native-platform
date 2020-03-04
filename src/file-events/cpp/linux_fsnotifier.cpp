@@ -10,7 +10,7 @@
 
 #define EVENT_BUFFER_SIZE 16 * 1024
 
-#define EVENT_MASK (IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_DONT_FOLLOW | IN_EXCL_UNLINK | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO | IN_ONLYDIR)
+#define EVENT_MASK (IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_EXCL_UNLINK | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO | IN_ONLYDIR)
 
 static int registerWatchPoint(const u16string& path, shared_ptr<Inotify> inotify) {
     string pathNarrow = utf16ToUtf8String(path);
