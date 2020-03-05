@@ -88,6 +88,7 @@ AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback) {
 
     jclass callbackClass = env->GetObjectClass(watcherCallback);
     this->watcherCallbackMethod = env->GetMethodID(callbackClass, "pathChanged", "(ILjava/lang/String;)V");
+    this->watcherReportErrorMethod = env->GetMethodID(callbackClass, "reportError", "(Ljava/lang/Throwable;)V");
 
     jobject globalWatcherCallback = env->NewGlobalRef(watcherCallback);
     if (globalWatcherCallback == NULL) {
@@ -163,9 +164,55 @@ void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) 
     jstring javaPath = env->NewString((jchar*) path.c_str(), (jsize) path.length());
     env->CallVoidMethod(watcherCallback, watcherCallbackMethod, type, javaPath);
     env->DeleteLocalRef(javaPath);
+
+    jthrowable exception = env->ExceptionOccurred();
+    if (exception != nullptr) {
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+
+        jclass exceptionClass = env->GetObjectClass(exception);
+        assert(exceptionClass != nullptr);
+        jmethodID getMessage = env->GetMethodID(exceptionClass, "getMessage", "()Ljava/lang/String;");
+        assert(getMessage != nullptr);
+        jstring javaMessage = (jstring) env->CallObjectMethod(exception, getMessage);
+        assert(javaMessage != nullptr);
+        string message = javaToUtf8String(env, javaMessage);
+        env->DeleteLocalRef(javaMessage);
+
+        jclass classClass = env->FindClass("java/lang/Class");
+        assert(classClass != nullptr);
+        jmethodID getClassName = env->GetMethodID(classClass, "getName", "()Ljava/lang/String;");
+        assert(getClassName != nullptr);
+        jstring javaExceptionType = (jstring) env->CallObjectMethod(exceptionClass, getClassName);
+        assert(javaExceptionType != nullptr);
+        string exceptionType = javaToUtf8String(env, javaExceptionType);
+        env->DeleteLocalRef(javaExceptionType);
+
+        env->DeleteLocalRef(classClass);
+        env->DeleteLocalRef(exceptionClass);
+        env->DeleteLocalRef(exception);
+
+        throw FileWatcherException("Caught " + exceptionType + " while calling callback: " + message);
+    }
 }
 
-u16string javaToNativeString(JNIEnv* env, jstring javaString) {
+void AbstractServer::reportError(JNIEnv* env, const exception& exception) {
+    jclass exceptionClass = env->FindClass("net/rubygrapefruit/platform/NativeException");
+    assert(exceptionClass != nullptr);
+    u16string message = utf8ToUtf16String(exception.what());
+    jstring javaMessage = env->NewString((jchar*) message.c_str(), (jsize) message.length());
+    jmethodID constructor = env->GetMethodID(exceptionClass, "<init>", "(Ljava/lang/String;)V");
+    jobject javaException = env->NewObject(exceptionClass, constructor, javaMessage);
+    assert(javaException != nullptr);
+    env->CallVoidMethod(watcherCallback, watcherReportErrorMethod, javaException);
+    env->DeleteLocalRef(exceptionClass);
+}
+
+string javaToUtf8String(JNIEnv* env, jstring javaString) {
+    return utf16ToUtf8String(javaToUtf16String(env, javaString));
+}
+
+u16string javaToUtf16String(JNIEnv* env, jstring javaString) {
     jsize length = env->GetStringLength(javaString);
     const jchar* javaChars = env->GetStringCritical(javaString, nullptr);
     if (javaChars == NULL) {
@@ -213,6 +260,7 @@ jobject rethrowAsJavaException(JNIEnv* env, const exception& e) {
     assert(exceptionClass != NULL);
     jint ret = env->ThrowNew(exceptionClass, e.what());
     assert(ret == 0);
+    env->DeleteLocalRef(exceptionClass);
     return NULL;
 }
 
@@ -235,7 +283,7 @@ JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_startWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
     try {
         AbstractServer* server = getServer(env, javaServer);
-        auto path = javaToNativeString(env, javaPath);
+        auto path = javaToUtf16String(env, javaPath);
         server->executeOnThread(shared_ptr<Command>(new RegisterPathCommand(path)));
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
@@ -246,7 +294,7 @@ JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_stopWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
     try {
         AbstractServer* server = getServer(env, javaServer);
-        auto path = javaToNativeString(env, javaPath);
+        auto path = javaToUtf16String(env, javaPath);
         server->executeOnThread(shared_ptr<Command>(new UnregisterPathCommand(path)));
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);

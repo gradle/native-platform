@@ -22,6 +22,8 @@ public interface FileWatcherCallback {
     @SuppressWarnings("unused")
     void pathChanged(Type type, String path);
 
+    void reportError(Throwable ex);
+
     enum Type {
         /**
          * An item with the given path has been created.

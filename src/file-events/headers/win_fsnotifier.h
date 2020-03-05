@@ -27,7 +27,7 @@ class WatchPoint;
 
 class WatchPoint {
 public:
-    WatchPoint(Server* server, const u16string& path, HANDLE directoryHandle, HANDLE serverThreadHandle);
+    WatchPoint(Server* server, const u16string& path);
     ~WatchPoint();
     void close();
     void listen();
@@ -35,14 +35,13 @@ public:
 
 private:
     Server* server;
-    u16string path;
+    const u16string path;
     friend class Server;
     HANDLE directoryHandle;
     OVERLAPPED overlapped;
     vector<BYTE> buffer;
 
-    void handleEventsInBuffer(DWORD bytesTransferred);
-    void handleEvent(FILE_NOTIFY_INFORMATION* info);
+    void handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred);
     friend static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped);
 };
 
@@ -55,7 +54,7 @@ public:
     void unregisterPath(const u16string& path) override;
     void terminate() override;
 
-    void reportEvent(jint type, const u16string& changedPath);
+    void handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& buffer, DWORD bytesTransferred);
     void reportFinished(const u16string path);
 
 protected:
@@ -63,6 +62,7 @@ protected:
     void processCommandsOnThread() override;
 
 private:
+    void handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMATION* info);
     unordered_map<u16string, WatchPoint> watchPoints;
     bool terminated = false;
 };

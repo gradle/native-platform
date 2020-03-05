@@ -22,6 +22,12 @@ public class AbstractFileEventFunctions implements NativeIntegration {
         public void pathChanged(int type, String path) {
             delegate.pathChanged(FileWatcherCallback.Type.values()[type], path);
         }
+
+        // Called from the native side
+        @SuppressWarnings("unused")
+        public void reportError(Throwable ex) {
+            delegate.reportError(ex);
+        }
     }
 
     // Instantiated from native code

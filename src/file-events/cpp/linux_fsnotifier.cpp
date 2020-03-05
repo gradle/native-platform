@@ -124,7 +124,11 @@ void Server::processQueues(int timeout) {
     }
 
     if (IS_SET(fds[1].revents, POLLIN)) {
-        handleEvents();
+        try {
+            handleEvents();
+        } catch (const exception& ex) {
+            reportError(getThreadEnv(), ex);
+        }
     }
 }
 
