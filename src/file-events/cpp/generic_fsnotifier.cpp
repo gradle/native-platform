@@ -206,6 +206,8 @@ void AbstractServer::reportError(JNIEnv* env, const exception& exception) {
     assert(javaException != nullptr);
     env->CallVoidMethod(watcherCallback, watcherReportErrorMethod, javaException);
     env->DeleteLocalRef(exceptionClass);
+    env->DeleteLocalRef(javaMessage);
+    env->DeleteLocalRef(javaException);
 }
 
 string javaToUtf8String(JNIEnv* env, jstring javaString) {
