@@ -48,6 +48,8 @@ import java.util.regex.Pattern
 
 import static java.util.concurrent.TimeUnit.SECONDS
 import static java.util.logging.Level.CONFIG
+import static net.rubygrapefruit.platform.file.AbstractFileEventFunctionsTest.EventStatus.EXPECTED
+import static net.rubygrapefruit.platform.file.AbstractFileEventFunctionsTest.EventStatus.UNEXPECTED
 
 @Timeout(value = 10, unit = SECONDS)
 @Category(JniChecksEnabled)
@@ -256,6 +258,10 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         new LinkedBlockingQueue<FileWatchEvent>()
     }
 
+    private enum EventStatus {
+        EXPECTED, UNEXPECTED
+    }
+
     private interface ExpectedEvent {
         boolean matches(FileWatchEvent event)
         boolean isOptional()
@@ -404,8 +410,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             LOGGER.info("> Expecting $expectedEvent")
         }
         def remainingExpectedEvents = new ArrayList<ExpectedEvent>(expectedEvents)
-        def receivedEvents = new ArrayList<FileWatchEvent>()
-        def unexpectedEvents = new ArrayList<FileWatchEvent>()
+        Map<FileWatchEvent, EventStatus> receivedEvents = [:]
         expectEvents(
             eventQueue,
             timeoutValue,
@@ -419,31 +424,30 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
                 def expectedEventIndex = remainingExpectedEvents.findIndexOf { expectedEvent ->
                     expectedEvent.matches(event)
                 }
+                EventStatus expected
                 if (expectedEventIndex == -1) {
-                    unexpectedEvents << event
+                    expected = UNEXPECTED
                 } else {
                     remainingExpectedEvents.remove(expectedEventIndex)
-                    receivedEvents << event
+                    expected = EXPECTED
                 }
+                receivedEvents.put(event, expected)
                 return true
             })
         Assert.that(
-            remainingExpectedEvents.every { it.optional } && unexpectedEvents.empty,
-            createEventFailure(unexpectedEvents, remainingExpectedEvents, receivedEvents)
+            remainingExpectedEvents.every { it.optional } && receivedEvents.values().every { it == EXPECTED },
+            createEventFailure(receivedEvents, remainingExpectedEvents)
         )
         ensureNoMoreEvents(eventQueue)
     }
 
-    private String createEventFailure(List<FileWatchEvent> unexpectedEvents, List<ExpectedEvent> remainingExpectedEvents, List<FileWatchEvent> receivedEvents) {
+    private String createEventFailure(Map<FileWatchEvent, EventStatus> receivedEvents, List<ExpectedEvent> remainingExpectedEvents) {
         String failure = "Events received differ from expected:\n"
-        unexpectedEvents.each { event ->
-            failure += " - UNEXPECTED ${format(event)}\n"
+        receivedEvents.each { event, status ->
+            failure += " - ${status == EXPECTED ? "RECEIVED  " : "UNEXPECTED"} ${format(event)}\n"
         }
         remainingExpectedEvents.each { event ->
             failure += " - MISSING    $event\n"
-        }
-        receivedEvents.each { event ->
-            failure += " - RECEIVED   ${format(event)}\n"
         }
         return failure
     }

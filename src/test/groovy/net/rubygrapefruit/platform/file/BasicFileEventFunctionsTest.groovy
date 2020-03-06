@@ -801,4 +801,28 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         def ex = thrown AbstractFileEventFunctions.FileWatcherTimeoutException
         ex.message == "Starting the watcher timed out"
     }
+
+    def "can detect events in directory removed then re-added"() {
+        given:
+        def watchedDir = new File(rootDir, "watched")
+        assert watchedDir.mkdirs()
+        def createdFile = new File(watchedDir, "created.txt")
+        startWatcher(watchedDir)
+
+        assert watchedDir.delete()
+        assert watchedDir.mkdir()
+        // Restart watching freshly recreated directory on platforms that auto-unregister on deletion
+        if (!Platform.current().macOs) {
+            watcher.startWatching(watchedDir)
+        }
+        // Ignore events received during setup
+        waitForChangeEventLatency()
+        eventQueue.clear()
+
+        when:
+        createdFile.createNewFile()
+
+        then:
+        expectEvents change(CREATED, createdFile)
+    }
 }
