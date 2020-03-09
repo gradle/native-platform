@@ -29,7 +29,7 @@ class WatchPoint {
 public:
     WatchPoint(Server* server, const u16string& path);
     ~WatchPoint();
-    void close();
+
     void listen();
     int awaitListeningStarted(HANDLE threadHandle);
 

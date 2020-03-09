@@ -35,13 +35,6 @@ WatchPoint::WatchPoint(Server* server, const u16string& path)
 }
 
 WatchPoint::~WatchPoint() {
-    BOOL ret = CloseHandle(directoryHandle);
-    if (!ret) {
-        log_severe(server->getThreadEnv(), "Couldn't close handle %p for '%ls': %d", directoryHandle, path.c_str(), GetLastError());
-    }
-}
-
-void WatchPoint::close() {
     BOOL ret = CancelIo(directoryHandle);
     if (!ret) {
         log_severe(server->getThreadEnv(), "Couldn't cancel I/O %p for '%ls': %d", directoryHandle, path.c_str(), GetLastError());
@@ -51,6 +44,11 @@ void WatchPoint::close() {
     // Without this the abort event is handled after close() returns
     // Which means we'll unlock the calling thread before the watch point is truly cleaned up
     SleepEx(0, true);
+
+    ret = CloseHandle(directoryHandle);
+    if (!ret) {
+        log_severe(server->getThreadEnv(), "Couldn't close handle %p for '%ls': %d", directoryHandle, path.c_str(), GetLastError());
+    }
 }
 
 static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped) {
@@ -88,7 +86,6 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
                 break;
             case ERROR_OPERATION_ABORTED:
                 log_fine(env, "Finished watching '%s'", utf16ToUtf8String(path).c_str());
-                reportFinished(path);
                 return;
             default:
                 throw FileWatcherException("Error received when handling events", errorCode);
@@ -263,16 +260,13 @@ void Server::registerPath(const u16string& path) {
 void Server::unregisterPath(const u16string& path) {
     u16string longPath = path;
     convertToLongPathIfNeeded(longPath);
-    auto it = watchPoints.find(longPath);
-    if (it == watchPoints.end()) {
-        log_fine(getThreadEnv(), "Path is not watched: %s", utf16ToUtf8String(path).c_str());
-        return;
-    }
-    it->second.close();
+    reportFinished(longPath);
 }
 
 void Server::reportFinished(const u16string path) {
-    watchPoints.erase(path);
+    if (watchPoints.erase(path) == 0) {
+        log_fine(getThreadEnv(), "Path is not watched: %s", utf16ToUtf8String(path).c_str());
+    }
 }
 
 //
