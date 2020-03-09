@@ -23,7 +23,7 @@ WatchPoint::WatchPoint(Server* server, const u16string& path)
         NULL                    // file with attributes to copy
     );
     if (directoryHandle == INVALID_HANDLE_VALUE) {
-        throw FileWatcherException("Couldn't add watch:", path, GetLastError());
+        throw FileWatcherException("Couldn't add watch", path, GetLastError());
     }
     this->directoryHandle = directoryHandle;
 
