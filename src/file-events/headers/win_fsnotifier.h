@@ -31,7 +31,6 @@ public:
     ~WatchPoint();
 
     void listen();
-    int awaitListeningStarted(HANDLE threadHandle);
 
 private:
     Server* server;
@@ -63,6 +62,7 @@ protected:
 
 private:
     void handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMATION* info);
+
     unordered_map<u16string, WatchPoint> watchPoints;
     bool terminated = false;
 };
