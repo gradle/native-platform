@@ -43,7 +43,7 @@ import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 
 @Timeout(value = 15, unit = SECONDS)
 abstract class AbstractFileEventsTest extends Specification {
-    private static final Logger LOGGER = Logger.getLogger(AbstractFileEventsTest.name)
+    static final Logger LOGGER = Logger.getLogger(AbstractFileEventsTest.name)
 
     @Rule
     TemporaryFolder tmpDir
@@ -718,7 +718,7 @@ abstract class AbstractFileEventsTest extends Specification {
         LOGGER.info("< Created $file")
     }
 
-    private static class TestCallback implements FileWatcherCallback {
+    private class TestCallback implements FileWatcherCallback {
         private AsyncConditions conditions
         private Collection<FileEvent> expectedEvents
 
@@ -742,7 +742,9 @@ abstract class AbstractFileEventsTest extends Specification {
 
         @Override
         void reportError(Throwable ex) {
-            uncaughtFailureOnThread = ex;
+            System.err.print("Error reported from native backend:")
+            ex.printStackTrace()
+            uncaughtFailureOnThread = ex
         }
 
         private void handleEvent(FileEvent event) {
