@@ -351,19 +351,19 @@ abstract class AbstractFileEventsTest extends Specification {
         }
 
         new Thread({
-            100.times { index ->
-                Thread.sleep(2 + random.nextInt(18))
+            500.times { index ->
+                Thread.sleep(5 + random.nextInt(5))
                 LOGGER.info("Making change #$index...")
                 new File(rootDir, "file${index}.txt").createNewFile()
             }
         }).start()
 
         when:
-        10.times { index ->
+        50.times { index ->
             LOGGER.info("Setting up")
             def watcher = startNewWatcher(callback)
             watcher.startWatching(rootDir)
-            Thread.sleep(50 + random.nextInt(150))
+            Thread.sleep(50 + random.nextInt(50))
             LOGGER.info("Tearing down")
             watcher.close()
         }
