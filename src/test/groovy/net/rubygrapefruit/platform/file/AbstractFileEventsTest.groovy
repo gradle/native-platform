@@ -328,8 +328,10 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
-    def "can close watcher right before a change"() {
+    def "can start and stop watching directory while changes are being made to its contents"() {
         given:
+
+        def random = new Random(1234)
 
         def callback = new FileWatcherCallback() {
             @Override
@@ -346,7 +348,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
         new Thread({
             100.times { index ->
-                Thread.sleep(10)
+                Thread.sleep(2 + random.nextInt(18))
                 LOGGER.info("Making change #$index...")
                 new File(rootDir, "file${index}.txt").createNewFile()
             }
@@ -355,10 +357,11 @@ abstract class AbstractFileEventsTest extends Specification {
         when:
         10.times { index ->
             LOGGER.info("Setting up")
-            startWatcher(callback, rootDir) 
-            Thread.sleep(100)
+            def watcher = startNewWatcher(callback)
+            watcher.startWatching(rootDir)
+            Thread.sleep(50 + random.nextInt(150))
             LOGGER.info("Tearing down")
-            watcher.stop()
+            watcher.close()
         }
 
         then:
