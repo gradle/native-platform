@@ -328,6 +328,43 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
+    def "can close watcher right before a change"() {
+        given:
+
+        def callback = new FileWatcherCallback() {
+            @Override
+            void pathChanged(FileWatcherCallback.Type type, String path) {
+                LOGGER.info("Received: $type - $path")
+            }
+
+            @Override
+            void reportError(Throwable ex) {
+                ex.printStackTrace()
+                uncaughtFailureOnThread = ex
+            }
+        }
+
+        new Thread({
+            100.times { index ->
+                Thread.sleep(10)
+                LOGGER.info("Making change #$index...")
+                new File(rootDir, "file${index}.txt").createNewFile()
+            }
+        }).start()
+
+        when:
+        10.times { index ->
+            LOGGER.info("Setting up")
+            startWatcher(callback, rootDir) 
+            Thread.sleep(100)
+            LOGGER.info("Tearing down")
+            watcher.stop()
+        }
+
+        then:
+        noExceptionThrown()
+    }
+
     // Apparently on macOS we can watch non-existent directories
     // TODO Should we fail for this?
     @IgnoreIf({ Platform.current().macOs })
