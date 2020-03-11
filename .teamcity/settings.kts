@@ -28,7 +28,7 @@ version = "2019.2"
 
 project {
     val buildReceiptSource = NativePlatformBuild(Agent.Linux) {
-        artifactRules = buildReceipt
+        artifactRules = listOf(artifactRules, buildReceipt).joinToString("\n")
     }
     val builds = listOf(buildReceiptSource) +
         Agent.values().filter { it != Agent.Linux }.map { NativePlatformBuild(it) }
