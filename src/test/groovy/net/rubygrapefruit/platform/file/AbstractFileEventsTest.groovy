@@ -56,18 +56,22 @@ abstract class AbstractFileEventsTest extends Specification {
     File testDir
     File rootDir
     FileWatcher watcher
-    Throwable uncaughtFailureOnThread
+    List<Throwable> uncaughtFailureOnThread
 
     def setup() {
         LOGGER.info(">>> Running '${testName.methodName}'")
         testDir = tmpDir.newFolder(testName.methodName).canonicalFile
         rootDir = new File(testDir, "root")
         assert rootDir.mkdirs()
+        uncaughtFailureOnThread = []
     }
 
     def cleanup() {
         stopWatcher()
-        assert uncaughtFailureOnThread == null
+        uncaughtFailureOnThread.each {
+            it.printStackTrace()
+        }
+        assert uncaughtFailureOnThread.empty
         LOGGER.info("<<< Finished '${testName.methodName}'")
     }
 
@@ -342,7 +346,7 @@ abstract class AbstractFileEventsTest extends Specification {
             @Override
             void reportError(Throwable ex) {
                 ex.printStackTrace()
-                uncaughtFailureOnThread = ex
+                uncaughtFailureOnThread << ex
             }
         }
 
@@ -784,7 +788,7 @@ abstract class AbstractFileEventsTest extends Specification {
         void reportError(Throwable ex) {
             System.err.print("Error reported from native backend:")
             ex.printStackTrace()
-            uncaughtFailureOnThread = ex
+            uncaughtFailureOnThread << ex
         }
 
         private void handleEvent(FileEvent event) {
