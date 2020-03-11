@@ -88,7 +88,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
                 log_fine(env, "Finished watching '%s'", utf16ToUtf8String(path).c_str());
                 return;
             default:
-                throw FileWatcherException("Error received when handling events", errorCode);
+                throw FileWatcherException("Error received when handling events", path, errorCode);
         }
 
         if (bytesTransferred == 0) {
@@ -168,11 +168,10 @@ void convertToLongPathIfNeeded(u16string& path) {
 void Server::handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMATION* info) {
     wstring changedPathW = wstring(info->FileName, 0, info->FileNameLength / sizeof(wchar_t));
     u16string changedPath(changedPathW.begin(), changedPathW.end());
-    // TODO Do we ever get an empty path?
     if (!changedPath.empty()) {
         changedPath.insert(0, 1, u'\\');
-        changedPath.insert(0, path);
     }
+    changedPath.insert(0, path);
     // TODO Remove long prefix for path once?
     if (isLongPath(changedPath)) {
         if (isUncLongPath(changedPath)) {

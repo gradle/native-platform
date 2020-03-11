@@ -733,7 +733,11 @@ abstract class AbstractFileEventsTest extends Specification {
 
         @Override
         void pathChanged(Type type, String path) {
-            handleEvent(new FileEvent(type, new File(path), true))
+            def changed = new File(path)
+            if (!changed.absolute) {
+                throw new IllegalArgumentException("Received non-absolute changed path: " + path);
+            }
+            handleEvent(new FileEvent(type, changed, true))
         }
 
         @Override
