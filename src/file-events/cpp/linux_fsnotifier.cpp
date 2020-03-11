@@ -36,7 +36,7 @@ void WatchPoint::close() {
 }
 
 Inotify::Inotify()
-    : fd(inotify_init1(IN_CLOEXEC)) {
+    : fd(inotify_init1(IN_CLOEXEC | IN_NONBLOCK)) {
     if (fd == -1) {
         throw FileWatcherException("Couldn't register inotify handle", errno);
     }
