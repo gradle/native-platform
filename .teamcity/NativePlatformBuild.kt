@@ -47,6 +47,11 @@ open class NativePlatformBuild(agent: Agent, init: BuildType.() -> Unit = {}) : 
         testFailure = false
     }
 
+    artifactRules = """
+        build/reports/tests/test/** => test-report
+        buildSrc/build/reports/plugin-development/** => buildSrc
+    """.trimIndent()
+
     init(this)
 })
 
