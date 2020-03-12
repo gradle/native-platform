@@ -334,8 +334,6 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
-    // TODO: Currently crashes on Windows and Linux - see https://github.com/gradle/native-platform/pull/131
-    @IgnoreIf({ Platform.current().windows || Platform.current().linux })
     def "can start and stop watching directory while changes are being made to its contents"() {
         given:
         def numberOfParallelWriters = 100
