@@ -386,6 +386,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
         then:
         noExceptionThrown()
+        uncaughtFailureOnThread.empty
     }
 
     // Apparently on macOS we can watch non-existent directories
