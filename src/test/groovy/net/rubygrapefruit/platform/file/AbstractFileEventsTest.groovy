@@ -356,7 +356,7 @@ abstract class AbstractFileEventsTest extends Specification {
         }
 
         when:
-        5.times {
+        10.times {
             def executorService = Executors.newFixedThreadPool(numberOfParallelWriters)
             def readyLatch = new CountDownLatch(numberOfParallelWriters)
             def startModifyingLatch = new CountDownLatch(1)
@@ -367,9 +367,9 @@ abstract class AbstractFileEventsTest extends Specification {
                     readyLatch.countDown()
                     startModifyingLatch.await()
                     fileToChange.createNewFile()
-                    50.times {
+                    100.times {
                         new FileWriter(fileToChange).withPrintWriter { writer ->
-                            10.times { modifyIndex ->
+                            5.times { modifyIndex ->
                                 Thread.sleep(random.nextInt(5))
                                 writer.append("Another change: $modifyIndex\n")
                             }
