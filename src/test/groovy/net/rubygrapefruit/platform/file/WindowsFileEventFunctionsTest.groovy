@@ -26,11 +26,6 @@ import spock.lang.Requires
 class WindowsFileEventFunctionsTest extends AbstractFileEventsTest {
     final WindowsFileEventFunctions fileEvents = Native.get(WindowsFileEventFunctions.class)
 
-    def "caches file events instance"() {
-        expect:
-        Native.get(WindowsFileEventFunctions.class) is fileEvents
-    }
-
     @Override
     protected FileWatcher startNewWatcher(FileWatcherCallback callback) {
         fileEvents.startWatcher(callback)

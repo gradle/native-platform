@@ -28,11 +28,6 @@ import java.util.concurrent.TimeUnit
 class LinuxFileEventFunctionsTest extends AbstractFileEventsTest {
     final LinuxFileEventFunctions fileEvents = Native.get(LinuxFileEventFunctions.class)
 
-    def "caches file events instance"() {
-        expect:
-        Native.get(LinuxFileEventFunctions.class) is fileEvents
-    }
-
     @Override
     protected FileWatcher startNewWatcher(FileWatcherCallback callback) {
         // Avoid setup operations to be reported

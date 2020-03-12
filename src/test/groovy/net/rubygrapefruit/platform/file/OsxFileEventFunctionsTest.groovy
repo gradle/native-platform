@@ -31,11 +31,6 @@ class OsxFileEventFunctionsTest extends AbstractFileEventsTest {
 
     final OsxFileEventFunctions fileEvents = Native.get(OsxFileEventFunctions.class)
 
-    def "caches file events instance"() {
-        expect:
-        Native.get(OsxFileEventFunctions.class) is fileEvents
-    }
-
     @Override
     protected FileWatcher startNewWatcher(FileWatcherCallback callback) {
         // Avoid setup operations to be reported
