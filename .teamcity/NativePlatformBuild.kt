@@ -52,6 +52,7 @@ open class NativePlatformBuild(agent: Agent, init: BuildType.() -> Unit = {}) : 
         build/reports/tests/test/** => test-report
         buildSrc/build/reports/plugin-development/** => buildSrc
         hs_err*
+        build/**/output.txt
     """.trimIndent()
 
     init(this)
