@@ -247,45 +247,40 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
 
     // We have received termination, cancel all watchers
     log_fine(env, "Finished with run loop, now cancelling remaining watch points", NULL);
-    int openWatchPoints = 0;
+    int pendingWatchPoints = 0;
     for (auto& it : watchPoints) {
         auto& watchPoint = it.second;
         switch (watchPoint.status) {
             case LISTENING:
                 watchPoint.cancel();
-                openWatchPoints++;
+                pendingWatchPoints++;
                 break;
             case CANCELLED:
-                openWatchPoints++;
+                pendingWatchPoints++;
                 break;
             default:
                 break;
         }
     }
 
-    // If there are any remaining watchers, wait for them to be terminated
-    if (openWatchPoints == 0) {
-        log_fine(env, "No watch points were open upon termination", NULL);
-    } else {
-        log_fine(env, "Waiting for %d watch points to abort", openWatchPoints);
+    // If there are any pending watchers, wait for them to finish
+    if (pendingWatchPoints > 0) {
+        log_fine(env, "Waiting for %d pending watch points to finish", pendingWatchPoints);
         SleepEx(SERVER_CLOSE_TIMEOUT_IN_MS, true);
     }
 
-    // Check if we have any unclosed watchpoints
+    // Warn about  any unfinished watchpoints
     for (auto& it : watchPoints) {
         auto& watchPoint = it.second;
         switch (watchPoint.status) {
             case FINISHED:
                 break;
             default:
-                log_severe(env, "Couldn't close watch point %s, status = %d", utf16ToUtf8String(watchPoint.path).c_str(), watchPoint.status);
+                log_warning(env, "Watch point %s did not finish before termination timeout, status = %d",
+                    utf16ToUtf8String(watchPoint.path).c_str(), watchPoint.status);
                 break;
         }
     }
-
-    // Close all handles
-    log_fine(env, "Closing handles for %d watch points", watchPoints.size());
-    watchPoints.clear();
 }
 
 static void CALLBACK processCommandsCallback(_In_ ULONG_PTR info) {
