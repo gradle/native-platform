@@ -25,12 +25,37 @@ using namespace std;
 #define IS_SET(flags, flag) (((flags) & (flag)) == (flag))
 #define IS_ANY_SET(flags, mask) (((flags) & (mask)) != 0)
 
+// TODO Make this parametrizable perhaps
+#define SERVER_CLOSE_TIMEOUT_IN_MS 1000
+
 struct FileWatcherException : public runtime_error {
 public:
     FileWatcherException(const string& message, const u16string& path, int errorCode);
     FileWatcherException(const string& message, const u16string& path);
     FileWatcherException(const string& message, int errorCode);
     FileWatcherException(const string& message);
+};
+
+enum WatchPointStatus {
+    /**
+     * The watch point has been constructed, but not currently listening.
+     */
+    NOT_LISTENING,
+
+    /**
+     * The watch point is listening, expect events to arrive.
+     */
+    LISTENING,
+
+    /**
+     * The watch point has been cancelled, expect ERROR_OPERATION_ABORTED event.
+     */
+    CANCELLED,
+
+    /**
+     * The watch point has been cancelled, the ERROR_OPERATION_ABORTED event arrived; or starting the listener caused an error.
+     */
+    FINISHED
 };
 
 class AbstractServer;

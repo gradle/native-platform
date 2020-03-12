@@ -22,32 +22,8 @@ using namespace std;
 
 #define EVENT_MASK (FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE)
 
-// TODO Make this parametrizable perhaps
-#define SERVER_CLOSE_TIMEOUT_IN_MS 1000
-
 class Server;
 class WatchPoint;
-enum WatchPointStatus {
-    /**
-     * The watch point has been constructed, but not currently listening.
-     */
-    NOT_LISTENING,
-
-    /**
-     * The watch point is listening, expect events to arrive.
-     */
-    LISTENING,
-
-    /**
-     * The watch point has been cancelled, expect ERROR_OPERATION_ABORTED event.
-     */
-    CANCELLED,
-
-    /**
-     * The watch point has been cancelled, the ERROR_OPERATION_ABORTED event arrived; or starting the listener caused an error.
-     */
-    FINISHED
-};
 
 class WatchPoint {
 public:
