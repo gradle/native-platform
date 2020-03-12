@@ -103,7 +103,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
         }
 
         if (terminated) {
-            log_fine(env, "Ignoring incoming events for %s because server is terminating (%d bytes)",
+            log_fine(env, "Ignoring incoming events for %s because server is terminating (%d bytes, status = %d)",
                 utf16ToUtf8String(path).c_str(), bytesTransferred, watchPoint->status);
             return;
         }
