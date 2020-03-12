@@ -183,10 +183,15 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
         return;
     }
 
-    u16string path = watchRoots[event->wd];
-    if (path.empty()) {
-        throw FileWatcherException("Couldn't find registered path for watch descriptor");
+    // Overflow received, handle gracefully
+    if (IS_SET(mask, IN_Q_OVERFLOW)) {
+        for (auto it : watchPoints) {
+            auto path = it.first;
+            reportChange(env, FILE_EVENT_INVALIDATE, path);
+        }
     }
+
+    u16string path = watchRoots.at(event->wd);
 
     if (IS_SET(mask, IN_IGNORED)) {
         // Finished with watch point
@@ -199,9 +204,7 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
     int type;
     const u16string name = utf8ToUtf16String(eventName);
     // TODO How to handle MOVE_SELF?
-    if (IS_SET(mask, IN_Q_OVERFLOW)) {
-        type = FILE_EVENT_INVALIDATE;
-    } else if (IS_ANY_SET(mask, IN_CREATE | IN_MOVED_TO)) {
+    if (IS_ANY_SET(mask, IN_CREATE | IN_MOVED_TO)) {
         type = FILE_EVENT_CREATED;
     } else if (IS_ANY_SET(mask, IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM)) {
         type = FILE_EVENT_REMOVED;
