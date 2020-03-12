@@ -138,9 +138,14 @@ void Server::handleEvents() {
 
     ssize_t bytesRead = read(inotify->fd, buffer, EVENT_BUFFER_SIZE);
     if (bytesRead == -1) {
-        throw FileWatcherException("Couldn't read from inotify", errno);
+        if (errno == EAGAIN) {
+            // For a non-blocking read, we receive EAGAIN here if there is nothing to read.
+            // This may happen when the inotify is already closed.
+            return;
+        } else {
+            throw FileWatcherException("Couldn't read from inotify", errno);
+        }
     }
-
     JNIEnv* env = getThreadEnv();
 
     switch (bytesRead) {
