@@ -31,6 +31,8 @@ import spock.lang.Timeout
 import spock.lang.Unroll
 import spock.util.concurrent.AsyncConditions
 
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.logging.Logger
 import java.util.regex.Pattern
 
@@ -335,6 +337,10 @@ abstract class AbstractFileEventsTest extends Specification {
     def "can start and stop watching directory while changes are being made to its contents"() {
         given:
         def random = new Random(1234)
+        def numberOfParallelWriters = 100
+        def executorService = Executors.newFixedThreadPool(numberOfParallelWriters)
+        def readyLatch = new CountDownLatch(numberOfParallelWriters)
+        def startModifyingLatch = new CountDownLatch(1)
 
         def callback = new FileWatcherCallback() {
             @Override
@@ -349,28 +355,30 @@ abstract class AbstractFileEventsTest extends Specification {
             }
         }
 
-        def fileToChange = new File(rootDir, "file.txt")
-        fileToChange.createNewFile()
-
-        new Thread({
-            new FileWriter(fileToChange).withPrintWriter { writer ->
-                500.times { index ->
-                    Thread.sleep(5 + random.nextInt(5))
-                    LOGGER.info("Making change #$index...")
-                    writer.append("Another change: $index\n")
-                }
-            }
-        }).start()
-
         when:
-        50.times { index ->
-            LOGGER.info("Setting up")
-            def watcher = startNewWatcher(callback)
-            watcher.startWatching(rootDir)
-            Thread.sleep(50 + random.nextInt(50))
-            LOGGER.info("Tearing down")
-            watcher.close()
+        def watcher = startNewWatcher(callback)
+        (1..numberOfParallelWriters).each { index ->
+            executorService.submit({ ->
+                def fileToChange = new File(rootDir, "file${index}.txt")
+                readyLatch.countDown()
+                startModifyingLatch.await()
+                fileToChange.createNewFile()
+                50.times {
+                    new FileWriter(fileToChange).withPrintWriter { writer ->
+                        10.times { modifyIndex ->
+                            Thread.sleep(random.nextInt(5))
+                            writer.append("Another change: $modifyIndex\n")
+                        }
+                    }
+                }
+            })
         }
+
+        watcher.startWatching(rootDir)
+        readyLatch.await()
+        startModifyingLatch.countDown()
+        Thread.sleep(200)
+        watcher.close()
 
         then:
         noExceptionThrown()
