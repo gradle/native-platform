@@ -338,14 +338,12 @@ abstract class AbstractFileEventsTest extends Specification {
         given:
         def random = new Random(1234)
         def numberOfParallelWriters = 100
-        def executorService = Executors.newFixedThreadPool(numberOfParallelWriters)
-        def readyLatch = new CountDownLatch(numberOfParallelWriters)
-        def startModifyingLatch = new CountDownLatch(1)
 
         def callback = new FileWatcherCallback() {
             @Override
             void pathChanged(FileWatcherCallback.Type type, String path) {
                 LOGGER.info("Received: $type - $path")
+                assert !path.empty
             }
 
             @Override
@@ -356,29 +354,35 @@ abstract class AbstractFileEventsTest extends Specification {
         }
 
         when:
-        def watcher = startNewWatcher(callback)
-        (1..numberOfParallelWriters).each { index ->
-            executorService.submit({ ->
-                def fileToChange = new File(rootDir, "file${index}.txt")
-                readyLatch.countDown()
-                startModifyingLatch.await()
-                fileToChange.createNewFile()
-                50.times {
-                    new FileWriter(fileToChange).withPrintWriter { writer ->
-                        10.times { modifyIndex ->
-                            Thread.sleep(random.nextInt(5))
-                            writer.append("Another change: $modifyIndex\n")
+        5.times {
+            def executorService = Executors.newFixedThreadPool(numberOfParallelWriters)
+            def readyLatch = new CountDownLatch(numberOfParallelWriters)
+            def startModifyingLatch = new CountDownLatch(1)
+            def watcher = startNewWatcher(callback)
+            numberOfParallelWriters.times { index ->
+                executorService.submit({ ->
+                    def fileToChange = new File(rootDir, "file${index}.txt")
+                    readyLatch.countDown()
+                    startModifyingLatch.await()
+                    fileToChange.createNewFile()
+                    50.times {
+                        new FileWriter(fileToChange).withPrintWriter { writer ->
+                            10.times { modifyIndex ->
+                                Thread.sleep(random.nextInt(5))
+                                writer.append("Another change: $modifyIndex\n")
+                            }
                         }
                     }
-                }
-            })
-        }
+                })
+            }
+            executorService.shutdown()
 
-        watcher.startWatching(rootDir)
-        readyLatch.await()
-        startModifyingLatch.countDown()
-        Thread.sleep(200)
-        watcher.close()
+            watcher.startWatching(rootDir)
+            readyLatch.await()
+            startModifyingLatch.countDown()
+            Thread.sleep(200)
+            watcher.close()
+        }
 
         then:
         noExceptionThrown()
