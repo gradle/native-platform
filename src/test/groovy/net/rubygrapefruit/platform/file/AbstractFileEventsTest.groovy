@@ -584,6 +584,21 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
+    def "can stop and restart watching directory"() {
+        given:
+        def createdFile = new File(rootDir, "created.txt")
+        startWatcher(rootDir)
+        watcher.stopWatching(rootDir)
+        watcher.startWatching(rootDir)
+
+        when:
+        def expectedChanges = expectEvents event(CREATED, createdFile)
+        createNewFile(createdFile)
+
+        then:
+        expectedChanges.await()
+    }
+
     def "can start multiple watchers"() {
         given:
         def firstRoot = new File(rootDir, "first")
