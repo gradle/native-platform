@@ -36,7 +36,7 @@ WatchPoint::WatchPoint(Server* server, const u16string& path)
 }
 
 WatchPoint::~WatchPoint() {
-    }
+}
 
 void WatchPoint::cancel() {
     if (status == LISTENING) {
@@ -300,8 +300,12 @@ void Server::processCommandsOnThread() {
 void Server::registerPath(const u16string& path) {
     u16string longPath = path;
     convertToLongPathIfNeeded(longPath);
-    if (watchPoints.find(longPath) != watchPoints.end()) {
-        throw FileWatcherException("Already watching path", path);
+    auto it = watchPoints.find(longPath);
+    if (it != watchPoints.end()) {
+        if (it->second.status != FINISHED) {
+            throw FileWatcherException("Already watching path", path);
+        }
+        watchPoints.erase(it);
     }
     watchPoints.emplace(piecewise_construct,
         forward_as_tuple(longPath),
