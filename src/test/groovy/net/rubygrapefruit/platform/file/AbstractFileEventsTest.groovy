@@ -31,6 +31,8 @@ import spock.lang.Timeout
 import spock.lang.Unroll
 import spock.util.concurrent.AsyncConditions
 
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.logging.Logger
 import java.util.regex.Pattern
 
@@ -41,9 +43,9 @@ import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.INVALIDA
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 
-@Timeout(value = 15, unit = SECONDS)
+@Timeout(value = 60, unit = SECONDS)
 abstract class AbstractFileEventsTest extends Specification {
-    private static final Logger LOGGER = Logger.getLogger(AbstractFileEventsTest.name)
+    static final Logger LOGGER = Logger.getLogger(AbstractFileEventsTest.name)
 
     @Rule
     TemporaryFolder tmpDir
@@ -56,18 +58,22 @@ abstract class AbstractFileEventsTest extends Specification {
     File testDir
     File rootDir
     FileWatcher watcher
-    Throwable uncaughtFailureOnThread
+    List<Throwable> uncaughtFailureOnThread
 
     def setup() {
         LOGGER.info(">>> Running '${testName.methodName}'")
         testDir = tmpDir.newFolder(testName.methodName).canonicalFile
         rootDir = new File(testDir, "root")
         assert rootDir.mkdirs()
+        uncaughtFailureOnThread = []
     }
 
     def cleanup() {
         stopWatcher()
-        assert uncaughtFailureOnThread == null
+        uncaughtFailureOnThread.each {
+            it.printStackTrace()
+        }
+        assert uncaughtFailureOnThread.empty
         LOGGER.info("<<< Finished '${testName.methodName}'")
     }
 
@@ -326,6 +332,53 @@ abstract class AbstractFileEventsTest extends Specification {
 
         then:
         expectedChanges.await()
+    }
+
+    // TODO: Currently crashes on Windows and Linux - see https://github.com/gradle/native-platform/pull/131
+    @IgnoreIf({ Platform.current().windows || Platform.current().linux })
+    def "can start and stop watching directory while changes are being made to its contents"() {
+        given:
+        def numberOfParallelWriters = 100
+
+        def callback = new FileWatcherCallback() {
+            @Override
+            void pathChanged(FileWatcherCallback.Type type, String path) {
+                assert !path.empty
+            }
+
+            @Override
+            void reportError(Throwable ex) {
+                ex.printStackTrace()
+                uncaughtFailureOnThread << ex
+            }
+        }
+
+        expect:
+        20.times {
+            def executorService = Executors.newFixedThreadPool(numberOfParallelWriters)
+            def readyLatch = new CountDownLatch(numberOfParallelWriters)
+            def startModifyingLatch = new CountDownLatch(1)
+            def watcher = startNewWatcher(callback)
+            numberOfParallelWriters.times { index ->
+                executorService.submit({ ->
+                    def fileToChange = new File(rootDir, "file${index}.txt")
+                    readyLatch.countDown()
+                    startModifyingLatch.await()
+                    fileToChange.createNewFile()
+                    500.times { modifyIndex ->
+                        fileToChange << "Another change: $modifyIndex\n"
+                    }
+                })
+            }
+            executorService.shutdown()
+
+            watcher.startWatching(rootDir)
+            readyLatch.await()
+            startModifyingLatch.countDown()
+            Thread.sleep(500)
+            watcher.close()
+            assert uncaughtFailureOnThread.empty
+        }
     }
 
     // Apparently on macOS we can watch non-existent directories
@@ -718,7 +771,7 @@ abstract class AbstractFileEventsTest extends Specification {
         LOGGER.info("< Created $file")
     }
 
-    private static class TestCallback implements FileWatcherCallback {
+    private class TestCallback implements FileWatcherCallback {
         private AsyncConditions conditions
         private Collection<FileEvent> expectedEvents
 
@@ -735,14 +788,16 @@ abstract class AbstractFileEventsTest extends Specification {
         void pathChanged(Type type, String path) {
             def changed = new File(path)
             if (!changed.absolute) {
-                throw new IllegalArgumentException("Received non-absolute changed path: " + path);
+                throw new IllegalArgumentException("Received non-absolute changed path: " + path)
             }
             handleEvent(new FileEvent(type, changed, true))
         }
 
         @Override
         void reportError(Throwable ex) {
-            uncaughtFailureOnThread = ex;
+            System.err.print("Error reported from native backend:")
+            ex.printStackTrace()
+            uncaughtFailureOnThread << ex
         }
 
         private void handleEvent(FileEvent event) {
