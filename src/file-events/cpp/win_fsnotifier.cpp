@@ -12,7 +12,7 @@ using namespace std;
 
 WatchPoint::WatchPoint(Server* server, const u16string& path)
     : path(path)
-    , status(CONSTRUCTED) {
+    , status(NOT_LISTENING) {
     wstring pathW(path.begin(), path.end());
     HANDLE directoryHandle = CreateFileW(
         pathW.c_str(),          // pointer to the file name
@@ -89,7 +89,7 @@ void WatchPoint::handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred) {
             utf16ToUtf8String(path).c_str(), bytesTransferred, errorCode, status);
         return;
     }
-    status = HANDLING;
+    status = NOT_LISTENING;
     server->handleEvents(this, errorCode, buffer, bytesTransferred);
 }
 
@@ -238,22 +238,6 @@ Server::~Server() {
     }
 }
 
-unsigned int Server::countOpenWatchPoints() {
-    int count = 0;
-    for (auto& it : watchPoints) {
-        auto& watchPoint = it.second;
-        switch (watchPoint.status) {
-            case LISTENING:
-            case CANCELLED:
-                count++;
-                break;
-            default:
-                break;
-        }
-    }
-    return count;
-}
-
 void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
     notifyStarted(nullptr);
 
@@ -263,11 +247,16 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
 
     // We have received termination, cancel all watchers
     log_fine(env, "Finished with run loop, now cancelling remaining watch points", NULL);
+    int openWatchPoints = 0;
     for (auto& it : watchPoints) {
         auto& watchPoint = it.second;
         switch (watchPoint.status) {
             case LISTENING:
                 watchPoint.cancel();
+                openWatchPoints++;
+                break;
+            case CANCELLED:
+                openWatchPoints++;
                 break;
             default:
                 break;
@@ -275,7 +264,6 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
     }
 
     // If there are any remaining watchers, wait for them to be terminated
-    int openWatchPoints = countOpenWatchPoints();
     if (openWatchPoints == 0) {
         log_fine(env, "No watch points were open upon termination", NULL);
     } else {

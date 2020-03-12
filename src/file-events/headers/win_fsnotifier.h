@@ -29,19 +29,14 @@ class Server;
 class WatchPoint;
 enum WatchPointStatus {
     /**
-     * The watch point has been constructed, but not yet listening.
+     * The watch point has been constructed, but not currently listening.
      */
-    CONSTRUCTED,
+    NOT_LISTENING,
 
     /**
      * The watch point is listening, expect events to arrive.
      */
     LISTENING,
-
-    /**
-     * The watch point has stopped listening and is handling events.
-     */
-    HANDLING,
 
     /**
      * The watch point has been cancelled, expect ERROR_OPERATION_ABORTED event.
@@ -91,8 +86,6 @@ protected:
 
 private:
     void handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMATION* info);
-
-    unsigned int countOpenWatchPoints();
 
     unordered_map<u16string, WatchPoint> watchPoints;
     bool terminated = false;
