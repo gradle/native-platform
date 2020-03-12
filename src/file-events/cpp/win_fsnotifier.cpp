@@ -36,11 +36,7 @@ WatchPoint::WatchPoint(Server* server, const u16string& path)
 }
 
 WatchPoint::~WatchPoint() {
-    BOOL ret = CloseHandle(directoryHandle);
-    if (!ret) {
-        log_severe(server->getThreadEnv(), "Couldn't close handle %p for '%ls': %d", directoryHandle, utf16ToUtf8String(path).c_str(), GetLastError());
     }
-}
 
 void WatchPoint::cancel() {
     if (status == LISTENING) {
@@ -80,6 +76,10 @@ void WatchPoint::listen() {
 void WatchPoint::handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred) {
     if (errorCode == ERROR_OPERATION_ABORTED) {
         log_fine(server->getThreadEnv(), "Finished watching '%s', status = %d", utf16ToUtf8String(path).c_str(), status);
+        BOOL ret = CloseHandle(directoryHandle);
+        if (!ret) {
+            log_severe(server->getThreadEnv(), "Couldn't close handle %p for '%ls': %d", directoryHandle, utf16ToUtf8String(path).c_str(), GetLastError());
+        }
         status = FINISHED;
         return;
     }
