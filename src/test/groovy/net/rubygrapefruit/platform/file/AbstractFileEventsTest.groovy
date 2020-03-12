@@ -43,7 +43,7 @@ import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.INVALIDA
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 
-@Timeout(value = 15, unit = SECONDS)
+@Timeout(value = 60, unit = SECONDS)
 abstract class AbstractFileEventsTest extends Specification {
     static final Logger LOGGER = Logger.getLogger(AbstractFileEventsTest.name)
 
@@ -338,13 +338,11 @@ abstract class AbstractFileEventsTest extends Specification {
     @IgnoreIf({ Platform.current().windows })
     def "can start and stop watching directory while changes are being made to its contents"() {
         given:
-        def random = new Random(1234)
         def numberOfParallelWriters = 100
 
         def callback = new FileWatcherCallback() {
             @Override
             void pathChanged(FileWatcherCallback.Type type, String path) {
-                LOGGER.info("Received: $type - $path")
                 assert !path.empty
             }
 
@@ -356,7 +354,7 @@ abstract class AbstractFileEventsTest extends Specification {
         }
 
         when:
-        10.times {
+        20.times {
             def executorService = Executors.newFixedThreadPool(numberOfParallelWriters)
             def readyLatch = new CountDownLatch(numberOfParallelWriters)
             def startModifyingLatch = new CountDownLatch(1)
@@ -367,13 +365,8 @@ abstract class AbstractFileEventsTest extends Specification {
                     readyLatch.countDown()
                     startModifyingLatch.await()
                     fileToChange.createNewFile()
-                    100.times {
-                        new FileWriter(fileToChange).withPrintWriter { writer ->
-                            5.times { modifyIndex ->
-                                Thread.sleep(random.nextInt(5))
-                                writer.append("Another change: $modifyIndex\n")
-                            }
-                        }
+                    500.times { modifyIndex ->
+                        fileToChange << "Another change: $modifyIndex\n"
                     }
                 })
             }
@@ -382,12 +375,12 @@ abstract class AbstractFileEventsTest extends Specification {
             watcher.startWatching(rootDir)
             readyLatch.await()
             startModifyingLatch.countDown()
-            Thread.sleep(200)
+            Thread.sleep(500)
             watcher.close()
+            assert uncaughtFailureOnThread.empty
         }
 
         then:
-        noExceptionThrown()
         uncaughtFailureOnThread.empty
     }
 
