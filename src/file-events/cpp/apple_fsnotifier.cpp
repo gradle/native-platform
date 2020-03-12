@@ -89,16 +89,7 @@ Server::Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis)
 }
 
 Server::~Server() {
-    // Make copy of watch point paths to avoid race conditions
-    list<u16string> paths;
-    for (auto& watchPoint : watchPoints) {
-        paths.push_back(watchPoint.first);
-    }
-    for (auto& path : paths) {
-        executeOnThread(shared_ptr<Command>(new UnregisterPathCommand(path)));
-    }
     executeOnThread(shared_ptr<Command>(new TerminateCommand()));
-
     if (watcherThread.joinable()) {
         watcherThread.join();
     }
@@ -107,11 +98,8 @@ Server::~Server() {
 
 void Server::runLoop(JNIEnv*, function<void(exception_ptr)> notifyStarted) {
     try {
-        CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
-        this->threadLoop = threadLoop;
-
+        threadLoop = CFRunLoopGetCurrent();
         CFRunLoopAddSource(threadLoop, messageSource, kCFRunLoopDefaultMode);
-
         notifyStarted(nullptr);
     } catch (...) {
         notifyStarted(current_exception());
@@ -126,6 +114,7 @@ void Server::processCommandsOnThread() {
 }
 
 void Server::terminate() {
+    watchPoints.clear();
     CFRunLoopStop(threadLoop);
 }
 
