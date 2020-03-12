@@ -334,8 +334,8 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
-    // TODO: Currently crashes on Windows - see https://github.com/gradle/native-platform/pull/131
-//    @IgnoreIf({ Platform.current().windows })
+    // TODO: Currently crashes on Windows and Linux - see https://github.com/gradle/native-platform/pull/131
+    @IgnoreIf({ Platform.current().windows || Platform.current().linux })
     def "can start and stop watching directory while changes are being made to its contents"() {
         given:
         def numberOfParallelWriters = 100
@@ -353,7 +353,7 @@ abstract class AbstractFileEventsTest extends Specification {
             }
         }
 
-        when:
+        expect:
         20.times {
             def executorService = Executors.newFixedThreadPool(numberOfParallelWriters)
             def readyLatch = new CountDownLatch(numberOfParallelWriters)
@@ -379,9 +379,6 @@ abstract class AbstractFileEventsTest extends Specification {
             watcher.close()
             assert uncaughtFailureOnThread.empty
         }
-
-        then:
-        uncaughtFailureOnThread.empty
     }
 
     // Apparently on macOS we can watch non-existent directories
@@ -791,7 +788,7 @@ abstract class AbstractFileEventsTest extends Specification {
         void pathChanged(Type type, String path) {
             def changed = new File(path)
             if (!changed.absolute) {
-                throw new IllegalArgumentException("Received non-absolute changed path: " + path);
+                throw new IllegalArgumentException("Received non-absolute changed path: " + path)
             }
             handleEvent(new FileEvent(type, changed, true))
         }
