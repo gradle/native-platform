@@ -334,7 +334,6 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can start and stop watching directory while changes are being made to its contents"() {
         given:
-
         def random = new Random(1234)
 
         def callback = new FileWatcherCallback() {
@@ -350,11 +349,16 @@ abstract class AbstractFileEventsTest extends Specification {
             }
         }
 
+        def fileToChange = new File(rootDir, "file.txt")
+        fileToChange.createNewFile()
+
         new Thread({
-            500.times { index ->
-                Thread.sleep(5 + random.nextInt(5))
-                LOGGER.info("Making change #$index...")
-                new File(rootDir, "file${index}.txt").createNewFile()
+            new FileWriter(fileToChange).withPrintWriter { writer ->
+                500.times { index ->
+                    Thread.sleep(5 + random.nextInt(5))
+                    LOGGER.info("Making change #$index...")
+                    writer.append("Another change: $index\n")
+                }
             }
         }).start()
 
