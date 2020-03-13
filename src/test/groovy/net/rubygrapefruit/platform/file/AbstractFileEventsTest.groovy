@@ -336,7 +336,8 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can start and stop watching directory while changes are being made to its contents"() {
         given:
-        def numberOfParallelWriters = 100
+        def numberOfParallelWritersPerWatchedDirectory = 50
+        def numberOfWatchedDirectories = 4
 
         def callback = new FileWatcherCallback() {
             @Override
@@ -351,26 +352,33 @@ abstract class AbstractFileEventsTest extends Specification {
             }
         }
 
+        def watchedDirectories = (1..numberOfWatchedDirectories).collect { new File(rootDir, "watchedDir$it") }
+        watchedDirectories.each { assert it.mkdirs() }
+
         expect:
         20.times {
-            def executorService = Executors.newFixedThreadPool(numberOfParallelWriters)
-            def readyLatch = new CountDownLatch(numberOfParallelWriters)
+            def executorService = Executors.newFixedThreadPool(numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories)
+            def readyLatch = new CountDownLatch(numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories)
             def startModifyingLatch = new CountDownLatch(1)
             def watcher = startNewWatcher(callback)
-            numberOfParallelWriters.times { index ->
-                executorService.submit({ ->
-                    def fileToChange = new File(rootDir, "file${index}.txt")
-                    readyLatch.countDown()
-                    startModifyingLatch.await()
-                    fileToChange.createNewFile()
-                    500.times { modifyIndex ->
-                        fileToChange << "Another change: $modifyIndex\n"
-                    }
-                })
+            watchedDirectories.each { watchedDirectory ->
+                numberOfParallelWritersPerWatchedDirectory.times { index ->
+                    executorService.submit({ ->
+                        def fileToChange = new File(watchedDirectory, "file${index}.txt")
+                        readyLatch.countDown()
+                        startModifyingLatch.await()
+                        fileToChange.createNewFile()
+                        500.times { modifyIndex ->
+                            fileToChange << "Another change: $modifyIndex\n"
+                        }
+                    })
+                }
             }
             executorService.shutdown()
 
-            watcher.startWatching(rootDir)
+            watchedDirectories.each {
+                watcher.startWatching(it)
+            }
             readyLatch.await()
             startModifyingLatch.countDown()
             Thread.sleep(500)
