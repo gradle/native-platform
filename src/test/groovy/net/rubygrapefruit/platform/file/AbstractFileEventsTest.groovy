@@ -794,7 +794,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
     private class TestCallback implements FileWatcherCallback {
         private AsyncConditions conditions
-        private Collection<FileEvent> expectedEvents
+        private Collection<FileEvent> expectedEvents = []
 
         AsyncConditions expect(List<FileEvent> events) {
             events.each { event ->
