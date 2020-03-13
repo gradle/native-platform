@@ -42,9 +42,17 @@ void WatchPoint::cancel() {
     if (status == LISTENING) {
         log_fine(server->getThreadEnv(), "Cancelling %s", utf16ToUtf8String(path).c_str());
         status = CANCELLED;
-        BOOL ret = CancelIo(directoryHandle);
+        BOOL ret = CancelIoEx(directoryHandle, &overlapped);
         if (!ret) {
-            throw FileWatcherException("Couldn't cancel I/O", path, GetLastError());
+            status = FINISHED;
+            DWORD lastError = GetLastError();
+            if (lastError == ERROR_NOT_FOUND) {
+                // Do nothing, looks like this is a typical scenario
+                log_fine(server->getThreadEnv(), "Watch point already finished %s", utf16ToUtf8String(path).c_str());
+            } else {
+                // TODO Should we throw here instead?
+                log_warning(server->getThreadEnv(), "Couldn't cancel %s (%d)", utf16ToUtf8String(path).c_str(), lastError);
+            }
         }
     }
 }
