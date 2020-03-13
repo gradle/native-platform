@@ -273,10 +273,11 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
     for (auto& it : watchPoints) {
         auto& watchPoint = it.second;
         switch (watchPoint.status) {
+            case NOT_LISTENING:
             case FINISHED:
                 break;
             default:
-                log_warning(env, "Watch point %s did not finish before termination timeout, status = %d",
+                log_warning(env, "Watch point %s did not finish before termination timeout (status = %d)",
                     utf16ToUtf8String(watchPoint.path).c_str(), watchPoint.status);
                 break;
         }
