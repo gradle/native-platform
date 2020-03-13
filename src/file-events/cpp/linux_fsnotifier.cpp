@@ -189,6 +189,7 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
             auto path = it.first;
             reportChange(env, FILE_EVENT_INVALIDATE, path);
         }
+        return;
     }
 
     u16string path = watchRoots.at(event->wd);
