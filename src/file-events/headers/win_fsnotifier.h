@@ -30,7 +30,7 @@ public:
     WatchPoint(Server* server, const u16string& path);
     ~WatchPoint();
     void listen();
-    void cancel();
+    bool cancel();
 
 private:
     Server* server;

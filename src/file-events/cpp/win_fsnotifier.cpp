@@ -38,12 +38,12 @@ WatchPoint::WatchPoint(Server* server, const u16string& path)
 WatchPoint::~WatchPoint() {
 }
 
-void WatchPoint::cancel() {
+bool WatchPoint::cancel() {
     if (status == LISTENING) {
         log_fine(server->getThreadEnv(), "Cancelling %s", utf16ToUtf8String(path).c_str());
         status = CANCELLED;
-        BOOL ret = CancelIoEx(directoryHandle, &overlapped);
-        if (!ret) {
+        bool cancelled = (bool) CancelIoEx(directoryHandle, &overlapped);
+        if (!cancelled) {
             status = FINISHED;
             DWORD lastError = GetLastError();
             if (lastError == ERROR_NOT_FOUND) {
@@ -54,7 +54,9 @@ void WatchPoint::cancel() {
                 log_warning(server->getThreadEnv(), "Couldn't cancel %s (%d)", utf16ToUtf8String(path).c_str(), lastError);
             }
         }
+        return cancelled;
     }
+    return false;
 }
 
 static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped) {
@@ -262,8 +264,9 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
         auto& watchPoint = it.second;
         switch (watchPoint.status) {
             case LISTENING:
-                watchPoint.cancel();
-                pendingWatchPoints++;
+                if (watchPoint.cancel()) {
+                    pendingWatchPoints++;
+                }
                 break;
             case CANCELLED:
                 pendingWatchPoints++;
