@@ -105,7 +105,11 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
         auto& watchPoint = it.second;
         switch (watchPoint.status) {
             case LISTENING:
-                watchPoint.cancel();
+                try {
+                    watchPoint.cancel();
+                } catch (const exception& ex) {
+                    log_warning(env, ex.what(), NULL);
+                }
                 pendingWatchPoints++;
                 break;
             case CANCELLED:
