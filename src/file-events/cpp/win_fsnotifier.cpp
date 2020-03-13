@@ -120,16 +120,18 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
             // Got a buffer overflow => current changes lost => send INVALIDATE on root
             log_info(env, "Detected overflow for %s", utf16ToUtf8String(path).c_str());
             reportChange(env, FILE_EVENT_INVALIDATE, path);
-        } else {
-            int index = 0;
-            for (;;) {
-                FILE_NOTIFY_INFORMATION* current = (FILE_NOTIFY_INFORMATION*) &buffer[index];
-                handleEvent(env, path, current);
-                if (current->NextEntryOffset == 0) {
-                    break;
-                }
-                index += current->NextEntryOffset;
+            watchPoint->status = FINISHED;
+            return;
+        }
+
+        int index = 0;
+        for (;;) {
+            FILE_NOTIFY_INFORMATION* current = (FILE_NOTIFY_INFORMATION*) &buffer[index];
+            handleEvent(env, path, current);
+            if (current->NextEntryOffset == 0) {
+                break;
             }
+            index += current->NextEntryOffset;
         }
 
         watchPoint->listen();
