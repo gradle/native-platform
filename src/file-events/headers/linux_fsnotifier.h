@@ -36,12 +36,15 @@ public:
     WatchPoint(const u16string& path, const shared_ptr<Inotify> inotify);
     ~WatchPoint();
 
-    void close();
-
-    const int watchDescriptor;
+    void cancel();
 
 private:
+    WatchPointStatus status;
+    const int watchDescriptor;
     const shared_ptr<Inotify> inotify;
+    const u16string path;
+
+    friend class Server;
 };
 
 class Server : public AbstractServer {
