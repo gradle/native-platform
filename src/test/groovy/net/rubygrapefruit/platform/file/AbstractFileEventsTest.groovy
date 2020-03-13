@@ -358,8 +358,8 @@ abstract class AbstractFileEventsTest extends Specification {
 
     def "can start and stop watching directory while changes are being made to its contents"() {
         given:
-        def numberOfParallelWritersPerWatchedDirectory = 100
-        def numberOfWatchedDirectories = 4
+        def numberOfParallelWritersPerWatchedDirectory = 10
+        def numberOfWatchedDirectories = 10
 
         def callback = new FileWatcherCallback() {
             @Override
@@ -405,6 +405,8 @@ abstract class AbstractFileEventsTest extends Specification {
             startModifyingLatch.countDown()
             Thread.sleep(500)
             watcher.close()
+
+            assert executorService.awaitTermination(10, SECONDS)
             assert uncaughtFailureOnThread.empty
         }
     }
