@@ -292,6 +292,28 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
+    @Requires({ Platform.current().linux || Platform.current().macOs })
+    def "can watch symlinked directory twice"() {
+        given:
+        def canonicalDir = new File(rootDir, "watchedDir")
+        def canonicalFile = new File(canonicalDir, "modified.txt")
+        canonicalDir.mkdirs()
+        createNewFile(canonicalFile)
+        def linkedDir = new File(rootDir, "linked")
+        def watchedFile = new File(linkedDir, "modified.txt")
+        java.nio.file.Files.createSymbolicLink(linkedDir.toPath(), canonicalDir.toPath())
+        startWatcher(canonicalDir, linkedDir)
+
+        when:
+        def expectedChanges = expectEvents Platform.current().macOs
+            ? event(MODIFIED, canonicalFile)
+            : event(MODIFIED, watchedFile)
+        watchedFile << "change"
+
+        then:
+        expectedChanges.await()
+    }
+
     def "can receive multiple events from the same directory"() {
         given:
         def firstFile = new File(rootDir, "first.txt")
