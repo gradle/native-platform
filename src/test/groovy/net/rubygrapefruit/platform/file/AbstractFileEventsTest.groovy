@@ -352,11 +352,11 @@ abstract class AbstractFileEventsTest extends Specification {
             }
         }
 
-        def watchedDirectories = (1..numberOfWatchedDirectories).collect { new File(rootDir, "watchedDir$it") }
+        expect:
+        20.times { iteration ->
+            def watchedDirectories = (1..numberOfWatchedDirectories).collect { new File(rootDir, "iteration-$iteration/watchedDir-$it") }
         watchedDirectories.each { assert it.mkdirs() }
 
-        expect:
-        20.times {
             def executorService = Executors.newFixedThreadPool(numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories)
             def readyLatch = new CountDownLatch(numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories)
             def startModifyingLatch = new CountDownLatch(1)
