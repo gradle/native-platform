@@ -279,7 +279,7 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
     // If there are any pending watchers, wait for them to finish
     if (pendingWatchPoints > 0) {
         log_fine(env, "Waiting for %d pending watch points to finish", pendingWatchPoints);
-        SleepEx(SERVER_CLOSE_TIMEOUT_IN_MS, true);
+        SleepEx(0, true);
     }
 
     // Warn about  any unfinished watchpoints
