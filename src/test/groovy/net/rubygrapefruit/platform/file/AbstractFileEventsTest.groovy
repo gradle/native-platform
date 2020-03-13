@@ -406,7 +406,7 @@ abstract class AbstractFileEventsTest extends Specification {
             Thread.sleep(500)
             watcher.close()
 
-            assert executorService.awaitTermination(10, SECONDS)
+            assert executorService.awaitTermination(20, SECONDS)
             assert uncaughtFailureOnThread.empty
         }
     }
