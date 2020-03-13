@@ -197,7 +197,7 @@ void Server::handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMA
         }
     }
 
-    log_fine(env, "Change detected: 0x%x '%ls'", info->Action, changedPathW.c_str());
+    log_fine(env, "Change detected: 0x%x '%s'", info->Action, utf16ToUtf8String(changedPath).c_str());
 
     jint type;
     if (info->Action == FILE_ACTION_ADDED || info->Action == FILE_ACTION_RENAMED_NEW_NAME) {
@@ -207,7 +207,7 @@ void Server::handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMA
     } else if (info->Action == FILE_ACTION_MODIFIED) {
         type = FILE_EVENT_MODIFIED;
     } else {
-        log_warning(env, "Unknown event 0x%x for %ls", info->Action, changedPathW.c_str());
+        log_warning(env, "Unknown event 0x%x for %s", info->Action, utf16ToUtf8String(changedPath).c_str());
         type = FILE_EVENT_UNKNOWN;
     }
 
