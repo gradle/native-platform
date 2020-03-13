@@ -108,7 +108,7 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
                 try {
                     watchPoint.cancel();
                 } catch (const exception& ex) {
-                    log_warning(env, ex.what(), NULL);
+                    log_warning(env, "%s", ex.what());
                 }
                 pendingWatchPoints++;
                 break;
