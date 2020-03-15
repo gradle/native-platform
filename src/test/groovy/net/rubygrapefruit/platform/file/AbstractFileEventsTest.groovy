@@ -43,7 +43,7 @@ import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.INVALIDA
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 
-@Timeout(value = 60, unit = SECONDS)
+@Timeout(value = 120, unit = SECONDS)
 abstract class AbstractFileEventsTest extends Specification {
     static final Logger LOGGER = Logger.getLogger(AbstractFileEventsTest.name)
 
@@ -383,6 +383,8 @@ abstract class AbstractFileEventsTest extends Specification {
             startModifyingLatch.countDown()
             Thread.sleep(500)
             watcher.close()
+
+            assert executorService.awaitTermination(20, SECONDS)
             assert uncaughtFailureOnThread.empty
         }
     }
