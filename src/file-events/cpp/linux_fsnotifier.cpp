@@ -12,18 +12,9 @@
 
 #define EVENT_MASK (IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_EXCL_UNLINK | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO | IN_ONLYDIR)
 
-static int registerWatchPoint(const u16string& path, shared_ptr<Inotify> inotify) {
-    string pathNarrow = utf16ToUtf8String(path);
-    int fdWatch = inotify_add_watch(inotify->fd, pathNarrow.c_str(), EVENT_MASK);
-    if (fdWatch == -1) {
-        throw FileWatcherException("Couldn't add watch", path, errno);
-    }
-    return fdWatch;
-}
-
-WatchPoint::WatchPoint(const u16string& path, shared_ptr<Inotify> inotify)
+WatchPoint::WatchPoint(const u16string& path, shared_ptr<Inotify> inotify, int watchDescriptor)
     : status(LISTENING)
-    , watchDescriptor(registerWatchPoint(path, inotify))
+    , watchDescriptor(watchDescriptor)
     , inotify(inotify)
     , path(path) {
 }
@@ -260,6 +251,15 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
     reportChange(env, type, path);
 }
 
+static int addInotifyWatch(const u16string& path, shared_ptr<Inotify> inotify) {
+    string pathNarrow = utf16ToUtf8String(path);
+    int fdWatch = inotify_add_watch(inotify->fd, pathNarrow.c_str(), EVENT_MASK);
+    if (fdWatch == -1) {
+        throw FileWatcherException("Couldn't add watch", path, errno);
+    }
+    return fdWatch;
+}
+
 void Server::registerPath(const u16string& path) {
     auto it = watchPoints.find(path);
     if (it != watchPoints.end()) {
@@ -270,9 +270,13 @@ void Server::registerPath(const u16string& path) {
         watchRoots.erase(watchPoint.watchDescriptor);
         watchPoints.erase(it);
     }
+    int watchDescriptor = addInotifyWatch(path, inotify);
+    if (watchRoots.find(watchDescriptor) != watchRoots.end()) {
+        throw FileWatcherException("Already watching path", path);
+    }
     auto result = watchPoints.emplace(piecewise_construct,
         forward_as_tuple(path),
-        forward_as_tuple(path, inotify));
+        forward_as_tuple(path, inotify, watchDescriptor));
     auto& watchPoint = result.first->second;
     watchRoots[watchPoint.watchDescriptor] = path;
 }

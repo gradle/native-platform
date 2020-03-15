@@ -33,7 +33,7 @@ struct Event {
 
 class WatchPoint {
 public:
-    WatchPoint(const u16string& path, const shared_ptr<Inotify> inotify);
+    WatchPoint(const u16string& path, const shared_ptr<Inotify> inotify, int watchDescriptor);
     ~WatchPoint();
 
     void cancel();
