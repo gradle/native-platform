@@ -25,14 +25,27 @@ using namespace std;
 class Server;
 class WatchPoint;
 
+enum ListenResult {
+    /**
+     * Listening succeeded.
+     */
+    SUCCESS,
+    /**
+     * Target directory has been removed.
+     */
+    DELETED
+};
+
 class WatchPoint {
 public:
     WatchPoint(Server* server, const u16string& path);
     ~WatchPoint();
-    void listen();
+    ListenResult listen();
     bool cancel();
 
 private:
+    bool isValidDirectory();
+
     Server* server;
     const u16string path;
     friend class Server;

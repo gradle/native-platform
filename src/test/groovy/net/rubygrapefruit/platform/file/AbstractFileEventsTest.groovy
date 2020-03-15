@@ -729,9 +729,7 @@ abstract class AbstractFileEventsTest extends Specification {
     }
 
     @Unroll
-    // TODO We currently don't detect if the whole watched directory is removed on Windows
-    @IgnoreIf({ Platform.current().windows })
-    def "can detect #removedAncestry removed"() {
+    def "can detect #ancestry removed"() {
         given:
         def parentDir = new File(rootDir, "parent")
         def watchedDir = new File(parentDir, "removed")
@@ -744,14 +742,16 @@ abstract class AbstractFileEventsTest extends Specification {
         when:
         def expectedChanges = expectEvents Platform.current().macOs
             ? [event(INVALIDATE, watchedDir)]
-            : [event(REMOVED, removedFile), event(REMOVED, watchedDir)]
-        assert removedDir.deleteDir()
+            : Platform.current().windows
+                ? [event(MODIFIED, removedFile), event(REMOVED, removedFile, false), event(REMOVED, watchedDir)]
+                : [event(REMOVED, removedFile), event(REMOVED, watchedDir)]
+        removedDir.deleteDir()
 
         then:
         expectedChanges.await()
 
         where:
-        removedAncestry                     | removedDirectory
+        ancestry                            | removedDirectory
         "watched directory"                 | { it }
         "parent of watched directory"       | { it.parentFile }
         "grand-parent of watched directory" | { it.parentFile.parentFile }

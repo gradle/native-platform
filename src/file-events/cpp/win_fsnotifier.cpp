@@ -32,7 +32,12 @@ WatchPoint::WatchPoint(Server* server, const u16string& path)
     this->buffer.reserve(EVENT_BUFFER_SIZE);
     ZeroMemory(&this->overlapped, sizeof(OVERLAPPED));
     this->overlapped.hEvent = this;
-    listen();
+    switch (listen()) {
+        case SUCCESS:
+            break;
+        case DELETED:
+            throw FileWatcherException("Couldn't start watching because path is not a directory", path);
+    }
 }
 
 WatchPoint::~WatchPoint() {
@@ -64,7 +69,15 @@ static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred
     watchPoint->handleEventsInBuffer(errorCode, bytesTransferred);
 }
 
-void WatchPoint::listen() {
+bool WatchPoint::isValidDirectory() {
+    wstring pathW(path.begin(), path.end());
+    DWORD attrib = GetFileAttributesW(pathW.c_str());
+
+    return (attrib != INVALID_FILE_ATTRIBUTES)
+        && ((attrib & FILE_ATTRIBUTE_DIRECTORY) != 0);
+}
+
+ListenResult WatchPoint::listen() {
     BOOL success = ReadDirectoryChangesW(
         directoryHandle,        // handle to directory
         &buffer[0],             // read results buffer
@@ -77,9 +90,15 @@ void WatchPoint::listen() {
     );
     if (success) {
         status = LISTENING;
+        return SUCCESS;
     } else {
         status = FINISHED;
-        throw FileWatcherException("Couldn't start watching", path, GetLastError());
+        DWORD lastError = GetLastError();
+        if (lastError == ERROR_ACCESS_DENIED && !isValidDirectory()) {
+            return DELETED;
+        } else {
+            throw FileWatcherException("Couldn't start watching", path, lastError);
+        }
     }
 }
 
@@ -109,7 +128,11 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
 
     try {
         if (errorCode != ERROR_SUCCESS) {
-            throw FileWatcherException("Error received when handling events", path, errorCode);
+            if (errorCode == ERROR_ACCESS_DENIED && !watchPoint->isValidDirectory()) {
+                reportChange(env, FILE_EVENT_REMOVED, path);
+            } else {
+                throw FileWatcherException("Error received when handling events", path, errorCode);
+            }
         }
 
         if (terminated) {
@@ -136,7 +159,13 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
             index += current->NextEntryOffset;
         }
 
-        watchPoint->listen();
+        switch (watchPoint->listen()) {
+            case SUCCESS:
+                break;
+            case DELETED:
+                reportChange(env, FILE_EVENT_REMOVED, path);
+                break;
+        }
     } catch (const exception& ex) {
         reportError(env, ex);
     }
