@@ -292,29 +292,6 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
-    @Requires({ Platform.current().linux || Platform.current().macOs })
-    def "fails when watching same directory both directly and via symlink"() {
-        given:
-        def canonicalDir = new File(rootDir, "watchedDir")
-        canonicalDir.mkdirs()
-        def linkedDir = new File(rootDir, "linked")
-        java.nio.file.Files.createSymbolicLink(linkedDir.toPath(), canonicalDir.toPath())
-
-        when:
-        startWatcher(canonicalDir, linkedDir)
-
-        then:
-        def ex = thrown NativeException
-        ex.message == "Already watching path: ${linkedDir.absolutePath}"
-
-        when:
-        startWatcher(linkedDir, canonicalDir)
-
-        then:
-        ex = thrown NativeException
-        ex.message == "Already watching path: ${canonicalDir.absolutePath}"
-    }
-
     def "can receive multiple events from the same directory"() {
         given:
         def firstFile = new File(rootDir, "first.txt")
