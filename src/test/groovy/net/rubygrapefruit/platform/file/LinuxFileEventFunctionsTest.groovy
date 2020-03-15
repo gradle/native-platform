@@ -19,6 +19,7 @@ package net.rubygrapefruit.platform.file
 import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.LinuxFileEventFunctions
+import spock.lang.Ignore
 import spock.lang.Requires
 
 import java.util.concurrent.TimeUnit
@@ -49,7 +50,7 @@ class LinuxFileEventFunctionsTest extends AbstractFileEventsTest {
         super.stopWatcher()
     }
 
-    @Ingore("The behavior doesn't seem consistent across Linux variants")
+    @Ignore("The behavior doesn't seem consistent across Linux variants")
     // Sometimes we get the same watch descriptor back when registering the watch with a different path,
     // other times not, but freeing the resulting watchers leads to errors
     def "fails when watching same directory both directly and via symlink"() {
