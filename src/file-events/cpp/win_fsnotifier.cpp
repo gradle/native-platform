@@ -40,9 +40,6 @@ WatchPoint::WatchPoint(Server* server, const u16string& path)
     }
 }
 
-WatchPoint::~WatchPoint() {
-}
-
 bool WatchPoint::cancel() {
     if (status == LISTENING) {
         log_fine(server->getThreadEnv(), "Cancelling %s", utf16ToUtf8String(path).c_str());
