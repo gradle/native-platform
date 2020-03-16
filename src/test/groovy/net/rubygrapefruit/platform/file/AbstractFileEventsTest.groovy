@@ -596,8 +596,10 @@ abstract class AbstractFileEventsTest extends Specification {
         given:
         def createdFile = new File(rootDir, "created.txt")
         startWatcher(rootDir)
-        watcher.stopWatching(rootDir)
-        watcher.startWatching(rootDir)
+        100.times {
+            watcher.stopWatching(rootDir)
+            watcher.startWatching(rootDir)
+        }
 
         when:
         def expectedChanges = expectEvents event(CREATED, createdFile)

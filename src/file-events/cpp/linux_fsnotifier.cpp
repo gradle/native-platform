@@ -110,7 +110,7 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
     // If there are any pending watchers, wait for them to finish
     if (pendingWatchPoints > 0) {
         log_fine(env, "Waiting for %d pending watch points to finish", pendingWatchPoints);
-        processQueues(SERVER_CLOSE_TIMEOUT_IN_MS);
+        processQueues(CLOSE_TIMEOUT_IN_MS);
     }
 
     // Warn about  any unfinished watchpoints
@@ -289,6 +289,13 @@ void Server::unregisterPath(const u16string& path) {
     }
     auto& watchPoint = it->second;
     watchPoint.cancel();
+    processQueues(CLOSE_TIMEOUT_IN_MS);
+    if (watchPoint.status != FINISHED) {
+        throw FileWatcherException("Could not cancel watch point %s", path);
+    } else {
+        watchRoots.erase(watchPoint.watchDescriptor);
+        watchPoints.erase(path);
+    }
 }
 
 JNIEXPORT jobject JNICALL

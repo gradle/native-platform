@@ -12,6 +12,9 @@
 
 using namespace std;
 
+// TODO Make this parametrizable perhaps
+#define CLOSE_TIMEOUT_IN_MS 1000
+
 class Server;
 
 struct Inotify {
