@@ -289,6 +289,8 @@ void Server::unregisterPath(const u16string& path) {
     }
     auto& watchPoint = it->second;
     watchPoint.cancel();
+    // Make sure we handle the cancellation
+    processQueues(0);
 }
 
 JNIEXPORT jobject JNICALL
