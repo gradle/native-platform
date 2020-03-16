@@ -358,7 +358,10 @@ void Server::unregisterPath(const u16string& path) {
         log_fine(getThreadEnv(), "Path is not watched: %s", utf16ToUtf8String(path).c_str());
         return;
     }
-    it->second.cancel();
+    auto& watchPoint = it->second;
+    watchPoint.cancel();
+    SleepEx(0, true);
+    watchPoints.erase(path);
 }
 
 //
