@@ -25,9 +25,6 @@ using namespace std;
 #define IS_SET(flags, flag) (((flags) & (flag)) == (flag))
 #define IS_ANY_SET(flags, mask) (((flags) & (mask)) != 0)
 
-// TODO Make this parametrizable perhaps
-#define SERVER_CLOSE_TIMEOUT_IN_MS 1000
-
 struct FileWatcherException : public runtime_error {
 public:
     FileWatcherException(const string& message, const u16string& path, int errorCode);
