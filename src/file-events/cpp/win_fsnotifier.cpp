@@ -52,8 +52,7 @@ bool WatchPoint::cancel() {
                 // Do nothing, looks like this is a typical scenario
                 log_fine(server->getThreadEnv(), "Watch point already finished %s", utf16ToUtf8String(path).c_str());
             } else {
-                // TODO Should we throw here instead?
-                log_warning(server->getThreadEnv(), "Couldn't cancel %s (%d)", utf16ToUtf8String(path).c_str(), lastError);
+                throw FileWatcherException("Couldn't cancel watch point", path, lastError);
             }
         }
         return cancelled;
@@ -290,8 +289,12 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
         auto& watchPoint = it.second;
         switch (watchPoint.status) {
             case LISTENING:
-                if (watchPoint.cancel()) {
-                    pendingWatchPoints++;
+                try {
+                    if (watchPoint.cancel()) {
+                        pendingWatchPoints++;
+                    }
+                } catch (const exception& ex) {
+                    log_severe(env, "%s", ex.what());
                 }
                 break;
             case CANCELLED:
