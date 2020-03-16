@@ -291,7 +291,7 @@ void Server::unregisterPath(const u16string& path) {
     watchPoint.cancel();
     processQueues(CLOSE_TIMEOUT_IN_MS);
     if (watchPoint.status != FINISHED) {
-        log_warning(getThreadEnv(), "Could not cancel watch point %s", utf16ToUtf8String(path).c_str());
+        throw FileWatcherException("Could not cancel watch point %s", path);
     } else {
         watchRoots.erase(watchPoint.watchDescriptor);
         watchPoints.erase(path);
