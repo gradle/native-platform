@@ -19,6 +19,7 @@ package net.rubygrapefruit.platform.file
 import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.LinuxFileEventFunctions
+import spock.lang.Ignore
 import spock.lang.Requires
 
 import java.util.concurrent.TimeUnit
@@ -47,5 +48,30 @@ class LinuxFileEventFunctionsTest extends AbstractFileEventsTest {
     @Override
     protected void stopWatcher() {
         super.stopWatcher()
+    }
+
+    @Ignore("The behavior doesn't seem consistent across Linux variants")
+    // Sometimes we get the same watch descriptor back when registering the watch with a different path,
+    // other times not, but freeing the resulting watchers leads to errors
+    def "fails when watching same directory both directly and via symlink"() {
+        given:
+        def canonicalDir = new File(rootDir, "watchedDir")
+        canonicalDir.mkdirs()
+        def linkedDir = new File(rootDir, "linked")
+        java.nio.file.Files.createSymbolicLink(linkedDir.toPath(), canonicalDir.toPath())
+
+        when:
+        startWatcher(canonicalDir, linkedDir)
+
+        then:
+        def ex = thrown NativeException
+        ex.message == "Already watching path: ${linkedDir.absolutePath}"
+
+        when:
+        startWatcher(linkedDir, canonicalDir)
+
+        then:
+        ex = thrown NativeException
+        ex.message == "Already watching path: ${canonicalDir.absolutePath}"
     }
 }

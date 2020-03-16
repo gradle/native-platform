@@ -12,26 +12,20 @@
 
 #define EVENT_MASK (IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_EXCL_UNLINK | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO | IN_ONLYDIR)
 
-static int registerWatchPoint(const u16string& path, shared_ptr<Inotify> inotify) {
-    string pathNarrow = utf16ToUtf8String(path);
-    int fdWatch = inotify_add_watch(inotify->fd, pathNarrow.c_str(), EVENT_MASK);
-    if (fdWatch == -1) {
-        throw FileWatcherException("Couldn't add watch", path, errno);
-    }
-    return fdWatch;
-}
-
-WatchPoint::WatchPoint(const u16string& path, shared_ptr<Inotify> inotify)
-    : watchDescriptor(registerWatchPoint(path, inotify))
-    , inotify(inotify) {
+WatchPoint::WatchPoint(const u16string& path, shared_ptr<Inotify> inotify, int watchDescriptor)
+    : status(LISTENING)
+    , watchDescriptor(watchDescriptor)
+    , inotify(inotify)
+    , path(path) {
 }
 
 WatchPoint::~WatchPoint() {
 }
 
-void WatchPoint::close() {
+void WatchPoint::cancel() {
+    status = CANCELLED;
     if (inotify_rm_watch(inotify->fd, watchDescriptor) != 0) {
-        fprintf(stderr, "Couldn't stop watching (inotify = %d, watch descriptor = %d), errno = %d\n", inotify->fd, watchDescriptor, errno);
+        throw FileWatcherException("Couldn't stop watching", path, errno);
     }
 }
 
@@ -76,32 +70,60 @@ Server::Server(JNIEnv* env, jobject watcherCallback)
 }
 
 void Server::terminate() {
+    log_fine(getThreadEnv(), "Terminating", NULL);
     terminated = true;
 }
 
 Server::~Server() {
-    // Make copy of watch point paths to avoid race conditions
-    list<u16string> paths;
-    for (auto& watchPoint : watchPoints) {
-        paths.push_back(watchPoint.first);
-    }
-    for (auto& path : paths) {
-        executeOnThread(shared_ptr<Command>(new UnregisterPathCommand(path)));
-    }
     executeOnThread(shared_ptr<Command>(new TerminateCommand()));
-
     if (watcherThread.joinable()) {
         watcherThread.join();
     }
 }
 
-void Server::runLoop(JNIEnv*, function<void(exception_ptr)> notifyStarted) {
+void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
     notifyStarted(nullptr);
 
     int forever = numeric_limits<int>::max();
 
     while (!terminated) {
         processQueues(forever);
+    }
+
+    log_fine(env, "Finished with run loop, now cancelling remaining watch points", NULL);
+    int pendingWatchPoints = 0;
+    for (auto& it : watchPoints) {
+        auto& watchPoint = it.second;
+        switch (watchPoint.status) {
+            case LISTENING:
+                watchPoint.cancel();
+                pendingWatchPoints++;
+                break;
+            case CANCELLED:
+                pendingWatchPoints++;
+                break;
+            default:
+                break;
+        }
+    }
+
+    // If there are any pending watchers, wait for them to finish
+    if (pendingWatchPoints > 0) {
+        log_fine(env, "Waiting for %d pending watch points to finish", pendingWatchPoints);
+        processQueues(SERVER_CLOSE_TIMEOUT_IN_MS);
+    }
+
+    // Warn about  any unfinished watchpoints
+    for (auto& it : watchPoints) {
+        auto& watchPoint = it.second;
+        switch (watchPoint.status) {
+            case FINISHED:
+                break;
+            default:
+                log_warning(env, "Watch point %s did not finish before termination timeout, status = %d",
+                    utf16ToUtf8String(watchPoint.path).c_str(), watchPoint.status);
+                break;
+        }
     }
 }
 
@@ -137,28 +159,23 @@ void Server::handleEvents() {
         __attribute__((aligned(__alignof__(struct inotify_event))));
 
     ssize_t bytesRead = read(inotify->fd, buffer, EVENT_BUFFER_SIZE);
-    if (bytesRead == -1) {
-        if (errno == EAGAIN) {
-            // For a non-blocking read, we receive EAGAIN here if there is nothing to read.
-            // This may happen when the inotify is already closed.
-            return;
-        } else {
-            throw FileWatcherException("Couldn't read from inotify", errno);
-        }
-    }
-    JNIEnv* env = getThreadEnv();
 
     switch (bytesRead) {
         case -1:
-            // TODO EINTR is the normal termination, right?
-            log_severe(env, "Failed to fetch change notifications, errno = %d", errno);
-            terminated = true;
+            if (errno == EAGAIN) {
+                // For a non-blocking read, we receive EAGAIN here if there is nothing to read.
+                // This may happen when the inotify is already closed.
+                return;
+            } else {
+                throw FileWatcherException("Couldn't read from inotify", errno);
+            }
             break;
         case 0:
-            terminated = true;
+            throw FileWatcherException("EOF reading from inotify", errno);
             break;
         default:
             // Handle events
+            JNIEnv* env = getThreadEnv();
             int index = 0;
             while (index < bytesRead) {
                 const struct inotify_event* event = (struct inotify_event*) &buffer[index];
@@ -183,25 +200,41 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
         return;
     }
 
-    u16string path = watchRoots[event->wd];
-    if (path.empty()) {
-        throw FileWatcherException("Couldn't find registered path for watch descriptor");
+    // Overflow received, handle gracefully
+    if (IS_SET(mask, IN_Q_OVERFLOW)) {
+        for (auto it : watchPoints) {
+            auto path = it.first;
+            reportChange(env, FILE_EVENT_INVALIDATE, path);
+        }
+        return;
     }
+
+    auto path = watchRoots.at(event->wd);
+    auto& watchPoint = watchPoints.at(path);
 
     if (IS_SET(mask, IN_IGNORED)) {
         // Finished with watch point
         log_fine(env, "Finished watching '%s'", utf16ToUtf8String(path).c_str());
-        watchPoints.erase(path);
-        watchRoots.erase(event->wd);
+        watchPoint.status = FINISHED;
+        return;
+    }
+
+    if (watchPoint.status != LISTENING) {
+        log_fine(env, "Ignoring incoming events for %s as watch-point is not listening (status = %d)",
+            utf16ToUtf8String(path).c_str(), watchPoint.status);
+        return;
+    }
+
+    if (terminated) {
+        log_fine(env, "Ignoring incoming events for %s because server is terminating (status = %d)",
+            utf16ToUtf8String(path).c_str(), watchPoint.status);
         return;
     }
 
     int type;
     const u16string name = utf8ToUtf16String(eventName);
     // TODO How to handle MOVE_SELF?
-    if (IS_SET(mask, IN_Q_OVERFLOW)) {
-        type = FILE_EVENT_INVALIDATE;
-    } else if (IS_ANY_SET(mask, IN_CREATE | IN_MOVED_TO)) {
+    if (IS_ANY_SET(mask, IN_CREATE | IN_MOVED_TO)) {
         type = FILE_EVENT_CREATED;
     } else if (IS_ANY_SET(mask, IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM)) {
         type = FILE_EVENT_REMOVED;
@@ -218,28 +251,44 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
     reportChange(env, type, path);
 }
 
+static int addInotifyWatch(const u16string& path, shared_ptr<Inotify> inotify) {
+    string pathNarrow = utf16ToUtf8String(path);
+    int fdWatch = inotify_add_watch(inotify->fd, pathNarrow.c_str(), EVENT_MASK);
+    if (fdWatch == -1) {
+        throw FileWatcherException("Couldn't add watch", path, errno);
+    }
+    return fdWatch;
+}
+
 void Server::registerPath(const u16string& path) {
-    if (watchPoints.find(path) != watchPoints.end()) {
+    auto it = watchPoints.find(path);
+    if (it != watchPoints.end()) {
+        auto& watchPoint = it->second;
+        if (watchPoint.status != FINISHED) {
+            throw FileWatcherException("Already watching path", path);
+        }
+        watchRoots.erase(watchPoint.watchDescriptor);
+        watchPoints.erase(it);
+    }
+    int watchDescriptor = addInotifyWatch(path, inotify);
+    if (watchRoots.find(watchDescriptor) != watchRoots.end()) {
         throw FileWatcherException("Already watching path", path);
     }
     auto result = watchPoints.emplace(piecewise_construct,
         forward_as_tuple(path),
-        forward_as_tuple(path, inotify));
-    auto it = result.first;
-    watchRoots[it->second.watchDescriptor] = path;
-    log_fine(getThreadEnv(), "Registered %s", utf16ToUtf8String(path).c_str());
+        forward_as_tuple(path, inotify, watchDescriptor));
+    auto& watchPoint = result.first->second;
+    watchRoots[watchPoint.watchDescriptor] = path;
 }
 
 void Server::unregisterPath(const u16string& path) {
     auto it = watchPoints.find(path);
-    if (it == watchPoints.end()) {
+    if (it == watchPoints.end() || it->second.status == FINISHED) {
         log_fine(getThreadEnv(), "Path is not watched: %s", utf16ToUtf8String(path).c_str());
         return;
     }
-    it->second.close();
-    // Handle IN_IGNORED event
-    processQueues(0);
-    log_fine(getThreadEnv(), "Unregistered %s", utf16ToUtf8String(path).c_str());
+    auto& watchPoint = it->second;
+    watchPoint.cancel();
 }
 
 JNIEXPORT jobject JNICALL

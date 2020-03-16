@@ -43,7 +43,7 @@ import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.INVALIDA
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 
-@Timeout(value = 60, unit = SECONDS)
+@Timeout(value = 120, unit = SECONDS)
 abstract class AbstractFileEventsTest extends Specification {
     static final Logger LOGGER = Logger.getLogger(AbstractFileEventsTest.name)
 
@@ -334,11 +334,10 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
-    // TODO: Currently crashes on Windows and Linux - see https://github.com/gradle/native-platform/pull/131
-    @IgnoreIf({ Platform.current().windows || Platform.current().linux })
     def "can start and stop watching directory while changes are being made to its contents"() {
         given:
-        def numberOfParallelWriters = 100
+        def numberOfParallelWritersPerWatchedDirectory = 10
+        def numberOfWatchedDirectories = 10
 
         def callback = new FileWatcherCallback() {
             @Override
@@ -354,29 +353,38 @@ abstract class AbstractFileEventsTest extends Specification {
         }
 
         expect:
-        20.times {
-            def executorService = Executors.newFixedThreadPool(numberOfParallelWriters)
-            def readyLatch = new CountDownLatch(numberOfParallelWriters)
+        20.times { iteration ->
+            def watchedDirectories = (1..numberOfWatchedDirectories).collect { new File(rootDir, "iteration-$iteration/watchedDir-$it") }
+            watchedDirectories.each { assert it.mkdirs() }
+
+            def executorService = Executors.newFixedThreadPool(numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories)
+            def readyLatch = new CountDownLatch(numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories)
             def startModifyingLatch = new CountDownLatch(1)
             def watcher = startNewWatcher(callback)
-            numberOfParallelWriters.times { index ->
-                executorService.submit({ ->
-                    def fileToChange = new File(rootDir, "file${index}.txt")
-                    readyLatch.countDown()
-                    startModifyingLatch.await()
-                    fileToChange.createNewFile()
-                    500.times { modifyIndex ->
-                        fileToChange << "Another change: $modifyIndex\n"
-                    }
-                })
+            watchedDirectories.each { watchedDirectory ->
+                numberOfParallelWritersPerWatchedDirectory.times { index ->
+                    executorService.submit({ ->
+                        def fileToChange = new File(watchedDirectory, "file${index}.txt")
+                        readyLatch.countDown()
+                        startModifyingLatch.await()
+                        fileToChange.createNewFile()
+                        500.times { modifyIndex ->
+                            fileToChange << "Another change: $modifyIndex\n"
+                        }
+                    })
+                }
             }
             executorService.shutdown()
 
-            watcher.startWatching(rootDir)
+            watchedDirectories.each {
+                watcher.startWatching(it)
+            }
             readyLatch.await()
             startModifyingLatch.countDown()
             Thread.sleep(500)
             watcher.close()
+
+            assert executorService.awaitTermination(20, SECONDS)
             assert uncaughtFailureOnThread.empty
         }
     }
@@ -584,6 +592,21 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
+    def "can stop and restart watching directory"() {
+        given:
+        def createdFile = new File(rootDir, "created.txt")
+        startWatcher(rootDir)
+        watcher.stopWatching(rootDir)
+        watcher.startWatching(rootDir)
+
+        when:
+        def expectedChanges = expectEvents event(CREATED, createdFile)
+        createNewFile(createdFile)
+
+        then:
+        expectedChanges.await()
+    }
+
     def "can start multiple watchers"() {
         given:
         def firstRoot = new File(rootDir, "first")
@@ -706,9 +729,7 @@ abstract class AbstractFileEventsTest extends Specification {
     }
 
     @Unroll
-    // TODO We currently don't detect if the whole watched directory is removed on Windows
-    @IgnoreIf({ Platform.current().windows })
-    def "can detect #removedAncestry removed"() {
+    def "can detect #ancestry removed"() {
         given:
         def parentDir = new File(rootDir, "parent")
         def watchedDir = new File(parentDir, "removed")
@@ -721,14 +742,16 @@ abstract class AbstractFileEventsTest extends Specification {
         when:
         def expectedChanges = expectEvents Platform.current().macOs
             ? [event(INVALIDATE, watchedDir)]
-            : [event(REMOVED, removedFile), event(REMOVED, watchedDir)]
-        assert removedDir.deleteDir()
+            : Platform.current().windows
+                ? [event(MODIFIED, removedFile), event(REMOVED, removedFile, false), event(REMOVED, watchedDir)]
+                : [event(REMOVED, removedFile), event(REMOVED, watchedDir)]
+        removedDir.deleteDir()
 
         then:
         expectedChanges.await()
 
         where:
-        removedAncestry                     | removedDirectory
+        ancestry                            | removedDirectory
         "watched directory"                 | { it }
         "parent of watched directory"       | { it.parentFile }
         "grand-parent of watched directory" | { it.parentFile.parentFile }
@@ -773,7 +796,7 @@ abstract class AbstractFileEventsTest extends Specification {
 
     private class TestCallback implements FileWatcherCallback {
         private AsyncConditions conditions
-        private Collection<FileEvent> expectedEvents
+        private Collection<FileEvent> expectedEvents = []
 
         AsyncConditions expect(List<FileEvent> events) {
             events.each { event ->

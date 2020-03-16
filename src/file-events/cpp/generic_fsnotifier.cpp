@@ -122,12 +122,16 @@ void AbstractServer::run() {
 
     log_fine(env, "Starting thread", NULL);
 
-    runLoop(env, [this](exception_ptr initException) {
-        unique_lock<mutex> lock(watcherThreadMutex);
-        this->initException = initException;
-        watcherThreadStarted.notify_all();
-        log_fine(getThreadEnv(), "Started thread", NULL);
-    });
+    try {
+        runLoop(env, [this](exception_ptr initException) {
+            unique_lock<mutex> lock(watcherThreadMutex);
+            this->initException = initException;
+            watcherThreadStarted.notify_all();
+            log_fine(getThreadEnv(), "Started thread", NULL);
+        });
+    } catch (const exception& ex) {
+        reportError(env, ex);
+    }
 
     log_fine(env, "Stopping thread", NULL);
 }

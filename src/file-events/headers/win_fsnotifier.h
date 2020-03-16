@@ -25,20 +25,34 @@ using namespace std;
 class Server;
 class WatchPoint;
 
+enum ListenResult {
+    /**
+     * Listening succeeded.
+     */
+    SUCCESS,
+    /**
+     * Target directory has been removed.
+     */
+    DELETED
+};
+
 class WatchPoint {
 public:
     WatchPoint(Server* server, const u16string& path);
     ~WatchPoint();
-
-    void listen();
+    ListenResult listen();
+    bool cancel();
 
 private:
+    bool isValidDirectory();
+
     Server* server;
     const u16string path;
     friend class Server;
     HANDLE directoryHandle;
     OVERLAPPED overlapped;
     vector<BYTE> buffer;
+    WatchPointStatus status;
 
     void handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred);
     friend static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped);
@@ -54,7 +68,6 @@ public:
     void terminate() override;
 
     void handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& buffer, DWORD bytesTransferred);
-    void reportFinished(const u16string path);
 
 protected:
     void runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) override;
