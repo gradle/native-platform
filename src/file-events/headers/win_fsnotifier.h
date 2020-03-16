@@ -39,6 +39,7 @@ enum ListenResult {
 class WatchPoint {
 public:
     WatchPoint(Server* server, const u16string& path);
+    ~WatchPoint();
 
     ListenResult listen();
     bool cancel();

@@ -60,6 +60,16 @@ bool WatchPoint::cancel() {
     return false;
 }
 
+WatchPoint::~WatchPoint() {
+    try {
+        if (cancel()) {
+            SleepEx(0, true);
+        }
+    } catch (const exception& ex) {
+        log_warning(server->getThreadEnv(), "Couldn't cancel watch point %s: %s", utf16ToUtf8String(path).c_str(), ex.what());
+    }
+}
+
 static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped) {
     WatchPoint* watchPoint = (WatchPoint*) overlapped->hEvent;
     watchPoint->handleEventsInBuffer(errorCode, bytesTransferred);
@@ -353,15 +363,10 @@ void Server::registerPath(const u16string& path) {
 void Server::unregisterPath(const u16string& path) {
     u16string longPath = path;
     convertToLongPathIfNeeded(longPath);
-    auto it = watchPoints.find(longPath);
-    if (it == watchPoints.end()) {
+    if (watchPoints.erase(longPath) == 0) {
         log_fine(getThreadEnv(), "Path is not watched: %s", utf16ToUtf8String(path).c_str());
         return;
     }
-    auto& watchPoint = it->second;
-    watchPoint.cancel();
-    SleepEx(0, true);
-    watchPoints.erase(path);
 }
 
 //
