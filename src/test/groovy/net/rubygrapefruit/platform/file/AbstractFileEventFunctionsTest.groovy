@@ -120,6 +120,17 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             void waitForChangeEventLatency() {
                 Thread.sleep(50)
             }
+        },
+        UNSUPPORTED() {
+            @Override
+            FileWatcher startNewWatcher(FileWatcherCallback callback) {
+                throw new UnsupportedOperationException()
+            }
+
+            @Override
+            void waitForChangeEventLatency() {
+                throw new UnsupportedOperationException()
+            }
         }
 
         static FileWatcherFixture of(Platform platform) {
@@ -130,7 +141,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             } else if (platform.windows) {
                 return WINDOWS
             } else {
-                throw new AssertionError()
+                return UNSUPPORTED
             }
         }
 
