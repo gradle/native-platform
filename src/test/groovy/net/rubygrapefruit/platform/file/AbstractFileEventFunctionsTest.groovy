@@ -27,6 +27,7 @@ import net.rubygrapefruit.platform.testfixture.JulLogging
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import org.junit.rules.TestName
+import spock.lang.Requires
 import spock.lang.Specification
 import spock.lang.Timeout
 import spock.util.concurrent.AsyncConditions
@@ -37,6 +38,7 @@ import java.util.logging.Logger
 import static java.util.concurrent.TimeUnit.SECONDS
 import static java.util.logging.Level.FINE
 
+@Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
 @Timeout(value = 10, unit = SECONDS)
 abstract class AbstractFileEventFunctionsTest extends Specification {
 
@@ -128,7 +130,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             } else if (platform.windows) {
                 return WINDOWS
             } else {
-                throw new IllegalArgumentException("Unsupported platform: " + platform)
+                throw new AssertionError()
             }
         }
 
