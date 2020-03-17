@@ -38,7 +38,7 @@ class WatchPoint {
 public:
     WatchPoint(const u16string& path, const shared_ptr<Inotify> inotify, int watchDescriptor);
 
-    void cancel();
+    bool cancel();
 
 private:
     WatchPointStatus status;

@@ -19,11 +19,15 @@ WatchPoint::WatchPoint(const u16string& path, shared_ptr<Inotify> inotify, int w
     , path(path) {
 }
 
-void WatchPoint::cancel() {
+bool WatchPoint::cancel() {
+    if (status == CANCELLED || status == FINISHED) {
+        return false;
+    }
     status = CANCELLED;
     if (inotify_rm_watch(inotify->fd, watchDescriptor) != 0) {
         throw FileWatcherException("Couldn't stop watching", path, errno);
     }
+    return true;
 }
 
 Inotify::Inotify()
@@ -93,8 +97,13 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
         auto& watchPoint = it.second;
         switch (watchPoint.status) {
             case LISTENING:
-                watchPoint.cancel();
+                try {
+                    if (watchPoint.cancel()) {
                 pendingWatchPoints++;
+                    }
+                } catch (const exception& ex) {
+                    reportError(env, ex);
+                }
                 break;
             case CANCELLED:
                 pendingWatchPoints++;
@@ -285,8 +294,9 @@ void Server::unregisterPath(const u16string& path) {
         return;
     }
     auto& watchPoint = it->second;
-    watchPoint.cancel();
+    if (watchPoint.cancel()) {
     processQueues(CLOSE_TIMEOUT_IN_MS);
+    }
     if (watchPoint.status != FINISHED) {
         throw FileWatcherException("Could not cancel watch point %s", path);
     } else {
