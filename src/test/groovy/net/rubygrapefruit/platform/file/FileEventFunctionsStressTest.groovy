@@ -16,6 +16,8 @@
 
 package net.rubygrapefruit.platform.file
 
+import net.rubygrapefruit.platform.internal.Platform
+import spock.lang.Requires
 import spock.lang.Timeout
 
 import java.util.concurrent.CountDownLatch
@@ -24,6 +26,7 @@ import java.util.concurrent.Executors
 import static java.util.concurrent.TimeUnit.SECONDS
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
 
+@Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
 class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
 
     def "can be started and stopped many times"() {

@@ -30,6 +30,7 @@ import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.INVALIDA
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 
+@Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
 class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
     def "can start and stop watcher without watching any paths"() {
         when:
