@@ -28,13 +28,16 @@ import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import org.junit.rules.TestName
 import spock.lang.Specification
+import spock.lang.Timeout
 import spock.util.concurrent.AsyncConditions
 
 import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
 
+import static java.util.concurrent.TimeUnit.SECONDS
 import static java.util.logging.Level.FINE
 
+@Timeout(value = 10, unit = SECONDS)
 abstract class AbstractFileEventFunctionsTest extends Specification {
 
     public static final Logger LOGGER = Logger.getLogger(AbstractFileEventFunctionsTest.name)

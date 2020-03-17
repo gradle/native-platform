@@ -20,22 +20,17 @@ import net.rubygrapefruit.platform.internal.Platform
 import org.junit.Assume
 import spock.lang.IgnoreIf
 import spock.lang.Requires
-import spock.lang.Timeout
 import spock.lang.Unroll
 import spock.util.concurrent.AsyncConditions
 
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.Executors
 import java.util.regex.Pattern
 
-import static java.util.concurrent.TimeUnit.SECONDS
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.INVALIDATE
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 
-@Timeout(value = 120, unit = SECONDS)
-class AbstractFileEventsTest extends AbstractFileEventFunctionsTest {
+class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
     def "can start and stop watcher without watching any paths"() {
         when:
         startWatcher()
@@ -146,6 +141,21 @@ class AbstractFileEventsTest extends AbstractFileEventFunctionsTest {
     }
 
     @Requires({ Platform.current().macOs })
+    def "changing metadata immediately after creation is reported as modified"() {
+        given:
+        def createdFile = new File(rootDir, "file.txt")
+        startWatcher(rootDir)
+
+        when:
+        def expectedChanges = expectEvents event(MODIFIED, createdFile)
+        createNewFile(createdFile)
+        createdFile.setReadable(false)
+
+        then:
+        expectedChanges.await()
+    }
+
+    @Requires({ Platform.current().macOs })
     def "changing metadata doesn't mask content change"() {
         given:
         def modifiedFile = new File(rootDir, "modified.txt")
@@ -231,26 +241,6 @@ class AbstractFileEventsTest extends AbstractFileEventFunctionsTest {
         expectedChanges.await()
     }
 
-    @Requires({ Platform.current().linux || Platform.current().macOs })
-    def "can detect changes in symlinked watched directory"() {
-        given:
-        def canonicalFile = new File(rootDir, "modified.txt")
-        createNewFile(canonicalFile)
-        def watchedLink = new File(testDir, "linked")
-        def watchedFile = new File(watchedLink, "modified.txt")
-        java.nio.file.Files.createSymbolicLink(watchedLink.toPath(), rootDir.toPath())
-        startWatcher(watchedLink)
-
-        when:
-        def expectedChanges = expectEvents Platform.current().macOs
-            ? event(MODIFIED, canonicalFile)
-            : event(MODIFIED, watchedFile)
-        watchedFile << "change"
-
-        then:
-        expectedChanges.await()
-    }
-
     def "can receive multiple events from the same directory"() {
         given:
         def firstFile = new File(rootDir, "first.txt")
@@ -291,61 +281,6 @@ class AbstractFileEventsTest extends AbstractFileEventFunctionsTest {
 
         then:
         expectedChanges.await()
-    }
-
-    def "can start and stop watching directory while changes are being made to its contents"() {
-        given:
-        def numberOfParallelWritersPerWatchedDirectory = 10
-        def numberOfWatchedDirectories = 10
-
-        def callback = new FileWatcherCallback() {
-            @Override
-            void pathChanged(FileWatcherCallback.Type type, String path) {
-                assert !path.empty
-            }
-
-            @Override
-            void reportError(Throwable ex) {
-                ex.printStackTrace()
-                uncaughtFailureOnThread << ex
-            }
-        }
-
-        expect:
-        20.times { iteration ->
-            def watchedDirectories = (1..numberOfWatchedDirectories).collect { new File(rootDir, "iteration-$iteration/watchedDir-$it") }
-            watchedDirectories.each { assert it.mkdirs() }
-
-            def executorService = Executors.newFixedThreadPool(numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories)
-            def readyLatch = new CountDownLatch(numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories)
-            def startModifyingLatch = new CountDownLatch(1)
-            def watcher = startNewWatcher(callback)
-            watchedDirectories.each { watchedDirectory ->
-                numberOfParallelWritersPerWatchedDirectory.times { index ->
-                    executorService.submit({ ->
-                        def fileToChange = new File(watchedDirectory, "file${index}.txt")
-                        readyLatch.countDown()
-                        startModifyingLatch.await()
-                        fileToChange.createNewFile()
-                        500.times { modifyIndex ->
-                            fileToChange << "Another change: $modifyIndex\n"
-                        }
-                    })
-                }
-            }
-            executorService.shutdown()
-
-            watchedDirectories.each {
-                watcher.startWatching(it)
-            }
-            readyLatch.await()
-            startModifyingLatch.countDown()
-            Thread.sleep(500)
-            watcher.close()
-
-            assert executorService.awaitTermination(20, SECONDS)
-            assert uncaughtFailureOnThread.empty
-        }
     }
 
     // Apparently on macOS we can watch non-existent directories
@@ -516,18 +451,6 @@ class AbstractFileEventsTest extends AbstractFileEventFunctionsTest {
         ex.message == "Closed already"
     }
 
-    def "can be started and stopped multiple times"() {
-        when:
-        10.times { i ->
-            LOGGER.info "> Iteration #${i + 1}"
-            startWatcher(rootDir)
-            stopWatcher()
-        }
-
-        then:
-        noExceptionThrown()
-    }
-
     def "can be used multiple times"() {
         given:
         def firstFile = new File(rootDir, "first.txt")
@@ -546,23 +469,6 @@ class AbstractFileEventsTest extends AbstractFileEventFunctionsTest {
         startWatcher(rootDir)
         expectedChanges = expectEvents event(CREATED, secondFile)
         createNewFile(secondFile)
-
-        then:
-        expectedChanges.await()
-    }
-
-    def "can stop and restart watching directory"() {
-        given:
-        def createdFile = new File(rootDir, "created.txt")
-        startWatcher(rootDir)
-        100.times {
-            watcher.stopWatching(rootDir)
-            watcher.startWatching(rootDir)
-        }
-
-        when:
-        def expectedChanges = expectEvents event(CREATED, createdFile)
-        createNewFile(createdFile)
 
         then:
         expectedChanges.await()
