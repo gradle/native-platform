@@ -19,9 +19,6 @@ WatchPoint::WatchPoint(const u16string& path, shared_ptr<Inotify> inotify, int w
     , path(path) {
 }
 
-WatchPoint::~WatchPoint() {
-}
-
 void WatchPoint::cancel() {
     status = CANCELLED;
     if (inotify_rm_watch(inotify->fd, watchDescriptor) != 0) {

@@ -40,9 +40,6 @@ WatchPoint::WatchPoint(Server* server, const u16string& path)
     }
 }
 
-WatchPoint::~WatchPoint() {
-}
-
 bool WatchPoint::cancel() {
     if (status == LISTENING) {
         log_fine(server->getThreadEnv(), "Cancelling %s", utf16ToUtf8String(path).c_str());
@@ -55,13 +52,22 @@ bool WatchPoint::cancel() {
                 // Do nothing, looks like this is a typical scenario
                 log_fine(server->getThreadEnv(), "Watch point already finished %s", utf16ToUtf8String(path).c_str());
             } else {
-                // TODO Should we throw here instead?
-                log_warning(server->getThreadEnv(), "Couldn't cancel %s (%d)", utf16ToUtf8String(path).c_str(), lastError);
+                throw FileWatcherException("Couldn't cancel watch point", path, lastError);
             }
         }
         return cancelled;
     }
     return false;
+}
+
+WatchPoint::~WatchPoint() {
+    try {
+        if (cancel()) {
+            SleepEx(0, true);
+        }
+    } catch (const exception& ex) {
+        log_warning(server->getThreadEnv(), "Couldn't cancel watch point %s: %s", utf16ToUtf8String(path).c_str(), ex.what());
+    }
 }
 
 static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped) {
@@ -293,8 +299,12 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
         auto& watchPoint = it.second;
         switch (watchPoint.status) {
             case LISTENING:
-                if (watchPoint.cancel()) {
-                    pendingWatchPoints++;
+                try {
+                    if (watchPoint.cancel()) {
+                        pendingWatchPoints++;
+                    }
+                } catch (const exception& ex) {
+                    log_severe(env, "%s", ex.what());
                 }
                 break;
             case CANCELLED:
@@ -353,12 +363,10 @@ void Server::registerPath(const u16string& path) {
 void Server::unregisterPath(const u16string& path) {
     u16string longPath = path;
     convertToLongPathIfNeeded(longPath);
-    auto it = watchPoints.find(longPath);
-    if (it == watchPoints.end()) {
+    if (watchPoints.erase(longPath) == 0) {
         log_fine(getThreadEnv(), "Path is not watched: %s", utf16ToUtf8String(path).c_str());
         return;
     }
-    it->second.cancel();
 }
 
 //
