@@ -72,7 +72,9 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         uncaughtFailureOnThread.each {
             it.printStackTrace()
         }
-        assert uncaughtFailureOnThread.empty
+        // Avoid power assertion printing exceptions again
+        def uncaughtExceptionCount = uncaughtFailureOnThread.size()
+        assert uncaughtExceptionCount == 0
         LOGGER.info("<<< Finished '${testName.methodName}'")
     }
 
