@@ -16,23 +16,9 @@
 
 package net.rubygrapefruit.platform.file
 
-import net.rubygrapefruit.platform.Native
-import net.rubygrapefruit.platform.NativeException
 import net.rubygrapefruit.platform.internal.Platform
-import net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions
 import spock.lang.Requires
 
 @Requires({ Platform.current().windows })
 class WindowsFileEventFunctionsTest extends AbstractFileEventsTest {
-    final WindowsFileEventFunctions fileEvents = Native.get(WindowsFileEventFunctions.class)
-
-    @Override
-    protected FileWatcher startNewWatcher(FileWatcherCallback callback) {
-        fileEvents.startWatcher(callback)
-    }
-
-    @Override
-    protected void waitForChangeEventLatency() {
-        Thread.sleep(50)
-    }
 }

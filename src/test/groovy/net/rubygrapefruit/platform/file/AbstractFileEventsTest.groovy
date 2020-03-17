@@ -26,7 +26,6 @@ import org.junit.rules.TemporaryFolder
 import org.junit.rules.TestName
 import spock.lang.IgnoreIf
 import spock.lang.Requires
-import spock.lang.Specification
 import spock.lang.Timeout
 import spock.lang.Unroll
 import spock.util.concurrent.AsyncConditions
@@ -44,7 +43,7 @@ import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 
 @Timeout(value = 120, unit = SECONDS)
-abstract class AbstractFileEventsTest extends Specification {
+class AbstractFileEventsTest extends AbstractFileEventFunctionsTest {
     static final Logger LOGGER = Logger.getLogger(AbstractFileEventsTest.name)
 
     @Rule
@@ -766,8 +765,6 @@ abstract class AbstractFileEventsTest extends Specification {
         }
     }
 
-    protected abstract FileWatcher startNewWatcher(FileWatcherCallback callback)
-
     protected void stopWatcher() {
         def copyWatcher = watcher
         watcher = null
@@ -856,6 +853,4 @@ abstract class AbstractFileEventsTest extends Specification {
             return "${mandatory ? "" : "optional "}$type $file"
         }
     }
-
-    protected abstract void waitForChangeEventLatency()
 }
