@@ -129,6 +129,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
             }
             watchedDirectories.addAll(previousRoots)
         }
+        LOGGER.info("Watching ${watchedDirectories.size()} directories")
 
         def callback = new FileWatcherCallback() {
             @Override
