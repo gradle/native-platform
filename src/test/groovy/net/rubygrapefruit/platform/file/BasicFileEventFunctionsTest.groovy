@@ -15,68 +15,23 @@
  */
 package net.rubygrapefruit.platform.file
 
-import groovy.transform.EqualsAndHashCode
 import net.rubygrapefruit.platform.NativeException
 import net.rubygrapefruit.platform.internal.Platform
-import net.rubygrapefruit.platform.internal.jni.AbstractFileEventFunctions
-import net.rubygrapefruit.platform.testfixture.JulLogging
 import org.junit.Assume
-import org.junit.Rule
-import org.junit.rules.TemporaryFolder
-import org.junit.rules.TestName
 import spock.lang.IgnoreIf
 import spock.lang.Requires
-import spock.lang.Specification
-import spock.lang.Timeout
 import spock.lang.Unroll
 import spock.util.concurrent.AsyncConditions
 
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.Executors
-import java.util.logging.Logger
 import java.util.regex.Pattern
 
-import static java.util.concurrent.TimeUnit.SECONDS
-import static java.util.logging.Level.FINE
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.INVALIDATE
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 
-@Timeout(value = 120, unit = SECONDS)
-abstract class AbstractFileEventsTest extends Specification {
-    static final Logger LOGGER = Logger.getLogger(AbstractFileEventsTest.name)
-
-    @Rule
-    TemporaryFolder tmpDir
-    @Rule
-    TestName testName
-    @Rule
-    JulLogging logging = new JulLogging(AbstractFileEventFunctions, FINE)
-
-    def callback = new TestCallback()
-    File testDir
-    File rootDir
-    FileWatcher watcher
-    List<Throwable> uncaughtFailureOnThread
-
-    def setup() {
-        LOGGER.info(">>> Running '${testName.methodName}'")
-        testDir = tmpDir.newFolder(testName.methodName).canonicalFile
-        rootDir = new File(testDir, "root")
-        assert rootDir.mkdirs()
-        uncaughtFailureOnThread = []
-    }
-
-    def cleanup() {
-        stopWatcher()
-        uncaughtFailureOnThread.each {
-            it.printStackTrace()
-        }
-        assert uncaughtFailureOnThread.empty
-        LOGGER.info("<<< Finished '${testName.methodName}'")
-    }
-
+@Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
+class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
     def "can start and stop watcher without watching any paths"() {
         when:
         startWatcher()
@@ -187,6 +142,21 @@ abstract class AbstractFileEventsTest extends Specification {
     }
 
     @Requires({ Platform.current().macOs })
+    def "changing metadata immediately after creation is reported as modified"() {
+        given:
+        def createdFile = new File(rootDir, "file.txt")
+        startWatcher(rootDir)
+
+        when:
+        def expectedChanges = expectEvents event(MODIFIED, createdFile)
+        createNewFile(createdFile)
+        createdFile.setReadable(false)
+
+        then:
+        expectedChanges.await()
+    }
+
+    @Requires({ Platform.current().macOs })
     def "changing metadata doesn't mask content change"() {
         given:
         def modifiedFile = new File(rootDir, "modified.txt")
@@ -272,26 +242,6 @@ abstract class AbstractFileEventsTest extends Specification {
         expectedChanges.await()
     }
 
-    @Requires({ Platform.current().linux || Platform.current().macOs })
-    def "can detect changes in symlinked watched directory"() {
-        given:
-        def canonicalFile = new File(rootDir, "modified.txt")
-        createNewFile(canonicalFile)
-        def watchedLink = new File(testDir, "linked")
-        def watchedFile = new File(watchedLink, "modified.txt")
-        java.nio.file.Files.createSymbolicLink(watchedLink.toPath(), rootDir.toPath())
-        startWatcher(watchedLink)
-
-        when:
-        def expectedChanges = expectEvents Platform.current().macOs
-            ? event(MODIFIED, canonicalFile)
-            : event(MODIFIED, watchedFile)
-        watchedFile << "change"
-
-        then:
-        expectedChanges.await()
-    }
-
     def "can receive multiple events from the same directory"() {
         given:
         def firstFile = new File(rootDir, "first.txt")
@@ -332,61 +282,6 @@ abstract class AbstractFileEventsTest extends Specification {
 
         then:
         expectedChanges.await()
-    }
-
-    def "can start and stop watching directory while changes are being made to its contents"() {
-        given:
-        def numberOfParallelWritersPerWatchedDirectory = 10
-        def numberOfWatchedDirectories = 10
-
-        def callback = new FileWatcherCallback() {
-            @Override
-            void pathChanged(FileWatcherCallback.Type type, String path) {
-                assert !path.empty
-            }
-
-            @Override
-            void reportError(Throwable ex) {
-                ex.printStackTrace()
-                uncaughtFailureOnThread << ex
-            }
-        }
-
-        expect:
-        20.times { iteration ->
-            def watchedDirectories = (1..numberOfWatchedDirectories).collect { new File(rootDir, "iteration-$iteration/watchedDir-$it") }
-            watchedDirectories.each { assert it.mkdirs() }
-
-            def executorService = Executors.newFixedThreadPool(numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories)
-            def readyLatch = new CountDownLatch(numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories)
-            def startModifyingLatch = new CountDownLatch(1)
-            def watcher = startNewWatcher(callback)
-            watchedDirectories.each { watchedDirectory ->
-                numberOfParallelWritersPerWatchedDirectory.times { index ->
-                    executorService.submit({ ->
-                        def fileToChange = new File(watchedDirectory, "file${index}.txt")
-                        readyLatch.countDown()
-                        startModifyingLatch.await()
-                        fileToChange.createNewFile()
-                        500.times { modifyIndex ->
-                            fileToChange << "Another change: $modifyIndex\n"
-                        }
-                    })
-                }
-            }
-            executorService.shutdown()
-
-            watchedDirectories.each {
-                watcher.startWatching(it)
-            }
-            readyLatch.await()
-            startModifyingLatch.countDown()
-            Thread.sleep(500)
-            watcher.close()
-
-            assert executorService.awaitTermination(20, SECONDS)
-            assert uncaughtFailureOnThread.empty
-        }
     }
 
     // Apparently on macOS we can watch non-existent directories
@@ -557,18 +452,6 @@ abstract class AbstractFileEventsTest extends Specification {
         ex.message == "Closed already"
     }
 
-    def "can be started and stopped multiple times"() {
-        when:
-        10.times { i ->
-            LOGGER.info "> Iteration #${i + 1}"
-            startWatcher(rootDir)
-            stopWatcher()
-        }
-
-        then:
-        noExceptionThrown()
-    }
-
     def "can be used multiple times"() {
         given:
         def firstFile = new File(rootDir, "first.txt")
@@ -587,23 +470,6 @@ abstract class AbstractFileEventsTest extends Specification {
         startWatcher(rootDir)
         expectedChanges = expectEvents event(CREATED, secondFile)
         createNewFile(secondFile)
-
-        then:
-        expectedChanges.await()
-    }
-
-    def "can stop and restart watching directory"() {
-        given:
-        def createdFile = new File(rootDir, "created.txt")
-        startWatcher(rootDir)
-        100.times {
-            watcher.stopWatching(rootDir)
-            watcher.startWatching(rootDir)
-        }
-
-        when:
-        def expectedChanges = expectEvents event(CREATED, createdFile)
-        createNewFile(createdFile)
 
         then:
         expectedChanges.await()
@@ -758,104 +624,4 @@ abstract class AbstractFileEventsTest extends Specification {
         "parent of watched directory"       | { it.parentFile }
         "grand-parent of watched directory" | { it.parentFile.parentFile }
     }
-
-    protected void startWatcher(FileWatcherCallback callback = this.callback, File... roots) {
-        watcher = startNewWatcher(callback)
-        roots*.absoluteFile.each { root ->
-            watcher.startWatching(root)
-        }
-    }
-
-    protected abstract FileWatcher startNewWatcher(FileWatcherCallback callback)
-
-    protected void stopWatcher() {
-        def copyWatcher = watcher
-        watcher = null
-        copyWatcher?.close()
-    }
-
-    protected AsyncConditions expectNoEvents(FileWatcherCallback callback = this.callback) {
-        expectEvents(callback, [])
-    }
-
-    protected AsyncConditions expectEvents(FileWatcherCallback callback = this.callback, FileEvent... events) {
-        expectEvents(callback, events as List)
-    }
-
-    protected AsyncConditions expectEvents(FileWatcherCallback callback = this.callback, List<FileEvent> events) {
-        return callback.expect(events)
-    }
-
-    protected static FileEvent event(FileWatcherCallback.Type type, File file, boolean mandatory = true) {
-        return new FileEvent(type, file, mandatory)
-    }
-
-    protected static void createNewFile(File file) {
-        LOGGER.info("> Creating $file")
-        file.createNewFile()
-        LOGGER.info("< Created $file")
-    }
-
-    private class TestCallback implements FileWatcherCallback {
-        private AsyncConditions conditions
-        private Collection<FileEvent> expectedEvents = []
-
-        AsyncConditions expect(List<FileEvent> events) {
-            events.each { event ->
-                LOGGER.info("> Expecting $event")
-            }
-            this.conditions = new AsyncConditions()
-            this.expectedEvents = new ArrayList<>(events)
-            return conditions
-        }
-
-        @Override
-        void pathChanged(Type type, String path) {
-            def changed = new File(path)
-            if (!changed.absolute) {
-                throw new IllegalArgumentException("Received non-absolute changed path: " + path)
-            }
-            handleEvent(new FileEvent(type, changed, true))
-        }
-
-        @Override
-        void reportError(Throwable ex) {
-            System.err.print("Error reported from native backend:")
-            ex.printStackTrace()
-            uncaughtFailureOnThread << ex
-        }
-
-        private void handleEvent(FileEvent event) {
-            LOGGER.info("> Received  $event")
-            if (!expectedEvents.remove(event)) {
-                conditions.evaluate {
-                    throw new RuntimeException("Unexpected event $event")
-                }
-            }
-            if (!expectedEvents.any { it.mandatory }) {
-                conditions.evaluate {}
-            }
-        }
-    }
-
-    @EqualsAndHashCode(excludes = ["mandatory"])
-    @SuppressWarnings("unused")
-    protected static class FileEvent {
-        final FileWatcherCallback.Type type
-        final File file
-        final boolean mandatory
-
-        FileEvent(FileWatcherCallback.Type type, File file, boolean mandatory) {
-            this.type = type
-            this.file = file
-            this.mandatory = mandatory
-        }
-
-        @Override
-        String toString() {
-            return "${mandatory ? "" : "optional "}$type $file"
-        }
-    }
-
-    protected abstract void waitForChangeEventLatency()
 }
