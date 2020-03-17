@@ -4,11 +4,10 @@
 #include <codecvt>
 #include <locale>
 #include <string>
+#include <sys/ioctl.h>
 #include <unistd.h>
 
 #include "linux_fsnotifier.h"
-
-#define EVENT_BUFFER_SIZE 16 * 1024
 
 #define EVENT_MASK (IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_EXCL_UNLINK | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO | IN_ONLYDIR)
 
@@ -99,7 +98,7 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
             case LISTENING:
                 try {
                     if (watchPoint.cancel()) {
-                pendingWatchPoints++;
+                        pendingWatchPoints++;
                     }
                 } catch (const exception& ex) {
                     reportError(env, ex);
@@ -161,10 +160,13 @@ void Server::processQueues(int timeout) {
 }
 
 void Server::handleEvents() {
-    char buffer[EVENT_BUFFER_SIZE]
-        __attribute__((aligned(__alignof__(struct inotify_event))));
+    unsigned int available;
+    ioctl(inotify->fd, FIONREAD, &available);
 
-    ssize_t bytesRead = read(inotify->fd, buffer, EVENT_BUFFER_SIZE);
+    vector<char> buffer;
+    buffer.reserve(available);
+
+    ssize_t bytesRead = read(inotify->fd, &buffer[0], available);
 
     switch (bytesRead) {
         case -1:
@@ -182,12 +184,16 @@ void Server::handleEvents() {
         default:
             // Handle events
             JNIEnv* env = getThreadEnv();
+            log_fine(env, "Processig %d bytes worth of events", bytesRead);
             int index = 0;
+            int count = 0;
             while (index < bytesRead) {
                 const struct inotify_event* event = (struct inotify_event*) &buffer[index];
                 handleEvent(env, event);
                 index += sizeof(struct inotify_event) + event->len;
+                count++;
             }
+            log_fine(env, "Processed %d events", count);
             break;
     }
 }
@@ -295,7 +301,7 @@ void Server::unregisterPath(const u16string& path) {
     }
     auto& watchPoint = it->second;
     if (watchPoint.cancel()) {
-    processQueues(CLOSE_TIMEOUT_IN_MS);
+        processQueues(CLOSE_TIMEOUT_IN_MS);
     }
     if (watchPoint.status != FINISHED) {
         throw FileWatcherException("Could not cancel watch point %s", path);
