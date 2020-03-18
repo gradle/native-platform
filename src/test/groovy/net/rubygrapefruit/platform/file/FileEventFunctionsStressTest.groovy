@@ -23,6 +23,7 @@ import spock.lang.Timeout
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 
+import static java.util.concurrent.TimeUnit.MINUTES
 import static java.util.concurrent.TimeUnit.SECONDS
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
 
@@ -57,7 +58,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         expectedChanges.await()
     }
 
-    @Timeout(value = 180, unit = SECONDS)
+    @Timeout(value = 5, unit = MINUTES)
     def "can start and stop watching directory while changes are being made to its contents"() {
         given:
         def numberOfParallelWritersPerWatchedDirectory = 10
