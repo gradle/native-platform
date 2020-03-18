@@ -150,13 +150,13 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         abstract void waitForChangeEventLatency()
     }
 
-    protected static class TestCallback implements FileWatcherCallback {
+    protected class TestCallback implements FileWatcherCallback {
         private AsyncConditions conditions
         private Collection<FileEvent> expectedEvents = []
 
         AsyncConditions expect(List<FileEvent> events) {
             events.each { event ->
-                LOGGER.info("> Expecting $event")
+                AbstractFileEventFunctionsTest.LOGGER.info("> Expecting $event")
             }
             this.conditions = new AsyncConditions()
             this.expectedEvents = new ArrayList<>(events)
