@@ -202,6 +202,10 @@ void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) 
 
 void AbstractServer::reportError(JNIEnv* env, const exception& exception) {
     jclass exceptionClass = env->FindClass("net/rubygrapefruit/platform/NativeException");
+    if (exceptionClass == nullptr) {
+        log_severe(env, "Cannot report exception - can't load NativeException. Exception: %s", exception.what());
+        return;
+    }
     assert(exceptionClass != nullptr);
     u16string message = utf8ToUtf16String(exception.what());
     jstring javaMessage = env->NewString((jchar*) message.c_str(), (jsize) message.length());
