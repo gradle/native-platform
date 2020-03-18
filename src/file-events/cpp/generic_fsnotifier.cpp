@@ -194,13 +194,11 @@ void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) 
 }
 
 void AbstractServer::reportError(JNIEnv* env, const exception& exception) {
-    jclass exceptionClass = env->FindClass("net/rubygrapefruit/platform/NativeException");
     u16string message = utf8ToUtf16String(exception.what());
     jstring javaMessage = env->NewString((jchar*) message.c_str(), (jsize) message.length());
-    jmethodID constructor = env->GetMethodID(exceptionClass, "<init>", "(Ljava/lang/String;)V");
-    jobject javaException = env->NewObject(exceptionClass, constructor, javaMessage);
+    jmethodID constructor = env->GetMethodID(JniConstants::nativeExceptionClass, "<init>", "(Ljava/lang/String;)V");
+    jobject javaException = env->NewObject(JniConstants::nativeExceptionClass, constructor, javaMessage);
     env->CallVoidMethod(watcherCallback, watcherReportErrorMethod, javaException);
-    env->DeleteLocalRef(exceptionClass);
     env->DeleteLocalRef(javaMessage);
     env->DeleteLocalRef(javaException);
 }
@@ -253,12 +251,10 @@ AbstractServer* getServer(JNIEnv* env, jobject javaServer) {
 
 jobject rethrowAsJavaException(JNIEnv* env, const exception& e) {
     log_severe(env, "Caught exception: %s", e.what());
-    jclass exceptionClass = env->FindClass("net/rubygrapefruit/platform/NativeException");
-    jint ret = env->ThrowNew(exceptionClass, e.what());
+    jint ret = env->ThrowNew(JniConstants::nativeExceptionClass, e.what());
     if (ret != 0) {
         fprintf(stderr, "JNI ThrowNew returned %d when rethrowing native exception: %s\n", ret, e.what());
     }
-    env->DeleteLocalRef(exceptionClass);
     return NULL;
 }
 
@@ -305,4 +301,22 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
     }
+}
+
+jclass JniConstants::nativeExceptionClass;
+
+void JniConstants::init(JNIEnv* env) {
+    jclass exceptionClass = env->FindClass("net/rubygrapefruit/platform/NativeException");
+    jclass result = reinterpret_cast<jclass>(env->NewGlobalRef(exceptionClass));
+    nativeExceptionClass = result;
+    env->DeleteLocalRef(exceptionClass);
+}
+
+extern "C" jint JNICALL JNI_OnLoad(JavaVM* vm, void*) {
+    JNIEnv* env;
+    if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) != JNI_OK) {
+        return -1;
+    }
+    JniConstants::init(env);
+    return JNI_VERSION_1_6;
 }

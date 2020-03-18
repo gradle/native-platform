@@ -178,6 +178,12 @@ public:
     }
 };
 
+struct JniConstants {
+    static void init(JNIEnv* env);
+
+    static jclass nativeExceptionClass;
+};
+
 string javaToUtf8String(JNIEnv* env, jstring javaString);
 
 u16string javaToUtf16String(JNIEnv* env, jstring javaString);
