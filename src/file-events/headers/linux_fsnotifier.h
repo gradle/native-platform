@@ -72,6 +72,7 @@ private:
     const shared_ptr<Inotify> inotify;
     const Event processCommandsEvent;
     bool terminated = false;
+    vector<uint8_t> buffer;
 };
 
 #endif

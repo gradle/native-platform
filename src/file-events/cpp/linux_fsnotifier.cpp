@@ -9,6 +9,8 @@
 
 #include "linux_fsnotifier.h"
 
+#define EVENT_BUFFER_SIZE (16 * 1024)
+
 #define EVENT_MASK (IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_EXCL_UNLINK | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO | IN_ONLYDIR)
 
 WatchPoint::WatchPoint(const u16string& path, shared_ptr<Inotify> inotify, int watchDescriptor)
@@ -66,6 +68,7 @@ void Event::consume() const {
 Server::Server(JNIEnv* env, jobject watcherCallback)
     : AbstractServer(env, watcherCallback)
     , inotify(new Inotify()) {
+    buffer.reserve(EVENT_BUFFER_SIZE);
     startThread();
 }
 
@@ -163,38 +166,38 @@ void Server::handleEvents() {
     unsigned int available;
     ioctl(inotify->fd, FIONREAD, &available);
 
-    vector<char> buffer;
-    buffer.reserve(available);
+    while (available > 0) {
+        ssize_t bytesRead = read(inotify->fd, &buffer[0], buffer.capacity());
 
-    ssize_t bytesRead = read(inotify->fd, &buffer[0], available);
-
-    switch (bytesRead) {
-        case -1:
-            if (errno == EAGAIN) {
-                // For a non-blocking read, we receive EAGAIN here if there is nothing to read.
-                // This may happen when the inotify is already closed.
-                return;
-            } else {
-                throw FileWatcherException("Couldn't read from inotify", errno);
-            }
-            break;
-        case 0:
-            throw FileWatcherException("EOF reading from inotify", errno);
-            break;
-        default:
-            // Handle events
-            JNIEnv* env = getThreadEnv();
-            log_fine(env, "Processig %d bytes worth of events", bytesRead);
-            int index = 0;
-            int count = 0;
-            while (index < bytesRead) {
-                const struct inotify_event* event = (struct inotify_event*) &buffer[index];
-                handleEvent(env, event);
-                index += sizeof(struct inotify_event) + event->len;
-                count++;
-            }
-            log_fine(env, "Processed %d events", count);
-            break;
+        switch (bytesRead) {
+            case -1:
+                if (errno == EAGAIN) {
+                    // For a non-blocking read, we receive EAGAIN here if there is nothing to read.
+                    // This may happen when the inotify is already closed.
+                    return;
+                } else {
+                    throw FileWatcherException("Couldn't read from inotify", errno);
+                }
+                break;
+            case 0:
+                throw FileWatcherException("EOF reading from inotify", errno);
+                break;
+            default:
+                // Handle events
+                JNIEnv* env = getThreadEnv();
+                log_fine(env, "Processing %d bytes worth of events", bytesRead);
+                int index = 0;
+                int count = 0;
+                while (index < bytesRead) {
+                    const struct inotify_event* event = (struct inotify_event*) &buffer[index];
+                    handleEvent(env, event);
+                    index += sizeof(struct inotify_event) + event->len;
+                    count++;
+                }
+                log_fine(env, "Processed %d events", count);
+                break;
+        }
+        available -= bytesRead;
     }
 }
 
