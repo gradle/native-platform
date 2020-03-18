@@ -84,7 +84,7 @@ Server::~Server() {
     }
 }
 
-void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
+void Server::runLoop(JNIEnv*, function<void(exception_ptr)> notifyStarted) {
     notifyStarted(nullptr);
 
     int forever = numeric_limits<int>::max();
@@ -93,46 +93,8 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
         processQueues(forever);
     }
 
-    log_fine(env, "Finished with run loop, now cancelling remaining watch points", NULL);
-    int pendingWatchPoints = 0;
-    for (auto& it : watchPoints) {
-        auto& watchPoint = it.second;
-        switch (watchPoint.status) {
-            case LISTENING:
-                try {
-                    if (watchPoint.cancel()) {
-                        pendingWatchPoints++;
-                    }
-                } catch (const exception& ex) {
-                    reportError(env, ex);
-                }
-                break;
-            case CANCELLED:
-                pendingWatchPoints++;
-                break;
-            default:
-                break;
-        }
-    }
-
-    // If there are any pending watchers, wait for them to finish
-    if (pendingWatchPoints > 0) {
-        log_fine(env, "Waiting for %d pending watch points to finish", pendingWatchPoints);
-        processQueues(CLOSE_TIMEOUT_IN_MS);
-    }
-
-    // Warn about  any unfinished watchpoints
-    for (auto& it : watchPoints) {
-        auto& watchPoint = it.second;
-        switch (watchPoint.status) {
-            case FINISHED:
-                break;
-            default:
-                log_warning(env, "Watch point %s did not finish before termination timeout, status = %d",
-                    utf16ToUtf8String(watchPoint.path).c_str(), watchPoint.status);
-                break;
-        }
-    }
+    // No need to clean up watch points, they will be cancelled
+    // and closed when the Inotify destructs
 }
 
 void Server::processQueues(int timeout) {
