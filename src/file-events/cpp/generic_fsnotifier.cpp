@@ -95,12 +95,20 @@ AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback) {
         throw FileWatcherException("Could not get global ref for watcher callback");
     }
     this->watcherCallback = globalWatcherCallback;
+
+    jclass nativeExceptionClass = env->FindClass("net/rubygrapefruit/platform/NativeException");
+    jobject globalNativeExceptionClassRef = env->NewGlobalRef(nativeExceptionClass);
+    if (globalNativeExceptionClassRef == NULL) {
+        throw FileWatcherException("Could not get global ref for native exception");
+    }
+    this->nativeExceptionClass = (jclass) globalNativeExceptionClassRef;
 }
 
 AbstractServer::~AbstractServer() {
     JNIEnv* env = getThreadEnv();
     if (env != NULL) {
         env->DeleteGlobalRef(watcherCallback);
+        env->DeleteGlobalRef(nativeExceptionClass);
     }
 }
 
@@ -201,19 +209,12 @@ void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) 
 }
 
 void AbstractServer::reportError(JNIEnv* env, const exception& exception) {
-    jclass exceptionClass = env->FindClass("net/rubygrapefruit/platform/NativeException");
-    if (exceptionClass == nullptr) {
-        log_severe(env, "Cannot report exception - can't load NativeException. Exception: %s", exception.what());
-        return;
-    }
-    assert(exceptionClass != nullptr);
     u16string message = utf8ToUtf16String(exception.what());
     jstring javaMessage = env->NewString((jchar*) message.c_str(), (jsize) message.length());
-    jmethodID constructor = env->GetMethodID(exceptionClass, "<init>", "(Ljava/lang/String;)V");
-    jobject javaException = env->NewObject(exceptionClass, constructor, javaMessage);
+    jmethodID constructor = env->GetMethodID(this->nativeExceptionClass, "<init>", "(Ljava/lang/String;)V");
+    jobject javaException = env->NewObject(this->nativeExceptionClass, constructor, javaMessage);
     assert(javaException != nullptr);
     env->CallVoidMethod(watcherCallback, watcherReportErrorMethod, javaException);
-    env->DeleteLocalRef(exceptionClass);
     env->DeleteLocalRef(javaMessage);
     env->DeleteLocalRef(javaException);
 }

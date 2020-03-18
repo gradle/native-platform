@@ -59,8 +59,8 @@ class AbstractServer;
 
 class Command {
 public:
-    Command(){};
-    virtual ~Command(){};
+    Command() {};
+    virtual ~Command() {};
 
     void execute(AbstractServer* server) {
         try {
@@ -141,6 +141,7 @@ private:
     jmethodID watcherReportErrorMethod;
 
     JavaVM* jvm;
+    jclass nativeExceptionClass;
 };
 
 class RegisterPathCommand : public Command {
