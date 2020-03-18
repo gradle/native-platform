@@ -4,11 +4,12 @@
 #include <codecvt>
 #include <locale>
 #include <string>
+#include <sys/ioctl.h>
 #include <unistd.h>
 
 #include "linux_fsnotifier.h"
 
-#define EVENT_BUFFER_SIZE 16 * 1024
+#define EVENT_BUFFER_SIZE (16 * 1024)
 
 #define EVENT_MASK (IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_EXCL_UNLINK | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO | IN_ONLYDIR)
 
@@ -19,11 +20,15 @@ WatchPoint::WatchPoint(const u16string& path, shared_ptr<Inotify> inotify, int w
     , path(path) {
 }
 
-void WatchPoint::cancel() {
+bool WatchPoint::cancel() {
+    if (status == CANCELLED || status == FINISHED) {
+        return false;
+    }
     status = CANCELLED;
     if (inotify_rm_watch(inotify->fd, watchDescriptor) != 0) {
         throw FileWatcherException("Couldn't stop watching", path, errno);
     }
+    return true;
 }
 
 Inotify::Inotify()
@@ -63,6 +68,7 @@ void Event::consume() const {
 Server::Server(JNIEnv* env, jobject watcherCallback)
     : AbstractServer(env, watcherCallback)
     , inotify(new Inotify()) {
+    buffer.reserve(EVENT_BUFFER_SIZE);
     startThread();
 }
 
@@ -93,8 +99,13 @@ void Server::runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) {
         auto& watchPoint = it.second;
         switch (watchPoint.status) {
             case LISTENING:
-                watchPoint.cancel();
-                pendingWatchPoints++;
+                try {
+                    if (watchPoint.cancel()) {
+                        pendingWatchPoints++;
+                    }
+                } catch (const exception& ex) {
+                    reportError(env, ex);
+                }
                 break;
             case CANCELLED:
                 pendingWatchPoints++;
@@ -152,34 +163,41 @@ void Server::processQueues(int timeout) {
 }
 
 void Server::handleEvents() {
-    char buffer[EVENT_BUFFER_SIZE]
-        __attribute__((aligned(__alignof__(struct inotify_event))));
+    unsigned int available;
+    ioctl(inotify->fd, FIONREAD, &available);
 
-    ssize_t bytesRead = read(inotify->fd, buffer, EVENT_BUFFER_SIZE);
+    while (available > 0) {
+        ssize_t bytesRead = read(inotify->fd, &buffer[0], buffer.capacity());
 
-    switch (bytesRead) {
-        case -1:
-            if (errno == EAGAIN) {
-                // For a non-blocking read, we receive EAGAIN here if there is nothing to read.
-                // This may happen when the inotify is already closed.
-                return;
-            } else {
-                throw FileWatcherException("Couldn't read from inotify", errno);
-            }
-            break;
-        case 0:
-            throw FileWatcherException("EOF reading from inotify", errno);
-            break;
-        default:
-            // Handle events
-            JNIEnv* env = getThreadEnv();
-            int index = 0;
-            while (index < bytesRead) {
-                const struct inotify_event* event = (struct inotify_event*) &buffer[index];
-                handleEvent(env, event);
-                index += sizeof(struct inotify_event) + event->len;
-            }
-            break;
+        switch (bytesRead) {
+            case -1:
+                if (errno == EAGAIN) {
+                    // For a non-blocking read, we receive EAGAIN here if there is nothing to read.
+                    // This may happen when the inotify is already closed.
+                    return;
+                } else {
+                    throw FileWatcherException("Couldn't read from inotify", errno);
+                }
+                break;
+            case 0:
+                throw FileWatcherException("EOF reading from inotify", errno);
+                break;
+            default:
+                // Handle events
+                JNIEnv* env = getThreadEnv();
+                log_fine(env, "Processing %d bytes worth of events", bytesRead);
+                int index = 0;
+                int count = 0;
+                while (index < bytesRead) {
+                    const struct inotify_event* event = (struct inotify_event*) &buffer[index];
+                    handleEvent(env, event);
+                    index += sizeof(struct inotify_event) + event->len;
+                    count++;
+                }
+                log_fine(env, "Processed %d events", count);
+                break;
+        }
+        available -= bytesRead;
     }
 }
 
@@ -285,8 +303,9 @@ void Server::unregisterPath(const u16string& path) {
         return;
     }
     auto& watchPoint = it->second;
-    watchPoint.cancel();
-    processQueues(CLOSE_TIMEOUT_IN_MS);
+    if (watchPoint.cancel()) {
+        processQueues(CLOSE_TIMEOUT_IN_MS);
+    }
     if (watchPoint.status != FINISHED) {
         throw FileWatcherException("Could not cancel watch point %s", path);
     } else {
