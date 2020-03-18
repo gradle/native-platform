@@ -59,8 +59,8 @@ class AbstractServer;
 
 class Command {
 public:
-    Command(){};
-    virtual ~Command(){};
+    Command() {};
+    virtual ~Command() {};
 
     void execute(AbstractServer* server) {
         try {
@@ -179,10 +179,13 @@ public:
 };
 
 struct JniConstants {
-    static void init(JNIEnv* env);
+    JniConstants(JNIEnv* env);
+    void unload(JNIEnv* env);
 
-    static jclass nativeExceptionClass;
+    const jclass nativeExceptionClass;
 };
+
+static JniConstants* jniConstants;
 
 string javaToUtf8String(JNIEnv* env, jstring javaString);
 
