@@ -1,4 +1,3 @@
-#include <assert.h>
 #include <codecvt>
 #include <locale>
 #include <sstream>
@@ -175,20 +174,14 @@ void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) 
         env->ExceptionClear();
 
         jclass exceptionClass = env->GetObjectClass(exception);
-        assert(exceptionClass != nullptr);
         jmethodID getMessage = env->GetMethodID(exceptionClass, "getMessage", "()Ljava/lang/String;");
-        assert(getMessage != nullptr);
         jstring javaMessage = (jstring) env->CallObjectMethod(exception, getMessage);
-        assert(javaMessage != nullptr);
         string message = javaToUtf8String(env, javaMessage);
         env->DeleteLocalRef(javaMessage);
 
         jclass classClass = env->FindClass("java/lang/Class");
-        assert(classClass != nullptr);
         jmethodID getClassName = env->GetMethodID(classClass, "getName", "()Ljava/lang/String;");
-        assert(getClassName != nullptr);
         jstring javaExceptionType = (jstring) env->CallObjectMethod(exceptionClass, getClassName);
-        assert(javaExceptionType != nullptr);
         string exceptionType = javaToUtf8String(env, javaExceptionType);
         env->DeleteLocalRef(javaExceptionType);
 
@@ -202,12 +195,10 @@ void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) 
 
 void AbstractServer::reportError(JNIEnv* env, const exception& exception) {
     jclass exceptionClass = env->FindClass("net/rubygrapefruit/platform/NativeException");
-    assert(exceptionClass != nullptr);
     u16string message = utf8ToUtf16String(exception.what());
     jstring javaMessage = env->NewString((jchar*) message.c_str(), (jsize) message.length());
     jmethodID constructor = env->GetMethodID(exceptionClass, "<init>", "(Ljava/lang/String;)V");
     jobject javaException = env->NewObject(exceptionClass, constructor, javaMessage);
-    assert(javaException != nullptr);
     env->CallVoidMethod(watcherCallback, watcherReportErrorMethod, javaException);
     env->DeleteLocalRef(exceptionClass);
     env->DeleteLocalRef(javaMessage);
@@ -263,9 +254,10 @@ AbstractServer* getServer(JNIEnv* env, jobject javaServer) {
 jobject rethrowAsJavaException(JNIEnv* env, const exception& e) {
     log_severe(env, "Caught exception: %s", e.what());
     jclass exceptionClass = env->FindClass("net/rubygrapefruit/platform/NativeException");
-    assert(exceptionClass != NULL);
     jint ret = env->ThrowNew(exceptionClass, e.what());
-    assert(ret == 0);
+    if (ret != 0) {
+        fprintf(stderr, "JNI ThrowNew returned %d when rethrowing native exception: %s\n", ret, e.what());
+    }
     env->DeleteLocalRef(exceptionClass);
     return NULL;
 }
@@ -279,9 +271,7 @@ jobject wrapServer(JNIEnv* env, function<void*()> serverStarter) {
     }
 
     jclass clsWatcher = env->FindClass("net/rubygrapefruit/platform/internal/jni/AbstractFileEventFunctions$NativeFileWatcher");
-    assert(clsWatcher != NULL);
     jmethodID constructor = env->GetMethodID(clsWatcher, "<init>", "(Ljava/lang/Object;)V");
-    assert(constructor != NULL);
     return env->NewObject(clsWatcher, constructor, env->NewDirectByteBuffer(server, sizeof(server)));
 }
 

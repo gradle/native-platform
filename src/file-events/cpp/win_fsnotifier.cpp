@@ -1,7 +1,5 @@
 #ifdef _WIN32
 
-#include <assert.h>
-
 #include "win_fsnotifier.h"
 
 using namespace std;

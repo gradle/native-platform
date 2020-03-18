@@ -1,6 +1,5 @@
 #ifdef __linux__
 
-#include <assert.h>
 #include <codecvt>
 #include <locale>
 #include <string>
