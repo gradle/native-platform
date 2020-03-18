@@ -57,7 +57,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         expectedChanges.await()
     }
 
-    @Timeout(value = 120, unit = SECONDS)
+    @Timeout(value = 180, unit = SECONDS)
     def "can start and stop watching directory while changes are being made to its contents"() {
         given:
         def numberOfParallelWritersPerWatchedDirectory = 10
