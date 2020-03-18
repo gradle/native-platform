@@ -1,4 +1,3 @@
-#include <assert.h>
 #include <codecvt>
 #include <locale>
 #include <sstream>
