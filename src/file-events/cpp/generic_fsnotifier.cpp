@@ -186,13 +186,11 @@ void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) 
         string message = javaToUtf8String(env, javaMessage);
         env->DeleteLocalRef(javaMessage);
 
-        jclass classClass = env->FindClass("java/lang/Class");
-        jmethodID getClassName = env->GetMethodID(classClass, "getName", "()Ljava/lang/String;");
+        jmethodID getClassName = env->GetMethodID(jniConstants->classClass, "getName", "()Ljava/lang/String;");
         jstring javaExceptionType = (jstring) env->CallObjectMethod(exceptionClass, getClassName);
         string exceptionType = javaToUtf8String(env, javaExceptionType);
         env->DeleteLocalRef(javaExceptionType);
 
-        env->DeleteLocalRef(classClass);
         env->DeleteLocalRef(exceptionClass);
         env->DeleteLocalRef(exception);
 
@@ -273,9 +271,8 @@ jobject wrapServer(JNIEnv* env, function<void*()> serverStarter) {
         return rethrowAsJavaException(env, e);
     }
 
-    jclass clsWatcher = env->FindClass("net/rubygrapefruit/platform/internal/jni/AbstractFileEventFunctions$NativeFileWatcher");
-    jmethodID constructor = env->GetMethodID(clsWatcher, "<init>", "(Ljava/lang/Object;)V");
-    return env->NewObject(clsWatcher, constructor, env->NewDirectByteBuffer(server, sizeof(server)));
+    jmethodID constructor = env->GetMethodID(jniConstants->nativeFileWatcherClass, "<init>", "(Ljava/lang/Object;)V");
+    return env->NewObject(jniConstants->nativeFileWatcherClass, constructor, env->NewDirectByteBuffer(server, sizeof(server)));
 }
 
 JNIEXPORT void JNICALL
@@ -318,11 +315,15 @@ static jclass findClass(JNIEnv* env, const char* className) {
 }
 
 JniConstants::JniConstants(JNIEnv* env)
-    : nativeExceptionClass(findClass(env, "net/rubygrapefruit/platform/NativeException")) {
+    : nativeExceptionClass(findClass(env, "net/rubygrapefruit/platform/NativeException"))
+    , classClass(findClass(env, "java/lang/Class"))
+    , nativeFileWatcherClass(findClass(env, "net/rubygrapefruit/platform/internal/jni/AbstractFileEventFunctions$NativeFileWatcher")) {
 }
 
 void JniConstants::unload(JNIEnv* env) {
     env->DeleteGlobalRef(nativeExceptionClass);
+    env->DeleteGlobalRef(classClass);
+    env->DeleteGlobalRef(nativeFileWatcherClass);
 }
 
 JNIEXPORT jint JNICALL

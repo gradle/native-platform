@@ -183,6 +183,8 @@ struct JniConstants {
     void unload(JNIEnv* env);
 
     const jclass nativeExceptionClass;
+    const jclass classClass;
+    const jclass nativeFileWatcherClass;
 };
 
 static JniConstants* jniConstants;
