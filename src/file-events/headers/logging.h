@@ -25,7 +25,7 @@ public:
 
 private:
     int minimumLogLevel;
-    const jclass clsLogger;
+    const JClass clsLogger;
     const jmethodID logMethod;
 };
 

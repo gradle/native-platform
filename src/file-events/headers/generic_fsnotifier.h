@@ -135,7 +135,7 @@ private:
     mutex mtxCommands;
     deque<shared_ptr<Command>> commands;
 
-    jobject watcherCallback;
+    JniGlobalRef<jobject> watcherCallback;
     jmethodID watcherCallbackMethod;
     jmethodID watcherReportErrorMethod;
 };
@@ -178,11 +178,10 @@ public:
 class JniConstants : public JniSupport {
 public:
     JniConstants(JavaVM* jvm);
-    ~JniConstants();
 
-    const jclass nativeExceptionClass;
-    const jclass classClass;
-    const jclass nativeFileWatcherClass;
+    const JClass nativeExceptionClass;
+    const JClass classClass;
+    const JClass nativeFileWatcherClass;
 };
 
 extern JniConstants* jniConstants;

@@ -50,23 +50,14 @@ FileWatcherException::FileWatcherException(const string& message)
 }
 
 AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback)
-    : JniSupport(env) {
+    : JniSupport(env)
+    , watcherCallback(env, watcherCallback) {
     jclass callbackClass = env->GetObjectClass(watcherCallback);
     this->watcherCallbackMethod = env->GetMethodID(callbackClass, "pathChanged", "(ILjava/lang/String;)V");
     this->watcherReportErrorMethod = env->GetMethodID(callbackClass, "reportError", "(Ljava/lang/Throwable;)V");
-
-    jobject globalWatcherCallback = env->NewGlobalRef(watcherCallback);
-    if (globalWatcherCallback == NULL) {
-        throw FileWatcherException("Could not get global ref for watcher callback");
-    }
-    this->watcherCallback = globalWatcherCallback;
 }
 
 AbstractServer::~AbstractServer() {
-    JNIEnv* env = getThreadEnv();
-    if (env != NULL) {
-        env->DeleteGlobalRef(watcherCallback);
-    }
 }
 
 void AbstractServer::startThread() {
@@ -119,7 +110,7 @@ void AbstractServer::processCommands() {
 
 void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) {
     jstring javaPath = env->NewString((jchar*) path.c_str(), (jsize) path.length());
-    env->CallVoidMethod(watcherCallback, watcherCallbackMethod, type, javaPath);
+    env->CallVoidMethod(watcherCallback.get(), watcherCallbackMethod, type, javaPath);
     env->DeleteLocalRef(javaPath);
 
     jthrowable exception = env->ExceptionOccurred();
@@ -133,7 +124,7 @@ void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) 
         string message = javaToUtf8String(env, javaMessage);
         env->DeleteLocalRef(javaMessage);
 
-        jmethodID getClassName = env->GetMethodID(jniConstants->classClass, "getName", "()Ljava/lang/String;");
+        jmethodID getClassName = env->GetMethodID(jniConstants->classClass.get(), "getName", "()Ljava/lang/String;");
         jstring javaExceptionType = (jstring) env->CallObjectMethod(exceptionClass, getClassName);
         string exceptionType = javaToUtf8String(env, javaExceptionType);
         env->DeleteLocalRef(javaExceptionType);
@@ -148,9 +139,9 @@ void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) 
 void AbstractServer::reportError(JNIEnv* env, const exception& exception) {
     u16string message = utf8ToUtf16String(exception.what());
     jstring javaMessage = env->NewString((jchar*) message.c_str(), (jsize) message.length());
-    jmethodID constructor = env->GetMethodID(jniConstants->nativeExceptionClass, "<init>", "(Ljava/lang/String;)V");
-    jobject javaException = env->NewObject(jniConstants->nativeExceptionClass, constructor, javaMessage);
-    env->CallVoidMethod(watcherCallback, watcherReportErrorMethod, javaException);
+    jmethodID constructor = env->GetMethodID(jniConstants->nativeExceptionClass.get(), "<init>", "(Ljava/lang/String;)V");
+    jobject javaException = env->NewObject(jniConstants->nativeExceptionClass.get(), constructor, javaMessage);
+    env->CallVoidMethod(watcherCallback.get(), watcherReportErrorMethod, javaException);
     env->DeleteLocalRef(javaMessage);
     env->DeleteLocalRef(javaException);
 }
@@ -203,7 +194,7 @@ AbstractServer* getServer(JNIEnv* env, jobject javaServer) {
 
 jobject rethrowAsJavaException(JNIEnv* env, const exception& e) {
     log(SEVERE, "Caught exception: %s", e.what());
-    jint ret = env->ThrowNew(jniConstants->nativeExceptionClass, e.what());
+    jint ret = env->ThrowNew(jniConstants->nativeExceptionClass.get(), e.what());
     if (ret != 0) {
         fprintf(stderr, "JNI ThrowNew returned %d when rethrowing native exception: %s\n", ret, e.what());
     }
@@ -218,8 +209,8 @@ jobject wrapServer(JNIEnv* env, function<void*()> serverStarter) {
         return rethrowAsJavaException(env, e);
     }
 
-    jmethodID constructor = env->GetMethodID(jniConstants->nativeFileWatcherClass, "<init>", "(Ljava/lang/Object;)V");
-    return env->NewObject(jniConstants->nativeFileWatcherClass, constructor, env->NewDirectByteBuffer(server, sizeof(server)));
+    jmethodID constructor = env->GetMethodID(jniConstants->nativeFileWatcherClass.get(), "<init>", "(Ljava/lang/Object;)V");
+    return env->NewObject(jniConstants->nativeFileWatcherClass.get(), constructor, env->NewDirectByteBuffer(server, sizeof(server)));
 }
 
 JNIEXPORT void JNICALL
@@ -256,16 +247,9 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
 
 JniConstants::JniConstants(JavaVM* jvm)
     : JniSupport(jvm)
-    , nativeExceptionClass(findClass("net/rubygrapefruit/platform/NativeException"))
-    , classClass(findClass("java/lang/Class"))
-    , nativeFileWatcherClass(findClass("net/rubygrapefruit/platform/internal/jni/AbstractFileEventFunctions$NativeFileWatcher")) {
-}
-
-JniConstants::~JniConstants() {
-    JNIEnv* env = getThreadEnv();
-    env->DeleteGlobalRef(nativeExceptionClass);
-    env->DeleteGlobalRef(classClass);
-    env->DeleteGlobalRef(nativeFileWatcherClass);
+    , nativeExceptionClass(getThreadEnv(), "net/rubygrapefruit/platform/NativeException")
+    , classClass(getThreadEnv(), "java/lang/Class")
+    , nativeFileWatcherClass(getThreadEnv(), "net/rubygrapefruit/platform/internal/jni/AbstractFileEventFunctions$NativeFileWatcher") {
 }
 
 JNIEXPORT jint JNICALL

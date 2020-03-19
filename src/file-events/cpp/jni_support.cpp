@@ -1,4 +1,3 @@
-#include <exception>
 #include <string>
 
 #include "jni_support.h"
@@ -20,14 +19,6 @@ JniSupport::JniSupport(JavaVM* jvm)
 
 JniSupport::JniSupport(JNIEnv* env)
     : jvm(getJavaVm(env)) {
-}
-
-jclass JniSupport::findClass(const char* className) {
-    JNIEnv* env = getThreadEnv();
-    jclass localRef = env->FindClass(className);
-    jclass globalRef = reinterpret_cast<jclass>(env->NewGlobalRef(localRef));
-    env->DeleteLocalRef(localRef);
-    return globalRef;
 }
 
 JNIEnv* JniSupport::getThreadEnv() {
