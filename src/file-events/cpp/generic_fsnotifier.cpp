@@ -5,7 +5,7 @@
 
 #include "generic_fsnotifier.h"
 
-static JniConstants* jniConstants;
+JniConstants* jniConstants;
 
 class JNIThread {
 public:
