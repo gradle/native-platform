@@ -1,17 +1,20 @@
 #include "logging.h"
 
-int minimumLogLevel;
-jclass clsLogger;
-jmethodID logMethod;
+Logging* logging;
 
 JNIEXPORT void JNICALL Java_net_rubygrapefruit_platform_internal_jni_NativeLogger_initLogging(JNIEnv* env, jclass, jint level) {
-    minimumLogLevel = (int) level;
-    clsLogger = env->FindClass("net/rubygrapefruit/platform/internal/jni/NativeLogger");
-    logMethod = env->GetStaticMethodID(clsLogger, "log", "(ILjava/lang/String;)V");
+    logging = new Logging(env, (int) level);
+}
+
+Logging::Logging(JNIEnv* env, int level)
+    : JniSupport(env)
+    , minimumLogLevel(level)
+    , clsLogger(findClass("net/rubygrapefruit/platform/internal/jni/NativeLogger"))
+    , logMethod(env->GetStaticMethodID(clsLogger, "log", "(ILjava/lang/String;)V")) {
     printlog(env, LOG_CONFIG, "Initialized logging to level %d\n", level);
 }
 
-void printlog(JNIEnv* env, int level, const char* fmt, ...) {
+void Logging::printlog(JNIEnv* env, int level, const char* fmt, ...) {
     if (minimumLogLevel > level) {
         return;
     }
