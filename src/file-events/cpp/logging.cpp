@@ -13,6 +13,10 @@ Logging::Logging(JNIEnv* env, int level)
     , logMethod(env->GetStaticMethodID(clsLogger, "log", "(ILjava/lang/String;)V")) {
     printlog(LOG_CONFIG, "Initialized logging to level %d\n", level);
 }
+Logging::~Logging() {
+    JNIEnv* env = getThreadEnv();
+    env->DeleteGlobalRef(clsLogger);
+}
 
 void Logging::printlog(int level, const char* fmt, ...) {
     if (minimumLogLevel > level) {

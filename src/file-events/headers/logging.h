@@ -16,6 +16,7 @@
 class Logging : public JniSupport {
 public:
     Logging(JNIEnv* env, int level);
+    ~Logging();
 
     void printlog(int level, const char* message, ...);
 
