@@ -5,6 +5,8 @@
 
 #include "generic_fsnotifier.h"
 
+static JniConstants* jniConstants;
+
 class JNIThread {
 public:
     JNIThread(JavaVM* jvm, const char* name, bool daemon) {

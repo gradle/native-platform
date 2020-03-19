@@ -187,8 +187,6 @@ struct JniConstants {
     const jclass nativeFileWatcherClass;
 };
 
-static JniConstants* jniConstants;
-
 string javaToUtf8String(JNIEnv* env, jstring javaString);
 
 u16string javaToUtf16String(JNIEnv* env, jstring javaString);
