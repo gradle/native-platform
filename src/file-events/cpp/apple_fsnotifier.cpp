@@ -156,7 +156,7 @@ void Server::handleEvents(
 }
 
 void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags) {
-    log_fine("Event flags: 0x%x for %s", flags, path);
+    log(FINE, "Event flags: 0x%x for %s", flags, path);
 
     jint type;
     if (IS_SET(flags, kFSEventStreamEventFlagHistoryDone)) {
@@ -186,11 +186,11 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
     } else if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
         type = FILE_EVENT_CREATED;
     } else {
-        log_warning("Unknown event 0x%x for %s", flags, path);
+        log(WARNING, "Unknown event 0x%x for %s", flags, path);
         type = FILE_EVENT_UNKNOWN;
     }
 
-    log_fine("Changed: %s %d", path, type);
+    log(FINE, "Changed: %s %d", path, type);
     u16string pathStr = utf8ToUtf16String(path);
     reportChange(env, type, pathStr);
 }
@@ -206,7 +206,7 @@ void Server::registerPath(const u16string& path) {
 
 void Server::unregisterPath(const u16string& path) {
     if (watchPoints.erase(path) == 0) {
-        log_fine("Path is not watched: %s", utf16ToUtf8String(path).c_str());
+        log(FINE, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
     }
 }
 

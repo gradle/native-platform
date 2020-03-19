@@ -11,18 +11,18 @@ Logging::Logging(JNIEnv* env, int level)
     , minimumLogLevel(level)
     , clsLogger(findClass("net/rubygrapefruit/platform/internal/jni/NativeLogger"))
     , logMethod(env->GetStaticMethodID(clsLogger, "log", "(ILjava/lang/String;)V")) {
-    printlog(LOG_CONFIG, "Initialized logging to level %d\n", level);
+    send(LogLevel::CONFIG, "Initialized logging to level %d\n", level);
 }
 Logging::~Logging() {
     JNIEnv* env = getThreadEnv();
     env->DeleteGlobalRef(clsLogger);
 }
 
-void Logging::printlog(int level, const char* fmt, ...) {
-    if (minimumLogLevel > level) {
-        return;
-    }
+inline bool Logging::enabled(LogLevel level) {
+    return minimumLogLevel <= level;
+}
 
+void Logging::send(LogLevel level, const char* fmt, ...) {
     char buffer[1024];
     va_list args;
     va_start(args, fmt);
