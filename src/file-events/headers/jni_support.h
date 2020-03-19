@@ -1,6 +1,7 @@
 #pragma once
 
 #include <jni.h>
+#include <stdexcept>
 
 /**
  * Support for using JNI in a multi-threaded environment.
