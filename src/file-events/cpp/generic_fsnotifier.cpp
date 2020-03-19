@@ -7,36 +7,6 @@
 
 JniConstants* jniConstants;
 
-class JNIThread {
-public:
-    JNIThread(JavaVM* jvm, const char* name, bool daemon) {
-        this->jvm = jvm;
-
-        JNIEnv* env;
-        JavaVMAttachArgs args = {
-            JNI_VERSION_1_6,            // version
-            const_cast<char*>(name),    // thread name
-            NULL                        // thread group
-        };
-        jint ret = daemon
-            ? jvm->AttachCurrentThreadAsDaemon((void**) &env, (void*) &args)
-            : jvm->AttachCurrentThread((void**) &env, (void*) &args);
-        if (ret != JNI_OK) {
-            fprintf(stderr, "Failed to attach JNI to current thread: %d\n", ret);
-            throw FileWatcherException("Failed to attach JNI to current thread", ret);
-        }
-    }
-    ~JNIThread() {
-        jint ret = jvm->DetachCurrentThread();
-        if (ret != JNI_OK) {
-            fprintf(stderr, "Failed to detach JNI from current thread: %d\n", ret);
-        }
-    }
-
-private:
-    JavaVM* jvm;
-};
-
 inline string createMessage(const string& message, const u16string& path) {
     stringstream ss;
     ss << message;
@@ -79,14 +49,8 @@ FileWatcherException::FileWatcherException(const string& message)
     : runtime_error(message) {
 }
 
-AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback) {
-    JavaVM* jvm;
-    int jvmStatus = env->GetJavaVM(&jvm);
-    if (jvmStatus < 0) {
-        throw FileWatcherException("Could not store jvm instance", jvmStatus);
-    }
-    this->jvm = jvm;
-
+AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback)
+    : JniSupport(env) {
     jclass callbackClass = env->GetObjectClass(watcherCallback);
     this->watcherCallbackMethod = env->GetMethodID(callbackClass, "pathChanged", "(ILjava/lang/String;)V");
     this->watcherReportErrorMethod = env->GetMethodID(callbackClass, "reportError", "(Ljava/lang/Throwable;)V");
@@ -118,7 +82,7 @@ void AbstractServer::startThread() {
 }
 
 void AbstractServer::run() {
-    JNIThread jniThread(jvm, "File watcher server", true);
+    JniThreadAttacher jniThread(jvm, "File watcher server", true);
     JNIEnv* env = getThreadEnv();
 
     log_fine(env, "Starting thread", NULL);
@@ -153,23 +117,6 @@ void AbstractServer::processCommands() {
         command->execute(this);
     }
     commands.clear();
-}
-
-static jint lookupEnv(JavaVM* jvm, JNIEnv** env) {
-    jint ret = jvm->GetEnv((void**) env, JNI_VERSION_1_6);
-    if (ret != JNI_OK) {
-        fprintf(stderr, "Failed to get JNI env for current thread: %d\n", ret);
-    }
-    return ret;
-}
-
-JNIEnv* AbstractServer::getThreadEnv() {
-    JNIEnv* env;
-    jint ret = lookupEnv(jvm, &env);
-    if (ret != JNI_OK) {
-        throw FileWatcherException("Failed to get JNI env for current thread", ret);
-    }
-    return env;
 }
 
 void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) {
@@ -309,20 +256,23 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
     }
 }
 
-static jclass findClass(JNIEnv* env, const char* className) {
+jclass JniConstants::findClass(const char* className) {
+    JNIEnv* env = getThreadEnv();
     jclass localRef = env->FindClass(className);
     jclass globalRef = reinterpret_cast<jclass>(env->NewGlobalRef(localRef));
     env->DeleteLocalRef(localRef);
     return globalRef;
 }
 
-JniConstants::JniConstants(JNIEnv* env)
-    : nativeExceptionClass(findClass(env, "net/rubygrapefruit/platform/NativeException"))
-    , classClass(findClass(env, "java/lang/Class"))
-    , nativeFileWatcherClass(findClass(env, "net/rubygrapefruit/platform/internal/jni/AbstractFileEventFunctions$NativeFileWatcher")) {
+JniConstants::JniConstants(JavaVM* jvm)
+    : JniSupport(jvm)
+    , nativeExceptionClass(findClass("net/rubygrapefruit/platform/NativeException"))
+    , classClass(findClass("java/lang/Class"))
+    , nativeFileWatcherClass(findClass("net/rubygrapefruit/platform/internal/jni/AbstractFileEventFunctions$NativeFileWatcher")) {
 }
 
-void JniConstants::unload(JNIEnv* env) {
+JniConstants::~JniConstants() {
+    JNIEnv* env = getThreadEnv();
     env->DeleteGlobalRef(nativeExceptionClass);
     env->DeleteGlobalRef(classClass);
     env->DeleteGlobalRef(nativeFileWatcherClass);
@@ -330,20 +280,11 @@ void JniConstants::unload(JNIEnv* env) {
 
 JNIEXPORT jint JNICALL
 JNI_OnLoad(JavaVM* jvm, void*) {
-    JNIEnv* env;
-    if (lookupEnv(jvm, &env) != JNI_OK) {
-        return -1;
-    }
-    jniConstants = new JniConstants(env);
+    jniConstants = new JniConstants(jvm);
     return JNI_VERSION_1_6;
 }
 
 JNIEXPORT void JNICALL
-JNI_OnUnload(JavaVM* jvm, void*) {
-    JNIEnv* env;
-    if (lookupEnv(jvm, &env) != JNI_OK) {
-        return;
-    }
-    jniConstants->unload(env);
+JNI_OnUnload(JavaVM*, void*) {
     delete jniConstants;
 }

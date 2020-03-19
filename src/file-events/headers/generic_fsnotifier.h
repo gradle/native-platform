@@ -10,6 +10,7 @@
 #include <string>
 #include <thread>
 
+#include "jni_support.h"
 #include "logging.h"
 #include "net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_NativeFileWatcher.h"
 
@@ -59,8 +60,8 @@ class AbstractServer;
 
 class Command {
 public:
-    Command() {};
-    virtual ~Command() {};
+    Command(){};
+    virtual ~Command(){};
 
     void execute(AbstractServer* server) {
         try {
@@ -77,7 +78,7 @@ public:
     exception_ptr failure;
 };
 
-class AbstractServer {
+class AbstractServer : public JniSupport {
 public:
     AbstractServer(JNIEnv* env, jobject watcherCallback);
     virtual ~AbstractServer();
@@ -114,8 +115,6 @@ public:
      */
     virtual void terminate() = 0;
 
-    JNIEnv* getThreadEnv();
-
 protected:
     void reportChange(JNIEnv* env, int type, const u16string& path);
     void reportError(JNIEnv* env, const exception& ex);
@@ -139,8 +138,6 @@ private:
     jobject watcherCallback;
     jmethodID watcherCallbackMethod;
     jmethodID watcherReportErrorMethod;
-
-    JavaVM* jvm;
 };
 
 class RegisterPathCommand : public Command {
@@ -178,13 +175,17 @@ public:
     }
 };
 
-struct JniConstants {
-    JniConstants(JNIEnv* env);
-    void unload(JNIEnv* env);
+class JniConstants : public JniSupport {
+public:
+    JniConstants(JavaVM* jvm);
+    ~JniConstants();
 
     const jclass nativeExceptionClass;
     const jclass classClass;
     const jclass nativeFileWatcherClass;
+
+private:
+    const jclass findClass(const char* className);
 };
 
 extern JniConstants* jniConstants;
