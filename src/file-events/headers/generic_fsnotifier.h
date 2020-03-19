@@ -59,8 +59,8 @@ class AbstractServer;
 
 class Command {
 public:
-    Command(){};
-    virtual ~Command(){};
+    Command() {};
+    virtual ~Command() {};
 
     void execute(AbstractServer* server) {
         try {
@@ -177,6 +177,17 @@ public:
         server->terminate();
     }
 };
+
+struct JniConstants {
+    JniConstants(JNIEnv* env);
+    void unload(JNIEnv* env);
+
+    const jclass nativeExceptionClass;
+    const jclass classClass;
+    const jclass nativeFileWatcherClass;
+};
+
+extern JniConstants* jniConstants;
 
 string javaToUtf8String(JNIEnv* env, jstring javaString);
 
