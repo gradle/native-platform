@@ -18,7 +18,7 @@ Logging::~Logging() {
     env->DeleteGlobalRef(clsLogger);
 }
 
-inline bool Logging::enabled(LogLevel level) {
+bool Logging::enabled(LogLevel level) {
     return minimumLogLevel <= level;
 }
 
