@@ -1,9 +1,12 @@
 #pragma once
 
+#include <chrono>
 #include <jni.h>
 
 #include "jni_support.h"
 #include "net_rubygrapefruit_platform_internal_jni_NativeLogger.h"
+
+#define LOG_LEVEL_CHECK_INTERVAL_IN_MS 1000
 
 enum LogLevel : int {
     FINEST = 0,
@@ -27,6 +30,8 @@ private:
     int minimumLogLevel;
     const JClass clsLogger;
     const jmethodID logMethod;
+    const jmethodID getLevelMethod;
+    chrono::time_point<chrono::steady_clock> lastLevelCheck;
 };
 
 extern Logging* logging;

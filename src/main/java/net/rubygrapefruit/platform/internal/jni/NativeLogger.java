@@ -63,4 +63,16 @@ public class NativeLogger {
     public static void log(int level, String message) {
         LOGGER.log(LogLevel.values()[level].getLevel(), message);
     }
+
+    // Used from native
+    @SuppressWarnings("unused")
+    public static int getLogLevel() {
+        Level level = LOGGER.getLevel();
+        for (LogLevel logLevel : LogLevel.values()) {
+            if (logLevel.getLevel().equals(level)) {
+                return logLevel.ordinal();
+            }
+        }
+        throw new AssertionError();
+    }
 }
