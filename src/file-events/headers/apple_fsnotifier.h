@@ -45,7 +45,7 @@ public:
         const FSEventStreamEventFlags eventFlags[]);
 
 protected:
-    void runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) override;
+    void runLoop(function<void(exception_ptr)> notifyStarted) override;
     void processCommandsOnThread() override;
 
 private:

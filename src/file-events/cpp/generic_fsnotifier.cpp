@@ -83,22 +83,20 @@ void AbstractServer::startThread() {
 
 void AbstractServer::run() {
     JniThreadAttacher jniThread(jvm, "File watcher server", true);
-    JNIEnv* env = getThreadEnv();
-
-    log_fine(env, "Starting thread", NULL);
+    log_fine("Starting thread", NULL);
 
     try {
-        runLoop(env, [this](exception_ptr initException) {
+        runLoop([this](exception_ptr initException) {
             unique_lock<mutex> lock(watcherThreadMutex);
             this->initException = initException;
             watcherThreadStarted.notify_all();
-            log_fine(getThreadEnv(), "Started thread", NULL);
+            log_fine("Started thread", NULL);
         });
     } catch (const exception& ex) {
-        reportError(env, ex);
+        reportError(getThreadEnv(), ex);
     }
 
-    log_fine(env, "Stopping thread", NULL);
+    log_fine("Stopping thread", NULL);
 }
 
 void AbstractServer::executeOnThread(shared_ptr<Command> command) {
@@ -204,7 +202,7 @@ AbstractServer* getServer(JNIEnv* env, jobject javaServer) {
 }
 
 jobject rethrowAsJavaException(JNIEnv* env, const exception& e) {
-    log_severe(env, "Caught exception: %s", e.what());
+    log_severe("Caught exception: %s", e.what());
     jint ret = env->ThrowNew(jniConstants->nativeExceptionClass, e.what());
     if (ret != 0) {
         fprintf(stderr, "JNI ThrowNew returned %d when rethrowing native exception: %s\n", ret, e.what());

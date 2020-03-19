@@ -17,7 +17,7 @@ class Logging : public JniSupport {
 public:
     Logging(JNIEnv* env, int level);
 
-    void printlog(JNIEnv* env, int level, const char* message, ...);
+    void printlog(int level, const char* message, ...);
 
 private:
     int minimumLogLevel;
@@ -27,10 +27,10 @@ private:
 
 extern Logging* logging;
 
-#define log_finest(env, message, ...) (logging->printlog(env, LOG_FINEST, message, __VA_ARGS__))
-#define log_finer(env, message, ...) (logging->printlog(env, LOG_FINER, message, __VA_ARGS__)
-#define log_fine(env, message, ...) (logging->printlog(env, LOG_FINE, message, __VA_ARGS__))
-#define log_config(env, message, ...) (logging->printlog(env, LOG_CONFIG, message, __VA_ARGS__))
-#define log_info(env, message, ...) (logging->printlog(env, LOG_INFO, message, __VA_ARGS__))
-#define log_warning(env, message, ...) (logging->printlog(env, LOG_WARNING, message, __VA_ARGS__))
-#define log_severe(env, message, ...) (logging->printlog(env, LOG_SEVERE, message, __VA_ARGS__))
+#define log_finest(message, ...) (logging->printlog(LOG_FINEST, message, __VA_ARGS__))
+#define log_finer(message, ...) (logging->printlog(LOG_FINER, message, __VA_ARGS__)
+#define log_fine(message, ...) (logging->printlog(LOG_FINE, message, __VA_ARGS__))
+#define log_config(message, ...) (logging->printlog(LOG_CONFIG, message, __VA_ARGS__))
+#define log_info(message, ...) (logging->printlog(LOG_INFO, message, __VA_ARGS__))
+#define log_warning(message, ...) (logging->printlog(LOG_WARNING, message, __VA_ARGS__))
+#define log_severe(message, ...) (logging->printlog(LOG_SEVERE, message, __VA_ARGS__))

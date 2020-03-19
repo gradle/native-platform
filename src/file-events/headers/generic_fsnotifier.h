@@ -120,7 +120,7 @@ protected:
     void reportError(JNIEnv* env, const exception& ex);
 
     void startThread();
-    virtual void runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) = 0;
+    virtual void runLoop(function<void(exception_ptr)> notifyStarted) = 0;
     virtual void processCommandsOnThread() = 0;
 
     thread watcherThread;
