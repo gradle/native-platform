@@ -256,14 +256,6 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
     }
 }
 
-jclass JniConstants::findClass(const char* className) {
-    JNIEnv* env = getThreadEnv();
-    jclass localRef = env->FindClass(className);
-    jclass globalRef = reinterpret_cast<jclass>(env->NewGlobalRef(localRef));
-    env->DeleteLocalRef(localRef);
-    return globalRef;
-}
-
 JniConstants::JniConstants(JavaVM* jvm)
     : JniSupport(jvm)
     , nativeExceptionClass(findClass("net/rubygrapefruit/platform/NativeException"))

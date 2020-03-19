@@ -11,6 +11,7 @@ public:
     JniSupport(JNIEnv* env);
 
 protected:
+    jclass findClass(const char* className);
     JNIEnv* getThreadEnv();
 
 protected:

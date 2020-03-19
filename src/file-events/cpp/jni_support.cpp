@@ -22,6 +22,14 @@ JniSupport::JniSupport(JNIEnv* env)
     : jvm(getJavaVm(env)) {
 }
 
+jclass JniSupport::findClass(const char* className) {
+    JNIEnv* env = getThreadEnv();
+    jclass localRef = env->FindClass(className);
+    jclass globalRef = reinterpret_cast<jclass>(env->NewGlobalRef(localRef));
+    env->DeleteLocalRef(localRef);
+    return globalRef;
+}
+
 JNIEnv* JniSupport::getThreadEnv() {
     JNIEnv* env;
     jint ret = jvm->GetEnv((void**) &env, JNI_VERSION_1_6);

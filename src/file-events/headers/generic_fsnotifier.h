@@ -183,9 +183,6 @@ public:
     const jclass nativeExceptionClass;
     const jclass classClass;
     const jclass nativeFileWatcherClass;
-
-private:
-    const jclass findClass(const char* className);
 };
 
 extern JniConstants* jniConstants;
