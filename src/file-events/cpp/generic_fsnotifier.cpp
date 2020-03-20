@@ -5,8 +5,6 @@
 
 #include "generic_fsnotifier.h"
 
-JniConstants* jniConstants;
-
 inline string createMessage(const string& message, const u16string& path) {
     stringstream ss;
     ss << message;
@@ -250,17 +248,4 @@ JniConstants::JniConstants(JavaVM* jvm)
     , nativeExceptionClass(getThreadEnv(), "net/rubygrapefruit/platform/NativeException")
     , classClass(getThreadEnv(), "java/lang/Class")
     , nativeFileWatcherClass(getThreadEnv(), "net/rubygrapefruit/platform/internal/jni/AbstractFileEventFunctions$NativeFileWatcher") {
-}
-
-JNIEXPORT jint JNICALL
-JNI_OnLoad(JavaVM* jvm, void*) {
-    jniConstants = new JniConstants(jvm);
-    logging = new Logging(jvm);
-    return JNI_VERSION_1_6;
-}
-
-JNIEXPORT void JNICALL
-JNI_OnUnload(JavaVM*, void*) {
-    delete logging;
-    delete jniConstants;
 }

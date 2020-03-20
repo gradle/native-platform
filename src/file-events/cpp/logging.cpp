@@ -1,7 +1,5 @@
 #include "logging.h"
 
-Logging* logging;
-
 Logging::Logging(JavaVM* jvm)
     : JniSupport(jvm)
     , clsLogger(getThreadEnv(), "net/rubygrapefruit/platform/internal/jni/NativeLogger")
