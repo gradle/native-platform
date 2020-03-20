@@ -3,8 +3,10 @@ package net.rubygrapefruit.platform.internal.jni;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+// Used from native
+@SuppressWarnings("unused")
 public class NativeLogger {
-    private static Logger LOGGER;
+    private static final Logger LOGGER = Logger.getLogger(NativeLogger.class.getName());
 
     enum LogLevel {
         FINEST(Level.FINEST),
@@ -26,22 +28,12 @@ public class NativeLogger {
         }
     }
 
-    public static void initLogging(Class<?> loggerClass) {
-        Logger logger = Logger.getLogger(loggerClass.getName());
-        Level effectiveLevel = Level.FINEST; // getEffectiveLevel(logger);
-
-        for (LogLevel logLevel : LogLevel.values()) {
-            if (logLevel.getLevel().equals(effectiveLevel)) {
-                LOGGER = logger;
-                initLogging(logLevel.ordinal());
-                return;
-            }
-        }
-        throw new AssertionError("Invalid log level for " + loggerClass + ": " + effectiveLevel);
+    public static void log(int level, String message) {
+        LOGGER.log(LogLevel.values()[level].getLevel(), message);
     }
 
-    private static Level getEffectiveLevel(Logger logger) {
-        Logger effectiveLogger = logger;
+    public static int getLogLevel() {
+        Logger effectiveLogger = LOGGER;
         Level effectiveLevel;
         while (true) {
             effectiveLevel = effectiveLogger.getLevel();
@@ -53,26 +45,12 @@ public class NativeLogger {
                 throw new AssertionError("Effective log level is not set");
             }
         }
-        return effectiveLevel;
-    }
 
-    private static native void initLogging(int logLevel);
-
-    // Used from native
-    @SuppressWarnings("unused")
-    public static void log(int level, String message) {
-        LOGGER.log(LogLevel.values()[level].getLevel(), message);
-    }
-
-    // Used from native
-    @SuppressWarnings("unused")
-    public static int getLogLevel() {
-        Level level = LOGGER.getLevel();
         for (LogLevel logLevel : LogLevel.values()) {
-            if (logLevel.getLevel().equals(level)) {
+            if (logLevel.getLevel().equals(effectiveLevel)) {
                 return logLevel.ordinal();
             }
         }
-        throw new AssertionError();
+        throw new AssertionError("Unknown effective log level found: " + effectiveLevel);
     }
 }

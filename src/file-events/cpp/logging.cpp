@@ -2,17 +2,11 @@
 
 Logging* logging;
 
-JNIEXPORT void JNICALL Java_net_rubygrapefruit_platform_internal_jni_NativeLogger_initLogging(JNIEnv* env, jclass, jint level) {
-    logging = new Logging(env, (int) level);
-}
-
-Logging::Logging(JNIEnv* env, int level)
-    : JniSupport(env)
-    , minimumLogLevel(level)
-    , clsLogger(env, "net/rubygrapefruit/platform/internal/jni/NativeLogger")
-    , logMethod(env->GetStaticMethodID(clsLogger.get(), "log", "(ILjava/lang/String;)V"))
-    , getLevelMethod(env->GetStaticMethodID(clsLogger.get(), "getLogLevel", "()I")) {
-    send(LogLevel::CONFIG, "Initialized logging to level %d\n", level);
+Logging::Logging(JavaVM* jvm)
+    : JniSupport(jvm)
+    , clsLogger(getThreadEnv(), "net/rubygrapefruit/platform/internal/jni/NativeLogger")
+    , logMethod(getThreadEnv()->GetStaticMethodID(clsLogger.get(), "log", "(ILjava/lang/String;)V"))
+    , getLevelMethod(getThreadEnv()->GetStaticMethodID(clsLogger.get(), "getLogLevel", "()I")) {
 }
 
 bool Logging::enabled(LogLevel level) {

@@ -17,12 +17,15 @@ package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.NativeException
 import net.rubygrapefruit.platform.internal.Platform
+import net.rubygrapefruit.platform.internal.jni.NativeLogger
 import org.junit.Assume
 import spock.lang.IgnoreIf
 import spock.lang.Requires
 import spock.lang.Unroll
 import spock.util.concurrent.AsyncConditions
 
+import java.util.logging.Level
+import java.util.logging.Logger
 import java.util.regex.Pattern
 
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
@@ -623,5 +626,34 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         "watched directory"                 | { it }
         "parent of watched directory"       | { it.parentFile }
         "grand-parent of watched directory" | { it.parentFile.parentFile }
+    }
+
+    def "can set log level"() {
+        given:
+        def nativeLogger = Logger.getLogger(NativeLogger.name)
+        def originalLevel = nativeLogger.level
+
+        when:
+        logging.clear()
+        nativeLogger.level = Level.FINEST
+        // Wait for the change to be picked up
+        Thread.sleep(1500)
+        startNewWatcher(Mock(FileWatcherCallback)).close()
+
+        then:
+        logging.messages.values().any { it == Level.FINE }
+
+        when:
+        logging.clear()
+        nativeLogger.level = Level.WARNING
+        // Wait for the change to be picked up
+        Thread.sleep(1500)
+        startNewWatcher(Mock(FileWatcherCallback)).close()
+
+        then:
+        !logging.messages.values().any { it == Level.FINE }
+
+        cleanup:
+        nativeLogger.level = originalLevel
     }
 }

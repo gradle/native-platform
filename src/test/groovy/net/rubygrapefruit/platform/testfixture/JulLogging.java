@@ -59,6 +59,10 @@ public class JulLogging extends TestWatcher {
         return recorder.messages;
     }
 
+    public void clear() {
+        recorder.messages.clear();
+    }
+
     private static class RecordingHandler extends Handler {
         private final Map<String, Level> messages = new LinkedHashMap<String, Level>();
 

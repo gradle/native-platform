@@ -4,7 +4,6 @@
 #include <jni.h>
 
 #include "jni_support.h"
-#include "net_rubygrapefruit_platform_internal_jni_NativeLogger.h"
 
 #define LOG_LEVEL_CHECK_INTERVAL_IN_MS 1000
 
@@ -20,8 +19,7 @@ enum LogLevel : int {
 
 class Logging : public JniSupport {
 public:
-    Logging(JNIEnv* env, int level);
-    ~Logging();
+    Logging(JavaVM* jvm);
 
     bool enabled(LogLevel level);
     void send(LogLevel level, const char* fmt, ...);
