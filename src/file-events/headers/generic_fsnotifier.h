@@ -60,8 +60,8 @@ class AbstractServer;
 
 class Command {
 public:
-    Command(){};
-    virtual ~Command(){};
+    Command() {};
+    virtual ~Command() {};
 
     void execute(AbstractServer* server) {
         try {
