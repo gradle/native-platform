@@ -194,7 +194,7 @@ jobject rethrowAsJavaException(JNIEnv* env, const exception& e) {
     logToJava(SEVERE, "Caught exception: %s", e.what());
     jint ret = env->ThrowNew(jniConstants->nativeExceptionClass.get(), e.what());
     if (ret != 0) {
-        fprintf(stderr, "JNI ThrowNew returned %d when rethrowing native exception: %s\n", ret, e.what());
+        cerr << "JNI ThrowNew returned %d when rethrowing native exception: " << ret << endl;
     }
     return NULL;
 }

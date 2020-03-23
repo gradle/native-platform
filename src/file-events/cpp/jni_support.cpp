@@ -1,3 +1,4 @@
+#include <iostream>
 #include <string>
 
 #include "jni_support.h"
@@ -42,7 +43,7 @@ JniThreadAttacher::JniThreadAttacher(JavaVM* jvm, const char* name, bool daemon)
         ? jvm->AttachCurrentThreadAsDaemon((void**) &env, (void*) &args)
         : jvm->AttachCurrentThread((void**) &env, (void*) &args);
     if (ret != JNI_OK) {
-        fprintf(stderr, "Failed to attach JNI to current thread: %d\n", ret);
+        cerr << "Failed to attach JNI to current thread: " << ret << endl;
         throw runtime_error(string("Failed to attach JNI to current thread: ") + to_string(ret));
     }
 }
@@ -50,6 +51,6 @@ JniThreadAttacher::JniThreadAttacher(JavaVM* jvm, const char* name, bool daemon)
 JniThreadAttacher::~JniThreadAttacher() {
     jint ret = jvm->DetachCurrentThread();
     if (ret != JNI_OK) {
-        fprintf(stderr, "Failed to detach JNI from current thread: %d\n", ret);
+        cerr << "Failed to detach JNI from current thread: " << ret << endl;
     }
 }

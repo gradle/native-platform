@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "logging.h"
 
 Logging::Logging(JavaVM* jvm)
@@ -26,7 +28,7 @@ void Logging::send(LogLevel level, const char* fmt, ...) {
 
     JNIEnv* env = getThreadEnv();
     if (env == NULL) {
-        fprintf(stderr, "%s\n", buffer);
+        cerr << buffer << endl;
     } else {
         jstring logString = env->NewStringUTF(buffer);
         env->CallStaticVoidMethod(clsLogger.get(), logMethod, level, logString);
