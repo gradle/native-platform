@@ -243,6 +243,10 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
     }
 }
 
+JNIEXPORT void JNICALL Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_invalidateLogLevelCache(JNIEnv*, jobject) {
+    logging->invalidateLogLevelCache();
+}
+
 JniConstants::JniConstants(JavaVM* jvm)
     : JniSupport(jvm)
     , nativeExceptionClass(getThreadEnv(), "net/rubygrapefruit/platform/NativeException")

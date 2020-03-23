@@ -10,6 +10,12 @@ import java.io.File;
 public class AbstractFileEventFunctions implements NativeIntegration {
     public static native String getVersion();
 
+    /**
+     * Forces the native backend to drop the cached JUL log level and thus
+     * re-query it the next time it tries to log something to the Java side.
+     */
+    public native void invalidateLogLevelCache();
+
     protected static class NativeFileWatcherCallback {
         private final FileWatcherCallback delegate;
 

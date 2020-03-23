@@ -9,6 +9,10 @@ Logging::Logging(JavaVM* jvm)
     , getLevelMethod(getThreadEnv()->GetStaticMethodID(clsLogger.get(), "getLogLevel", "()I")) {
 }
 
+void Logging::invalidateLogLevelCache() {
+    lastLevelCheck = chrono::steady_clock::time_point();
+}
+
 bool Logging::enabled(LogLevel level) {
     auto current = chrono::steady_clock::now();
     auto elapsed = chrono::duration_cast<chrono::milliseconds>(current - lastLevelCheck).count();

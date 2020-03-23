@@ -21,6 +21,7 @@ class Logging : public JniSupport {
 public:
     Logging(JavaVM* jvm);
 
+    void invalidateLogLevelCache();
     bool enabled(LogLevel level);
     void send(LogLevel level, const char* fmt, ...);
 
