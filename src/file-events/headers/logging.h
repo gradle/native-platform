@@ -1,22 +1,38 @@
 #pragma once
 
-#include "net_rubygrapefruit_platform_internal_jni_NativeLogger.h"
+#include <chrono>
 #include <jni.h>
 
-#define LOG_FINEST 0
-#define LOG_FINER 1
-#define LOG_FINE 2
-#define LOG_CONFIG 3
-#define LOG_INFO 4
-#define LOG_WARNING 5
-#define LOG_SEVERE 6
+#include "jni_support.h"
 
-#define log_finest(env, message, ...) printlog(env, LOG_FINEST, message, __VA_ARGS__)
-#define log_finer(env, message, ...) printlog(env, LOG_FINER, message, __VA_ARGS__)
-#define log_fine(env, message, ...) printlog(env, LOG_FINE, message, __VA_ARGS__)
-#define log_config(env, message, ...) printlog(env, LOG_CONFIG, message, __VA_ARGS__)
-#define log_info(env, message, ...) printlog(env, LOG_INFO, message, __VA_ARGS__)
-#define log_warning(env, message, ...) printlog(env, LOG_WARNING, message, __VA_ARGS__)
-#define log_severe(env, message, ...) printlog(env, LOG_SEVERE, message, __VA_ARGS__)
+#define LOG_LEVEL_CHECK_INTERVAL_IN_MS 1000
 
-void printlog(JNIEnv* env, int level, const char* message, ...);
+enum LogLevel : int {
+    FINEST = 0,
+    FINER = 1,
+    FINE = 2,
+    CONFIG = 3,
+    INFO = 4,
+    WARNING = 5,
+    SEVERE = 6
+};
+
+class Logging : public JniSupport {
+public:
+    Logging(JavaVM* jvm);
+
+    void invalidateLogLevelCache();
+    bool enabled(LogLevel level);
+    void send(LogLevel level, const char* fmt, ...);
+
+private:
+    int minimumLogLevel;
+    const JClass clsLogger;
+    const jmethodID logMethod;
+    const jmethodID getLevelMethod;
+    chrono::time_point<chrono::steady_clock> lastLevelCheck;
+};
+
+extern Logging* logging;
+
+#define logToJava(level, message, ...) (logging->enabled(level) ? logging->send(level, message, __VA_ARGS__) : ((void) NULL))

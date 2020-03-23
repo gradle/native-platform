@@ -17,12 +17,16 @@ package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.NativeException
 import net.rubygrapefruit.platform.internal.Platform
+import net.rubygrapefruit.platform.internal.jni.AbstractFileEventFunctions
+import net.rubygrapefruit.platform.internal.jni.NativeLogger
 import org.junit.Assume
 import spock.lang.IgnoreIf
 import spock.lang.Requires
 import spock.lang.Unroll
 import spock.util.concurrent.AsyncConditions
 
+import java.util.logging.Level
+import java.util.logging.Logger
 import java.util.regex.Pattern
 
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
@@ -611,8 +615,8 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         def expectedChanges = expectEvents Platform.current().macOs
             ? [event(INVALIDATE, watchedDir)]
             : Platform.current().windows
-                ? [event(MODIFIED, removedFile), event(REMOVED, removedFile, false), event(REMOVED, watchedDir)]
-                : [event(REMOVED, removedFile), event(REMOVED, watchedDir)]
+            ? [event(MODIFIED, removedFile), event(REMOVED, removedFile, false), event(REMOVED, watchedDir)]
+            : [event(REMOVED, removedFile), event(REMOVED, watchedDir)]
         removedDir.deleteDir()
 
         then:
@@ -623,5 +627,39 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         "watched directory"                 | { it }
         "parent of watched directory"       | { it.parentFile }
         "grand-parent of watched directory" | { it.parentFile.parentFile }
+    }
+
+    @Unroll
+    def "can set log level by #action"() {
+        given:
+        def nativeLogger = Logger.getLogger(NativeLogger.name)
+        def originalLevel = nativeLogger.level
+
+        when:
+        logging.clear()
+        nativeLogger.level = Level.FINEST
+        ensureLogLevelInvalidated(service)
+        startWatcher()
+
+        then:
+        logging.messages.values().any { it == Level.FINE }
+
+        when:
+        stopWatcher()
+        logging.clear()
+        nativeLogger.level = Level.WARNING
+        ensureLogLevelInvalidated(service)
+        startWatcher()
+
+        then:
+        !logging.messages.values().any { it == Level.FINE }
+
+        cleanup:
+        nativeLogger.level = originalLevel
+
+        where:
+        action                                    | ensureLogLevelInvalidated
+        "invalidating the log level cache"        | { AbstractFileEventFunctions service -> service.invalidateLogLevelCache() }
+        "waiting for log level cache to time out" | { Thread.sleep(1500) }
     }
 }

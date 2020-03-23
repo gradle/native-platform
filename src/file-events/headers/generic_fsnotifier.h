@@ -3,6 +3,7 @@
 #include <condition_variable>
 #include <exception>
 #include <functional>
+#include <iostream>
 #include <list>
 #include <memory>
 #include <mutex>
@@ -10,7 +11,9 @@
 #include <string>
 #include <thread>
 
+#include "jni_support.h"
 #include "logging.h"
+#include "net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions.h"
 #include "net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_NativeFileWatcher.h"
 
 using namespace std;
@@ -77,7 +80,7 @@ public:
     exception_ptr failure;
 };
 
-class AbstractServer {
+class AbstractServer : public JniSupport {
 public:
     AbstractServer(JNIEnv* env, jobject watcherCallback);
     virtual ~AbstractServer();
@@ -114,14 +117,12 @@ public:
      */
     virtual void terminate() = 0;
 
-    JNIEnv* getThreadEnv();
-
 protected:
     void reportChange(JNIEnv* env, int type, const u16string& path);
     void reportError(JNIEnv* env, const exception& ex);
 
     void startThread();
-    virtual void runLoop(JNIEnv* env, function<void(exception_ptr)> notifyStarted) = 0;
+    virtual void runLoop(function<void(exception_ptr)> notifyStarted) = 0;
     virtual void processCommandsOnThread() = 0;
 
     thread watcherThread;
@@ -136,11 +137,9 @@ private:
     mutex mtxCommands;
     deque<shared_ptr<Command>> commands;
 
-    jobject watcherCallback;
+    JniGlobalRef<jobject> watcherCallback;
     jmethodID watcherCallbackMethod;
     jmethodID watcherReportErrorMethod;
-
-    JavaVM* jvm;
 };
 
 class RegisterPathCommand : public Command {
@@ -178,13 +177,13 @@ public:
     }
 };
 
-struct JniConstants {
-    JniConstants(JNIEnv* env);
-    void unload(JNIEnv* env);
+class JniConstants : public JniSupport {
+public:
+    JniConstants(JavaVM* jvm);
 
-    const jclass nativeExceptionClass;
-    const jclass classClass;
-    const jclass nativeFileWatcherClass;
+    const JClass nativeExceptionClass;
+    const JClass classClass;
+    const JClass nativeFileWatcherClass;
 };
 
 extern JniConstants* jniConstants;

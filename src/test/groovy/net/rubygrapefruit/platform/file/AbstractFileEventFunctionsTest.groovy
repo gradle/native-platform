@@ -17,10 +17,12 @@
 package net.rubygrapefruit.platform.file
 
 import groovy.transform.EqualsAndHashCode
+import groovy.transform.Memoized
 import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.AbstractFileEventFunctions
 import net.rubygrapefruit.platform.internal.jni.LinuxFileEventFunctions
+import net.rubygrapefruit.platform.internal.jni.NativeLogger
 import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions
 import net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions
 import net.rubygrapefruit.platform.testfixture.JulLogging
@@ -47,7 +49,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     @Rule
     TestName testName
     @Rule
-    JulLogging logging = new JulLogging(AbstractFileEventFunctions, FINE)
+    JulLogging logging = new JulLogging(NativeLogger, FINE)
 
     def callback = new TestCallback()
     File testDir
@@ -82,11 +84,17 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         MAC_OS(){
             private static final int LATENCY_IN_MILLIS = 0
 
+            @Memoized
+            @Override
+            OsxFileEventFunctions getService() {
+                Native.get(OsxFileEventFunctions)
+            }
+
             @Override
             FileWatcher startNewWatcher(FileWatcherCallback callback) {
                 // Avoid setup operations to be reported
                 waitForChangeEventLatency()
-                Native.get(OsxFileEventFunctions.class).startWatcher(
+                service.startWatcher(
                     LATENCY_IN_MILLIS, TimeUnit.MILLISECONDS,
                     callback
                 )
@@ -98,11 +106,17 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             }
         },
         LINUX(){
+            @Memoized
+            @Override
+            LinuxFileEventFunctions getService() {
+                Native.get(LinuxFileEventFunctions)
+            }
+
             @Override
             FileWatcher startNewWatcher(FileWatcherCallback callback) {
                 // Avoid setup operations to be reported
                 waitForChangeEventLatency()
-                Native.get(LinuxFileEventFunctions.class).startWatcher(callback)
+                service.startWatcher(callback)
             }
 
             @Override
@@ -111,9 +125,15 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             }
         },
         WINDOWS(){
+            @Memoized
+            @Override
+            WindowsFileEventFunctions getService() {
+                Native.get(WindowsFileEventFunctions)
+            }
+
             @Override
             FileWatcher startNewWatcher(FileWatcherCallback callback) {
-                Native.get(WindowsFileEventFunctions.class).startWatcher(callback)
+                service.startWatcher(callback)
             }
 
             @Override
@@ -122,6 +142,11 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             }
         },
         UNSUPPORTED() {
+            @Override
+            AbstractFileEventFunctions getService() {
+                throw new UnsupportedOperationException()
+            }
+
             @Override
             FileWatcher startNewWatcher(FileWatcherCallback callback) {
                 throw new UnsupportedOperationException()
@@ -144,6 +169,8 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
                 return UNSUPPORTED
             }
         }
+
+        abstract AbstractFileEventFunctions getService();
 
         abstract FileWatcher startNewWatcher(FileWatcherCallback callback)
 
@@ -209,6 +236,10 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         String toString() {
             return "${mandatory ? "" : "optional "}$type $file"
         }
+    }
+
+    protected AbstractFileEventFunctions getService() {
+        watcherFixture.service
     }
 
     protected FileWatcher startNewWatcher(FileWatcherCallback callback) {
