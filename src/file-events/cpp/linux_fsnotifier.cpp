@@ -72,7 +72,7 @@ Server::Server(JNIEnv* env, jobject watcherCallback)
 }
 
 void Server::terminate() {
-    log(FINE, "Terminating", NULL);
+    logToJava(FINE, "Terminating", NULL);
     terminated = true;
 }
 
@@ -146,7 +146,7 @@ void Server::handleEvents() {
             default:
                 // Handle events
                 JNIEnv* env = getThreadEnv();
-                log(FINE, "Processing %d bytes worth of events", bytesRead);
+                logToJava(FINE, "Processing %d bytes worth of events", bytesRead);
                 int index = 0;
                 int count = 0;
                 while (index < bytesRead) {
@@ -155,7 +155,7 @@ void Server::handleEvents() {
                     index += sizeof(struct inotify_event) + event->len;
                     count++;
                 }
-                log(FINE, "Processed %d events", count);
+                logToJava(FINE, "Processed %d events", count);
                 break;
         }
         available -= bytesRead;
@@ -171,7 +171,7 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
     const char* eventName = (event->len == 0)
         ? ""
         : event->name;
-    log(FINE, "Event mask: 0x%x for %s (wd = %d, cookie = 0x%x, len = %d)", mask, eventName, event->wd, event->cookie, event->len);
+    logToJava(FINE, "Event mask: 0x%x for %s (wd = %d, cookie = 0x%x, len = %d)", mask, eventName, event->wd, event->cookie, event->len);
     if (IS_ANY_SET(mask, IN_UNMOUNT)) {
         return;
     }
@@ -190,19 +190,19 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
 
     if (IS_SET(mask, IN_IGNORED)) {
         // Finished with watch point
-        log(FINE, "Finished watching '%s'", utf16ToUtf8String(path).c_str());
+        logToJava(FINE, "Finished watching '%s'", utf16ToUtf8String(path).c_str());
         watchPoint.status = FINISHED;
         return;
     }
 
     if (watchPoint.status != LISTENING) {
-        log(FINE, "Ignoring incoming events for %s as watch-point is not listening (status = %d)",
+        logToJava(FINE, "Ignoring incoming events for %s as watch-point is not listening (status = %d)",
             utf16ToUtf8String(path).c_str(), watchPoint.status);
         return;
     }
 
     if (terminated) {
-        log(FINE, "Ignoring incoming events for %s because server is terminating (status = %d)",
+        logToJava(FINE, "Ignoring incoming events for %s because server is terminating (status = %d)",
             utf16ToUtf8String(path).c_str(), watchPoint.status);
         return;
     }
@@ -260,7 +260,7 @@ void Server::registerPath(const u16string& path) {
 void Server::unregisterPath(const u16string& path) {
     auto it = watchPoints.find(path);
     if (it == watchPoints.end() || it->second.status == FINISHED) {
-        log(FINE, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
+        logToJava(FINE, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
         return;
     }
     auto& watchPoint = it->second;

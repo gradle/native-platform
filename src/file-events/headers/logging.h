@@ -34,4 +34,4 @@ private:
 
 extern Logging* logging;
 
-#define log(level, message, ...) (logging->enabled(level) ? logging->send(level, message, __VA_ARGS__) : ((void) NULL))
+#define logToJava(level, message, ...) (logging->enabled(level) ? logging->send(level, message, __VA_ARGS__) : ((void) NULL))
