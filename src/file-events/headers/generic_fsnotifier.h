@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <condition_variable>
 #include <exception>
 #include <functional>
@@ -27,6 +28,8 @@ using namespace std;
 
 #define IS_SET(flags, flag) (((flags) & (flag)) == (flag))
 #define IS_ANY_SET(flags, mask) (((flags) & (mask)) != 0)
+
+#define THREAD_TIMEOUT (chrono::seconds(1))
 
 struct FileWatcherException : public runtime_error {
 public:

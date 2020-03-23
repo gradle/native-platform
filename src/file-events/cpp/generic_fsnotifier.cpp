@@ -61,7 +61,10 @@ AbstractServer::~AbstractServer() {
 void AbstractServer::startThread() {
     unique_lock<mutex> lock(watcherThreadMutex);
     this->watcherThread = thread(&AbstractServer::run, this);
-    this->watcherThreadStarted.wait(lock);
+    auto status = this->watcherThreadStarted.wait_for(lock, THREAD_TIMEOUT);
+    if (status == cv_status::timeout) {
+        throw FileWatcherException("Starting thread timed out");
+    }
     if (initException) {
         if (watcherThread.joinable()) {
             watcherThread.join();
@@ -92,7 +95,10 @@ void AbstractServer::executeOnThread(shared_ptr<Command> command) {
     unique_lock<mutex> lock(mtxCommands);
     commands.push_back(command);
     processCommandsOnThread();
-    command->executed.wait(lock);
+    auto status = command->executed.wait_for(lock, THREAD_TIMEOUT);
+    if (status == cv_status::timeout) {
+        throw FileWatcherException("Command execution timed out");
+    }
     if (command->failure) {
         rethrow_exception(command->failure);
     }
