@@ -89,14 +89,11 @@ Server::Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis)
 }
 
 Server::~Server() {
-    // Make copy of watch point paths to avoid race conditions
-    list<u16string> paths;
+    vector<u16string> paths(watchPoints.size());
     for (auto& watchPoint : watchPoints) {
         paths.push_back(watchPoint.first);
     }
-    for (auto& path : paths) {
-        executeOnThread(shared_ptr<Command>(new UnregisterPathCommand(path)));
-    }
+    executeOnThread(shared_ptr<Command>(new UnregisterPathsCommand(paths)));
     executeOnThread(shared_ptr<Command>(new TerminateCommand()));
 
     if (watcherThread.joinable()) {
