@@ -189,7 +189,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         def watcher = startNewWatcher(callback)
         watcher.startWatching(watchedDir)
         Thread.sleep(500)
-        deleteRecursively(rootDir)
+        deleteRecursively(watchedDir)
 
         then:
         watcher.close()
