@@ -8,9 +8,9 @@ import java.io.IOException;
  * A handle for watching file system locations.
  */
 public interface FileWatcher extends Closeable {
-    void startWatching(File path);
+    void startWatching(File... paths);
 
-    void stopWatching(File path);
+    void stopWatching(File... paths);
 
     /**
      * Stops watching and releases any native resources.

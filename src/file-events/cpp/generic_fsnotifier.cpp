@@ -240,12 +240,11 @@ void AbstractServer::unregisterPaths(const vector<u16string>& paths) {
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_startWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
+Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_startWatching(JNIEnv* env, jobject, jobjectArray javaPaths, jobject javaServer) {
     try {
         AbstractServer* server = getServer(env, javaServer);
-        auto path = javaToUtf16String(env, javaPath);
         vector<u16string> paths;
-        paths.push_back(path);
+        javaToUtf16StringArray(env, javaPaths, paths);
         server->executeOnThread(shared_ptr<Command>(new RegisterPathsCommand(paths)));
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
@@ -253,12 +252,11 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_stopWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
+Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_stopWatching(JNIEnv* env, jobject, jobjectArray javaPaths, jobject javaServer) {
     try {
         AbstractServer* server = getServer(env, javaServer);
-        auto path = javaToUtf16String(env, javaPath);
         vector<u16string> paths;
-        paths.push_back(path);
+        javaToUtf16StringArray(env, javaPaths, paths);
         server->executeOnThread(shared_ptr<Command>(new UnregisterPathsCommand(paths)));
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);

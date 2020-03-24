@@ -49,24 +49,33 @@ public class AbstractFileEventFunctions implements NativeIntegration {
         }
 
         @Override
-        public void startWatching(File path) {
+        public void startWatching(File... paths) {
             if (server == null) {
                 throw new IllegalStateException("Watcher already closed");
             }
-            startWatching(server, path.getAbsolutePath());
+            startWatching(toAbsolutePaths(paths), server);
         }
 
-        private native void startWatching(Object server, String absolutePath);
+        private native void startWatching(String[] absolutePaths, Object server);
 
         @Override
-        public void stopWatching(File path) {
+        public void stopWatching(File... paths) {
             if (server == null) {
                 throw new IllegalStateException("Watcher already closed");
             }
-            stopWatching(server, path.getAbsolutePath());
+            stopWatching(toAbsolutePaths(paths), server);
         }
 
-        private native void stopWatching(Object server, String absolutePath);
+        private native void stopWatching(String[] absolutePaths, Object server);
+
+        private static String[] toAbsolutePaths(File[] files) {
+            String[] paths = new String[files.length];
+            int index = 0;
+            for (File file : files) {
+                paths[index++] = file.getAbsolutePath();
+            }
+            return paths;
+        }
 
         @Override
         public void close() {
