@@ -187,10 +187,16 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         def watcher = startNewWatcher(callback)
         watcher.startWatching(watchedDir)
         Thread.sleep(500)
-        assert rootDir.deleteDir()
+        deleteRecursively(rootDir)
 
         then:
         watcher.close()
+    }
+
+    private static void deleteRecursively(File dir) {
+        java.nio.file.Files.walk(dir.toPath())
+            .sorted(Comparator.reverseOrder())
+            .forEach { path -> java.nio.file.Files.delete(path) }
     }
 
     protected static List<File> createSubdirs(File root, int number) {
