@@ -265,7 +265,7 @@ void Server::unregisterPath(const u16string& path) {
     }
     auto& watchPoint = it->second;
     if (watchPoint.cancel()) {
-        processQueues(CLOSE_TIMEOUT_IN_MS);
+        processQueues(0);
     }
     if (watchPoint.status != FINISHED) {
         throw FileWatcherException("Could not cancel watch point %s", path);
