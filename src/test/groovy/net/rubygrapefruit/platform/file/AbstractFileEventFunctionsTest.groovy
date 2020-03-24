@@ -252,9 +252,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
     protected void startWatcher(FileWatcherCallback callback = this.callback, File... roots) {
         watcher = startNewWatcher(callback)
-        roots*.absoluteFile.each { root ->
-            watcher.startWatching(root)
-        }
+        watcher.startWatching(roots)
     }
 
     protected void stopWatcher() {

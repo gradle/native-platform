@@ -100,9 +100,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
             }
             executorService.shutdown()
 
-            watchedDirectories.each {
-                watcher.startWatching(it)
-            }
+            watcher.startWatching(watchedDirectories as File[])
             readyLatch.await()
             startModifyingLatch.countDown()
             Thread.sleep(500)
@@ -146,9 +144,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
 
         when:
         def watcher = startNewWatcher(callback)
-        watchedDirectories.each {
-            watcher.startWatching(it)
-        }
+        watcher.startWatching(watchedDirectories as File[])
         Thread.sleep(500)
         assert rootDir.deleteDir()
 
