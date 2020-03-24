@@ -57,7 +57,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         expectedChanges.await()
     }
 
-    def "can stop and restart watching many directory times"() {
+    def "can stop and restart watching many directory many times"() {
         given:
         File[] watchedDirs = createDirectoriesToWatch(100)
 
