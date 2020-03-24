@@ -617,7 +617,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
             : Platform.current().windows
             ? [event(MODIFIED, removedFile), event(REMOVED, removedFile, false), event(REMOVED, watchedDir)]
             : [event(REMOVED, removedFile), event(REMOVED, watchedDir)]
-        removedDir.deleteDir()
+        assert removedDir.deleteDir()
 
         then:
         expectedChanges.await()
