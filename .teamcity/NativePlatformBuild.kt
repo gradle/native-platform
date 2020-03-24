@@ -45,7 +45,7 @@ open class NativePlatformBuild(agent: Agent, init: BuildType.() -> Unit = {}) : 
 
     failureConditions {
         testFailure = false
-        executionTimeoutMin = 5
+        executionTimeoutMin = 15
     }
 
     artifactRules = """
