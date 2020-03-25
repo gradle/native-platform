@@ -33,6 +33,7 @@ import net.rubygrapefruit.platform.file.Files;
 import net.rubygrapefruit.platform.file.PosixFileInfo;
 import net.rubygrapefruit.platform.file.PosixFiles;
 import net.rubygrapefruit.platform.internal.Platform;
+import net.rubygrapefruit.platform.internal.jni.LinuxFileEventFunctions;
 import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions;
 import net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions;
 import net.rubygrapefruit.platform.memory.Memory;
@@ -372,9 +373,8 @@ public class Main {
         System.out.println();
     }
 
-    private static void watch(String path) throws IOException {
-        FileWatcher watcher;
-        FileWatcherCallback callback = new FileWatcherCallback() {
+    private static void watch(String path) {
+        FileWatcher watcher = createWatcher(path, new FileWatcherCallback() {
             @Override
             public void pathChanged(Type type, String changedPath) {
                 System.out.printf("Change detected: %s / '%s'%n", type, changedPath);
@@ -384,14 +384,7 @@ public class Main {
             public void reportError(Throwable ex) {
                 ex.printStackTrace();
             }
-        };
-        if (Platform.current().isMacOs()) {
-            watcher = createMacOsFileWatcher(path, callback);
-        } else if (Platform.current().isWindows()) {
-            watcher = createWindowsFileWatcher(path, callback);
-        } else {
-            throw new RuntimeException("Only Windows and macOS are supported for file watching");
-        }
+        });
         try {
             System.out.println("Waiting - type ctrl-d to exit ...");
             while (true) {
@@ -412,17 +405,22 @@ public class Main {
         System.out.println("Done");
     }
 
-    private static FileWatcher createMacOsFileWatcher(String path, FileWatcherCallback callback) throws IOException {
-        FileWatcher fileWatcher = Native.get(OsxFileEventFunctions.class)
-            .startWatcher(300, TimeUnit.MILLISECONDS, callback);
-        fileWatcher.startWatching(Collections.singleton(new File(path)));
-        return fileWatcher;
-    }
-
-    private static FileWatcher createWindowsFileWatcher(String path, FileWatcherCallback callback) {
-        FileWatcher fileWatcher = Native.get(WindowsFileEventFunctions.class).startWatcher(callback);
-        fileWatcher.startWatching(Collections.singleton(new File(path)));
-        return fileWatcher;
+    private static FileWatcher createWatcher(String path, FileWatcherCallback callback) {
+        FileWatcher watcher;
+        if (Platform.current().isMacOs()) {
+            watcher = Native.get(OsxFileEventFunctions.class)
+                .startWatcher(300, TimeUnit.MILLISECONDS, callback);
+        } else if (Platform.current().isLinux()) {
+            watcher = Native.get(LinuxFileEventFunctions.class)
+                .startWatcher(callback);
+        } else if (Platform.current().isWindows()) {
+            watcher = Native.get(WindowsFileEventFunctions.class)
+                .startWatcher(callback);
+        } else {
+            throw new RuntimeException("Only Windows and macOS are supported for file watching");
+        }
+        watcher.startWatching(Collections.singleton(new File(path)));
+        return watcher;
     }
 
     private static void ls(String path) {
