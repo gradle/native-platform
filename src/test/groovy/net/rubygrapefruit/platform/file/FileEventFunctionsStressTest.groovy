@@ -160,11 +160,50 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         when:
         def watcher = startNewWatcher(callback)
         watcher.startWatching(watchedDirectories as File[])
-        Thread.sleep(500)
+        waitForChangeEventLatency()
         assert rootDir.deleteDir()
+        watcher.close()
 
         then:
+        noExceptionThrown()
+    }
+
+    @Requires({ !Platform.current().linux })
+    def "can stop watching a deep hierarchy when it has been deleted"() {
+        given:
+        def watchedDirectoryDepth = 10
+
+        def watchedDir = new File(rootDir, "watchedDir")
+        assert watchedDir.mkdir()
+        List<File> previousRoots = [watchedDir]
+        watchedDirectoryDepth.times { depth ->
+            previousRoots = previousRoots.collectMany { root ->
+                createSubdirs(root, 2)
+            }
+        }
+
+        def callback = new FileWatcherCallback() {
+            @Override
+            void pathChanged(FileWatcherCallback.Type type, String path) {
+                assert !path.empty
+            }
+
+            @Override
+            void reportError(Throwable ex) {
+                ex.printStackTrace()
+                uncaughtFailureOnThread << ex
+            }
+        }
+
+        when:
+        def watcher = startNewWatcher(callback)
+        watcher.startWatching(watchedDir)
+        waitForChangeEventLatency()
+        assert watchedDir.deleteDir()
         watcher.close()
+
+        then:
+        noExceptionThrown()
     }
 
     private static List<File> createSubdirs(File root, int number) {

@@ -24,6 +24,7 @@ import spock.lang.IgnoreIf
 import spock.lang.Requires
 import spock.lang.Unroll
 import spock.util.concurrent.AsyncConditions
+import spock.util.environment.OperatingSystem
 
 import java.util.logging.Level
 import java.util.logging.Logger
@@ -617,16 +618,17 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
             : Platform.current().windows
             ? [event(MODIFIED, removedFile), event(REMOVED, removedFile, false), event(REMOVED, watchedDir)]
             : [event(REMOVED, removedFile), event(REMOVED, watchedDir)]
-        removedDir.deleteDir()
+        def directoryRemoved = removedDir.deleteDir()
 
         then:
         expectedChanges.await()
+        directoryRemoved == expectDirectoryRemoved
 
         where:
-        ancestry                            | removedDirectory
-        "watched directory"                 | { it }
-        "parent of watched directory"       | { it.parentFile }
-        "grand-parent of watched directory" | { it.parentFile.parentFile }
+        ancestry                            | removedDirectory             | expectDirectoryRemoved
+        "watched directory"                 | { it }                       | true
+        "parent of watched directory"       | { it.parentFile }            | !OperatingSystem.current.windows
+        "grand-parent of watched directory" | { it.parentFile.parentFile } | !OperatingSystem.current.windows
     }
 
     @Unroll
