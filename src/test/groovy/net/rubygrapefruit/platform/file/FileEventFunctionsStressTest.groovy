@@ -95,7 +95,6 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         expect:
         20.times { iteration ->
             def watchedDirectories = createDirectoriesToWatch(numberOfWatchedDirectories, "iteration-$iteration/watchedDir-")
-            watchedDirectories.each { assert it.mkdirs() }
 
             def executorService = Executors.newFixedThreadPool(numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories)
             def readyLatch = new CountDownLatch(numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories)
@@ -179,7 +178,10 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
     }
 
     private List<File> createDirectoriesToWatch(int numberOfWatchedDirectories, String prefix = "dir-") {
-        (1..numberOfWatchedDirectories).collect { new File(rootDir, prefix + it) }
+        (1..numberOfWatchedDirectories).collect {
+            def dir = new File(rootDir, prefix + it)
+            assert dir.mkdirs()
+            return dir
+        }
     }
 }
-
