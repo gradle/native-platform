@@ -165,6 +165,16 @@ u16string javaToUtf16String(JNIEnv* env, jstring javaString) {
     return path;
 }
 
+void javaToUtf16StringArray(JNIEnv* env, jobjectArray javaStrings, vector<u16string>& strings) {
+    int count = env->GetArrayLength(javaStrings);
+    strings.reserve(count);
+    for (int i = 0; i < count; i++) {
+        jstring javaString = reinterpret_cast<jstring>(env->GetObjectArrayElement(javaStrings, i));
+        auto string = javaToUtf16String(env, javaString);
+        strings.push_back(move(string));
+    }
+}
+
 // Utility wrapper to adapt locale-bound facets for wstring convert
 // Exposes the protected destructor as public
 // See https://en.cppreference.com/w/cpp/locale/codecvt
@@ -217,30 +227,44 @@ jobject wrapServer(JNIEnv* env, function<void*()> serverStarter) {
     return env->NewObject(jniConstants->nativeFileWatcherClass.get(), constructor, env->NewDirectByteBuffer(server, sizeof(server)));
 }
 
+void AbstractServer::registerPaths(const vector<u16string>& paths) {
+    for (auto& path : paths) {
+        registerPath(path);
+    }
+}
+
+void AbstractServer::unregisterPaths(const vector<u16string>& paths) {
+    for (auto& path : paths) {
+        unregisterPath(path);
+    }
+}
+
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_startWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
+Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_startWatching0(JNIEnv* env, jobject, jobject javaServer, jobjectArray javaPaths) {
     try {
         AbstractServer* server = getServer(env, javaServer);
-        auto path = javaToUtf16String(env, javaPath);
-        server->executeOnThread(shared_ptr<Command>(new RegisterPathCommand(path)));
+        vector<u16string> paths;
+        javaToUtf16StringArray(env, javaPaths, paths);
+        server->executeOnThread(shared_ptr<Command>(new RegisterPathsCommand(paths)));
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
     }
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_stopWatching(JNIEnv* env, jobject, jobject javaServer, jstring javaPath) {
+Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_stopWatching0(JNIEnv* env, jobject, jobject javaServer, jobjectArray javaPaths) {
     try {
         AbstractServer* server = getServer(env, javaServer);
-        auto path = javaToUtf16String(env, javaPath);
-        server->executeOnThread(shared_ptr<Command>(new UnregisterPathCommand(path)));
+        vector<u16string> paths;
+        javaToUtf16StringArray(env, javaPaths, paths);
+        server->executeOnThread(shared_ptr<Command>(new UnregisterPathsCommand(paths)));
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
     }
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_stop(JNIEnv* env, jobject, jobject javaServer) {
+Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_close0(JNIEnv* env, jobject, jobject javaServer) {
     try {
         AbstractServer* server = getServer(env, javaServer);
         delete server;
@@ -249,7 +273,7 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
     }
 }
 
-JNIEXPORT void JNICALL Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_invalidateLogLevelCache(JNIEnv*, jobject) {
+JNIEXPORT void JNICALL Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_invalidateLogLevelCache0(JNIEnv*, jobject) {
     logging->invalidateLogLevelCache();
 }
 

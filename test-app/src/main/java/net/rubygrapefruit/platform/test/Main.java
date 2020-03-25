@@ -49,6 +49,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -414,13 +415,13 @@ public class Main {
     private static FileWatcher createMacOsFileWatcher(String path, FileWatcherCallback callback) throws IOException {
         FileWatcher fileWatcher = Native.get(OsxFileEventFunctions.class)
             .startWatcher(300, TimeUnit.MILLISECONDS, callback);
-        fileWatcher.startWatching(new File(path));
+        fileWatcher.startWatching(Collections.singleton(new File(path)));
         return fileWatcher;
     }
 
     private static FileWatcher createWindowsFileWatcher(String path, FileWatcherCallback callback) {
         FileWatcher fileWatcher = Native.get(WindowsFileEventFunctions.class).startWatcher(callback);
-        fileWatcher.startWatching(new File(path));
+        fileWatcher.startWatching(Collections.singleton(new File(path)));
         return fileWatcher;
     }
 

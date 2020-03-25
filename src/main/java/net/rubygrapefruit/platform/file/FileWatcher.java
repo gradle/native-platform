@@ -3,14 +3,15 @@ package net.rubygrapefruit.platform.file;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.util.Collection;
 
 /**
  * A handle for watching file system locations.
  */
 public interface FileWatcher extends Closeable {
-    void startWatching(File path);
+    void startWatching(Collection<File> paths);
 
-    void stopWatching(File path);
+    void stopWatching(Collection<File> paths);
 
     /**
      * Stops watching and releases any native resources.

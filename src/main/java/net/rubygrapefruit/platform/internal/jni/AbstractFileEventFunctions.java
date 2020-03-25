@@ -6,15 +6,24 @@ import net.rubygrapefruit.platform.file.FileWatcher;
 import net.rubygrapefruit.platform.file.FileWatcherCallback;
 
 import java.io.File;
+import java.util.Collection;
 
 public class AbstractFileEventFunctions implements NativeIntegration {
-    public static native String getVersion();
+    public static String getVersion() {
+        return getVersion0();
+    }
+
+    private static native String getVersion0();
 
     /**
      * Forces the native backend to drop the cached JUL log level and thus
      * re-query it the next time it tries to log something to the Java side.
      */
-    public native void invalidateLogLevelCache();
+    public void invalidateLogLevelCache() {
+        invalidateLogLevelCache0();
+    }
+
+    private native void invalidateLogLevelCache0();
 
     protected static class NativeFileWatcherCallback {
         private final FileWatcherCallback delegate;
@@ -49,34 +58,43 @@ public class AbstractFileEventFunctions implements NativeIntegration {
         }
 
         @Override
-        public void startWatching(File path) {
+        public void startWatching(Collection<File> paths) {
             if (server == null) {
                 throw new IllegalStateException("Watcher already closed");
             }
-            startWatching(server, path.getAbsolutePath());
+            startWatching0(server, toAbsolutePaths(paths));
         }
 
-        private native void startWatching(Object server, String absolutePath);
+        private native void startWatching0(Object server, String[] absolutePaths);
 
         @Override
-        public void stopWatching(File path) {
+        public void stopWatching(Collection<File> paths) {
             if (server == null) {
                 throw new IllegalStateException("Watcher already closed");
             }
-            stopWatching(server, path.getAbsolutePath());
+            stopWatching0(server, toAbsolutePaths(paths));
         }
 
-        private native void stopWatching(Object server, String absolutePath);
+        private native void stopWatching0(Object server, String[] absolutePaths);
+
+        private static String[] toAbsolutePaths(Collection<File> files) {
+            String[] paths = new String[files.size()];
+            int index = 0;
+            for (File file : files) {
+                paths[index++] = file.getAbsolutePath();
+            }
+            return paths;
+        }
 
         @Override
         public void close() {
             if (server == null) {
                 throw new NativeException("Closed already");
             }
-            stop(server);
+            close0(server);
             server = null;
         }
 
-        protected native void stop(Object details);
+        protected native void close0(Object details);
     }
 }

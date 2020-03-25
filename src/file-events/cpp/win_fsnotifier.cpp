@@ -371,7 +371,7 @@ void Server::unregisterPath(const u16string& path) {
 //
 
 JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatcher(JNIEnv* env, jclass target, jobject javaCallback) {
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatcher0(JNIEnv* env, jclass target, jobject javaCallback) {
     return wrapServer(env, [env, javaCallback]() {
         return new Server(env, javaCallback);
     });
