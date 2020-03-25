@@ -61,7 +61,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         given:
         File[] watchedDirs = createDirectoriesToWatch(100)
 
-        startWatcher()
+        startWatcher(new TestCallback())
 
         when:
         100.times { iteration ->
@@ -79,19 +79,6 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         def numberOfParallelWritersPerWatchedDirectory = 10
         def numberOfWatchedDirectories = 10
 
-        def callback = new FileWatcherCallback() {
-            @Override
-            void pathChanged(FileWatcherCallback.Type type, String path) {
-                assert !path.empty
-            }
-
-            @Override
-            void reportError(Throwable ex) {
-                ex.printStackTrace()
-                uncaughtFailureOnThread << ex
-            }
-        }
-
         expect:
         20.times { iteration ->
             def watchedDirectories = createDirectoriesToWatch(numberOfWatchedDirectories, "iteration-$iteration/watchedDir-")
@@ -99,7 +86,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
             def executorService = Executors.newFixedThreadPool(numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories)
             def readyLatch = new CountDownLatch(numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories)
             def startModifyingLatch = new CountDownLatch(1)
-            def watcher = startNewWatcher(callback)
+            def watcher = startNewWatcher(new TestCallback())
             watchedDirectories.each { watchedDirectory ->
                 numberOfParallelWritersPerWatchedDirectory.times { index ->
                     executorService.submit({ ->
@@ -144,21 +131,8 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         }
         LOGGER.info("Watching ${watchedDirectories.size()} directories")
 
-        def callback = new FileWatcherCallback() {
-            @Override
-            void pathChanged(FileWatcherCallback.Type type, String path) {
-                assert !path.empty
-            }
-
-            @Override
-            void reportError(Throwable ex) {
-                ex.printStackTrace()
-                uncaughtFailureOnThread << ex
-            }
-        }
-
         when:
-        def watcher = startNewWatcher(callback)
+        def watcher = startNewWatcher(new TestCallback())
         watcher.startWatching(watchedDirectories as File[])
         waitForChangeEventLatency()
         assert rootDir.deleteDir()
@@ -182,21 +156,8 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
             }
         }
 
-        def callback = new FileWatcherCallback() {
-            @Override
-            void pathChanged(FileWatcherCallback.Type type, String path) {
-                assert !path.empty
-            }
-
-            @Override
-            void reportError(Throwable ex) {
-                ex.printStackTrace()
-                uncaughtFailureOnThread << ex
-            }
-        }
-
         when:
-        def watcher = startNewWatcher(callback)
+        def watcher = startNewWatcher(new TestCallback())
         watcher.startWatching(watchedDir)
         waitForChangeEventLatency()
         assert watchedDir.deleteDir()

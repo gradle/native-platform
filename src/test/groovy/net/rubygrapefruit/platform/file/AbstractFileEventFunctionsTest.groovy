@@ -51,7 +51,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     @Rule
     JulLogging logging = new JulLogging(NativeLogger, FINE)
 
-    def callback = new TestCallback()
+    def callback = new ExpectationCheckerCallback()
     File testDir
     File rootDir
     TestFileWatcher watcher
@@ -182,6 +182,32 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     }
 
     protected class TestCallback implements FileWatcherCallback {
+        @Override
+        void pathChanged(Type type, String path) {
+            assert !path.empty
+            def changed = new File(path)
+            if (!changed.absolute) {
+                throw new IllegalArgumentException("Received non-absolute changed path: " + path)
+            }
+        }
+
+        @Override
+        void reportError(Throwable ex) {
+            System.err.print("Error reported from native backend:")
+            ex.printStackTrace()
+            uncaughtFailureOnThread << ex
+        }
+    }
+
+    protected class ExpectNothingCallback extends TestCallback {
+        @Override
+        void pathChanged(Type type, String path) {
+            System.err.print("Unexpected event: $type - $path:")
+            uncaughtFailureOnThread << new IllegalStateException("Received unexpected event: $type - $path")
+        }
+    }
+
+    protected class ExpectationCheckerCallback extends TestCallback {
         private AsyncConditions conditions
         private Collection<FileEvent> expectedEvents = []
 
@@ -196,18 +222,8 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
         @Override
         void pathChanged(Type type, String path) {
-            def changed = new File(path)
-            if (!changed.absolute) {
-                throw new IllegalArgumentException("Received non-absolute changed path: " + path)
-            }
-            handleEvent(new FileEvent(type, changed, true))
-        }
-
-        @Override
-        void reportError(Throwable ex) {
-            System.err.print("Error reported from native backend:")
-            ex.printStackTrace()
-            uncaughtFailureOnThread << ex
+            super.pathChanged(type, path)
+            handleEvent(new FileEvent(type, new File(path), true))
         }
 
         private void handleEvent(FileEvent event) {
@@ -246,17 +262,18 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         watcherFixture.service
     }
 
-    protected TestFileWatcher startNewWatcher(FileWatcherCallback callback) {
-        watcherFixture.startNewWatcher(callback)
-    }
-
     protected void waitForChangeEventLatency() {
         watcherFixture.waitForChangeEventLatency()
     }
 
     protected void startWatcher(FileWatcherCallback callback = this.callback, File... roots) {
-        watcher = startNewWatcher(callback)
+        watcher = startNewWatcher(callback, roots)
+    }
+
+    protected TestFileWatcher startNewWatcher(FileWatcherCallback callback = this.callback, File... roots) {
+        def watcher = watcherFixture.startNewWatcher(callback)
         watcher.startWatching(roots)
+        return watcher
     }
 
     protected void stopWatcher() {
@@ -265,15 +282,11 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         copyWatcher?.close()
     }
 
-    protected AsyncConditions expectNoEvents(FileWatcherCallback callback = this.callback) {
-        expectEvents(callback, [])
-    }
-
-    protected AsyncConditions expectEvents(FileWatcherCallback callback = this.callback, FileEvent... events) {
+    protected AsyncConditions expectEvents(ExpectationCheckerCallback callback = this.callback, FileEvent... events) {
         expectEvents(callback, events as List)
     }
 
-    protected AsyncConditions expectEvents(FileWatcherCallback callback = this.callback, List<FileEvent> events) {
+    protected AsyncConditions expectEvents(ExpectationCheckerCallback callback = this.callback, List<FileEvent> events) {
         return callback.expect(events)
     }
 
