@@ -57,6 +57,22 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         expectedChanges.await()
     }
 
+    def "can stop and restart watching many directory many times"() {
+        given:
+        File[] watchedDirs = createDirectoriesToWatch(100)
+
+        startWatcher()
+
+        when:
+        100.times { iteration ->
+            watcher.startWatching(watchedDirs)
+            watcher.stopWatching(watchedDirs)
+        }
+
+        then:
+        noExceptionThrown()
+    }
+
     @Timeout(value = 180, unit = SECONDS)
     def "can start and stop watching directory while changes are being made to its contents"() {
         given:
@@ -78,8 +94,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
 
         expect:
         20.times { iteration ->
-            def watchedDirectories = (1..numberOfWatchedDirectories).collect { new File(rootDir, "iteration-$iteration/watchedDir-$it") }
-            watchedDirectories.each { assert it.mkdirs() }
+            def watchedDirectories = createDirectoriesToWatch(numberOfWatchedDirectories, "iteration-$iteration/watchedDir-")
 
             def executorService = Executors.newFixedThreadPool(numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories)
             def readyLatch = new CountDownLatch(numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories)
@@ -100,9 +115,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
             }
             executorService.shutdown()
 
-            watchedDirectories.each {
-                watcher.startWatching(it)
-            }
+            watcher.startWatching(watchedDirectories as File[])
             readyLatch.await()
             startModifyingLatch.countDown()
             Thread.sleep(500)
@@ -146,9 +159,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
 
         when:
         def watcher = startNewWatcher(callback)
-        watchedDirectories.each {
-            watcher.startWatching(it)
-        }
+        watcher.startWatching(watchedDirectories as File[])
         Thread.sleep(500)
         assert rootDir.deleteDir()
 
@@ -156,7 +167,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         watcher.close()
     }
 
-    protected static List<File> createSubdirs(File root, int number) {
+    private static List<File> createSubdirs(File root, int number) {
         List<File> dirs = []
         number.times { index ->
             def dir = new File(root, "dir${index}")
@@ -165,5 +176,12 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         }
         return dirs
     }
-}
 
+    private List<File> createDirectoriesToWatch(int numberOfWatchedDirectories, String prefix = "dir-") {
+        (1..numberOfWatchedDirectories).collect {
+            def dir = new File(rootDir, prefix + it)
+            assert dir.mkdirs()
+            return dir
+        }
+    }
+}

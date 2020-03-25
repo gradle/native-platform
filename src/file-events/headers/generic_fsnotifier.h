@@ -5,12 +5,12 @@
 #include <exception>
 #include <functional>
 #include <iostream>
-#include <list>
 #include <memory>
 #include <mutex>
 #include <queue>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "jni_support.h"
 #include "logging.h"
@@ -103,16 +103,16 @@ public:
     void processCommands();
 
     /**
-     * Registers a new watch point with the server.
+     * Registers new watch point with the server for the given paths.
      * Runs on processing thread.
      */
-    virtual void registerPath(const u16string& path) = 0;
+    void registerPaths(const vector<u16string>& paths);
 
     /**
-     * Unregisters a new watch point with the server.
+     * Unregisters watch points with the server for the given paths.
      * Runs on processing thread.
      */
-    virtual void unregisterPath(const u16string& path) = 0;
+    void unregisterPaths(const vector<u16string>& paths);
 
     /**
      * Terminates server.
@@ -121,6 +121,9 @@ public:
     virtual void terminate() = 0;
 
 protected:
+    virtual void registerPath(const u16string& path) = 0;
+    virtual void unregisterPath(const u16string& path) = 0;
+
     void reportChange(JNIEnv* env, int type, const u16string& path);
     void reportError(JNIEnv* env, const exception& ex);
 
@@ -145,32 +148,32 @@ private:
     jmethodID watcherReportErrorMethod;
 };
 
-class RegisterPathCommand : public Command {
+class RegisterPathsCommand : public Command {
 public:
-    RegisterPathCommand(const u16string& path)
-        : path(path) {
+    RegisterPathsCommand(const vector<u16string>& paths)
+        : paths(paths) {
     }
 
     void perform(AbstractServer* server) override {
-        server->registerPath(path);
+        server->registerPaths(paths);
     }
 
 private:
-    u16string path;
+    const vector<u16string> paths;
 };
 
-class UnregisterPathCommand : public Command {
+class UnregisterPathsCommand : public Command {
 public:
-    UnregisterPathCommand(const u16string& path)
-        : path(path) {
+    UnregisterPathsCommand(const vector<u16string>& paths)
+        : paths(paths) {
     }
 
     void perform(AbstractServer* server) override {
-        server->unregisterPath(path);
+        server->unregisterPaths(paths);
     }
 
 private:
-    u16string path;
+    const vector<u16string> paths;
 };
 
 class TerminateCommand : public Command {

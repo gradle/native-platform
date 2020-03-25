@@ -89,14 +89,11 @@ Server::Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis)
 }
 
 Server::~Server() {
-    // Make copy of watch point paths to avoid race conditions
-    list<u16string> paths;
+    vector<u16string> paths(watchPoints.size());
     for (auto& watchPoint : watchPoints) {
         paths.push_back(watchPoint.first);
     }
-    for (auto& path : paths) {
-        executeOnThread(shared_ptr<Command>(new UnregisterPathCommand(path)));
-    }
+    executeOnThread(shared_ptr<Command>(new UnregisterPathsCommand(paths)));
     executeOnThread(shared_ptr<Command>(new TerminateCommand()));
 
     if (watcherThread.joinable()) {
@@ -211,7 +208,7 @@ void Server::unregisterPath(const u16string& path) {
 }
 
 JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatcher(JNIEnv* env, jclass, long latencyInMillis, jobject javaCallback) {
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatcher0(JNIEnv* env, jclass, long latencyInMillis, jobject javaCallback) {
     return wrapServer(env, [env, javaCallback, latencyInMillis]() {
         return new Server(env, javaCallback, latencyInMillis);
     });

@@ -54,7 +54,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     def callback = new TestCallback()
     File testDir
     File rootDir
-    FileWatcher watcher
+    TestFileWatcher watcher
     List<Throwable> uncaughtFailureOnThread
 
     // We could do this with @Delegate, but Groovy doesn't let us :(
@@ -91,7 +91,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             }
 
             @Override
-            FileWatcher startNewWatcher(FileWatcherCallback callback) {
+            FileWatcher startNewWatcherInternal(FileWatcherCallback callback) {
                 // Avoid setup operations to be reported
                 waitForChangeEventLatency()
                 service.startWatcher(
@@ -113,7 +113,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             }
 
             @Override
-            FileWatcher startNewWatcher(FileWatcherCallback callback) {
+            FileWatcher startNewWatcherInternal(FileWatcherCallback callback) {
                 // Avoid setup operations to be reported
                 waitForChangeEventLatency()
                 service.startWatcher(callback)
@@ -132,7 +132,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             }
 
             @Override
-            FileWatcher startNewWatcher(FileWatcherCallback callback) {
+            FileWatcher startNewWatcherInternal(FileWatcherCallback callback) {
                 service.startWatcher(callback)
             }
 
@@ -148,7 +148,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             }
 
             @Override
-            FileWatcher startNewWatcher(FileWatcherCallback callback) {
+            FileWatcher startNewWatcherInternal(FileWatcherCallback callback) {
                 throw new UnsupportedOperationException()
             }
 
@@ -172,7 +172,11 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
         abstract AbstractFileEventFunctions getService();
 
-        abstract FileWatcher startNewWatcher(FileWatcherCallback callback)
+        abstract FileWatcher startNewWatcherInternal(FileWatcherCallback callback)
+
+        TestFileWatcher startNewWatcher(FileWatcherCallback callback) {
+            new TestFileWatcher(startNewWatcherInternal(callback))
+        }
 
         abstract void waitForChangeEventLatency()
     }
@@ -242,7 +246,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         watcherFixture.service
     }
 
-    protected FileWatcher startNewWatcher(FileWatcherCallback callback) {
+    protected TestFileWatcher startNewWatcher(FileWatcherCallback callback) {
         watcherFixture.startNewWatcher(callback)
     }
 
@@ -252,9 +256,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
     protected void startWatcher(FileWatcherCallback callback = this.callback, File... roots) {
         watcher = startNewWatcher(callback)
-        roots*.absoluteFile.each { root ->
-            watcher.startWatching(root)
-        }
+        watcher.startWatching(roots)
     }
 
     protected void stopWatcher() {
@@ -283,5 +285,22 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         LOGGER.info("> Creating $file")
         file.createNewFile()
         LOGGER.info("< Created $file")
+    }
+
+    static class TestFileWatcher implements FileWatcher {
+        @Delegate
+        private final FileWatcher delegate
+
+        TestFileWatcher(FileWatcher delegate) {
+            this.delegate = delegate
+        }
+
+        void startWatching(File... paths) {
+            delegate.startWatching(paths as List)
+        }
+
+        void stopWatching(File... paths) {
+            delegate.stopWatching(paths as List)
+        }
     }
 }
