@@ -618,14 +618,14 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
             : Platform.current().windows
             ? [event(MODIFIED, removedFile), event(REMOVED, removedFile, false), event(REMOVED, watchedDir)]
             : [event(REMOVED, removedFile), event(REMOVED, watchedDir)]
-        def directoryDeleted = removedDir.deleteDir()
+        def directoryRemoved = removedDir.deleteDir()
 
         then:
         expectedChanges.await()
-        directoryDeleted == canDeleteDirectory
+        directoryRemoved == expectDirectoryRemoved
 
         where:
-        ancestry                            | removedDirectory             | canDeleteDirectory
+        ancestry                            | removedDirectory             | expectDirectoryRemoved
         "watched directory"                 | { it }                       | true
         "parent of watched directory"       | { it.parentFile }            | !OperatingSystem.current.windows
         "grand-parent of watched directory" | { it.parentFile.parentFile } | !OperatingSystem.current.windows

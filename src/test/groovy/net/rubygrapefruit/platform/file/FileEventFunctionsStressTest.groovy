@@ -149,11 +149,12 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         watchedDirectories.each {
             watcher.startWatching(it)
         }
-        Thread.sleep(500)
+        waitForChangeEventLatency()
         assert rootDir.deleteDir()
+        watcher.close()
 
         then:
-        watcher.close()
+        noExceptionThrown()
     }
 
     @Requires({ !Platform.current().linux })
@@ -186,11 +187,12 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         when:
         def watcher = startNewWatcher(callback)
         watcher.startWatching(watchedDir)
-        Thread.sleep(500)
+        waitForChangeEventLatency()
         assert watchedDir.deleteDir()
+        watcher.close()
 
         then:
-        watcher.close()
+        noExceptionThrown()
     }
 
     protected static List<File> createSubdirs(File root, int number) {
