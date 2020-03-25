@@ -19,9 +19,7 @@ package net.rubygrapefruit.platform.file
 import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.Requires
 import spock.lang.Timeout
-import spock.util.environment.OperatingSystem
 
-import java.nio.file.Path
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 
@@ -189,38 +187,10 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         def watcher = startNewWatcher(callback)
         watcher.startWatching(watchedDir)
         Thread.sleep(500)
-        deleteRecursively(watchedDir)
+        assert watchedDir.deleteDir()
 
         then:
         watcher.close()
-    }
-
-    private static void deleteRecursively(File dir) {
-        java.nio.file.Files.walk(dir.toPath())
-            .sorted(Comparator.reverseOrder())
-            .forEach { path -> tryHardToDelete(path) }
-    }
-
-    protected static boolean tryHardToDelete(Path path) {
-        java.nio.file.Files.delete(path)
-        if (!java.nio.file.Files.exists(path)) {
-            return true
-        }
-
-        // This is copied from Ant (see org.apache.tools.ant.util.FileUtils.tryHardToDelete).
-        // It mentions that there is a bug in the Windows JDK implementations that this is a valid
-        // workaround for. I've been unable to find a definitive reference to this bug.
-        // The thinking is that if this is good enough for Ant, it's good enough for us.
-        if (OperatingSystem.current.windows) {
-            System.gc()
-        }
-        try {
-            Thread.sleep(10)
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt()
-        }
-
-        java.nio.file.Files.delete(path)
     }
 
     protected static List<File> createSubdirs(File root, int number) {
