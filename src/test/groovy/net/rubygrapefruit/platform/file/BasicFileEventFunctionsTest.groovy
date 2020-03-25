@@ -357,8 +357,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
     def "does not receive events after directory is unwatched"() {
         given:
         def file = new File(rootDir, "first.txt")
-        def callback = Mock(FileWatcherCallback)
-        startWatcher(callback, rootDir)
+        startWatcher(new ExpectNothingCallback(), rootDir)
         watcher.stopWatching(rootDir)
 
         when:
@@ -446,7 +445,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
     def "fails when stopped multiple times"() {
         given:
-        def watcher = startNewWatcher(callback)
+        def watcher = startNewWatcher()
         watcher.close()
 
         when:
@@ -488,8 +487,8 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         secondRoot.mkdirs()
         def firstFile = new File(firstRoot, "file.txt")
         def secondFile = new File(secondRoot, "file.txt")
-        def firstCallback = new TestCallback()
-        def secondCallback = new TestCallback()
+        def firstCallback = new ExpectationCheckerCallback()
+        def secondCallback = new ExpectationCheckerCallback()
 
         LOGGER.info("> Starting first watcher")
         def firstWatcher = startNewWatcher(firstCallback)
@@ -537,11 +536,10 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
     @Requires({ Platform.current().linux })
     def "does not receive event about a non-direct descendant change"() {
         given:
-        def callback = Mock(FileWatcherCallback)
         def subDir = new File(rootDir, "sub-dir")
         subDir.mkdirs()
         def fileInSubDir = new File(subDir, "unwatched-descendant.txt")
-        startWatcher(callback, rootDir)
+        startWatcher(new ExpectNothingCallback(), rootDir)
 
         when:
         createNewFile(fileInSubDir)
