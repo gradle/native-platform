@@ -60,8 +60,8 @@ public class OsxFileEventFunctions extends AbstractFileEventFunctions {
      */
     // TODO How to set kFSEventStreamCreateFlagNoDefer when latency is non-zero?
     public FileWatcher startWatcher(long latency, TimeUnit unit, FileWatcherCallback callback) {
-        return startWatcher(unit.toMillis(latency), new NativeFileWatcherCallback(callback));
+        return startWatcher0(unit.toMillis(latency), new NativeFileWatcherCallback(callback));
     }
 
-    private static native FileWatcher startWatcher(long latencyInMillis, NativeFileWatcherCallback callback);
+    private static native FileWatcher startWatcher0(long latencyInMillis, NativeFileWatcherCallback callback);
 }

@@ -52,8 +52,8 @@ public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
     // TODO What about symlinks?
     // TODO What about SUBST drives?
     public FileWatcher startWatcher(FileWatcherCallback callback) {
-        return startWatcher(new NativeFileWatcherCallback(callback));
+        return startWatcher0(new NativeFileWatcherCallback(callback));
     }
 
-    private static native FileWatcher startWatcher(NativeFileWatcherCallback callback);
+    private static native FileWatcher startWatcher0(NativeFileWatcherCallback callback);
 }

@@ -33,8 +33,8 @@ public class LinuxFileEventFunctions extends AbstractFileEventFunctions {
      * </ul>
      */
     public FileWatcher startWatcher(FileWatcherCallback callback) {
-        return startWatcher(new NativeFileWatcherCallback(callback));
+        return startWatcher0(new NativeFileWatcherCallback(callback));
     }
 
-    private static native FileWatcher startWatcher(NativeFileWatcherCallback callback);
+    private static native FileWatcher startWatcher0(NativeFileWatcherCallback callback);
 }

@@ -240,7 +240,7 @@ void AbstractServer::unregisterPaths(const vector<u16string>& paths) {
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_startWatching(JNIEnv* env, jobject, jobjectArray javaPaths, jobject javaServer) {
+Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_startWatching0(JNIEnv* env, jobject, jobject javaServer, jobjectArray javaPaths) {
     try {
         AbstractServer* server = getServer(env, javaServer);
         vector<u16string> paths;
@@ -252,7 +252,7 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_stopWatching(JNIEnv* env, jobject, jobjectArray javaPaths, jobject javaServer) {
+Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_stopWatching0(JNIEnv* env, jobject, jobject javaServer, jobjectArray javaPaths) {
     try {
         AbstractServer* server = getServer(env, javaServer);
         vector<u16string> paths;
@@ -264,7 +264,7 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_stop(JNIEnv* env, jobject, jobject javaServer) {
+Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_close0(JNIEnv* env, jobject, jobject javaServer) {
     try {
         AbstractServer* server = getServer(env, javaServer);
         delete server;
@@ -273,7 +273,7 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
     }
 }
 
-JNIEXPORT void JNICALL Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_invalidateLogLevelCache(JNIEnv*, jobject) {
+JNIEXPORT void JNICALL Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_invalidateLogLevelCache0(JNIEnv*, jobject) {
     logging->invalidateLogLevelCache();
 }
 
