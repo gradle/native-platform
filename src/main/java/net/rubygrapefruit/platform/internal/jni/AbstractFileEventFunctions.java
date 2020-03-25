@@ -6,6 +6,7 @@ import net.rubygrapefruit.platform.file.FileWatcher;
 import net.rubygrapefruit.platform.file.FileWatcherCallback;
 
 import java.io.File;
+import java.util.Collection;
 
 public class AbstractFileEventFunctions implements NativeIntegration {
     public static native String getVersion();
@@ -49,7 +50,7 @@ public class AbstractFileEventFunctions implements NativeIntegration {
         }
 
         @Override
-        public void startWatching(File... paths) {
+        public void startWatching(Collection<File> paths) {
             if (server == null) {
                 throw new IllegalStateException("Watcher already closed");
             }
@@ -59,7 +60,7 @@ public class AbstractFileEventFunctions implements NativeIntegration {
         private native void startWatching(String[] absolutePaths, Object server);
 
         @Override
-        public void stopWatching(File... paths) {
+        public void stopWatching(Collection<File> paths) {
             if (server == null) {
                 throw new IllegalStateException("Watcher already closed");
             }
@@ -68,8 +69,8 @@ public class AbstractFileEventFunctions implements NativeIntegration {
 
         private native void stopWatching(String[] absolutePaths, Object server);
 
-        private static String[] toAbsolutePaths(File[] files) {
-            String[] paths = new String[files.length];
+        private static String[] toAbsolutePaths(Collection<File> files) {
+            String[] paths = new String[files.size()];
             int index = 0;
             for (File file : files) {
                 paths[index++] = file.getAbsolutePath();
