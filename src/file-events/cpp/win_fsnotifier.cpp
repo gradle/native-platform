@@ -357,7 +357,7 @@ void Server::registerPath(const u16string& path) {
         forward_as_tuple(this, longPath));
 }
 
-void Server::unregisterPath(const u16string& path) {
+void Server::unregisterPath(const u16string path) {
     u16string longPath = path;
     convertToLongPathIfNeeded(longPath);
     if (watchPoints.erase(longPath) == 0) {
