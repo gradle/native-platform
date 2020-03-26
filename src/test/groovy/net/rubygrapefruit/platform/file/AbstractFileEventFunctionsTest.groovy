@@ -216,7 +216,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     private class TestCallback implements FileWatcherCallback {
         @Override
         void pathChanged(Type type, String path) {
-            LOGGER.info("> Received  $type $path")
+            LOGGER.info("> Received  $type ${shorten(path)}")
             if (path.empty) {
                 throw new IllegalArgumentException("Empty path reported")
             }
@@ -257,7 +257,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         boolean isOptional()
     }
 
-    private static class ExpectedChange implements ExpectedEvent {
+    private class ExpectedChange implements ExpectedEvent {
         private final Type type
         private final File file
         final boolean optional
@@ -275,7 +275,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
         @Override
         String toString() {
-            return "${optional ? "optional " : ""}$type $file"
+            return "${optional ? "optional " : ""}$type ${shorten(file)}"
         }
     }
 
@@ -380,26 +380,37 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         ensureNoMoreEvents(eventQueue)
     }
 
-    protected static ExpectedEvent change(Type type, File file) {
+    private String shorten(File file) {
+        shorten(file.absolutePath)
+    }
+
+    private String shorten(String path) {
+        def rootPath = rootDir.absolutePath
+        return path.startsWith(rootPath + File.separator)
+            ? ".." + path.substring(rootPath.length())
+            : path
+    }
+
+    protected ExpectedEvent change(Type type, File file) {
         new ExpectedChange(type, file, false)
     }
 
-    protected static ExpectedEvent optionalChange(Type type, File file) {
+    protected ExpectedEvent optionalChange(Type type, File file) {
         return new ExpectedChange(type, file, true)
     }
 
-    protected static ExpectedEvent failure(Class<? extends Throwable> type = Exception, String message) {
+    protected ExpectedEvent failure(Class<? extends Throwable> type = Exception, String message) {
         failure(type, Pattern.quote(message))
     }
 
-    protected static ExpectedEvent failure(Class<? extends Throwable> type = Exception, Pattern message) {
+    protected ExpectedEvent failure(Class<? extends Throwable> type = Exception, Pattern message) {
         return new ExpectedFailure(type, message)
     }
 
-    protected static void createNewFile(File file) {
-        LOGGER.info("> Creating $file")
+    protected void createNewFile(File file) {
+        LOGGER.info("> Creating ${shorten(file)}")
         file.createNewFile()
-        LOGGER.info("< Created $file")
+        LOGGER.info("< Created ${shorten(file)}")
     }
 
     static class TestFileWatcher implements FileWatcher {
