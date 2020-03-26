@@ -62,7 +62,7 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
         @SuppressWarnings("unused")
         public void pathChanged(int typeIndex, String path) throws InterruptedException {
             FileWatchEvent.Type type = FileWatchEvent.Type.values()[typeIndex];
-            eventQueue.put(new DefaultEvent(type, path));
+            eventQueue.put(new ChangeEvent(type, path));
         }
 
         // Called from the native side
@@ -147,11 +147,11 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
         }
     }
 
-    private static class DefaultEvent implements FileWatchEvent {
+    private static class ChangeEvent implements FileWatchEvent {
         private final Type type;
         private final String path;
 
-        public DefaultEvent(Type type, String path) {
+        public ChangeEvent(Type type, String path) {
             this.type = type;
             this.path = path;
         }
