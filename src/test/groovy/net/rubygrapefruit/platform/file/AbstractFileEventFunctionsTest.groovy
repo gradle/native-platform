@@ -200,7 +200,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             if (type == null) {
                 return "FAILURE ${failure.message}"
             } else {
-                return "$type $path"
+                return "$type ${shorten(path)}"
             }
         }
     }
