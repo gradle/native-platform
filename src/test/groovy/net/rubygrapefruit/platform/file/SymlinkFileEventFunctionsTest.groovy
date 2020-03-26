@@ -38,13 +38,12 @@ class SymlinkFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(watchedLink)
 
         when:
-        def expectedChanges = expectEvents Platform.current().macOs
-            ? event(MODIFIED, canonicalFile)
-            : event(MODIFIED, watchedFile)
         watchedFile << "change"
 
         then:
-        expectedChanges.await()
+        expectEvents Platform.current().macOs
+            ? change(MODIFIED, canonicalFile)
+            : change(MODIFIED, watchedFile)
     }
 
     @Requires({ Platform.current().macOs })
@@ -60,13 +59,12 @@ class SymlinkFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(canonicalDir, linkedDir)
 
         when:
-        def expectedChanges = expectEvents Platform.current().macOs
-            ? event(MODIFIED, canonicalFile)
-            : event(MODIFIED, watchedFile)
         watchedFile << "change"
 
         then:
-        expectedChanges.await()
+        expectEvents Platform.current().macOs
+            ? change(MODIFIED, canonicalFile)
+            : change(MODIFIED, watchedFile)
     }
 
     @Requires({ Platform.current().linux })

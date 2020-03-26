@@ -50,18 +50,17 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         }
 
         when:
-        def expectedChanges = expectEvents event(CREATED, createdFile)
         createNewFile(createdFile)
 
         then:
-        expectedChanges.await()
+        expectEvents change(CREATED, createdFile)
     }
 
     def "can stop and restart watching many directory many times"() {
         given:
         File[] watchedDirs = createDirectoriesToWatch(100)
 
-        startWatcher(new TestCallback())
+        startWatcher()
 
         when:
         100.times { iteration ->
@@ -86,7 +85,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
             def executorService = Executors.newFixedThreadPool(numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories)
             def readyLatch = new CountDownLatch(numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories)
             def startModifyingLatch = new CountDownLatch(1)
-            def watcher = startNewWatcher(new TestCallback())
+            def watcher = startNewWatcher(newBlackHoleEventQueue())
             watchedDirectories.each { watchedDirectory ->
                 numberOfParallelWritersPerWatchedDirectory.times { index ->
                     executorService.submit({ ->
@@ -132,7 +131,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         LOGGER.info("Watching ${watchedDirectories.size()} directories")
 
         when:
-        def watcher = startNewWatcher(new TestCallback())
+        def watcher = startNewWatcher(newBlackHoleEventQueue())
         watcher.startWatching(watchedDirectories as File[])
         waitForChangeEventLatency()
         assert rootDir.deleteDir()
@@ -157,7 +156,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         }
 
         when:
-        def watcher = startNewWatcher(new TestCallback())
+        def watcher = startNewWatcher(newBlackHoleEventQueue())
         watcher.startWatching(watchedDir)
         waitForChangeEventLatency()
         assert watchedDir.deleteDir()

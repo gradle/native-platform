@@ -59,11 +59,10 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(rootDir)
 
         when:
-        def expectedChanges = expectEvents event(CREATED, createdFile)
         createNewFile(createdFile)
 
         then:
-        expectedChanges.await()
+        expectEvents change(CREATED, createdFile)
     }
 
     def "can detect directory created"() {
@@ -72,11 +71,10 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(rootDir)
 
         when:
-        def expectedChanges = expectEvents event(CREATED, createdDir)
         assert createdDir.mkdirs()
 
         then:
-        expectedChanges.await()
+        expectEvents change(CREATED, createdDir)
     }
 
     def "can detect file removed"() {
@@ -86,14 +84,13 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(rootDir)
 
         when:
-        // Windows reports the file as modified before removing it
-        def expectedChanges = expectEvents Platform.current().windows
-            ? [event(MODIFIED, removedFile), event(REMOVED, removedFile)]
-            : [event(REMOVED, removedFile)]
         removedFile.delete()
 
         then:
-        expectedChanges.await()
+        // Windows reports the file as modified before removing it
+        expectEvents Platform.current().windows
+            ? [change(MODIFIED, removedFile), change(REMOVED, removedFile)]
+            : [change(REMOVED, removedFile)]
     }
 
     def "can detect directory removed"() {
@@ -103,11 +100,10 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(rootDir)
 
         when:
-        def expectedChanges = expectEvents event(REMOVED, removedDir)
         removedDir.deleteDir()
 
         then:
-        expectedChanges.await()
+        expectEvents change(REMOVED, removedDir)
     }
 
     def "can detect file modified"() {
@@ -117,11 +113,10 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(rootDir)
 
         when:
-        def expectedChanges = expectEvents event(MODIFIED, modifiedFile)
         modifiedFile << "change"
 
         then:
-        expectedChanges.await()
+        expectEvents change(MODIFIED, modifiedFile)
     }
 
     @Requires({ Platform.current().macOs })
@@ -132,18 +127,16 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(rootDir)
 
         when:
-        def expectedChanges = expectEvents event(MODIFIED, modifiedFile)
         modifiedFile.setReadable(false)
 
         then:
-        expectedChanges.await()
+        expectEvents change(MODIFIED, modifiedFile)
 
         when:
-        expectedChanges = expectEvents event(MODIFIED, modifiedFile)
         modifiedFile.setReadable(true)
 
         then:
-        expectedChanges.await()
+        expectEvents change(MODIFIED, modifiedFile)
     }
 
     @Requires({ Platform.current().macOs })
@@ -153,12 +146,11 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(rootDir)
 
         when:
-        def expectedChanges = expectEvents event(MODIFIED, createdFile)
         createNewFile(createdFile)
         createdFile.setReadable(false)
 
         then:
-        expectedChanges.await()
+        expectEvents change(MODIFIED, createdFile)
     }
 
     @Requires({ Platform.current().macOs })
@@ -169,12 +161,11 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(rootDir)
 
         when:
-        def expectedChanges = expectEvents event(MODIFIED, modifiedFile)
         modifiedFile.setReadable(false)
         modifiedFile << "change"
 
         then:
-        expectedChanges.await()
+        expectEvents change(MODIFIED, modifiedFile)
     }
 
     @Requires({ Platform.current().macOs })
@@ -185,12 +176,11 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(rootDir)
 
         when:
-        def expectedChanges = expectEvents event(REMOVED, removedFile)
         removedFile.setReadable(false)
         assert removedFile.delete()
 
         then:
-        expectedChanges.await()
+        expectEvents change(REMOVED, removedFile)
     }
 
     def "can detect file renamed"() {
@@ -201,13 +191,12 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(rootDir)
 
         when:
-        def expectedChanges = expectEvents Platform.current().windows
-            ? [event(REMOVED, sourceFile), event(CREATED, targetFile), event(MODIFIED, targetFile, false)]
-            : [event(REMOVED, sourceFile), event(CREATED, targetFile)]
         sourceFile.renameTo(targetFile)
 
         then:
-        expectedChanges.await()
+        expectEvents Platform.current().windows
+            ? [change(REMOVED, sourceFile), change(CREATED, targetFile), change(MODIFIED, targetFile, false)]
+            : [change(REMOVED, sourceFile), change(CREATED, targetFile)]
     }
 
     def "can detect file moved out"() {
@@ -220,11 +209,10 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(rootDir)
 
         when:
-        def expectedChanges = expectEvents event(REMOVED, sourceFileInside)
         sourceFileInside.renameTo(targetFileOutside)
 
         then:
-        expectedChanges.await()
+        expectEvents change(REMOVED, sourceFileInside)
     }
 
     def "can detect file moved in"() {
@@ -238,13 +226,12 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         when:
         // On Windows we sometimes get a MODIFIED event after CREATED for some reason
-        def expectedChanges = expectEvents Platform.current().windows
-            ? [event(CREATED, targetFileInside), event(MODIFIED, targetFileInside, false)]
-            : [event(CREATED, targetFileInside)]
         sourceFileOutside.renameTo(targetFileInside)
 
         then:
-        expectedChanges.await()
+        expectEvents Platform.current().windows
+            ? [change(CREATED, targetFileInside), change(MODIFIED, targetFileInside, false)]
+            : [change(CREATED, targetFileInside)]
     }
 
     def "can receive multiple events from the same directory"() {
@@ -254,19 +241,17 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(rootDir)
 
         when:
-        def expectedChanges = expectEvents event(CREATED, firstFile)
         createNewFile(firstFile)
 
         then:
-        expectedChanges.await()
+        expectEvents change(CREATED, firstFile)
 
         when:
-        expectedChanges = expectEvents event(CREATED, secondFile)
         waitForChangeEventLatency()
         createNewFile(secondFile)
 
         then:
-        expectedChanges.await()
+        expectEvents change(CREATED, secondFile)
     }
 
     def "does not receive events from unwatched directory"() {
@@ -278,7 +263,6 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(rootDir)
 
         when:
-        def expectedChanges = expectEvents event(CREATED, watchedFile)
         createNewFile(unwatchedFile)
         createNewFile(watchedFile)
         // Let's make sure there are no events for the unwatched file,
@@ -286,7 +270,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         waitForChangeEventLatency()
 
         then:
-        expectedChanges.await()
+        expectEvents change(CREATED, watchedFile)
     }
 
     // Apparently on macOS we can watch non-existent directories
@@ -357,15 +341,14 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
     def "does not receive events after directory is unwatched"() {
         given:
         def file = new File(rootDir, "first.txt")
-        startWatcher(new ExpectNothingCallback(), rootDir)
+        startWatcher(rootDir)
         watcher.stopWatching(rootDir)
 
         when:
         createNewFile(file)
 
         then:
-        0 * callback.pathChanged(_ as FileWatcherCallback.Type, _ as String)
-        0 * _
+        expectNoEvents()
     }
 
     def "can receive multiple events from multiple watched directories"() {
@@ -379,18 +362,16 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(firstWatchedDir, secondWatchedDir)
 
         when:
-        def expectedChanges = expectEvents event(CREATED, firstFileInFirstWatchedDir)
         createNewFile(firstFileInFirstWatchedDir)
 
         then:
-        expectedChanges.await()
+        expectEvents change(CREATED, firstFileInFirstWatchedDir)
 
         when:
-        expectedChanges = expectEvents event(CREATED, secondFileInSecondWatchedDir)
         createNewFile(secondFileInSecondWatchedDir)
 
         then:
-        expectedChanges.await()
+        expectEvents change(CREATED, secondFileInSecondWatchedDir)
     }
 
     @Requires({ !Platform.current().linux })
@@ -404,18 +385,16 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(lowercaseDir)
 
         when:
-        def expectedChanges = expectEvents event(CREATED, fileInLowercaseDir.canonicalFile)
         createNewFile(fileInLowercaseDir)
 
         then:
-        expectedChanges.await()
+        expectEvents change(CREATED, fileInLowercaseDir.canonicalFile)
 
         when:
-        expectedChanges = expectEvents event(CREATED, fileInUppercaseDir.canonicalFile)
         createNewFile(fileInUppercaseDir)
 
         then:
-        expectedChanges.await()
+        expectEvents change(CREATED, fileInUppercaseDir.canonicalFile)
     }
 
     def "can handle exception in callback"() {
@@ -423,7 +402,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         def createdFile = new File(rootDir, "created.txt")
         def conditions = new AsyncConditions()
         when:
-        startWatcher(new FileWatcherCallback() {
+        def watcher = startNewWatcher(new FileWatcherCallback() {
             @Override
             void pathChanged(FileWatcherCallback.Type type, String path) {
                 throw new RuntimeException("Error")
@@ -441,6 +420,9 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         then:
         conditions.await()
+
+        cleanup:
+        watcher.close()
     }
 
     def "fails when stopped multiple times"() {
@@ -463,20 +445,18 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(rootDir)
 
         when:
-        def expectedChanges = expectEvents event(CREATED, firstFile)
         createNewFile(firstFile)
 
         then:
-        expectedChanges.await()
+        expectEvents change(CREATED, firstFile)
         stopWatcher()
 
         when:
         startWatcher(rootDir)
-        expectedChanges = expectEvents event(CREATED, secondFile)
         createNewFile(secondFile)
 
         then:
-        expectedChanges.await()
+        expectEvents change(CREATED, secondFile)
     }
 
     def "can start multiple watchers"() {
@@ -487,30 +467,28 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         secondRoot.mkdirs()
         def firstFile = new File(firstRoot, "file.txt")
         def secondFile = new File(secondRoot, "file.txt")
-        def firstCallback = new ExpectationCheckerCallback()
-        def secondCallback = new ExpectationCheckerCallback()
+        def firstQueue = newEventQueue()
+        def secondQueue = newEventQueue()
 
         LOGGER.info("> Starting first watcher")
-        def firstWatcher = startNewWatcher(firstCallback)
+        def firstWatcher = startNewWatcher(firstQueue)
         firstWatcher.startWatching(firstRoot)
         LOGGER.info("> Starting second watcher")
-        def secondWatcher = startNewWatcher(secondCallback)
+        def secondWatcher = startNewWatcher(secondQueue)
         secondWatcher.startWatching(secondRoot)
         LOGGER.info("> Watchers started")
 
         when:
-        def firstChanges = expectEvents firstCallback, event(CREATED, firstFile)
         createNewFile(firstFile)
 
         then:
-        firstChanges.await()
+        expectEvents firstQueue, change(CREATED, firstFile)
 
         when:
-        def secondChanges = expectEvents secondCallback, event(CREATED, secondFile)
         createNewFile(secondFile)
 
         then:
-        secondChanges.await()
+        expectEvents secondQueue, change(CREATED, secondFile)
 
         cleanup:
         firstWatcher.close()
@@ -526,11 +504,10 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(rootDir)
 
         when:
-        def expectedChanges = expectEvents event(CREATED, fileInSubDir)
         createNewFile(fileInSubDir)
 
         then:
-        expectedChanges.await()
+        expectEvents change(CREATED, fileInSubDir)
     }
 
     @Requires({ Platform.current().linux })
@@ -539,17 +516,12 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         def subDir = new File(rootDir, "sub-dir")
         subDir.mkdirs()
         def fileInSubDir = new File(subDir, "unwatched-descendant.txt")
-        startWatcher(new ExpectNothingCallback(), rootDir)
 
         when:
         createNewFile(fileInSubDir)
-        // Let's make sure there are no events occurring,
-        // and we don't just miss them because of timing
-        waitForChangeEventLatency()
 
         then:
-        0 * callback.pathChanged(_ as FileWatcherCallback.Type, _ as String)
-        0 * _
+        expectNoEvents()
     }
 
     def "can watch directory with long path"() {
@@ -563,11 +535,10 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(subDir)
 
         when:
-        def expectedChanges = expectEvents event(CREATED, fileInSubDir)
         createNewFile(fileInSubDir)
 
         then:
-        expectedChanges.await()
+        expectEvents change(CREATED, fileInSubDir)
     }
 
     @Unroll
@@ -581,11 +552,10 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(subDir)
 
         when:
-        def expectedChanges = expectEvents event(CREATED, fileInSubDir)
         createNewFile(fileInSubDir)
 
         then:
-        expectedChanges.await()
+        expectEvents change(CREATED, fileInSubDir)
 
         where:
         type             | path                     | supported
@@ -611,15 +581,14 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(watchedDir)
 
         when:
-        def expectedChanges = expectEvents Platform.current().macOs
-            ? [event(INVALIDATE, watchedDir)]
-            : Platform.current().windows
-            ? [event(MODIFIED, removedFile), event(REMOVED, removedFile, false), event(REMOVED, watchedDir)]
-            : [event(REMOVED, removedFile), event(REMOVED, watchedDir)]
         def directoryRemoved = removedDir.deleteDir()
 
         then:
-        expectedChanges.await()
+        expectEvents Platform.current().macOs
+            ? [change(INVALIDATE, watchedDir)]
+            : Platform.current().windows
+            ? [change(MODIFIED, removedFile), change(REMOVED, removedFile, false), change(REMOVED, watchedDir)]
+            : [change(REMOVED, removedFile), change(REMOVED, watchedDir)]
         directoryRemoved == expectDirectoryRemoved
 
         where:
