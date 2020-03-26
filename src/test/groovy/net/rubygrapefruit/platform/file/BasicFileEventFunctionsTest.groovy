@@ -382,19 +382,24 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         def fileInLowercaseDir = new File(lowercaseDir, "lowercase.txt")
         def fileInUppercaseDir = new File(uppercaseDir, "UPPERCASE.TXT")
         uppercaseDir.mkdirs()
+
+        def reportedDir = Platform.current().macOs
+            ? uppercaseDir
+            : lowercaseDir
+
         startWatcher(lowercaseDir)
 
         when:
         createNewFile(fileInLowercaseDir)
 
         then:
-        expectEvents change(CREATED, fileInLowercaseDir.canonicalFile)
+        expectEvents change(CREATED, new File(reportedDir, fileInLowercaseDir.name))
 
         when:
         createNewFile(fileInUppercaseDir)
 
         then:
-        expectEvents change(CREATED, fileInUppercaseDir.canonicalFile)
+        expectEvents change(CREATED, new File(reportedDir, fileInUppercaseDir.name))
     }
 
     def "can handle exception in callback"() {
