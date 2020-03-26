@@ -333,14 +333,18 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         copyWatcher?.close()
     }
 
-    protected void expectNoEvents(BlockingQueue<RecordedEvent> eventQueue = this.eventQueue) {
-        // Let's make sure there are no events occurring,
-        // and we don't just miss them because of timing
-        waitForChangeEventLatency()
+    private void ensureNoMoreEvents(BlockingQueue<RecordedEvent> eventQueue = this.eventQueue) {
         def event = eventQueue.poll()
         if (event != null) {
             throw new RuntimeException("Unexpected event $event")
         }
+    }
+
+    protected void expectNoEvents(BlockingQueue<RecordedEvent> eventQueue = this.eventQueue) {
+        // Let's make sure there are no events occurring,
+        // and we don't just miss them because of timing
+        waitForChangeEventLatency()
+        ensureNoMoreEvents(eventQueue)
     }
 
     protected void expectEvents(BlockingQueue<RecordedEvent> eventQueue = this.eventQueue, int timeoutValue = 1, TimeUnit timeoutUnit = SECONDS, ExpectedEvent... events) {
@@ -351,14 +355,19 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         events.each { event ->
             LOGGER.info("> Expecting $event")
         }
+        def expectedEvents = new ArrayList<ExpectedEvent>(events)
         long start = System.currentTimeMillis()
         long end = start + timeoutUnit.toMillis(timeoutValue)
-        def expectedEvents = new ArrayList<ExpectedEvent>(events)
-        while (!expectedEvents.any { !it.optional }) {
-            long timeout = end - System.currentTimeMillis()
+        while (!expectedEvents.empty) {
+            def current = System.currentTimeMillis()
+            long timeout = end - current
             def event = eventQueue.poll(timeout, TimeUnit.MILLISECONDS)
             if (event == null) {
-                throw new TimeoutException("Did not receive events in $timeout ms: " + expectedEvents)
+                if (expectedEvents.every { it.optional }) {
+                    break
+                } else {
+                    throw new TimeoutException("Did not receive events in $timeoutValue ${timeoutUnit.name().toLowerCase()}:\n- " + expectedEvents.join("\n- "))
+                }
             }
             def expectedEventIndex = expectedEvents.findIndexOf { expected ->
                 expected.matches(event)
@@ -368,6 +377,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             }
             expectedEvents.remove(expectedEventIndex)
         }
+        ensureNoMoreEvents(eventQueue)
     }
 
     protected static ExpectedEvent change(Type type, File file, boolean optional = false) {
