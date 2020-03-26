@@ -590,9 +590,9 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
                 expectedEvents << change(REMOVED, watchedDir)
             }
         } else if (Platform.current().linux) {
-            expectedEvents << change(MODIFIED, removedFile) << change(REMOVED, removedFile, false) << change(REMOVED, watchedDir)
-        } else if (Platform.current().windows) {
             expectedEvents << change(REMOVED, removedFile) << change(REMOVED, watchedDir)
+        } else if (Platform.current().windows) {
+            expectedEvents << change(MODIFIED, removedFile) << change(REMOVED, removedFile, false) << change(REMOVED, watchedDir)
         }
 
         then:
