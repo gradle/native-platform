@@ -385,9 +385,9 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     }
 
     private String shorten(String path) {
-        def rootPath = rootDir.absolutePath
-        return path.startsWith(rootPath + File.separator)
-            ? ".." + path.substring(rootPath.length())
+        def prefix = testDir.absolutePath
+        return path.startsWith(prefix + File.separator)
+            ? ".." + path.substring(prefix.length())
             : path
     }
 
