@@ -16,7 +16,6 @@
 
 package net.rubygrapefruit.platform.file
 
-
 import groovy.transform.Memoized
 import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.file.FileWatcherCallback.Type
@@ -195,93 +194,61 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             this.path = path
             this.failure = failure
         }
+
+        @Override
+        String toString() {
+            if (type == null) {
+                return "FAILURE ${failure.message}"
+            } else {
+                return "$type $path"
+            }
+        }
     }
 
     protected static BlockingQueue<RecordedEvent> newEventQueue() {
         new LinkedBlockingQueue<RecordedEvent>()
     }
 
-    protected static BlockingQueue<RecordedEvent> newBlackHoleEventQueue() {
-        new BlackHoleQueue<RecordedEvent>()
+    protected FileWatcherCallback newEventSinkCallback() {
+        new TestCallback()
     }
 
-    private static class TestCallback implements FileWatcherCallback {
+    private class TestCallback implements FileWatcherCallback {
+        @Override
+        void pathChanged(Type type, String path) {
+            LOGGER.info("> Received  $type $path")
+            if (path.empty) {
+                throw new IllegalArgumentException("Empty path reported")
+            }
+            if (!new File(path).absolute) {
+                throw new IllegalArgumentException("Relative path reported: ${path}")
+            }
+        }
+
+        @Override
+        void reportError(Throwable ex) {
+            System.err.println("Caught exception from native side:")
+            ex.printStackTrace()
+            uncaughtFailureOnThread << ex
+        }
+    }
+
+    private class QueuingCallback extends TestCallback {
         private final BlockingQueue<RecordedEvent> eventQueue
 
-        TestCallback(BlockingQueue<RecordedEvent> eventQueue) {
+        QueuingCallback(BlockingQueue<RecordedEvent> eventQueue) {
             this.eventQueue = eventQueue
         }
 
         @Override
         void pathChanged(Type type, String path) {
+            super.pathChanged(type, path)
             eventQueue.put(new RecordedEvent(type, path, null))
         }
 
         @Override
         void reportError(Throwable ex) {
             eventQueue.put(new RecordedEvent(null, null, ex))
-        }
-    }
-
-    private static class BlackHoleQueue<T> extends AbstractQueue<T> implements BlockingQueue<T> {
-
-        @Override
-        Iterator<T> iterator() {
-            throw new UnsupportedOperationException()
-        }
-
-        @Override
-        int size() {
-            throw new UnsupportedOperationException()
-        }
-
-        @Override
-        void put(T t) throws InterruptedException {
-        }
-
-        @Override
-        boolean offer(T t, long timeout, TimeUnit unit) throws InterruptedException {
-            return true
-        }
-
-        @Override
-        T take() throws InterruptedException {
-            throw new UnsupportedOperationException()
-        }
-
-        @Override
-        T poll(long timeout, TimeUnit unit) throws InterruptedException {
-            return null
-        }
-
-        @Override
-        int remainingCapacity() {
-            throw new UnsupportedOperationException()
-        }
-
-        @Override
-        int drainTo(Collection<? super T> c) {
-            throw new UnsupportedOperationException()
-        }
-
-        @Override
-        int drainTo(Collection<? super T> c, int maxElements) {
-            throw new UnsupportedOperationException()
-        }
-
-        @Override
-        boolean offer(T t) {
-            return true
-        }
-
-        @Override
-        T poll() {
-            throw new UnsupportedOperationException()
-        }
-
-        @Override
-        T peek() {
-            throw new UnsupportedOperationException()
         }
     }
 
@@ -352,7 +319,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     }
 
     protected TestFileWatcher startNewWatcher(BlockingQueue<RecordedEvent> eventQueue = this.eventQueue, File... roots) {
-        startNewWatcher(new TestCallback(eventQueue), roots)
+        startNewWatcher(new QueuingCallback(eventQueue), roots)
     }
     protected TestFileWatcher startNewWatcher(FileWatcherCallback callback, File... roots) {
         def watcher = watcherFixture.startNewWatcher(callback)
@@ -393,7 +360,6 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             if (event == null) {
                 throw new TimeoutException("Did not receive events in $timeout ms: " + expectedEvents)
             }
-            LOGGER.info("> Received  $event")
             def expectedEventIndex = expectedEvents.findIndexOf { expected ->
                 expected.matches(event)
             }

@@ -85,7 +85,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
             def executorService = Executors.newFixedThreadPool(numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories)
             def readyLatch = new CountDownLatch(numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories)
             def startModifyingLatch = new CountDownLatch(1)
-            def watcher = startNewWatcher(newBlackHoleEventQueue())
+            def watcher = startNewWatcher(newEventSinkCallback())
             watchedDirectories.each { watchedDirectory ->
                 numberOfParallelWritersPerWatchedDirectory.times { index ->
                     executorService.submit({ ->
@@ -131,7 +131,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         LOGGER.info("Watching ${watchedDirectories.size()} directories")
 
         when:
-        def watcher = startNewWatcher(newBlackHoleEventQueue())
+        def watcher = startNewWatcher(newEventSinkCallback())
         watcher.startWatching(watchedDirectories as File[])
         waitForChangeEventLatency()
         assert rootDir.deleteDir()
@@ -156,7 +156,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         }
 
         when:
-        def watcher = startNewWatcher(newBlackHoleEventQueue())
+        def watcher = startNewWatcher(newEventSinkCallback())
         watcher.startWatching(watchedDir)
         waitForChangeEventLatency()
         assert watchedDir.deleteDir()
