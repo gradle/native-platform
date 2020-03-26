@@ -105,7 +105,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
             @Override
             void waitForChangeEventLatency() {
-                TimeUnit.MILLISECONDS.sleep(LATENCY_IN_MILLIS + 20)
+                TimeUnit.MILLISECONDS.sleep(LATENCY_IN_MILLIS + 50)
             }
         },
         LINUX(){
