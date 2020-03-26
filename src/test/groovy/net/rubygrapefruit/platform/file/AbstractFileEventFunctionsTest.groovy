@@ -18,7 +18,6 @@ package net.rubygrapefruit.platform.file
 
 import groovy.transform.Memoized
 import net.rubygrapefruit.platform.Native
-import net.rubygrapefruit.platform.file.FileWatcherCallback.Type
 import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.AbstractFileEventFunctions
 import net.rubygrapefruit.platform.internal.jni.LinuxFileEventFunctions
@@ -143,10 +142,10 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             }
 
             @Override
-            FileWatcher startNewWatcherInternal(FileWatcherCallback callback, boolean preventOverflow) {
+            FileWatcher startNewWatcherInternal(BlockingQueue<FileWatchEvent> eventQueue, boolean preventOverflow) {
                 // Avoid setup operations to be reported
                 waitForChangeEventLatency()
-                service.newWatcher(callback)
+                service.newWatcher(eventQueue)
                     .withLatency(LATENCY_IN_MILLIS, TimeUnit.MILLISECONDS)
                     .start()
             }
@@ -164,10 +163,10 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             }
 
             @Override
-            FileWatcher startNewWatcherInternal(FileWatcherCallback callback, boolean preventOverflow) {
+            FileWatcher startNewWatcherInternal(BlockingQueue<FileWatchEvent> eventQueue, boolean preventOverflow) {
                 // Avoid setup operations to be reported
                 waitForChangeEventLatency()
-                service.newWatcher(callback)
+                service.newWatcher(eventQueue)
                     .start()
             }
 
@@ -184,7 +183,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             }
 
             @Override
-            FileWatcher startNewWatcherInternal(FileWatcherCallback callback, boolean preventOverflow) {
+            FileWatcher startNewWatcherInternal(BlockingQueue<FileWatchEvent> eventQueue, boolean preventOverflow) {
                 int bufferSizeInKb
                 if (preventOverflow) {
                     bufferSizeInKb = 16384
@@ -192,7 +191,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
                 } else {
                     bufferSizeInKb = 16
                 }
-                service.newWatcher(callback)
+                service.newWatcher(eventQueue)
                     .withBufferSize(bufferSizeInKb * 1024)
                     .start()
             }
@@ -209,7 +208,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             }
 
             @Override
-            FileWatcher startNewWatcherInternal(FileWatcherCallback callback, boolean preventOverflow) {
+            FileWatcher startNewWatcherInternal(BlockingQueue<FileWatchEvent> eventQueue, boolean preventOverflow) {
                 throw new UnsupportedOperationException()
             }
 
@@ -233,10 +232,10 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
         abstract AbstractFileEventFunctions getService()
 
-        abstract FileWatcher startNewWatcherInternal(FileWatcherCallback callback, boolean preventOverflow)
+        abstract FileWatcher startNewWatcherInternal(BlockingQueue<FileWatchEvent> eventQueue, boolean preventOverflow)
 
-        TestFileWatcher startNewWatcher(FileWatcherCallback callback) {
-            new TestFileWatcher(startNewWatcherInternal(callback, false))
+        TestFileWatcher startNewWatcher(BlockingQueue<FileWatchEvent> eventQueue) {
+            new TestFileWatcher(startNewWatcherInternal(eventQueue, false))
         }
 
         /**
@@ -244,99 +243,35 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
          * Overflow events are okay when we have lots of chagnes, but they make it impossible to test
          * other behavior we care about in stress tests.
          */
-        TestFileWatcher startNewWatcherWithOverflowPrevention(FileWatcherCallback callback) {
-            new TestFileWatcher(startNewWatcherInternal(callback, true))
+        TestFileWatcher startNewWatcherWithOverflowPrevention(BlockingQueue<FileWatchEvent> eventQueue) {
+            new TestFileWatcher(startNewWatcherInternal(eventQueue, true))
         }
 
         abstract void waitForChangeEventLatency()
     }
 
-    protected class RecordedEvent {
-        final Type type
-        final String path
-        final Throwable failure
-
-        RecordedEvent(Type type, String path, Throwable failure) {
-            this.type = type
-            this.path = path
-            this.failure = failure
-        }
-
-        @Override
-        String toString() {
-            if (type == null) {
-                return "FAILURE ${failure.message}"
-            } else {
-                return "$type ${shorten(path)}"
-            }
-        }
-    }
-
-    protected static BlockingQueue<RecordedEvent> newEventQueue() {
-        new LinkedBlockingQueue<RecordedEvent>()
-    }
-
-    protected FileWatcherCallback newEventSinkCallback() {
-        new TestCallback()
-    }
-
-    private class TestCallback implements FileWatcherCallback {
-        @Override
-        void pathChanged(Type type, String path) {
-            LOGGER.info("> Received  $type ${shorten(path)}")
-            if (path.empty) {
-                throw new IllegalArgumentException("Empty path reported")
-            }
-            if (!new File(path).absolute) {
-                throw new IllegalArgumentException("Relative path reported: ${path}")
-            }
-        }
-
-        @Override
-        void reportError(Throwable ex) {
-            System.err.println("Caught exception from native side:")
-            ex.printStackTrace()
-            uncaughtFailureOnThread << ex
-        }
-    }
-
-    private class QueuingCallback extends TestCallback {
-        private final BlockingQueue<RecordedEvent> eventQueue
-
-        QueuingCallback(BlockingQueue<RecordedEvent> eventQueue) {
-            this.eventQueue = eventQueue
-        }
-
-        @Override
-        void pathChanged(Type type, String path) {
-            super.pathChanged(type, path)
-            eventQueue.put(new RecordedEvent(type, path, null))
-        }
-
-        @Override
-        void reportError(Throwable ex) {
-            eventQueue.put(new RecordedEvent(null, null, ex))
-        }
+    protected static BlockingQueue<FileWatchEvent> newEventQueue() {
+        new LinkedBlockingQueue<FileWatchEvent>()
     }
 
     private interface ExpectedEvent {
-        boolean matches(RecordedEvent event)
+        boolean matches(FileWatchEvent event)
         boolean isOptional()
     }
 
     private class ExpectedChange implements ExpectedEvent {
-        private final Type type
+        private final FileWatchEvent.Type type
         private final File file
         final boolean optional
 
-        ExpectedChange(Type type, File file, boolean optional) {
+        ExpectedChange(FileWatchEvent.Type type, File file, boolean optional) {
             this.type = type
             this.file = file
             this.optional = optional
         }
 
         @Override
-        boolean matches(RecordedEvent event) {
+        boolean matches(FileWatchEvent event) {
             type == event.type && file.absolutePath == event.path
         }
 
@@ -346,7 +281,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         }
     }
 
-    private static class ExpectedFailure implements ExpectedEvent {
+    private class ExpectedFailure implements ExpectedEvent {
         private final Pattern message
         private final Class<? extends Throwable> type
 
@@ -356,8 +291,8 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         }
 
         @Override
-        boolean matches(RecordedEvent event) {
-            event.type == Type.FAILURE \
+        boolean matches(FileWatchEvent event) {
+            event.type == FileWatchEvent.Type.FAILURE \
                 && type.isInstance(event.failure) \
                 && message.matcher(event.failure.message).matches()
         }
@@ -381,22 +316,18 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         watcherFixture.waitForChangeEventLatency()
     }
 
-    protected void startWatcher(BlockingQueue<RecordedEvent> eventQueue = this.eventQueue, File... roots) {
+    protected void startWatcher(BlockingQueue<FileWatchEvent> eventQueue = this.eventQueue, File... roots) {
         watcher = startNewWatcher(eventQueue, roots)
     }
 
-    protected TestFileWatcher startNewWatcher(BlockingQueue<RecordedEvent> eventQueue = this.eventQueue, File... roots) {
-        startNewWatcher(new QueuingCallback(eventQueue), roots)
-    }
-
-    protected TestFileWatcher startNewWatcher(FileWatcherCallback callback, File... roots) {
-        def watcher = startNewWatcher(callback)
+    protected TestFileWatcher startNewWatcher(BlockingQueue<FileWatchEvent> eventQueue = this.eventQueue, File... roots) {
+        def watcher = startNewWatcher(eventQueue)
         watcher.startWatching(roots)
         return watcher
     }
 
-    protected TestFileWatcher startNewWatcher(FileWatcherCallback callback) {
-        watcherFixture.startNewWatcher(callback)
+    protected TestFileWatcher startNewWatcher(BlockingQueue<FileWatchEvent> eventQueue) {
+        watcherFixture.startNewWatcher(eventQueue)
     }
 
     protected void stopWatcher() {
@@ -405,25 +336,25 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         copyWatcher?.close()
     }
 
-    private void ensureNoMoreEvents(BlockingQueue<RecordedEvent> eventQueue = this.eventQueue) {
+    private void ensureNoMoreEvents(BlockingQueue<FileWatchEvent> eventQueue = this.eventQueue) {
         def event = eventQueue.poll()
         if (event != null) {
-            throw new RuntimeException("Unexpected event $event")
+            throw new RuntimeException("Unexpected event ${event.type} ${shorten(event.path)}")
         }
     }
 
-    protected void expectNoEvents(BlockingQueue<RecordedEvent> eventQueue = this.eventQueue) {
+    protected void expectNoEvents(BlockingQueue<FileWatchEvent> eventQueue = this.eventQueue) {
         // Let's make sure there are no events occurring,
         // and we don't just miss them because of timing
         waitForChangeEventLatency()
         ensureNoMoreEvents(eventQueue)
     }
 
-    protected void expectEvents(BlockingQueue<RecordedEvent> eventQueue = this.eventQueue, int timeoutValue = 1, TimeUnit timeoutUnit = SECONDS, ExpectedEvent... events) {
+    protected void expectEvents(BlockingQueue<FileWatchEvent> eventQueue = this.eventQueue, int timeoutValue = 1, TimeUnit timeoutUnit = SECONDS, ExpectedEvent... events) {
         expectEvents(eventQueue, timeoutValue, timeoutUnit, events as List)
     }
 
-    protected void expectEvents(BlockingQueue<RecordedEvent> eventQueue = this.eventQueue, int timeoutValue = 1, TimeUnit timeoutUnit = SECONDS, List<ExpectedEvent> events) {
+    protected void expectEvents(BlockingQueue<FileWatchEvent> eventQueue = this.eventQueue, int timeoutValue = 1, TimeUnit timeoutUnit = SECONDS, List<ExpectedEvent> events) {
         events.each { event ->
             LOGGER.info("> Expecting $event")
         }
@@ -454,11 +385,11 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     }
 
     protected void expectEvents(
-        BlockingQueue<RecordedEvent> eventQueue = this.eventQueue,
+        BlockingQueue<FileWatchEvent> eventQueue = this.eventQueue,
         int timeoutValue = 1,
         TimeUnit timeoutUnit = SECONDS,
         BooleanSupplier shouldContinue = { true },
-        Predicate<RecordedEvent> eventHandler
+        Predicate<FileWatchEvent> eventHandler
     ) {
         long start = System.currentTimeMillis()
         long end = start + timeoutUnit.toMillis(timeoutValue)
@@ -483,11 +414,11 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             : path
     }
 
-    protected ExpectedEvent change(Type type, File file) {
+    protected ExpectedEvent change(FileWatchEvent.Type type, File file) {
         new ExpectedChange(type, file, false)
     }
 
-    protected ExpectedEvent optionalChange(Type type, File file) {
+    protected ExpectedEvent optionalChange(FileWatchEvent.Type type, File file) {
         return new ExpectedChange(type, file, true)
     }
 

@@ -18,7 +18,7 @@
 
 using namespace std;
 
-// Corresponds to values of FileWatcherCallback.Type
+// Corresponds to values of FileWatchEvent.Type
 enum FileWatchEventType {
     CREATED,
     REMOVED,

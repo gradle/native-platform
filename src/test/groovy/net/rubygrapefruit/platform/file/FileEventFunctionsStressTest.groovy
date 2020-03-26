@@ -20,11 +20,13 @@ import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.Requires
 import spock.lang.Timeout
 
+import java.util.concurrent.BlockingQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 import static java.util.concurrent.TimeUnit.SECONDS
-import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
+import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.CREATED
 
 @Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
 class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
@@ -87,7 +89,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
             def readyLatch = new CountDownLatch(numberOfThreads)
             def startModifyingLatch = new CountDownLatch(1)
             def inTheMiddleLatch = new CountDownLatch(numberOfThreads)
-            def watcher = startNewWatcher(newEventSinkCallback())
+            def watcher = startNewWatcher(new BlackHoleQueue<FileWatchEvent>())
             watchedDirectories.each { watchedDirectory ->
                 numberOfParallelWritersPerWatchedDirectory.times { index ->
                     executorService.submit({ ->
@@ -133,7 +135,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         List<File> watchedDirectories = createHierarchy(watchedDir, watchedDirectoryDepth)
 
         when:
-        def watcher = startNewWatcher(newEventSinkCallback())
+        def watcher = startNewWatcher(new BlackHoleQueue<FileWatchEvent>())
         watcher.startWatching(watchedDirectories as File[])
         waitForChangeEventLatency()
         assert rootDir.deleteDir()
@@ -153,7 +155,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         createHierarchy(watchedDir, watchedDirectoryDepth)
 
         when:
-        def watcher = startNewWatcher(newEventSinkCallback())
+        def watcher = startNewWatcher(new BlackHoleQueue<FileWatchEvent>())
         watcher.startWatching(watchedDir)
         waitForChangeEventLatency()
         assert watchedDir.deleteDir()
@@ -164,9 +166,9 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
     }
 
     @Override
-    protected TestFileWatcher startNewWatcher(FileWatcherCallback callback) {
+    protected TestFileWatcher startNewWatcher(BlockingQueue<FileWatchEvent> eventQueue) {
         // Make sure we don't receive overflow events during these tests
-        return watcherFixture.startNewWatcherWithOverflowPrevention(callback)
+        return watcherFixture.startNewWatcherWithOverflowPrevention(eventQueue)
     }
 
     private static List<File> createHierarchy(File root, int watchedDirectoryDepth, int branching = 2) {
@@ -194,6 +196,68 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
             def dir = new File(rootDir, prefix + it)
             assert dir.mkdirs()
             return dir
+        }
+    }
+
+    private static class BlackHoleQueue<T> extends AbstractQueue<T> implements BlockingQueue<T> {
+
+        @Override
+        Iterator<T> iterator() {
+            throw new UnsupportedOperationException()
+        }
+
+        @Override
+        int size() {
+            throw new UnsupportedOperationException()
+        }
+
+        @Override
+        void put(T t) throws InterruptedException {
+        }
+
+        @Override
+        boolean offer(T t, long timeout, TimeUnit unit) throws InterruptedException {
+            return true
+        }
+
+        @Override
+        T take() throws InterruptedException {
+            throw new UnsupportedOperationException()
+        }
+
+        @Override
+        T poll(long timeout, TimeUnit unit) throws InterruptedException {
+            return null
+        }
+
+        @Override
+        int remainingCapacity() {
+            throw new UnsupportedOperationException()
+        }
+
+        @Override
+        int drainTo(Collection<? super T> c) {
+            throw new UnsupportedOperationException()
+        }
+
+        @Override
+        int drainTo(Collection<? super T> c, int maxElements) {
+            throw new UnsupportedOperationException()
+        }
+
+        @Override
+        boolean offer(T t) {
+            return true
+        }
+
+        @Override
+        T poll() {
+            throw new UnsupportedOperationException()
+        }
+
+        @Override
+        T peek() {
+            throw new UnsupportedOperationException()
         }
     }
 }

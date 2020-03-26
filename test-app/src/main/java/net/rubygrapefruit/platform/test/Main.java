@@ -27,8 +27,8 @@ import net.rubygrapefruit.platform.file.DirEntry;
 import net.rubygrapefruit.platform.file.FileInfo;
 import net.rubygrapefruit.platform.file.FileSystemInfo;
 import net.rubygrapefruit.platform.file.FileSystems;
+import net.rubygrapefruit.platform.file.FileWatchEvent;
 import net.rubygrapefruit.platform.file.FileWatcher;
-import net.rubygrapefruit.platform.file.FileWatcherCallback;
 import net.rubygrapefruit.platform.file.Files;
 import net.rubygrapefruit.platform.file.PosixFileInfo;
 import net.rubygrapefruit.platform.file.PosixFiles;
@@ -53,6 +53,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 
 public class Main {
     public static void main(String[] args) throws Exception {
@@ -373,17 +375,30 @@ public class Main {
     }
 
     private static void watch(String path) throws InterruptedException {
-        FileWatcher watcher = createWatcher(path, new FileWatcherCallback() {
+        final BlockingQueue<FileWatchEvent> eventQueue = new ArrayBlockingQueue<FileWatchEvent>(16);
+        Thread processorThread = new Thread(new Runnable() {
             @Override
-            public void pathChanged(Type type, String changedPath) {
-                System.out.printf("Change detected: %s / '%s'%n", type, changedPath);
+            public void run() {
+                while (!Thread.currentThread().isInterrupted()) {
+                    FileWatchEvent event;
+                    try {
+                        event = eventQueue.take();
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+                    if (event.getType() == FileWatchEvent.Type.FAILURE) {
+                        Throwable failure = event.getFailure();
+                        assert failure != null;
+                        failure.printStackTrace();
+                    } else {
+                        System.out.printf("Change detected: %s / '%s'%n", event.getType(), event.getPath());
+                    }
+                }
             }
-
-            @Override
-            public void reportError(Throwable ex) {
-                ex.printStackTrace();
-            }
-        });
+        }, "File watcher client");
+        processorThread.setDaemon(true);
+        processorThread.start();
+        FileWatcher watcher = createWatcher(path, eventQueue);
         try {
             System.out.println("Waiting - type ctrl-d to exit ...");
             while (true) {
@@ -400,23 +415,24 @@ public class Main {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            processorThread.interrupt();
         }
         System.out.println("Done");
     }
 
-    private static FileWatcher createWatcher(String path, FileWatcherCallback callback) throws InterruptedException {
+    private static FileWatcher createWatcher(String path, BlockingQueue<FileWatchEvent> eventQueue) throws InterruptedException {
         FileWatcher watcher;
         if (Platform.current().isMacOs()) {
             watcher = Native.get(OsxFileEventFunctions.class)
-                .newWatcher(callback)
+                .newWatcher(eventQueue)
                 .start();
         } else if (Platform.current().isLinux()) {
             watcher = Native.get(LinuxFileEventFunctions.class)
-                .newWatcher(callback)
+                .newWatcher(eventQueue)
                 .start();
         } else if (Platform.current().isWindows()) {
             watcher = Native.get(WindowsFileEventFunctions.class)
-                .newWatcher(callback)
+                .newWatcher(eventQueue)
                 .start();
         } else {
             throw new RuntimeException("Only Windows and macOS are supported for file watching");

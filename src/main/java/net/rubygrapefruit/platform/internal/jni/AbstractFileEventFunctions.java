@@ -1,12 +1,14 @@
 package net.rubygrapefruit.platform.internal.jni;
 
 import net.rubygrapefruit.platform.NativeIntegration;
+import net.rubygrapefruit.platform.file.FileWatchEvent;
 import net.rubygrapefruit.platform.file.FileWatcher;
-import net.rubygrapefruit.platform.file.FileWatcherCallback;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.InterruptedIOException;
 import java.util.Collection;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -28,10 +30,10 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
     private native void invalidateLogLevelCache0();
 
     public abstract static class AbstractWatcherBuilder {
-        protected final FileWatcherCallback callback;
+        protected final BlockingQueue<FileWatchEvent> eventQueue;
 
-        public AbstractWatcherBuilder(FileWatcherCallback callback) {
-            this.callback = callback;
+        public AbstractWatcherBuilder(BlockingQueue<FileWatchEvent> eventQueue) {
+            this.eventQueue = eventQueue;
         }
 
         /**
@@ -46,25 +48,27 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
      * Configures a new watcher using a builder. Call {@link AbstractWatcherBuilder#start()} to
      * actually start the {@link FileWatcher}.
      */
-    public abstract AbstractWatcherBuilder newWatcher(FileWatcherCallback callback);
+    public abstract AbstractWatcherBuilder newWatcher(BlockingQueue<FileWatchEvent> queue);
 
     protected static class NativeFileWatcherCallback {
-        private final FileWatcherCallback delegate;
 
-        public NativeFileWatcherCallback(FileWatcherCallback delegate) {
-            this.delegate = delegate;
+        private final BlockingQueue<FileWatchEvent> eventQueue;
+
+        public NativeFileWatcherCallback(BlockingQueue<FileWatchEvent> eventQueue) {
+            this.eventQueue = eventQueue;
         }
 
         // Called from the native side
         @SuppressWarnings("unused")
-        public void pathChanged(int type, String path) {
-            delegate.pathChanged(FileWatcherCallback.Type.values()[type], path);
+        public void pathChanged(int typeIndex, String path) throws InterruptedException {
+            FileWatchEvent.Type type = FileWatchEvent.Type.values()[typeIndex];
+            eventQueue.put(new DefaultEvent(type, path));
         }
 
         // Called from the native side
         @SuppressWarnings("unused")
-        public void reportError(Throwable ex) {
-            delegate.reportError(ex);
+        public void reportError(Throwable ex) throws InterruptedException {
+            eventQueue.put(new ErrorEvent(ex));
         }
     }
 
@@ -140,6 +144,66 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
             if (closed) {
                 throw new IllegalStateException("Watcher already closed");
             }
+        }
+    }
+
+    private static class DefaultEvent implements FileWatchEvent {
+        private final Type type;
+        private final String path;
+
+        public DefaultEvent(Type type, String path) {
+            this.type = type;
+            this.path = path;
+        }
+
+        @Override
+        public Type getType() {
+            return type;
+        }
+
+        @Override
+        public String getPath() {
+            return path;
+        }
+
+        @Nullable
+        @Override
+        public Throwable getFailure() {
+            return null;
+        }
+
+        @Override
+        public String toString() {
+            return type + " " + path;
+        }
+    }
+
+    private static class ErrorEvent implements FileWatchEvent {
+        private final Throwable failure;
+
+        public ErrorEvent(Throwable failure) {
+            this.failure = failure;
+        }
+
+        @Override
+        public Type getType() {
+            return Type.FAILURE;
+        }
+
+        @Nullable
+        @Override
+        public String getPath() {
+            return null;
+        }
+
+        @Override
+        public Throwable getFailure() {
+            return failure;
+        }
+
+        @Override
+        public String toString() {
+            return Type.FAILURE + " " + failure.getMessage();
         }
     }
 }

@@ -16,8 +16,10 @@
 
 package net.rubygrapefruit.platform.internal.jni;
 
+import net.rubygrapefruit.platform.file.FileWatchEvent;
 import net.rubygrapefruit.platform.file.FileWatcher;
-import net.rubygrapefruit.platform.file.FileWatcherCallback;
+
+import java.util.concurrent.BlockingQueue;
 
 /**
  * File watcher for Windows. Reports changes to the watched paths and any of their descendants.
@@ -29,9 +31,9 @@ import net.rubygrapefruit.platform.file.FileWatcherCallback;
  *     different case, the canonical one is used to report changes.</li>
  *
  *     <li>When reporting
- *     {@link net.rubygrapefruit.platform.file.FileWatcherCallback.Type#REMOVED REMOVED}
+ *     {@link net.rubygrapefruit.platform.file.FileWatchEvent.Type#REMOVED REMOVED}
  *     events, Windows sometimes also reports a
- *     {@link net.rubygrapefruit.platform.file.FileWatcherCallback.Type#MODIFIED MODIFIED}
+ *     {@link net.rubygrapefruit.platform.file.FileWatchEvent.Type#MODIFIED MODIFIED}
  *     event for the same file. This can happen when deleting a file or renaming it.</li>
  *
  *     <li>Events arrive from a single background thread unique to the {@link FileWatcher}.
@@ -46,15 +48,15 @@ public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
     public static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
 
     @Override
-    public WatcherBuilder newWatcher(FileWatcherCallback callback) {
-        return new WatcherBuilder(callback);
+    public WatcherBuilder newWatcher(BlockingQueue<FileWatchEvent> eventQueue) {
+        return new WatcherBuilder(eventQueue);
     }
 
     public static class WatcherBuilder extends AbstractWatcherBuilder {
         private int bufferSize = DEFAULT_BUFFER_SIZE;
 
-        private WatcherBuilder(FileWatcherCallback callback) {
-            super(callback);
+        private WatcherBuilder(BlockingQueue<FileWatchEvent> eventQueue) {
+            super(eventQueue);
         }
 
         /**
@@ -68,7 +70,7 @@ public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
 
         @Override
         public FileWatcher start() throws InterruptedException {
-            return new NativeFileWatcher(startWatcher0(bufferSize, new NativeFileWatcherCallback(callback)));
+            return new NativeFileWatcher(startWatcher0(bufferSize, new NativeFileWatcherCallback(eventQueue)));
         }
     }
 
