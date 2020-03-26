@@ -184,7 +184,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         abstract void waitForChangeEventLatency()
     }
 
-    protected static class RecordedEvent {
+    protected class RecordedEvent {
         final Type type
         final String path
         final Throwable failure
