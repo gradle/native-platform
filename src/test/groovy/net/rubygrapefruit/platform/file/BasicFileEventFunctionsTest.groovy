@@ -583,12 +583,20 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         when:
         def directoryRemoved = removedDir.deleteDir()
 
+        def expectedEvents = []
+        if (Platform.current().macOs) {
+            expectedEvents << change(INVALIDATE, watchedDir)
+            if (ancestry == "watched directory") {
+                expectedEvents << change(REMOVED, watchedDir)
+            }
+        } else if (Platform.current().linux) {
+            expectedEvents << change(MODIFIED, removedFile) << change(REMOVED, removedFile, false) << change(REMOVED, watchedDir)
+        } else if (Platform.current().windows) {
+            expectedEvents << change(REMOVED, removedFile) << change(REMOVED, watchedDir)
+        }
+
         then:
-        expectEvents Platform.current().macOs
-            ? [change(INVALIDATE, watchedDir)]
-            : Platform.current().windows
-            ? [change(MODIFIED, removedFile), change(REMOVED, removedFile, false), change(REMOVED, watchedDir)]
-            : [change(REMOVED, removedFile), change(REMOVED, watchedDir)]
+        expectEvents expectedEvents
         directoryRemoved == expectDirectoryRemoved
 
         where:
