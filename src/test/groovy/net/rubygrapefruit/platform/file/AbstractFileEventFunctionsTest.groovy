@@ -380,8 +380,12 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         ensureNoMoreEvents(eventQueue)
     }
 
-    protected static ExpectedEvent change(Type type, File file, boolean optional = false) {
-        return new ExpectedChange(type, file, optional)
+    protected static ExpectedEvent change(Type type, File file) {
+        new ExpectedChange(type, file, false)
+    }
+
+    protected static ExpectedEvent optionalChange(Type type, File file) {
+        return new ExpectedChange(type, file, true)
     }
 
     protected static ExpectedEvent failure(Class<? extends Throwable> type = Exception, String message) {

@@ -195,7 +195,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         then:
         expectEvents Platform.current().windows
-            ? [change(REMOVED, sourceFile), change(CREATED, targetFile), change(MODIFIED, targetFile, false)]
+            ? [change(REMOVED, sourceFile), change(CREATED, targetFile), optionalChange(MODIFIED, targetFile)]
             : [change(REMOVED, sourceFile), change(CREATED, targetFile)]
     }
 
@@ -230,7 +230,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         then:
         expectEvents Platform.current().windows
-            ? [change(CREATED, targetFileInside), change(MODIFIED, targetFileInside, false)]
+            ? [change(CREATED, targetFileInside), optionalChange(MODIFIED, targetFileInside)]
             : [change(CREATED, targetFileInside)]
     }
 
@@ -592,7 +592,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         } else if (Platform.current().linux) {
             expectedEvents << change(REMOVED, removedFile) << change(REMOVED, watchedDir)
         } else if (Platform.current().windows) {
-            expectedEvents << change(MODIFIED, removedFile) << change(REMOVED, removedFile, false) << change(REMOVED, watchedDir)
+            expectedEvents << change(MODIFIED, removedFile) << optionalChange(REMOVED, removedFile) << change(REMOVED, watchedDir)
         }
 
         then:
