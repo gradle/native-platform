@@ -305,6 +305,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
     def "fails when watching directory twice"() {
         given:
+        ignoreWarningsInLog()
         startWatcher(rootDir)
 
         when:
@@ -317,6 +318,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
     def "can un-watch path that was not watched"() {
         given:
+        ignoreWarningsInLog()
         startWatcher()
 
         when:
@@ -328,6 +330,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
     def "can un-watch watched directory twice"() {
         given:
+        ignoreWarningsInLog()
         startWatcher(rootDir)
         watcher.stopWatching(rootDir)
 

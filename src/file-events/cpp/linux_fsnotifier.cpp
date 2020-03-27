@@ -260,7 +260,7 @@ void Server::registerPath(const u16string& path) {
 void Server::unregisterPath(const u16string& path) {
     auto it = watchPoints.find(path);
     if (it == watchPoints.end() || it->second.status == FINISHED) {
-        logToJava(FINE, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
+        logToJava(WARNING, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
         return;
     }
     auto& watchPoint = it->second;

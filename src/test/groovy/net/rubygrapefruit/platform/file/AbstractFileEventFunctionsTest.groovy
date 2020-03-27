@@ -36,6 +36,7 @@ import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import java.util.logging.Level
 import java.util.logging.Logger
 import java.util.regex.Pattern
 
@@ -60,6 +61,8 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     TestFileWatcher watcher
     List<Throwable> uncaughtFailureOnThread
 
+    private boolean warningsIgnoredInLog
+
     // We could do this with @Delegate, but Groovy doesn't let us :(
     private FileWatcherFixture watcherFixture
 
@@ -81,6 +84,16 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         def uncaughtExceptionCount = uncaughtFailureOnThread.size()
         assert uncaughtExceptionCount == 0
         LOGGER.info("<<< Finished '${testName.methodName}'")
+        if (!warningsIgnoredInLog) {
+            Collection<String> errorLogMessages = logging.messages
+                .findAll { message, level -> level.intValue() >= Level.WARNING.intValue() }
+                .keySet()
+            assert errorLogMessages.empty
+        }
+    }
+
+    void ignoreWarningsInLog() {
+        this.warningsIgnoredInLog = true
     }
 
     enum FileWatcherFixture {

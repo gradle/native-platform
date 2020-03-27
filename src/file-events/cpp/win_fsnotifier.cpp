@@ -361,7 +361,7 @@ void Server::unregisterPath(const u16string& path) {
     u16string longPath = path;
     convertToLongPathIfNeeded(longPath);
     if (watchPoints.erase(longPath) == 0) {
-        logToJava(FINE, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
+        logToJava(WARNING, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
         return;
     }
 }
