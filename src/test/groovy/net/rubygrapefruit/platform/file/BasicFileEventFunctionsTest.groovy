@@ -305,7 +305,6 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
     def "fails when watching directory twice"() {
         given:
-        ignoreWarningsInLog()
         startWatcher(rootDir)
 
         when:
@@ -314,11 +313,12 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         then:
         def ex = thrown NativeException
         ex.message == "Already watching path: ${rootDir.absolutePath}"
+
+        expectWarningInLog("Caught exception: Already watching path: ${rootDir.absolutePath}")
     }
 
     def "can un-watch path that was not watched"() {
         given:
-        ignoreWarningsInLog()
         startWatcher()
 
         when:
@@ -326,11 +326,12 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         then:
         noExceptionThrown()
+
+        expectWarningInLog("Path is not watched: ${rootDir.absolutePath}")
     }
 
     def "can un-watch watched directory twice"() {
         given:
-        ignoreWarningsInLog()
         startWatcher(rootDir)
         watcher.stopWatching(rootDir)
 
@@ -339,6 +340,8 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         then:
         noExceptionThrown()
+
+        expectWarningInLog("Path is not watched: ${rootDir.absolutePath}")
     }
 
     def "does not receive events after directory is unwatched"() {
