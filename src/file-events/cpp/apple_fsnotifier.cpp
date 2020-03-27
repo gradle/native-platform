@@ -89,9 +89,11 @@ Server::Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis)
 }
 
 Server::~Server() {
-    vector<u16string> paths(watchPoints.size());
-    for (auto& watchPoint : watchPoints) {
-        paths.push_back(watchPoint.first);
+    vector<u16string> paths;
+    paths.reserve(watchPoints.size());
+    for (auto& it : watchPoints) {
+        auto& path = it.first;
+        paths.push_back(path);
     }
     executeOnThread(shared_ptr<Command>(new UnregisterPathsCommand(paths)));
     executeOnThread(shared_ptr<Command>(new TerminateCommand()));
