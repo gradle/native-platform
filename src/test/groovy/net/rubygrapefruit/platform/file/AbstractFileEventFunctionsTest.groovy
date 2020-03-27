@@ -61,7 +61,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     TestFileWatcher watcher
     List<Throwable> uncaughtFailureOnThread
 
-    private List<String> expectedWarningsInLog
+    private List<Pattern> expectedWarningsInLog
 
     // We could do this with @Delegate, but Groovy doesn't let us :(
     private FileWatcherFixture watcherFixture
@@ -85,15 +85,25 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         def uncaughtExceptionCount = uncaughtFailureOnThread.size()
         assert uncaughtExceptionCount == 0
         LOGGER.info("<<< Finished '${testName.methodName}'")
+
+        // Check if the warning and error logs match our expectations
         Collection<String> unexpectedWarningsInLog = logging.messages
             .findAll { message, level -> level.intValue() >= Level.WARNING.intValue() }
             .keySet()
-        unexpectedWarningsInLog.removeAll(expectedWarningsInLog)
+        def remainingExpectedWarningsInLog = new ArrayList<Pattern>(expectedWarningsInLog)
+        unexpectedWarningsInLog.removeIf { message ->
+            remainingExpectedWarningsInLog.removeIf { it.matcher(message).matches() }
+        }
         assert unexpectedWarningsInLog.empty
+        assert remainingExpectedWarningsInLog.empty
     }
 
     void expectWarningInLog(String message) {
-        expectedWarningsInLog << message
+        expectWarningInLog(Pattern.compile(Pattern.quote(message)))
+    }
+
+    void expectWarningInLog(Pattern pattern) {
+        expectedWarningsInLog << pattern
     }
 
     enum FileWatcherFixture {

@@ -286,6 +286,8 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         then:
         def ex = thrown NativeException
         ex.message ==~ /Couldn't add watch.*: ${Pattern.quote(missingDirectory.absolutePath)}/
+
+        expectWarningInLog(/Caught exception: Couldn't add watch.*: ${Pattern.quote(missingDirectory.absolutePath)}/)
     }
 
     // Apparently on macOS we can watch files
@@ -301,6 +303,8 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         then:
         def ex = thrown NativeException
         ex.message ==~ /Couldn't add watch.*: ${Pattern.quote(file.absolutePath)}/
+
+        expectWarningInLog(/Caught exception: Couldn't add watch.*: ${Pattern.quote(file.absolutePath)}/)
     }
 
     def "fails when watching directory twice"() {
