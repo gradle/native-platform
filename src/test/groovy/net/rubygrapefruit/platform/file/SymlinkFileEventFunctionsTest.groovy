@@ -38,35 +38,34 @@ class SymlinkFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(watchedLink)
 
         when:
-        def expectedChanges = expectEvents Platform.current().macOs
-            ? event(MODIFIED, canonicalFile)
-            : event(MODIFIED, watchedFile)
         watchedFile << "change"
 
         then:
-        expectedChanges.await()
+        expectEvents Platform.current().macOs
+            ? change(MODIFIED, canonicalFile)
+            : change(MODIFIED, watchedFile)
     }
 
     @Requires({ Platform.current().macOs })
-    def "can watch symlinked directory twice"() {
+    def "can watch directory via symlink and directly at the same time"() {
         given:
         def canonicalDir = new File(rootDir, "watchedDir")
         def canonicalFile = new File(canonicalDir, "modified.txt")
         canonicalDir.mkdirs()
         createNewFile(canonicalFile)
         def linkedDir = new File(rootDir, "linked")
-        def watchedFile = new File(linkedDir, "modified.txt")
+        def linkedFile = new File(linkedDir, "modified.txt")
         createSymbolicLink(linkedDir.toPath(), canonicalDir.toPath())
         startWatcher(canonicalDir, linkedDir)
 
         when:
-        def expectedChanges = expectEvents Platform.current().macOs
-            ? event(MODIFIED, canonicalFile)
-            : event(MODIFIED, watchedFile)
-        watchedFile << "change"
+        linkedFile << "change"
 
         then:
-        expectedChanges.await()
+        // TODO Figure out what to do on other OSs
+        expectEvents Platform.current().macOs
+            ? [change(MODIFIED, canonicalFile), change(MODIFIED, canonicalFile)]
+            : []
     }
 
     @Requires({ Platform.current().linux })

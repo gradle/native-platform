@@ -16,9 +16,9 @@
 
 package net.rubygrapefruit.platform.file
 
-import groovy.transform.EqualsAndHashCode
 import groovy.transform.Memoized
 import net.rubygrapefruit.platform.Native
+import net.rubygrapefruit.platform.file.FileWatcherCallback.Type
 import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.AbstractFileEventFunctions
 import net.rubygrapefruit.platform.internal.jni.LinuxFileEventFunctions
@@ -31,10 +31,13 @@ import org.junit.rules.TemporaryFolder
 import org.junit.rules.TestName
 import spock.lang.Specification
 import spock.lang.Timeout
-import spock.util.concurrent.AsyncConditions
 
+import java.util.concurrent.BlockingQueue
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import java.util.logging.Logger
+import java.util.regex.Pattern
 
 import static java.util.concurrent.TimeUnit.SECONDS
 import static java.util.logging.Level.FINE
@@ -51,7 +54,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     @Rule
     JulLogging logging = new JulLogging(NativeLogger, FINE)
 
-    def callback = new ExpectationCheckerCallback()
+    def eventQueue = newEventQueue()
     File testDir
     File rootDir
     TestFileWatcher watcher
@@ -102,7 +105,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
             @Override
             void waitForChangeEventLatency() {
-                TimeUnit.MILLISECONDS.sleep(LATENCY_IN_MILLIS + 20)
+                TimeUnit.MILLISECONDS.sleep(LATENCY_IN_MILLIS + 50)
             }
         },
         LINUX(){
@@ -170,7 +173,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             }
         }
 
-        abstract AbstractFileEventFunctions getService();
+        abstract AbstractFileEventFunctions getService()
 
         abstract FileWatcher startNewWatcherInternal(FileWatcherCallback callback)
 
@@ -181,80 +184,125 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         abstract void waitForChangeEventLatency()
     }
 
-    protected class TestCallback implements FileWatcherCallback {
+    protected class RecordedEvent {
+        final Type type
+        final String path
+        final Throwable failure
+
+        RecordedEvent(Type type, String path, Throwable failure) {
+            this.type = type
+            this.path = path
+            this.failure = failure
+        }
+
+        @Override
+        String toString() {
+            if (type == null) {
+                return "FAILURE ${failure.message}"
+            } else {
+                return "$type ${shorten(path)}"
+            }
+        }
+    }
+
+    protected static BlockingQueue<RecordedEvent> newEventQueue() {
+        new LinkedBlockingQueue<RecordedEvent>()
+    }
+
+    protected FileWatcherCallback newEventSinkCallback() {
+        new TestCallback()
+    }
+
+    private class TestCallback implements FileWatcherCallback {
         @Override
         void pathChanged(Type type, String path) {
-            assert !path.empty
-            def changed = new File(path)
-            if (!changed.absolute) {
-                throw new IllegalArgumentException("Received non-absolute changed path: " + path)
+            LOGGER.info("> Received  $type ${shorten(path)}")
+            if (path.empty) {
+                throw new IllegalArgumentException("Empty path reported")
+            }
+            if (!new File(path).absolute) {
+                throw new IllegalArgumentException("Relative path reported: ${path}")
             }
         }
 
         @Override
         void reportError(Throwable ex) {
-            System.err.print("Error reported from native backend:")
+            System.err.println("Caught exception from native side:")
             ex.printStackTrace()
             uncaughtFailureOnThread << ex
         }
     }
 
-    protected class ExpectNothingCallback extends TestCallback {
-        @Override
-        void pathChanged(Type type, String path) {
-            System.err.print("Unexpected event: $type - $path:")
-            uncaughtFailureOnThread << new IllegalStateException("Received unexpected event: $type - $path")
-        }
-    }
+    private class QueuingCallback extends TestCallback {
+        private final BlockingQueue<RecordedEvent> eventQueue
 
-    protected class ExpectationCheckerCallback extends TestCallback {
-        private AsyncConditions conditions
-        private Collection<FileEvent> expectedEvents = []
-
-        AsyncConditions expect(List<FileEvent> events) {
-            events.each { event ->
-                AbstractFileEventFunctionsTest.LOGGER.info("> Expecting $event")
-            }
-            this.conditions = new AsyncConditions()
-            this.expectedEvents = new ArrayList<>(events)
-            return conditions
+        QueuingCallback(BlockingQueue<RecordedEvent> eventQueue) {
+            this.eventQueue = eventQueue
         }
 
         @Override
         void pathChanged(Type type, String path) {
             super.pathChanged(type, path)
-            handleEvent(new FileEvent(type, new File(path), true))
+            eventQueue.put(new RecordedEvent(type, path, null))
         }
 
-        private void handleEvent(FileEvent event) {
-            LOGGER.info("> Received  $event")
-            if (!expectedEvents.remove(event)) {
-                conditions.evaluate {
-                    throw new RuntimeException("Unexpected event $event")
-                }
-            }
-            if (!expectedEvents.any { it.mandatory }) {
-                conditions.evaluate {}
-            }
+        @Override
+        void reportError(Throwable ex) {
+            eventQueue.put(new RecordedEvent(null, null, ex))
         }
     }
 
-    @EqualsAndHashCode(excludes = ["mandatory"])
-    @SuppressWarnings("unused")
-    protected static class FileEvent {
-        final FileWatcherCallback.Type type
-        final File file
-        final boolean mandatory
+    private interface ExpectedEvent {
+        boolean matches(RecordedEvent event)
+        boolean isOptional()
+    }
 
-        FileEvent(FileWatcherCallback.Type type, File file, boolean mandatory) {
+    private class ExpectedChange implements ExpectedEvent {
+        private final Type type
+        private final File file
+        final boolean optional
+
+        ExpectedChange(Type type, File file, boolean optional) {
             this.type = type
             this.file = file
-            this.mandatory = mandatory
+            this.optional = optional
+        }
+
+        @Override
+        boolean matches(RecordedEvent event) {
+            type == event.type && file.absolutePath == event.path
         }
 
         @Override
         String toString() {
-            return "${mandatory ? "" : "optional "}$type $file"
+            return "${optional ? "optional " : ""}$type ${shorten(file)}"
+        }
+    }
+
+    private static class ExpectedFailure implements ExpectedEvent {
+        private final Pattern message
+        private final Class<? extends Throwable> type
+
+        ExpectedFailure(Class<? extends Throwable> type, Pattern message) {
+            this.type = type
+            this.message = message
+        }
+
+        @Override
+        boolean matches(RecordedEvent event) {
+            event.type == Type.FAILURE \
+                && type.isInstance(event.failure) \
+                && message.matcher(event.failure.message).matches()
+        }
+
+        @Override
+        boolean isOptional() {
+            false
+        }
+
+        @Override
+        String toString() {
+            return "FAILURE /${message.pattern()}/"
         }
     }
 
@@ -266,11 +314,14 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         watcherFixture.waitForChangeEventLatency()
     }
 
-    protected void startWatcher(FileWatcherCallback callback = this.callback, File... roots) {
-        watcher = startNewWatcher(callback, roots)
+    protected void startWatcher(BlockingQueue<RecordedEvent> eventQueue = this.eventQueue, File... roots) {
+        watcher = startNewWatcher(eventQueue, roots)
     }
 
-    protected TestFileWatcher startNewWatcher(FileWatcherCallback callback = this.callback, File... roots) {
+    protected TestFileWatcher startNewWatcher(BlockingQueue<RecordedEvent> eventQueue = this.eventQueue, File... roots) {
+        startNewWatcher(new QueuingCallback(eventQueue), roots)
+    }
+    protected TestFileWatcher startNewWatcher(FileWatcherCallback callback, File... roots) {
         def watcher = watcherFixture.startNewWatcher(callback)
         watcher.startWatching(roots)
         return watcher
@@ -282,22 +333,84 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         copyWatcher?.close()
     }
 
-    protected AsyncConditions expectEvents(ExpectationCheckerCallback callback = this.callback, FileEvent... events) {
-        expectEvents(callback, events as List)
+    private void ensureNoMoreEvents(BlockingQueue<RecordedEvent> eventQueue = this.eventQueue) {
+        def event = eventQueue.poll()
+        if (event != null) {
+            throw new RuntimeException("Unexpected event $event")
+        }
     }
 
-    protected AsyncConditions expectEvents(ExpectationCheckerCallback callback = this.callback, List<FileEvent> events) {
-        return callback.expect(events)
+    protected void expectNoEvents(BlockingQueue<RecordedEvent> eventQueue = this.eventQueue) {
+        // Let's make sure there are no events occurring,
+        // and we don't just miss them because of timing
+        waitForChangeEventLatency()
+        ensureNoMoreEvents(eventQueue)
     }
 
-    protected static FileEvent event(FileWatcherCallback.Type type, File file, boolean mandatory = true) {
-        return new FileEvent(type, file, mandatory)
+    protected void expectEvents(BlockingQueue<RecordedEvent> eventQueue = this.eventQueue, int timeoutValue = 1, TimeUnit timeoutUnit = SECONDS, ExpectedEvent... events) {
+        expectEvents(eventQueue, timeoutValue, timeoutUnit, events as List)
     }
 
-    protected static void createNewFile(File file) {
-        LOGGER.info("> Creating $file")
+    protected void expectEvents(BlockingQueue<RecordedEvent> eventQueue = this.eventQueue, int timeoutValue = 1, TimeUnit timeoutUnit = SECONDS, List<ExpectedEvent> events) {
+        events.each { event ->
+            LOGGER.info("> Expecting $event")
+        }
+        def expectedEvents = new ArrayList<ExpectedEvent>(events)
+        long start = System.currentTimeMillis()
+        long end = start + timeoutUnit.toMillis(timeoutValue)
+        while (!expectedEvents.empty) {
+            def current = System.currentTimeMillis()
+            long timeout = end - current
+            def event = eventQueue.poll(timeout, TimeUnit.MILLISECONDS)
+            if (event == null) {
+                if (expectedEvents.every { it.optional }) {
+                    break
+                } else {
+                    throw new TimeoutException("Did not receive events in $timeoutValue ${timeoutUnit.name().toLowerCase()}:\n- " + expectedEvents.join("\n- "))
+                }
+            }
+            def expectedEventIndex = expectedEvents.findIndexOf { expected ->
+                expected.matches(event)
+            }
+            if (expectedEventIndex == -1) {
+                throw new RuntimeException("Unexpected event $event")
+            }
+            expectedEvents.remove(expectedEventIndex)
+        }
+        ensureNoMoreEvents(eventQueue)
+    }
+
+    private String shorten(File file) {
+        shorten(file.absolutePath)
+    }
+
+    private String shorten(String path) {
+        def prefix = testDir.absolutePath
+        return path.startsWith(prefix + File.separator)
+            ? "..." + path.substring(prefix.length())
+            : path
+    }
+
+    protected ExpectedEvent change(Type type, File file) {
+        new ExpectedChange(type, file, false)
+    }
+
+    protected ExpectedEvent optionalChange(Type type, File file) {
+        return new ExpectedChange(type, file, true)
+    }
+
+    protected ExpectedEvent failure(Class<? extends Throwable> type = Exception, String message) {
+        failure(type, Pattern.quote(message))
+    }
+
+    protected ExpectedEvent failure(Class<? extends Throwable> type = Exception, Pattern message) {
+        return new ExpectedFailure(type, message)
+    }
+
+    protected void createNewFile(File file) {
+        LOGGER.info("> Creating ${shorten(file)}")
         file.createNewFile()
-        LOGGER.info("< Created $file")
+        LOGGER.info("< Created ${shorten(file)}")
     }
 
     static class TestFileWatcher implements FileWatcher {
