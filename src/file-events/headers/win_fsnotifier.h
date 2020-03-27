@@ -65,7 +65,7 @@ public:
     ~Server();
 
     void registerPath(const u16string& path) override;
-    void unregisterPath(const u16string path) override;
+    void unregisterPath(const u16string& path) override;
     void terminate() override;
 
     void handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& buffer, DWORD bytesTransferred);

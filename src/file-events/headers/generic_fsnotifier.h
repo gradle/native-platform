@@ -122,7 +122,7 @@ public:
 
 protected:
     virtual void registerPath(const u16string& path) = 0;
-    virtual void unregisterPath(const u16string path) = 0;
+    virtual void unregisterPath(const u16string& path) = 0;
 
     void reportChange(JNIEnv* env, int type, const u16string& path);
     void reportError(JNIEnv* env, const exception& ex);
