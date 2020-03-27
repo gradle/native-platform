@@ -94,8 +94,11 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         unexpectedWarningsInLog.removeIf { message ->
             remainingExpectedWarningsInLog.removeIf { it.matcher(message).matches() }
         }
-        assert unexpectedWarningsInLog.empty
-        assert remainingExpectedWarningsInLog.empty
+        unexpectedWarningsInLog.each { System.err.println("Unexpected warning/error log message: $it")}
+        remainingExpectedWarningsInLog.each { System.err.println("Unmatched  warning/error log message: $it")}
+        def noUnexpectedWarningsInLog = unexpectedWarningsInLog.empty
+        def noMissingWarningsInLog = remainingExpectedWarningsInLog.empty
+        assert noUnexpectedWarningsInLog && noMissingWarningsInLog
     }
 
     void expectWarningInLog(String message) {
