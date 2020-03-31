@@ -290,7 +290,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         def ex = thrown NativeException
         ex.message ==~ /Couldn't add watch.*: ${Pattern.quote(missingDirectory.absolutePath)}/
 
-        expectLogMessage(SEVERE, Pattern.compile(SEVERE, "Caught exception: Couldn't add watch.*: ${Pattern.quote(missingDirectory.absolutePath)}"))
+        expectLogMessage(SEVERE, Pattern.compile("Caught exception: Couldn't add watch.*: ${Pattern.quote(missingDirectory.absolutePath)}"))
     }
 
     // Apparently on macOS we can watch files
