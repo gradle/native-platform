@@ -89,15 +89,7 @@ Server::Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis)
 }
 
 Server::~Server() {
-    vector<u16string> paths;
-    paths.reserve(watchPoints.size());
-    for (auto& it : watchPoints) {
-        auto& path = it.first;
-        paths.push_back(path);
-    }
-    executeOnThread(shared_ptr<Command>(new UnregisterPathsCommand(paths)));
     executeOnThread(shared_ptr<Command>(new TerminateCommand()));
-
     if (watcherThread.joinable()) {
         watcherThread.join();
     }
@@ -106,11 +98,8 @@ Server::~Server() {
 
 void Server::runLoop(function<void(exception_ptr)> notifyStarted) {
     try {
-        CFRunLoopRef threadLoop = CFRunLoopGetCurrent();
-        this->threadLoop = threadLoop;
-
+        threadLoop = CFRunLoopGetCurrent();
         CFRunLoopAddSource(threadLoop, messageSource, kCFRunLoopDefaultMode);
-
         notifyStarted(nullptr);
     } catch (...) {
         notifyStarted(current_exception());
@@ -125,6 +114,7 @@ void Server::processCommandsOnThread() {
 }
 
 void Server::terminate() {
+    watchPoints.clear();
     CFRunLoopStop(threadLoop);
 }
 
