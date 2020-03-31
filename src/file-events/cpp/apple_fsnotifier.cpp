@@ -89,9 +89,11 @@ Server::Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis)
 }
 
 Server::~Server() {
-    vector<u16string> paths(watchPoints.size());
-    for (auto& watchPoint : watchPoints) {
-        paths.push_back(watchPoint.first);
+    vector<u16string> paths;
+    paths.reserve(watchPoints.size());
+    for (auto& it : watchPoints) {
+        auto& path = it.first;
+        paths.push_back(path);
     }
     executeOnThread(shared_ptr<Command>(new UnregisterPathsCommand(paths)));
     executeOnThread(shared_ptr<Command>(new TerminateCommand()));
@@ -201,10 +203,12 @@ void Server::registerPath(const u16string& path) {
         forward_as_tuple(this, threadLoop, path, latencyInMillis));
 }
 
-void Server::unregisterPath(const u16string path) {
+bool Server::unregisterPath(const u16string& path) {
     if (watchPoints.erase(path) == 0) {
-        logToJava(FINE, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
+        logToJava(INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
+        return false;
     }
+    return true;
 }
 
 JNIEXPORT jobject JNICALL

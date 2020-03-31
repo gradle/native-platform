@@ -257,11 +257,11 @@ void Server::registerPath(const u16string& path) {
     watchRoots[watchPoint.watchDescriptor] = path;
 }
 
-void Server::unregisterPath(const u16string path) {
+bool Server::unregisterPath(const u16string& path) {
     auto it = watchPoints.find(path);
     if (it == watchPoints.end() || it->second.status == FINISHED) {
-        logToJava(FINE, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
-        return;
+        logToJava(INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
+        return false;
     }
     auto& watchPoint = it->second;
     if (watchPoint.cancel()) {
@@ -273,6 +273,7 @@ void Server::unregisterPath(const u16string path) {
         watchRoots.erase(watchPoint.watchDescriptor);
         watchPoints.erase(path);
     }
+    return true;
 }
 
 JNIEXPORT jobject JNICALL

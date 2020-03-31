@@ -68,14 +68,14 @@ public class AbstractFileEventFunctions implements NativeIntegration {
         private native void startWatching0(Object server, String[] absolutePaths);
 
         @Override
-        public void stopWatching(Collection<File> paths) {
+        public boolean stopWatching(Collection<File> paths) {
             if (server == null) {
                 throw new IllegalStateException("Watcher already closed");
             }
-            stopWatching0(server, toAbsolutePaths(paths));
+            return stopWatching0(server, toAbsolutePaths(paths));
         }
 
-        private native void stopWatching0(Object server, String[] absolutePaths);
+        private native boolean stopWatching0(Object server, String[] absolutePaths);
 
         private static String[] toAbsolutePaths(Collection<File> files) {
             String[] paths = new String[files.size()];

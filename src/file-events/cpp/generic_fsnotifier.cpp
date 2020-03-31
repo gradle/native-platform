@@ -91,7 +91,7 @@ void AbstractServer::run() {
     logToJava(FINE, "Stopping thread", NULL);
 }
 
-void AbstractServer::executeOnThread(shared_ptr<Command> command) {
+bool AbstractServer::executeOnThread(shared_ptr<Command> command) {
     unique_lock<mutex> lock(mtxCommands);
     commands.push_back(command);
     processCommandsOnThread();
@@ -101,6 +101,8 @@ void AbstractServer::executeOnThread(shared_ptr<Command> command) {
     }
     if (command->failure) {
         rethrow_exception(command->failure);
+    } else {
+        return command->success;
     }
 }
 
@@ -233,10 +235,12 @@ void AbstractServer::registerPaths(const vector<u16string>& paths) {
     }
 }
 
-void AbstractServer::unregisterPaths(const vector<u16string>& paths) {
+bool AbstractServer::unregisterPaths(const vector<u16string>& paths) {
+    bool success = true;
     for (auto& path : paths) {
-        unregisterPath(path);
+        success &= unregisterPath(path);
     }
+    return success;
 }
 
 JNIEXPORT void JNICALL
@@ -251,15 +255,16 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
     }
 }
 
-JNIEXPORT void JNICALL
+JNIEXPORT jboolean JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_stopWatching0(JNIEnv* env, jobject, jobject javaServer, jobjectArray javaPaths) {
     try {
         AbstractServer* server = getServer(env, javaServer);
         vector<u16string> paths;
         javaToUtf16StringArray(env, javaPaths, paths);
-        server->executeOnThread(shared_ptr<Command>(new UnregisterPathsCommand(paths)));
+        return server->executeOnThread(shared_ptr<Command>(new UnregisterPathsCommand(paths)));
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
+        return false;
     }
 }
 

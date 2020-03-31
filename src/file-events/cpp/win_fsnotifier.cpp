@@ -357,13 +357,14 @@ void Server::registerPath(const u16string& path) {
         forward_as_tuple(this, longPath));
 }
 
-void Server::unregisterPath(const u16string path) {
+bool Server::unregisterPath(const u16string& path) {
     u16string longPath = path;
     convertToLongPathIfNeeded(longPath);
     if (watchPoints.erase(longPath) == 0) {
-        logToJava(FINE, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
-        return;
+        logToJava(INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
+        return false;
     }
+    return true;
 }
 
 //

@@ -11,7 +11,7 @@ import java.util.Collection;
 public interface FileWatcher extends Closeable {
     void startWatching(Collection<File> paths);
 
-    void stopWatching(Collection<File> paths);
+    boolean stopWatching(Collection<File> paths);
 
     /**
      * Stops watching and releases any native resources.
