@@ -203,10 +203,12 @@ void Server::registerPath(const u16string& path) {
         forward_as_tuple(this, threadLoop, path, latencyInMillis));
 }
 
-void Server::unregisterPath(const u16string& path) {
+bool Server::unregisterPath(const u16string& path) {
     if (watchPoints.erase(path) == 0) {
-        logToJava(WARNING, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
+        logToJava(INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
+        return false;
     }
+    return true;
 }
 
 JNIEXPORT jobject JNICALL

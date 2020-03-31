@@ -61,7 +61,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     TestFileWatcher watcher
     List<Throwable> uncaughtFailureOnThread
 
-    private List<Pattern> expectedWarningsInLog
+    private Map<Pattern, Level> expectedLogMessages
 
     // We could do this with @Delegate, but Groovy doesn't let us :(
     private FileWatcherFixture watcherFixture
@@ -73,7 +73,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         rootDir = new File(testDir, "root")
         assert rootDir.mkdirs()
         uncaughtFailureOnThread = []
-        expectedWarningsInLog = []
+        expectedLogMessages = [:]
     }
 
     def cleanup() {
@@ -86,27 +86,32 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         assert uncaughtExceptionCount == 0
         LOGGER.info("<<< Finished '${testName.methodName}'")
 
-        // Check if the warning and error logs match our expectations
-        Collection<String> unexpectedWarningsInLog = logging.messages
-            .findAll { message, level -> level.intValue() >= Level.WARNING.intValue() }
-            .keySet()
-        def remainingExpectedWarningsInLog = new ArrayList<Pattern>(expectedWarningsInLog)
-        unexpectedWarningsInLog.removeIf { message ->
-            remainingExpectedWarningsInLog.removeIf { it.matcher(message).matches() }
+        // Check if the logs (INFO and above) match our expectations
+        Map<String, Level> unexpectedLogMessages = logging.messages
+            .findAll { message, level -> level.intValue() >= Level.INFO.intValue() }
+        def remainingExpectedLogMessages = new LinkedHashMap<Pattern, Level>(expectedLogMessages)
+        unexpectedLogMessages.removeAll { message, level ->
+            remainingExpectedLogMessages.removeAll { expectedMessage, expectedLevel ->
+                expectedMessage.matcher(message).matches() && expectedLevel == level
+            }
         }
-        unexpectedWarningsInLog.each { System.err.println("Unexpected warning/error log message: $it")}
-        remainingExpectedWarningsInLog.each { System.err.println("Unmatched  warning/error log message: $it")}
-        def noUnexpectedWarningsInLog = unexpectedWarningsInLog.empty
-        def noMissingWarningsInLog = remainingExpectedWarningsInLog.empty
+        unexpectedLogMessages.each { message, level ->
+            System.err.println("Unexpected warning/error log message: $level $message")
+        }
+        remainingExpectedLogMessages.each { message, level ->
+            System.err.println("Unmatched  warning/error log message: $level $message")
+        }
+        boolean noUnexpectedWarningsInLog = unexpectedLogMessages.isEmpty()
+        boolean noMissingWarningsInLog = remainingExpectedLogMessages.isEmpty()
         assert noUnexpectedWarningsInLog && noMissingWarningsInLog
     }
 
-    void expectWarningInLog(String message) {
-        expectWarningInLog(Pattern.compile(Pattern.quote(message)))
+    void expectLogMessage(Level level, String message) {
+        expectLogMessage(level, Pattern.compile(Pattern.quote(message)))
     }
 
-    void expectWarningInLog(Pattern pattern) {
-        expectedWarningsInLog << pattern
+    void expectLogMessage(Level level, Pattern pattern) {
+        expectedLogMessages.put(pattern, level)
     }
 
     enum FileWatcherFixture {
@@ -451,7 +456,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             delegate.startWatching(paths as List)
         }
 
-        void stopWatching(File... paths) {
+        boolean stopWatching(File... paths) {
             delegate.stopWatching(paths as List)
         }
     }

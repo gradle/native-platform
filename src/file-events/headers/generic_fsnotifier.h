@@ -70,16 +70,17 @@ public:
 
     void execute(AbstractServer* server) {
         try {
-            perform(server);
+            success = perform(server);
         } catch (const exception&) {
             failure = current_exception();
         }
         executed.notify_all();
     }
 
-    virtual void perform(AbstractServer* server) = 0;
+    virtual bool perform(AbstractServer* server) = 0;
 
     condition_variable executed;
+    bool success;
     exception_ptr failure;
 };
 
@@ -89,9 +90,11 @@ public:
     virtual ~AbstractServer();
 
     /**
-     * Execute command on processing thread.
+     * Execute command on processing thread sybnchronously.
+     *
+     * Returns wether the exeuction of the command had an effect.
      */
-    void executeOnThread(shared_ptr<Command> command);
+    bool executeOnThread(shared_ptr<Command> command);
 
     //
     // Methods running on the processing thread
@@ -112,7 +115,7 @@ public:
      * Unregisters watch points with the server for the given paths.
      * Runs on processing thread.
      */
-    void unregisterPaths(const vector<u16string>& paths);
+    bool unregisterPaths(const vector<u16string>& paths);
 
     /**
      * Terminates server.
@@ -122,7 +125,7 @@ public:
 
 protected:
     virtual void registerPath(const u16string& path) = 0;
-    virtual void unregisterPath(const u16string& path) = 0;
+    virtual bool unregisterPath(const u16string& path) = 0;
 
     void reportChange(JNIEnv* env, int type, const u16string& path);
     void reportError(JNIEnv* env, const exception& ex);
@@ -154,8 +157,9 @@ public:
         : paths(paths) {
     }
 
-    void perform(AbstractServer* server) override {
+    bool perform(AbstractServer* server) override {
         server->registerPaths(paths);
+        return true;
     }
 
 private:
@@ -168,8 +172,8 @@ public:
         : paths(paths) {
     }
 
-    void perform(AbstractServer* server) override {
-        server->unregisterPaths(paths);
+    bool perform(AbstractServer* server) override {
+        return server->unregisterPaths(paths);
     }
 
 private:
@@ -178,8 +182,9 @@ private:
 
 class TerminateCommand : public Command {
 public:
-    void perform(AbstractServer* server) override {
+    bool perform(AbstractServer* server) override {
         server->terminate();
+        return true;
     }
 };
 

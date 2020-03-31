@@ -45,7 +45,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         def createdFile = new File(rootDir, "created.txt")
         startWatcher(rootDir)
         100.times {
-            watcher.stopWatching(rootDir)
+            assert watcher.stopWatching(rootDir)
             watcher.startWatching(rootDir)
         }
 
@@ -65,7 +65,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         when:
         100.times { iteration ->
             watcher.startWatching(watchedDirs)
-            watcher.stopWatching(watchedDirs)
+            assert watcher.stopWatching(watchedDirs)
         }
 
         then:

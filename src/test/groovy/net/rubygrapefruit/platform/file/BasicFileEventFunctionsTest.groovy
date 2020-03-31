@@ -30,6 +30,9 @@ import java.util.logging.Level
 import java.util.logging.Logger
 import java.util.regex.Pattern
 
+import static java.util.logging.Level.INFO
+import static java.util.logging.Level.SEVERE
+import static java.util.logging.Level.WARNING
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.INVALIDATE
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
@@ -287,7 +290,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         def ex = thrown NativeException
         ex.message ==~ /Couldn't add watch.*: ${Pattern.quote(missingDirectory.absolutePath)}/
 
-        expectWarningInLog(Pattern.compile("Caught exception: Couldn't add watch.*: ${Pattern.quote(missingDirectory.absolutePath)}"))
+        expectLogMessage(SEVERE, Pattern.compile(SEVERE, "Caught exception: Couldn't add watch.*: ${Pattern.quote(missingDirectory.absolutePath)}"))
     }
 
     // Apparently on macOS we can watch files
@@ -304,7 +307,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         def ex = thrown NativeException
         ex.message ==~ /Couldn't add watch.*: ${Pattern.quote(file.absolutePath)}/
 
-        expectWarningInLog(Pattern.compile("Caught exception: Couldn't add watch.*: ${Pattern.quote(file.absolutePath)}"))
+        expectLogMessage(SEVERE, Pattern.compile("Caught exception: Couldn't add watch.*: ${Pattern.quote(file.absolutePath)}"))
     }
 
     def "fails when watching directory twice"() {
@@ -318,20 +321,17 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         def ex = thrown NativeException
         ex.message == "Already watching path: ${rootDir.absolutePath}"
 
-        expectWarningInLog("Caught exception: Already watching path: ${rootDir.absolutePath}")
+        expectLogMessage(SEVERE, "Caught exception: Already watching path: ${rootDir.absolutePath}")
     }
 
     def "can un-watch path that was not watched"() {
         given:
         startWatcher()
 
-        when:
-        watcher.stopWatching(rootDir)
+        expect:
+        !watcher.stopWatching(rootDir)
 
-        then:
-        noExceptionThrown()
-
-        expectWarningInLog("Path is not watched: ${rootDir.absolutePath}")
+        expectLogMessage(INFO, "Path is not watched: ${rootDir.absolutePath}")
     }
 
     def "can un-watch watched directory twice"() {
@@ -339,19 +339,18 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(rootDir)
         watcher.stopWatching(rootDir)
 
-        when:
-        watcher.stopWatching(rootDir)
+        expect:
+        !watcher.stopWatching(rootDir)
 
-        then:
-        noExceptionThrown()
-
-        expectWarningInLog("Path is not watched: ${rootDir.absolutePath}")
+        expectLogMessage(INFO, "Path is not watched: ${rootDir.absolutePath}")
     }
 
     def "does not receive events after directory is unwatched"() {
         given:
         def file = new File(rootDir, "first.txt")
         startWatcher(rootDir)
+
+        expect:
         watcher.stopWatching(rootDir)
 
         when:
@@ -639,7 +638,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         when:
         stopWatcher()
         logging.clear()
-        nativeLogger.level = Level.WARNING
+        nativeLogger.level = WARNING
         ensureLogLevelInvalidated(service)
         startWatcher()
 

@@ -35,7 +35,7 @@ public:
     ~Server();
 
     void registerPath(const u16string& path) override;
-    void unregisterPath(const u16string& path) override;
+    bool unregisterPath(const u16string& path) override;
     void terminate() override;
 
     // TODO This should be private
