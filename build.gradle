@@ -22,6 +22,8 @@ test {
         maxFailures = 10
         failOnPassedAfterRetry = true
     }
+    // See https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/clopts002.html
+    jvmArgs "-Xcheck:jni"
 }
 
 allprojects {
