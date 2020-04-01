@@ -1,3 +1,4 @@
+import org.gradle.api.logging.StandardOutputListener
 import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
 
 plugins {
@@ -27,8 +28,23 @@ tasks.withType(Test) {
 def testJni = tasks.register("testJni", Test) {
     // See https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/clopts002.html
     it.jvmArgs "-Xcheck:jni"
+
+    // Only run tests that have the category
     it.useJUnit {
         includeCategories 'net.rubygrapefruit.platform.testfixture.JniChecksEnabled'
+    }
+
+    // Check standard error for JNI warnings and fail if we find anything
+    boolean warningsDetected = false
+    it.logging.addStandardErrorListener({ String message ->
+        if (message.startsWith("WARNING")) {
+            warningsDetected = true
+        }
+    } as StandardOutputListener)
+    it.doLast {
+        if (warningsDetected) {
+            throw new RuntimeException("Detected JNI check warnings on standard error")
+        }
     }
 }
 
