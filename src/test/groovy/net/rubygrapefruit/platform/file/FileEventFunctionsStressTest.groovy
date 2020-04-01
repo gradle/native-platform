@@ -118,18 +118,9 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         given:
         def watchedDirectoryDepth = 10
 
-        List<File> watchedDirectories = []
         def watchedDir = new File(rootDir, "watchedDir")
         assert watchedDir.mkdir()
-        watchedDirectories.add(watchedDir)
-        List<File> previousRoots = [watchedDir]
-        watchedDirectoryDepth.times { depth ->
-            previousRoots = previousRoots.collectMany { root ->
-                createSubdirs(root, 2)
-            }
-            watchedDirectories.addAll(previousRoots)
-        }
-        LOGGER.info("Watching ${watchedDirectories.size()} directories")
+        List<File> watchedDirectories = createHierarchy(watchedDir, watchedDirectoryDepth)
 
         when:
         def watcher = startNewWatcher(newEventSinkCallback())
@@ -151,15 +142,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
 
         def watchedDir = new File(rootDir, "watchedDir")
         assert watchedDir.mkdir()
-        List<File> previousRoots = [watchedDir]
-        int count = 1
-        (watchedDirectoryDepth - 1).times { depth ->
-            previousRoots = previousRoots.collectMany { root ->
-                createSubdirs(root, 2)
-            }
-            count += previousRoots.size()
-        }
-        LOGGER.info "> Created $count directories"
+        createHierarchy(watchedDir, watchedDirectoryDepth)
 
         when:
         def watcher = startNewWatcher(newEventSinkCallback())
@@ -172,14 +155,24 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         noExceptionThrown()
     }
 
-    private static List<File> createSubdirs(File root, int number) {
-        List<File> dirs = []
-        number.times { index ->
-            def dir = new File(root, "dir${index}")
-            assert dir.mkdir()
-            dirs << dir
+    private static List<File> createHierarchy(File root, int watchedDirectoryDepth, int branching = 2) {
+        List<File> allDirs = []
+        allDirs.add(root)
+        List<File> previousRoots = [root]
+        (watchedDirectoryDepth - 1).times { depth ->
+            previousRoots = previousRoots.collectMany { previousRoot ->
+                List<File> dirs = []
+                branching.times { index ->
+                    def dir = new File(previousRoot, "dir${index}")
+                    assert dir.mkdir()
+                    dirs << dir
+                }
+                return dirs
+            }
+            allDirs.addAll(previousRoots)
         }
-        return dirs
+        LOGGER.info "> Created ${allDirs.size()} directories"
+        return allDirs
     }
 
     private List<File> createDirectoriesToWatch(int numberOfWatchedDirectories, String prefix = "dir-") {
