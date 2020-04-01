@@ -152,11 +152,14 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         def watchedDir = new File(rootDir, "watchedDir")
         assert watchedDir.mkdir()
         List<File> previousRoots = [watchedDir]
-        watchedDirectoryDepth.times { depth ->
+        int count = 1
+        (watchedDirectoryDepth - 1).times { depth ->
             previousRoots = previousRoots.collectMany { root ->
                 createSubdirs(root, 2)
             }
+            count += previousRoots.size()
         }
+        LOGGER.info "> Created $count directories"
 
         when:
         def watcher = startNewWatcher(newEventSinkCallback())
