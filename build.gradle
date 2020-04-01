@@ -16,15 +16,23 @@ versions {
 
 ext.isCiServer = System.getenv().get("CI") != null
 
-test {
+tasks.withType(Test) {
     retry {
         maxRetries = isCiServer ? 1 : 0
         maxFailures = 10
         failOnPassedAfterRetry = true
     }
-    // See https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/clopts002.html
-    jvmArgs "-Xcheck:jni"
 }
+
+def testJni = tasks.register("testJni", Test) {
+    // See https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/clopts002.html
+    it.jvmArgs "-Xcheck:jni"
+    it.useJUnit {
+        includeCategories 'net.rubygrapefruit.platform.testfixture.JniChecksEnabled'
+    }
+}
+
+check.dependsOn testJni
 
 allprojects {
     apply plugin: 'java'

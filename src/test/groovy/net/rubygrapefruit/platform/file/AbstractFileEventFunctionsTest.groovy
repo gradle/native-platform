@@ -25,8 +25,10 @@ import net.rubygrapefruit.platform.internal.jni.LinuxFileEventFunctions
 import net.rubygrapefruit.platform.internal.jni.NativeLogger
 import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions
 import net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions
+import net.rubygrapefruit.platform.testfixture.JniChecksEnabled
 import net.rubygrapefruit.platform.testfixture.JulLogging
 import org.junit.Rule
+import org.junit.experimental.categories.Category
 import org.junit.rules.TemporaryFolder
 import org.junit.rules.TestName
 import spock.lang.Specification
@@ -44,6 +46,7 @@ import static java.util.concurrent.TimeUnit.SECONDS
 import static java.util.logging.Level.FINE
 
 @Timeout(value = 10, unit = SECONDS)
+@Category(JniChecksEnabled)
 abstract class AbstractFileEventFunctionsTest extends Specification {
 
     public static final Logger LOGGER = Logger.getLogger(AbstractFileEventFunctionsTest.name)
