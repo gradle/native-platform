@@ -34,15 +34,15 @@ def testJni = tasks.register("testJni", Test) {
     }
 
     // Check standard output for JNI warnings and fail if we find anything
-    boolean warningsDetected = false
+    List<String> warningsDetected = []
     it.logging.addStandardOutputListener({ String message ->
         if (message.startsWith("WARNING")) {
-            warningsDetected = true
+            warningsDetected << message
         }
     } as StandardOutputListener)
     it.doLast {
         if (warningsDetected) {
-            throw new RuntimeException("Detected JNI check warnings on standard output")
+            throw new RuntimeException("Detected JNI check warnings on standard output:\n - ${warningsDetected.join("\n - ")}")
         }
     }
 }
