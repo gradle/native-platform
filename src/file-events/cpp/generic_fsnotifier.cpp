@@ -115,7 +115,7 @@ void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) 
     jstring javaPath = env->NewString((jchar*) path.c_str(), (jsize) path.length());
     env->CallVoidMethod(watcherCallback.get(), watcherCallbackMethod, type, javaPath);
     env->DeleteLocalRef(javaPath);
-    JniSupport::rethrowJavaException(env);
+    rethrowJavaException(env);
 }
 
 void AbstractServer::reportError(JNIEnv* env, const exception& exception) {
@@ -126,7 +126,7 @@ void AbstractServer::reportError(JNIEnv* env, const exception& exception) {
     env->CallVoidMethod(watcherCallback.get(), watcherReportErrorMethod, javaException);
     env->DeleteLocalRef(javaMessage);
     env->DeleteLocalRef(javaException);
-    JniSupport::rethrowJavaException(env);
+    rethrowJavaException(env);
 }
 
 AbstractServer* getServer(JNIEnv* env, jobject javaServer) {

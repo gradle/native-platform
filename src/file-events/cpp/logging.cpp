@@ -19,7 +19,7 @@ bool Logging::enabled(LogLevel level) {
     if (elapsed > LOG_LEVEL_CHECK_INTERVAL_IN_MS) {
         JNIEnv* env = getThreadEnv();
         minimumLogLevel = env->CallStaticIntMethod(clsLogger.get(), getLevelMethod);
-        JniSupport::rethrowJavaException(env);
+        rethrowJavaException(env);
         lastLevelCheck = current;
     }
     return minimumLogLevel <= level;
@@ -39,6 +39,6 @@ void Logging::send(LogLevel level, const char* fmt, ...) {
         jstring logString = env->NewStringUTF(buffer);
         env->CallStaticVoidMethod(clsLogger.get(), logMethod, level, logString);
         env->DeleteLocalRef(logString);
-        JniSupport::rethrowJavaException(env);
+        rethrowJavaException(env);
     }
 }
