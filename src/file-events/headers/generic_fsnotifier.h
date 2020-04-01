@@ -193,7 +193,6 @@ public:
     NativeConstants(JavaVM* jvm);
 
     const JClass nativeExceptionClass;
-    const JClass classClass;
     const JClass nativeFileWatcherClass;
 };
 

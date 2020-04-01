@@ -61,3 +61,12 @@ public:
     JniThreadAttacher(JavaVM* jvm, const char* name, bool daemon);
     ~JniThreadAttacher();
 };
+
+class JniConstants : public JniSupport {
+public:
+    JniConstants(JavaVM* jvm);
+
+    const JClass classClass;
+};
+
+extern JniConstants* jniConstants;

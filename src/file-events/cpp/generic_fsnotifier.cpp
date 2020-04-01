@@ -130,7 +130,7 @@ void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) 
         string message = javaToUtf8String(env, javaMessage);
         env->DeleteLocalRef(javaMessage);
 
-        jmethodID getClassName = env->GetMethodID(nativeContants->classClass.get(), "getName", "()Ljava/lang/String;");
+        jmethodID getClassName = env->GetMethodID(jniConstants->classClass.get(), "getName", "()Ljava/lang/String;");
         jstring javaExceptionType = (jstring) env->CallObjectMethod(exceptionClass, getClassName);
         string exceptionType = javaToUtf8String(env, javaExceptionType);
         env->DeleteLocalRef(javaExceptionType);
@@ -285,6 +285,5 @@ JNIEXPORT void JNICALL Java_net_rubygrapefruit_platform_internal_jni_AbstractFil
 NativeConstants::NativeConstants(JavaVM* jvm)
     : JniSupport(jvm)
     , nativeExceptionClass(getThreadEnv(), "net/rubygrapefruit/platform/NativeException")
-    , classClass(getThreadEnv(), "java/lang/Class")
     , nativeFileWatcherClass(getThreadEnv(), "net/rubygrapefruit/platform/internal/jni/AbstractFileEventFunctions$NativeFileWatcher") {
 }

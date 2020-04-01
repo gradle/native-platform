@@ -54,3 +54,8 @@ JniThreadAttacher::~JniThreadAttacher() {
         cerr << "Failed to detach JNI from current thread: " << ret << endl;
     }
 }
+
+JniConstants::JniConstants(JavaVM* jvm)
+    : JniSupport(jvm)
+    , classClass(getThreadEnv(), "java/lang/Class") {
+}
