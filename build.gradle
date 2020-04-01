@@ -33,7 +33,7 @@ def testJni = tasks.register("testJni", Test) {
         includeCategories 'net.rubygrapefruit.platform.testfixture.JniChecksEnabled'
     }
 
-    // Check standard error for JNI warnings and fail if we find anything
+    // Check standard output for JNI warnings and fail if we find anything
     boolean warningsDetected = false
     it.logging.addStandardOutputListener({ String message ->
         if (message.startsWith("WARNING")) {
@@ -42,7 +42,7 @@ def testJni = tasks.register("testJni", Test) {
     } as StandardOutputListener)
     it.doLast {
         if (warningsDetected) {
-            throw new RuntimeException("Detected JNI check warnings on standard error")
+            throw new RuntimeException("Detected JNI check warnings on standard output")
         }
     }
 }
