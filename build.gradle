@@ -1,4 +1,3 @@
-import org.gradle.api.logging.StandardOutputListener
 import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
 
 plugins {
@@ -36,7 +35,7 @@ def testJni = tasks.register("testJni", Test) {
 
     // Check standard error for JNI warnings and fail if we find anything
     boolean warningsDetected = false
-    it.logging.addStandardErrorListener({ String message ->
+    it.logging.addStandardOutputListener({ String message ->
         if (message.startsWith("WARNING")) {
             warningsDetected = true
         }
