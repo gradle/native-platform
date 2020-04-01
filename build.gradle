@@ -34,10 +34,26 @@ def testJni = tasks.register("testJni", Test) {
     }
 
     // Check standard output for JNI warnings and fail if we find anything
+    String currentTest = "<UNKNOWN>"
+    it.addTestListener(new TestListener() {
+        @Override
+        void beforeSuite(TestDescriptor testDescriptor) {}
+
+        @Override
+        void afterSuite(TestDescriptor testDescriptor, TestResult testResult) {}
+
+        @Override
+        void beforeTest(TestDescriptor testDescriptor) {
+            currentTest = "${testDescriptor.className}.${testDescriptor.displayName}"
+        }
+
+        @Override
+        void afterTest(TestDescriptor testDescriptor, TestResult testResult) {}
+    })
     List<String> warningsDetected = []
     it.logging.addStandardOutputListener({ String message ->
         if (message.startsWith("WARNING")) {
-            warningsDetected << message
+            warningsDetected << "$message (test: $currentTest)"
         }
     } as StandardOutputListener)
     it.doLast {
