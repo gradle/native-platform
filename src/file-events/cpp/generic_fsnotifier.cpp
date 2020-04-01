@@ -118,28 +118,7 @@ void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) 
     jstring javaPath = env->NewString((jchar*) path.c_str(), (jsize) path.length());
     env->CallVoidMethod(watcherCallback.get(), watcherCallbackMethod, type, javaPath);
     env->DeleteLocalRef(javaPath);
-
-    jthrowable exception = env->ExceptionOccurred();
-    if (exception != nullptr) {
-        env->ExceptionDescribe();
-        env->ExceptionClear();
-
-        jclass exceptionClass = env->GetObjectClass(exception);
-        jmethodID getMessage = env->GetMethodID(exceptionClass, "getMessage", "()Ljava/lang/String;");
-        jstring javaMessage = (jstring) env->CallObjectMethod(exception, getMessage);
-        string message = javaToUtf8String(env, javaMessage);
-        env->DeleteLocalRef(javaMessage);
-
-        jmethodID getClassName = env->GetMethodID(jniConstants->classClass.get(), "getName", "()Ljava/lang/String;");
-        jstring javaExceptionType = (jstring) env->CallObjectMethod(exceptionClass, getClassName);
-        string exceptionType = javaToUtf8String(env, javaExceptionType);
-        env->DeleteLocalRef(javaExceptionType);
-
-        env->DeleteLocalRef(exceptionClass);
-        env->DeleteLocalRef(exception);
-
-        throw FileWatcherException("Caught " + exceptionType + " while calling callback: " + message);
-    }
+    JniSupport::rethrowJavaException(env);
 }
 
 void AbstractServer::reportError(JNIEnv* env, const exception& exception) {
@@ -150,54 +129,7 @@ void AbstractServer::reportError(JNIEnv* env, const exception& exception) {
     env->CallVoidMethod(watcherCallback.get(), watcherReportErrorMethod, javaException);
     env->DeleteLocalRef(javaMessage);
     env->DeleteLocalRef(javaException);
-}
-
-string javaToUtf8String(JNIEnv* env, jstring javaString) {
-    return utf16ToUtf8String(javaToUtf16String(env, javaString));
-}
-
-u16string javaToUtf16String(JNIEnv* env, jstring javaString) {
-    jsize length = env->GetStringLength(javaString);
-    const jchar* javaChars = env->GetStringCritical(javaString, nullptr);
-    if (javaChars == NULL) {
-        throw FileWatcherException("Could not get Java string character");
-    }
-    u16string path((char16_t*) javaChars, length);
-    env->ReleaseStringCritical(javaString, javaChars);
-    return path;
-}
-
-void javaToUtf16StringArray(JNIEnv* env, jobjectArray javaStrings, vector<u16string>& strings) {
-    int count = env->GetArrayLength(javaStrings);
-    strings.reserve(count);
-    for (int i = 0; i < count; i++) {
-        jstring javaString = reinterpret_cast<jstring>(env->GetObjectArrayElement(javaStrings, i));
-        auto string = javaToUtf16String(env, javaString);
-        strings.push_back(move(string));
-    }
-}
-
-// Utility wrapper to adapt locale-bound facets for wstring convert
-// Exposes the protected destructor as public
-// See https://en.cppreference.com/w/cpp/locale/codecvt
-template <class Facet>
-struct deletable_facet : Facet {
-    template <class... Args>
-    deletable_facet(Args&&... args)
-        : Facet(forward<Args>(args)...) {
-    }
-    ~deletable_facet() {
-    }
-};
-
-u16string utf8ToUtf16String(const char* string) {
-    wstring_convert<deletable_facet<codecvt<char16_t, char, mbstate_t>>, char16_t> conv16;
-    return conv16.from_bytes(string);
-}
-
-string utf16ToUtf8String(const u16string& string) {
-    wstring_convert<deletable_facet<codecvt<char16_t, char, mbstate_t>>, char16_t> conv16;
-    return conv16.to_bytes(string);
+    JniSupport::rethrowJavaException(env);
 }
 
 AbstractServer* getServer(JNIEnv* env, jobject javaServer) {

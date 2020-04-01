@@ -426,7 +426,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
             void reportError(Throwable ex) {
                 conditions.evaluate {
                     assert ex instanceof NativeException
-                    assert ex.message == "Caught java.lang.RuntimeException while calling callback: Error"
+                    assert ex.message == "Caught java.lang.RuntimeException with message: Error"
                 }
             }
         }, rootDir)

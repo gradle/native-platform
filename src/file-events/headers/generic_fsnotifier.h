@@ -198,13 +198,5 @@ public:
 
 extern NativeConstants* nativeContants;
 
-string javaToUtf8String(JNIEnv* env, jstring javaString);
-
-u16string javaToUtf16String(JNIEnv* env, jstring javaString);
-
-u16string utf8ToUtf16String(const char* string);
-
-string utf16ToUtf8String(const u16string& string);
-
 // TODO Use a template for the server type?
 jobject wrapServer(JNIEnv* env, function<void*()> serverStarter);

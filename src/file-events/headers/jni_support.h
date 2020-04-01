@@ -2,6 +2,8 @@
 
 #include <jni.h>
 #include <stdexcept>
+#include <string>
+#include <vector>
 
 using namespace std;
 
@@ -15,6 +17,11 @@ class JniSupport {
 public:
     JniSupport(JavaVM* jvm);
     JniSupport(JNIEnv* env);
+
+    /**
+     * Check for a Java exception and rethrow as a native exception.
+     */
+    static void rethrowJavaException(JNIEnv* env);
 
 protected:
     const JniGlobalRef<jclass>& findClass(const char* className);
@@ -70,3 +77,13 @@ public:
 };
 
 extern JniConstants* jniConstants;
+
+extern string javaToUtf8String(JNIEnv* env, jstring javaString);
+
+extern u16string javaToUtf16String(JNIEnv* env, jstring javaString);
+
+extern void javaToUtf16StringArray(JNIEnv* env, jobjectArray javaStrings, vector<u16string>& strings);
+
+extern u16string utf8ToUtf16String(const char* string);
+
+extern string utf16ToUtf8String(const u16string& string);
