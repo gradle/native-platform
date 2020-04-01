@@ -31,6 +31,7 @@ import org.junit.Rule
 import org.junit.experimental.categories.Category
 import org.junit.rules.TemporaryFolder
 import org.junit.rules.TestName
+import org.spockframework.util.Assert
 import spock.lang.Specification
 import spock.lang.Timeout
 
@@ -81,13 +82,13 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
     def cleanup() {
         stopWatcher()
+        LOGGER.info("<<< Finished '${testName.methodName}'")
+
         uncaughtFailureOnThread.each {
             it.printStackTrace()
         }
         // Avoid power assertion printing exceptions again
-        def uncaughtExceptionCount = uncaughtFailureOnThread.size()
-        assert uncaughtExceptionCount == 0
-        LOGGER.info("<<< Finished '${testName.methodName}'")
+        Assert.that(uncaughtFailureOnThread.empty, "There were uncaught exceptions, see stacktraces above")
 
         // Check if the logs (INFO and above) match our expectations
         Map<String, Level> unexpectedLogMessages = logging.messages
@@ -98,15 +99,21 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
                 expectedMessage.matcher(message).matches() && expectedLevel == level
             }
         }
+        Assert.that(
+            unexpectedLogMessages.isEmpty() && remainingExpectedLogMessages.isEmpty(),
+            createLogMessageFailure(unexpectedLogMessages, remainingExpectedLogMessages)
+        )
+    }
+
+    private static String createLogMessageFailure(Map<String, Level> unexpectedLogMessages, LinkedHashMap<Pattern, Level> remainingExpectedLogMessages) {
+        String failure = "Log messages differ from expected:\n"
         unexpectedLogMessages.each { message, level ->
-            System.err.println("Unexpected warning/error log message: $level $message")
+            failure += " - UNEXPECTED $level $message\n"
         }
         remainingExpectedLogMessages.each { message, level ->
-            System.err.println("Unmatched  warning/error log message: $level $message")
+            failure += " - MISSING    $level $message\n"
         }
-        boolean noUnexpectedWarningsInLog = unexpectedLogMessages.isEmpty()
-        boolean noMissingWarningsInLog = remainingExpectedLogMessages.isEmpty()
-        assert noUnexpectedWarningsInLog && noMissingWarningsInLog
+        return failure
     }
 
     void expectLogMessage(Level level, String message) {
