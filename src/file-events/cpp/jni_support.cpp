@@ -112,6 +112,7 @@ void javaToUtf16StringArray(JNIEnv* env, jobjectArray javaStrings, vector<u16str
     for (int i = 0; i < count; i++) {
         jstring javaString = reinterpret_cast<jstring>(env->GetObjectArrayElement(javaStrings, i));
         auto string = javaToUtf16String(env, javaString);
+        env->DeleteLocalRef(javaString);
         strings.push_back(move(string));
     }
 }
