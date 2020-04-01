@@ -188,16 +188,16 @@ public:
     }
 };
 
-class JniConstants : public JniSupport {
+class NativeConstants : public JniSupport {
 public:
-    JniConstants(JavaVM* jvm);
+    NativeConstants(JavaVM* jvm);
 
     const JClass nativeExceptionClass;
     const JClass classClass;
     const JClass nativeFileWatcherClass;
 };
 
-extern JniConstants* jniConstants;
+extern NativeConstants* nativeContants;
 
 string javaToUtf8String(JNIEnv* env, jstring javaString);
 
