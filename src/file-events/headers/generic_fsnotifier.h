@@ -196,7 +196,7 @@ public:
     const JClass nativeFileWatcherClass;
 };
 
-extern NativeConstants* nativeContants;
+extern NativeConstants* nativeConstants;
 
 // TODO Use a template for the server type?
 jobject wrapServer(JNIEnv* env, function<void*()> serverStarter);
