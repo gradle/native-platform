@@ -49,7 +49,7 @@ void JniSupport::rethrowJavaException(JNIEnv* env) {
         string message = javaToUtf8String(env, javaMessage);
         env->DeleteLocalRef(javaMessage);
 
-        jmethodID getClassName = env->GetMethodID(jniConstants->classClass.get(), "getName", "()Ljava/lang/String;");
+        jmethodID getClassName = env->GetMethodID(baseJniConstants->classClass.get(), "getName", "()Ljava/lang/String;");
         jstring javaExceptionType = (jstring) env->CallObjectMethod(exceptionClass, getClassName);
         if (env->ExceptionCheck()) {
             env->ExceptionDescribe();
@@ -89,7 +89,7 @@ JniThreadAttacher::~JniThreadAttacher() {
     }
 }
 
-JniConstants::JniConstants(JavaVM* jvm)
+BaseJniConstants::BaseJniConstants(JavaVM* jvm)
     : JniSupport(jvm)
     , classClass(getThreadEnv(), "java/lang/Class") {
 }

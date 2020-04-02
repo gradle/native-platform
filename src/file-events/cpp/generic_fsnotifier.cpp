@@ -121,8 +121,8 @@ void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) 
 void AbstractServer::reportError(JNIEnv* env, const exception& exception) {
     u16string message = utf8ToUtf16String(exception.what());
     jstring javaMessage = env->NewString((jchar*) message.c_str(), (jsize) message.length());
-    jmethodID constructor = env->GetMethodID(nativeConstants->nativeExceptionClass.get(), "<init>", "(Ljava/lang/String;)V");
-    jobject javaException = env->NewObject(nativeConstants->nativeExceptionClass.get(), constructor, javaMessage);
+    jmethodID constructor = env->GetMethodID(nativePlatformJniConstants->nativeExceptionClass.get(), "<init>", "(Ljava/lang/String;)V");
+    jobject javaException = env->NewObject(nativePlatformJniConstants->nativeExceptionClass.get(), constructor, javaMessage);
     env->CallVoidMethod(watcherCallback.get(), watcherReportErrorMethod, javaException);
     env->DeleteLocalRef(javaMessage);
     env->DeleteLocalRef(javaException);
@@ -139,7 +139,7 @@ AbstractServer* getServer(JNIEnv* env, jobject javaServer) {
 
 jobject rethrowAsJavaException(JNIEnv* env, const exception& e) {
     logToJava(SEVERE, "Caught exception: %s", e.what());
-    jint ret = env->ThrowNew(nativeConstants->nativeExceptionClass.get(), e.what());
+    jint ret = env->ThrowNew(nativePlatformJniConstants->nativeExceptionClass.get(), e.what());
     if (ret != 0) {
         cerr << "JNI ThrowNew returned %d when rethrowing native exception: " << ret << endl;
     }
@@ -154,8 +154,8 @@ jobject wrapServer(JNIEnv* env, function<void*()> serverStarter) {
         return rethrowAsJavaException(env, e);
     }
 
-    jmethodID constructor = env->GetMethodID(nativeConstants->nativeFileWatcherClass.get(), "<init>", "(Ljava/lang/Object;)V");
-    return env->NewObject(nativeConstants->nativeFileWatcherClass.get(), constructor, env->NewDirectByteBuffer(server, sizeof(server)));
+    jmethodID constructor = env->GetMethodID(nativePlatformJniConstants->nativeFileWatcherClass.get(), "<init>", "(Ljava/lang/Object;)V");
+    return env->NewObject(nativePlatformJniConstants->nativeFileWatcherClass.get(), constructor, env->NewDirectByteBuffer(server, sizeof(server)));
 }
 
 void AbstractServer::registerPaths(const vector<u16string>& paths) {
@@ -211,7 +211,7 @@ JNIEXPORT void JNICALL Java_net_rubygrapefruit_platform_internal_jni_AbstractFil
     logging->invalidateLogLevelCache();
 }
 
-NativeConstants::NativeConstants(JavaVM* jvm)
+NativePlatformJniConstants::NativePlatformJniConstants(JavaVM* jvm)
     : JniSupport(jvm)
     , nativeExceptionClass(getThreadEnv(), "net/rubygrapefruit/platform/NativeException")
     , nativeFileWatcherClass(getThreadEnv(), "net/rubygrapefruit/platform/internal/jni/AbstractFileEventFunctions$NativeFileWatcher") {

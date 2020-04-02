@@ -69,14 +69,14 @@ public:
     ~JniThreadAttacher();
 };
 
-class JniConstants : public JniSupport {
+class BaseJniConstants : public JniSupport {
 public:
-    JniConstants(JavaVM* jvm);
+    BaseJniConstants(JavaVM* jvm);
 
     const JClass classClass;
 };
 
-extern JniConstants* jniConstants;
+extern BaseJniConstants* baseJniConstants;
 
 extern string javaToUtf8String(JNIEnv* env, jstring javaString);
 

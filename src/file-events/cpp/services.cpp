@@ -1,14 +1,14 @@
 #include "logging.h"
 #include "generic_fsnotifier.h"
 
-JniConstants* jniConstants;
-NativeConstants* nativeConstants;
+BaseJniConstants* baseJniConstants;
+NativePlatformJniConstants* nativePlatformJniConstants;
 Logging* logging;
 
 JNIEXPORT jint JNICALL
 JNI_OnLoad(JavaVM* jvm, void*) {
-    jniConstants = new JniConstants(jvm);
-    nativeConstants = new NativeConstants(jvm);
+    baseJniConstants = new BaseJniConstants(jvm);
+    nativePlatformJniConstants = new NativePlatformJniConstants(jvm);
     logging = new Logging(jvm);
     return JNI_VERSION_1_6;
 }
@@ -16,6 +16,6 @@ JNI_OnLoad(JavaVM* jvm, void*) {
 JNIEXPORT void JNICALL
 JNI_OnUnload(JavaVM*, void*) {
     delete logging;
-    delete nativeConstants;
-    delete jniConstants;
+    delete nativePlatformJniConstants;
+    delete baseJniConstants;
 }

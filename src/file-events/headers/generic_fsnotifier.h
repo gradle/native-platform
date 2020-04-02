@@ -188,15 +188,15 @@ public:
     }
 };
 
-class NativeConstants : public JniSupport {
+class NativePlatformJniConstants : public JniSupport {
 public:
-    NativeConstants(JavaVM* jvm);
+    NativePlatformJniConstants(JavaVM* jvm);
 
     const JClass nativeExceptionClass;
     const JClass nativeFileWatcherClass;
 };
 
-extern NativeConstants* nativeConstants;
+extern NativePlatformJniConstants* nativePlatformJniConstants;
 
 // TODO Use a template for the server type?
 jobject wrapServer(JNIEnv* env, function<void*()> serverStarter);
