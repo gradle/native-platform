@@ -17,7 +17,9 @@ bool Logging::enabled(LogLevel level) {
     auto current = chrono::steady_clock::now();
     auto elapsed = chrono::duration_cast<chrono::milliseconds>(current - lastLevelCheck).count();
     if (elapsed > LOG_LEVEL_CHECK_INTERVAL_IN_MS) {
-        minimumLogLevel = getThreadEnv()->CallStaticIntMethod(clsLogger.get(), getLevelMethod);
+        JNIEnv* env = getThreadEnv();
+        minimumLogLevel = env->CallStaticIntMethod(clsLogger.get(), getLevelMethod);
+        rethrowJavaException(env);
         lastLevelCheck = current;
     }
     return minimumLogLevel <= level;
@@ -37,5 +39,6 @@ void Logging::send(LogLevel level, const char* fmt, ...) {
         jstring logString = env->NewStringUTF(buffer);
         env->CallStaticVoidMethod(clsLogger.get(), logMethod, level, logString);
         env->DeleteLocalRef(logString);
+        rethrowJavaException(env);
     }
 }

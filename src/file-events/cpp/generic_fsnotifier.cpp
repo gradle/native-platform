@@ -1,7 +1,4 @@
-#include <codecvt>
-#include <locale>
 #include <sstream>
-#include <string>
 
 #include "generic_fsnotifier.h"
 
@@ -118,86 +115,18 @@ void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) 
     jstring javaPath = env->NewString((jchar*) path.c_str(), (jsize) path.length());
     env->CallVoidMethod(watcherCallback.get(), watcherCallbackMethod, type, javaPath);
     env->DeleteLocalRef(javaPath);
-
-    jthrowable exception = env->ExceptionOccurred();
-    if (exception != nullptr) {
-        env->ExceptionDescribe();
-        env->ExceptionClear();
-
-        jclass exceptionClass = env->GetObjectClass(exception);
-        jmethodID getMessage = env->GetMethodID(exceptionClass, "getMessage", "()Ljava/lang/String;");
-        jstring javaMessage = (jstring) env->CallObjectMethod(exception, getMessage);
-        string message = javaToUtf8String(env, javaMessage);
-        env->DeleteLocalRef(javaMessage);
-
-        jmethodID getClassName = env->GetMethodID(jniConstants->classClass.get(), "getName", "()Ljava/lang/String;");
-        jstring javaExceptionType = (jstring) env->CallObjectMethod(exceptionClass, getClassName);
-        string exceptionType = javaToUtf8String(env, javaExceptionType);
-        env->DeleteLocalRef(javaExceptionType);
-
-        env->DeleteLocalRef(exceptionClass);
-        env->DeleteLocalRef(exception);
-
-        throw FileWatcherException("Caught " + exceptionType + " while calling callback: " + message);
-    }
+    rethrowJavaException(env);
 }
 
 void AbstractServer::reportError(JNIEnv* env, const exception& exception) {
     u16string message = utf8ToUtf16String(exception.what());
     jstring javaMessage = env->NewString((jchar*) message.c_str(), (jsize) message.length());
-    jmethodID constructor = env->GetMethodID(jniConstants->nativeExceptionClass.get(), "<init>", "(Ljava/lang/String;)V");
-    jobject javaException = env->NewObject(jniConstants->nativeExceptionClass.get(), constructor, javaMessage);
+    jmethodID constructor = env->GetMethodID(nativePlatformJniConstants->nativeExceptionClass.get(), "<init>", "(Ljava/lang/String;)V");
+    jobject javaException = env->NewObject(nativePlatformJniConstants->nativeExceptionClass.get(), constructor, javaMessage);
     env->CallVoidMethod(watcherCallback.get(), watcherReportErrorMethod, javaException);
     env->DeleteLocalRef(javaMessage);
     env->DeleteLocalRef(javaException);
-}
-
-string javaToUtf8String(JNIEnv* env, jstring javaString) {
-    return utf16ToUtf8String(javaToUtf16String(env, javaString));
-}
-
-u16string javaToUtf16String(JNIEnv* env, jstring javaString) {
-    jsize length = env->GetStringLength(javaString);
-    const jchar* javaChars = env->GetStringCritical(javaString, nullptr);
-    if (javaChars == NULL) {
-        throw FileWatcherException("Could not get Java string character");
-    }
-    u16string path((char16_t*) javaChars, length);
-    env->ReleaseStringCritical(javaString, javaChars);
-    return path;
-}
-
-void javaToUtf16StringArray(JNIEnv* env, jobjectArray javaStrings, vector<u16string>& strings) {
-    int count = env->GetArrayLength(javaStrings);
-    strings.reserve(count);
-    for (int i = 0; i < count; i++) {
-        jstring javaString = reinterpret_cast<jstring>(env->GetObjectArrayElement(javaStrings, i));
-        auto string = javaToUtf16String(env, javaString);
-        strings.push_back(move(string));
-    }
-}
-
-// Utility wrapper to adapt locale-bound facets for wstring convert
-// Exposes the protected destructor as public
-// See https://en.cppreference.com/w/cpp/locale/codecvt
-template <class Facet>
-struct deletable_facet : Facet {
-    template <class... Args>
-    deletable_facet(Args&&... args)
-        : Facet(forward<Args>(args)...) {
-    }
-    ~deletable_facet() {
-    }
-};
-
-u16string utf8ToUtf16String(const char* string) {
-    wstring_convert<deletable_facet<codecvt<char16_t, char, mbstate_t>>, char16_t> conv16;
-    return conv16.from_bytes(string);
-}
-
-string utf16ToUtf8String(const u16string& string) {
-    wstring_convert<deletable_facet<codecvt<char16_t, char, mbstate_t>>, char16_t> conv16;
-    return conv16.to_bytes(string);
+    rethrowJavaException(env);
 }
 
 AbstractServer* getServer(JNIEnv* env, jobject javaServer) {
@@ -210,7 +139,7 @@ AbstractServer* getServer(JNIEnv* env, jobject javaServer) {
 
 jobject rethrowAsJavaException(JNIEnv* env, const exception& e) {
     logToJava(SEVERE, "Caught exception: %s", e.what());
-    jint ret = env->ThrowNew(jniConstants->nativeExceptionClass.get(), e.what());
+    jint ret = env->ThrowNew(nativePlatformJniConstants->nativeExceptionClass.get(), e.what());
     if (ret != 0) {
         cerr << "JNI ThrowNew returned %d when rethrowing native exception: " << ret << endl;
     }
@@ -225,8 +154,8 @@ jobject wrapServer(JNIEnv* env, function<void*()> serverStarter) {
         return rethrowAsJavaException(env, e);
     }
 
-    jmethodID constructor = env->GetMethodID(jniConstants->nativeFileWatcherClass.get(), "<init>", "(Ljava/lang/Object;)V");
-    return env->NewObject(jniConstants->nativeFileWatcherClass.get(), constructor, env->NewDirectByteBuffer(server, sizeof(server)));
+    jmethodID constructor = env->GetMethodID(nativePlatformJniConstants->nativeFileWatcherClass.get(), "<init>", "(Ljava/lang/Object;)V");
+    return env->NewObject(nativePlatformJniConstants->nativeFileWatcherClass.get(), constructor, env->NewDirectByteBuffer(server, sizeof(server)));
 }
 
 void AbstractServer::registerPaths(const vector<u16string>& paths) {
@@ -282,9 +211,8 @@ JNIEXPORT void JNICALL Java_net_rubygrapefruit_platform_internal_jni_AbstractFil
     logging->invalidateLogLevelCache();
 }
 
-JniConstants::JniConstants(JavaVM* jvm)
+NativePlatformJniConstants::NativePlatformJniConstants(JavaVM* jvm)
     : JniSupport(jvm)
     , nativeExceptionClass(getThreadEnv(), "net/rubygrapefruit/platform/NativeException")
-    , classClass(getThreadEnv(), "java/lang/Class")
     , nativeFileWatcherClass(getThreadEnv(), "net/rubygrapefruit/platform/internal/jni/AbstractFileEventFunctions$NativeFileWatcher") {
 }

@@ -188,24 +188,15 @@ public:
     }
 };
 
-class JniConstants : public JniSupport {
+class NativePlatformJniConstants : public JniSupport {
 public:
-    JniConstants(JavaVM* jvm);
+    NativePlatformJniConstants(JavaVM* jvm);
 
     const JClass nativeExceptionClass;
-    const JClass classClass;
     const JClass nativeFileWatcherClass;
 };
 
-extern JniConstants* jniConstants;
-
-string javaToUtf8String(JNIEnv* env, jstring javaString);
-
-u16string javaToUtf16String(JNIEnv* env, jstring javaString);
-
-u16string utf8ToUtf16String(const char* string);
-
-string utf16ToUtf8String(const u16string& string);
+extern NativePlatformJniConstants* nativePlatformJniConstants;
 
 // TODO Use a template for the server type?
 jobject wrapServer(JNIEnv* env, function<void*()> serverStarter);

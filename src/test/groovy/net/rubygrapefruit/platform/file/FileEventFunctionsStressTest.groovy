@@ -17,6 +17,7 @@
 package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.internal.Platform
+import spock.lang.IgnoreIf
 import spock.lang.Requires
 import spock.lang.Timeout
 
@@ -142,6 +143,8 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
     }
 
     @Requires({ !Platform.current().linux })
+    // TODO Fix overflow event on Windows
+    @IgnoreIf({ Platform.current().windows })
     def "can stop watching a deep hierarchy when it has been deleted"() {
         given:
         def watchedDirectoryDepth = 10
