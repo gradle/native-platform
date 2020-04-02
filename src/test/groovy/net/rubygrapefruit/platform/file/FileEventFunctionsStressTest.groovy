@@ -57,7 +57,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         expectEvents change(CREATED, createdFile)
     }
 
-    def "can stop and restart watching many directory many times"() {
+    def "can stop and restart watching many directories many times"() {
         given:
         File[] watchedDirs = createDirectoriesToWatch(100)
 
@@ -134,8 +134,6 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
     }
 
     @Requires({ !Platform.current().linux })
-    // TODO Fix overflow event on Windows
-    @IgnoreIf({ Platform.current().windows })
     def "can stop watching a deep hierarchy when it has been deleted"() {
         given:
         def watchedDirectoryDepth = 10

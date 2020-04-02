@@ -177,7 +177,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
             @Override
             FileWatcher startNewWatcherInternal(FileWatcherCallback callback) {
-                service.startWatcher(callback)
+                service.startWatcher(64 * 1024, callback)
             }
 
             @Override

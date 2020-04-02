@@ -15,8 +15,6 @@
 
 using namespace std;
 
-#define EVENT_BUFFER_SIZE (16 * 1024)
-
 #define CREATE_SHARE (FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE)
 #define CREATE_FLAGS (FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED)
 
@@ -38,7 +36,7 @@ enum ListenResult {
 
 class WatchPoint {
 public:
-    WatchPoint(Server* server, const u16string& path);
+    WatchPoint(Server* server, size_t bufferSize, const u16string& path);
     ~WatchPoint();
 
     ListenResult listen();
@@ -61,7 +59,7 @@ private:
 
 class Server : public AbstractServer {
 public:
-    Server(JNIEnv* env, jobject watcherCallback);
+    Server(JNIEnv* env, size_t bufferSize, jobject watcherCallback);
     ~Server();
 
     void registerPath(const u16string& path) override;
@@ -77,6 +75,7 @@ protected:
 private:
     void handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMATION* info);
 
+    const size_t bufferSize;
     unordered_map<u16string, WatchPoint> watchPoints;
     bool terminated = false;
 };
