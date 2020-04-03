@@ -26,6 +26,7 @@ import spock.lang.Unroll
 import spock.util.concurrent.AsyncConditions
 import spock.util.environment.OperatingSystem
 
+import java.util.concurrent.ArrayBlockingQueue
 import java.util.logging.Level
 import java.util.logging.Logger
 import java.util.regex.Pattern
@@ -652,5 +653,28 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         action                                    | ensureLogLevelInvalidated
         "invalidating the log level cache"        | { AbstractFileEventFunctions service -> service.invalidateLogLevelCache() }
         "waiting for log level cache to time out" | { Thread.sleep(1500) }
+    }
+
+    def "jvm does not crash when event queue is blocked"() {
+        def watchedDir = new File(rootDir, "watched")
+        def secondWatchedDir = new File(rootDir, "secondWatched")
+        watchedDir.mkdirs()
+        def blockedQueue = new ArrayBlockingQueue(1)
+
+        when:
+        startWatcher(blockedQueue, watchedDir)
+        new File(watchedDir, "first").text = "first"
+        new File(watchedDir, "second").text = "second"
+        new File(watchedDir, "third").text = "third"
+        waitForChangeEventLatency()
+
+        then:
+        blockedQueue.remainingCapacity() == 0
+
+        when:
+        watcher.startWatching(secondWatchedDir)
+        then:
+        def exception = thrown(NativeException)
+        exception.message == "Command execution timed out"
     }
 }
