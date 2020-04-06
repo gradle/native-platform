@@ -6,7 +6,7 @@
 #include <unordered_map>
 
 #include "generic_fsnotifier.h"
-#include "net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_fileevents_OsxFileEventFunctions.h"
 
 using namespace std;
 

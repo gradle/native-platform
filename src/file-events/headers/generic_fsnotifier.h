@@ -14,8 +14,8 @@
 
 #include "jni_support.h"
 #include "logging.h"
-#include "net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions.h"
-#include "net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_NativeFileWatcher.h"
+#include "net_rubygrapefruit_platform_internal_jni_fileevents_AbstractFileEventFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_fileevents_NativeFileWatcher.h"
 
 using namespace std;
 

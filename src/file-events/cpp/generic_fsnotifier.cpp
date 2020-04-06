@@ -173,7 +173,7 @@ bool AbstractServer::unregisterPaths(const vector<u16string>& paths) {
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_startWatching0(JNIEnv* env, jobject, jobject javaServer, jobjectArray javaPaths) {
+Java_net_rubygrapefruit_platform_internal_jni_fileevents_NativeFileWatcher_startWatching0(JNIEnv* env, jobject, jobject javaServer, jobjectArray javaPaths) {
     try {
         AbstractServer* server = getServer(env, javaServer);
         vector<u16string> paths;
@@ -185,7 +185,7 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
 }
 
 JNIEXPORT jboolean JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_stopWatching0(JNIEnv* env, jobject, jobject javaServer, jobjectArray javaPaths) {
+Java_net_rubygrapefruit_platform_internal_jni_fileevents_NativeFileWatcher_stopWatching0(JNIEnv* env, jobject, jobject javaServer, jobjectArray javaPaths) {
     try {
         AbstractServer* server = getServer(env, javaServer);
         vector<u16string> paths;
@@ -198,7 +198,7 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_close0(JNIEnv* env, jobject, jobject javaServer) {
+Java_net_rubygrapefruit_platform_internal_jni_fileevents_NativeFileWatcher_close0(JNIEnv* env, jobject, jobject javaServer) {
     try {
         AbstractServer* server = getServer(env, javaServer);
         delete server;
@@ -207,12 +207,13 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
     }
 }
 
-JNIEXPORT void JNICALL Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_invalidateLogLevelCache0(JNIEnv*, jobject) {
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_fileevents_AbstractFileEventFunctions_invalidateLogLevelCache0(JNIEnv*, jobject) {
     logging->invalidateLogLevelCache();
 }
 
 NativePlatformJniConstants::NativePlatformJniConstants(JavaVM* jvm)
     : JniSupport(jvm)
     , nativeExceptionClass(getThreadEnv(), "net/rubygrapefruit/platform/NativeException")
-    , nativeFileWatcherClass(getThreadEnv(), "net/rubygrapefruit/platform/internal/jni/AbstractFileEventFunctions$NativeFileWatcher") {
+    , nativeFileWatcherClass(getThreadEnv(), "net/rubygrapefruit/platform/internal/jni/fileevents/NativeFileWatcher") {
 }

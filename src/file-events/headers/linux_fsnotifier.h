@@ -8,7 +8,7 @@
 #include <unordered_map>
 
 #include "generic_fsnotifier.h"
-#include "net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_fileevents_LinuxFileEventFunctions.h"
 
 using namespace std;
 

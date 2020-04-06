@@ -202,7 +202,7 @@ bool Server::unregisterPath(const u16string& path) {
 }
 
 JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatcher0(JNIEnv* env, jclass, long latencyInMillis, jobject javaCallback) {
+Java_net_rubygrapefruit_platform_internal_jni_fileevents_OsxFileEventFunctions_startWatcher0(JNIEnv* env, jclass, long latencyInMillis, jobject javaCallback) {
     return wrapServer(env, [env, javaCallback, latencyInMillis]() {
         return new Server(env, javaCallback, latencyInMillis);
     });

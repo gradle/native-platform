@@ -4,7 +4,7 @@
 
 Logging::Logging(JavaVM* jvm)
     : JniSupport(jvm)
-    , clsLogger(getThreadEnv(), "net/rubygrapefruit/platform/internal/jni/NativeLogger")
+    , clsLogger(getThreadEnv(), "net/rubygrapefruit/platform/internal/jni/fileevents/NativeLogger")
     , logMethod(getThreadEnv()->GetStaticMethodID(clsLogger.get(), "log", "(ILjava/lang/String;)V"))
     , getLevelMethod(getThreadEnv()->GetStaticMethodID(clsLogger.get(), "getLogLevel", "()I")) {
 }
