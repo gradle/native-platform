@@ -16,29 +16,24 @@
 
 package net.rubygrapefruit.platform.internal.jni.fileevents;
 
-import net.rubygrapefruit.platform.NativeException;
-import net.rubygrapefruit.platform.NativeIntegration;
-import net.rubygrapefruit.platform.file.FileWatcher;
 import net.rubygrapefruit.platform.file.FileWatcherCallback;
 
-import java.io.File;
-import java.util.Collection;
+class NativeFileWatcherCallback {
+    private final FileWatcherCallback delegate;
 
-public class AbstractFileEventFunctions implements NativeIntegration {
-    public static String getVersion() {
-        return getVersion0();
+    public NativeFileWatcherCallback(FileWatcherCallback delegate) {
+        this.delegate = delegate;
     }
 
-    private static native String getVersion0();
-
-    /**
-     * Forces the native backend to drop the cached JUL log level and thus
-     * re-query it the next time it tries to log something to the Java side.
-     */
-    public void invalidateLogLevelCache() {
-        invalidateLogLevelCache0();
+    // Called from the native side
+    @SuppressWarnings("unused")
+    public void pathChanged(int type, String path) {
+        delegate.pathChanged(FileWatcherCallback.Type.values()[type], path);
     }
 
-    private native void invalidateLogLevelCache0();
-
+    // Called from the native side
+    @SuppressWarnings("unused")
+    public void reportError(Throwable ex) {
+        delegate.reportError(ex);
+    }
 }
