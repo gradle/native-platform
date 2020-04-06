@@ -14,17 +14,14 @@
  * limitations under the License.
  */
 
-package net.rubygrapefruit.platform.file
+package net.rubygrapefruit.platform.internal.jni.fileevents
 
 import groovy.transform.Memoized
 import net.rubygrapefruit.platform.Native
+import net.rubygrapefruit.platform.file.FileWatcher
+import net.rubygrapefruit.platform.file.FileWatcherCallback
 import net.rubygrapefruit.platform.file.FileWatcherCallback.Type
 import net.rubygrapefruit.platform.internal.Platform
-import net.rubygrapefruit.platform.internal.jni.AbstractFileEventFunctions
-import net.rubygrapefruit.platform.internal.jni.LinuxFileEventFunctions
-import net.rubygrapefruit.platform.internal.jni.NativeLogger
-import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions
-import net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions
 import net.rubygrapefruit.platform.testfixture.JniChecksEnabled
 import net.rubygrapefruit.platform.testfixture.JulLogging
 import org.junit.Rule

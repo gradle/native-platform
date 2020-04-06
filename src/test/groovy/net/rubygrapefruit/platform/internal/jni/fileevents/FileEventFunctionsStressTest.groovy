@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package net.rubygrapefruit.platform.file
+package net.rubygrapefruit.platform.internal.jni.fileevents
 
 import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.IgnoreIf
