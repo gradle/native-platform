@@ -268,7 +268,7 @@ bool Server::unregisterPath(const u16string& path) {
         processQueues(0);
     }
     if (watchPoint.status != FINISHED) {
-        throw FileWatcherException("Could not cancel watch point %s", path);
+        throw FileWatcherException("Could not cancel watch point", path);
     } else {
         watchRoots.erase(watchPoint.watchDescriptor);
         watchPoints.erase(path);
