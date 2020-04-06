@@ -20,6 +20,7 @@ import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.AbstractFileEventFunctions
 import net.rubygrapefruit.platform.internal.jni.NativeLogger
 import org.junit.Assume
+import spock.lang.Ignore
 import spock.lang.IgnoreIf
 import spock.lang.Requires
 import spock.lang.Unroll
@@ -655,6 +656,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         "waiting for log level cache to time out" | { Thread.sleep(1500) }
     }
 
+    @Ignore
     def "jvm does not crash when event queue is blocked"() {
         def watchedDir = new File(rootDir, "watched")
         def secondWatchedDir = new File(rootDir, "secondWatched")
