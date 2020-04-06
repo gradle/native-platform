@@ -40,15 +40,6 @@ void JniSupport::rethrowJavaException(JNIEnv* env) {
         env->ExceptionClear();
 
         jclass exceptionClass = env->GetObjectClass(exception);
-        jmethodID getMessage = env->GetMethodID(exceptionClass, "getMessage", "()Ljava/lang/String;");
-        jstring javaMessage = (jstring) env->CallObjectMethod(exception, getMessage);
-        if (env->ExceptionCheck()) {
-            env->ExceptionDescribe();
-            throw runtime_error("Couldn't get exception message");
-        }
-        string message = javaToUtf8String(env, javaMessage);
-        env->DeleteLocalRef(javaMessage);
-
         jmethodID getClassName = env->GetMethodID(baseJniConstants->classClass.get(), "getName", "()Ljava/lang/String;");
         jstring javaExceptionType = (jstring) env->CallObjectMethod(exceptionClass, getClassName);
         if (env->ExceptionCheck()) {
@@ -58,10 +49,24 @@ void JniSupport::rethrowJavaException(JNIEnv* env) {
         string exceptionType = javaToUtf8String(env, javaExceptionType);
         env->DeleteLocalRef(javaExceptionType);
 
+        jmethodID getMessage = env->GetMethodID(exceptionClass, "getMessage", "()Ljava/lang/String;");
+        jstring javaMessage = (jstring) env->CallObjectMethod(exception, getMessage);
+        if (env->ExceptionCheck()) {
+            env->ExceptionDescribe();
+            throw runtime_error("Couldn't get exception message");
+        }
         env->DeleteLocalRef(exceptionClass);
+
+        string message = javaMessage == nullptr
+            ? "Caught " + exceptionType
+            : "Caught " + exceptionType + " with message: " + javaToUtf8String(env, javaMessage);
+        if (javaMessage != nullptr) {
+            env->DeleteLocalRef(javaMessage);
+        }
+
         env->DeleteLocalRef(exception);
 
-        throw runtime_error("Caught " + exceptionType + " with message: " + message);
+        throw runtime_error(message);
     }
 }
 

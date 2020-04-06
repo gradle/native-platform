@@ -679,4 +679,30 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         def exception = thrown(NativeException)
         exception.message == "Command execution timed out"
     }
+
+    def "can throw exception with no message from callback"() {
+        def watchedDir = new File(rootDir, "watched")
+        watchedDir.mkdirs()
+        def error
+
+        when:
+        watcher = startNewWatcher(new FileWatcherCallback() {
+            @Override
+            void pathChanged(FileWatcherCallback.Type type, String path) {
+                throw new InterruptedException()
+            }
+
+            @Override
+            void reportError(Throwable ex) {
+                error = ex
+            }
+        }, watchedDir)
+        new File(watchedDir, "new").createNewFile()
+        waitForChangeEventLatency()
+
+        then:
+        noExceptionThrown()
+        error.getClass() == NativeException
+        error.message == "Caught ${InterruptedException.name}"
+    }
 }
