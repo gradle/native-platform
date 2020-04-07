@@ -35,13 +35,14 @@ class FileEventFunctionsOverflowTest extends AbstractFileEventFunctionsTest {
         def readyLatch = new CountDownLatch(numberOfParallelWriters)
         def finishedLatch = new CountDownLatch(numberOfParallelWriters)
         def startModifyingLatch = new CountDownLatch(1)
-        numberOfParallelWriters.times { threadIndex ->
+        numberOfParallelWriters.times { index ->
             executorService.submit({ ->
+                def fileToChange = new File(rootDir, "file-${index}")
                 readyLatch.countDown()
                 startModifyingLatch.await()
-                100.times { fileIndex ->
-                    new File(rootDir, "file-${threadIndex}-${fileIndex}.txt")
-                        .createNewFile()
+                100.times {
+                    fileToChange.delete()
+                    fileToChange.createNewFile()
                 }
                 finishedLatch.countDown()
             })
