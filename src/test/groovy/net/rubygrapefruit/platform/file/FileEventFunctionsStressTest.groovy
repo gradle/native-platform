@@ -17,7 +17,6 @@
 package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.internal.Platform
-import spock.lang.IgnoreIf
 import spock.lang.Requires
 import spock.lang.Timeout
 
@@ -151,6 +150,12 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
 
         then:
         noExceptionThrown()
+    }
+
+    @Override
+    protected TestFileWatcher startNewWatcher(FileWatcherCallback callback) {
+        // Make sure we don't receive overflow events during these tests
+        return watcherFixture.startNewWatcherWithOverflowPrevention(callback)
     }
 
     private static List<File> createHierarchy(File root, int watchedDirectoryDepth, int branching = 2) {

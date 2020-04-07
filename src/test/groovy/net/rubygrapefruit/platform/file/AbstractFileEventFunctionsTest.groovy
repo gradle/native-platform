@@ -68,7 +68,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     private Map<Pattern, Level> expectedLogMessages
 
     // We could do this with @Delegate, but Groovy doesn't let us :(
-    private FileWatcherFixture watcherFixture
+    protected FileWatcherFixture watcherFixture
 
     def setup() {
         watcherFixture = FileWatcherFixture.of(Platform.current())
@@ -135,7 +135,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             }
 
             @Override
-            FileWatcher startNewWatcherInternal(FileWatcherCallback callback) {
+            FileWatcher startNewWatcherInternal(FileWatcherCallback callback, boolean preventOverflow) {
                 // Avoid setup operations to be reported
                 waitForChangeEventLatency()
                 service.startWatcher(
@@ -157,7 +157,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             }
 
             @Override
-            FileWatcher startNewWatcherInternal(FileWatcherCallback callback) {
+            FileWatcher startNewWatcherInternal(FileWatcherCallback callback, boolean preventOverflow) {
                 // Avoid setup operations to be reported
                 waitForChangeEventLatency()
                 service.startWatcher(callback)
@@ -176,8 +176,11 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             }
 
             @Override
-            FileWatcher startNewWatcherInternal(FileWatcherCallback callback) {
-                service.startWatcher(64 * 1024, callback)
+            FileWatcher startNewWatcherInternal(FileWatcherCallback callback, boolean preventOverflow) {
+                int bufferSize = preventOverflow
+                    ? 1024 * 1024
+                    : 16 * 1024
+                service.startWatcher(bufferSize, callback)
             }
 
             @Override
@@ -192,7 +195,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             }
 
             @Override
-            FileWatcher startNewWatcherInternal(FileWatcherCallback callback) {
+            FileWatcher startNewWatcherInternal(FileWatcherCallback callback, boolean preventOverflow) {
                 throw new UnsupportedOperationException()
             }
 
@@ -216,10 +219,19 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
         abstract AbstractFileEventFunctions getService()
 
-        abstract FileWatcher startNewWatcherInternal(FileWatcherCallback callback)
+        abstract FileWatcher startNewWatcherInternal(FileWatcherCallback callback, boolean preventOverflow)
 
         TestFileWatcher startNewWatcher(FileWatcherCallback callback) {
-            new TestFileWatcher(startNewWatcherInternal(callback))
+            new TestFileWatcher(startNewWatcherInternal(callback, false))
+        }
+
+        /**
+         * Create a watcher that has a larger buffer to avoid overflow events happening during stress tests.
+         * Overflow events are okay when we have lots of chagnes, but they make it impossible to test
+         * other behavior we care about in stress tests.
+         */
+        TestFileWatcher startNewWatcherWithOverflowPrevention(FileWatcherCallback callback) {
+            new TestFileWatcher(startNewWatcherInternal(callback, true))
         }
 
         abstract void waitForChangeEventLatency()
@@ -362,10 +374,15 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     protected TestFileWatcher startNewWatcher(BlockingQueue<RecordedEvent> eventQueue = this.eventQueue, File... roots) {
         startNewWatcher(new QueuingCallback(eventQueue), roots)
     }
+
     protected TestFileWatcher startNewWatcher(FileWatcherCallback callback, File... roots) {
-        def watcher = watcherFixture.startNewWatcher(callback)
+        def watcher = startNewWatcher(callback)
         watcher.startWatching(roots)
         return watcher
+    }
+
+    protected TestFileWatcher startNewWatcher(FileWatcherCallback callback) {
+        watcherFixture.startNewWatcher(callback)
     }
 
     protected void stopWatcher() {
