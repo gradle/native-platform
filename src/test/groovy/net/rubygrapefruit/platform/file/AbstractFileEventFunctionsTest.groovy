@@ -39,12 +39,14 @@ import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import java.util.function.BooleanSupplier
+import java.util.function.Predicate
 import java.util.logging.Level
 import java.util.logging.Logger
 import java.util.regex.Pattern
 
 import static java.util.concurrent.TimeUnit.SECONDS
-import static java.util.logging.Level.FINE
+import static java.util.logging.Level.CONFIG
 
 @Timeout(value = 10, unit = SECONDS)
 @Category(JniChecksEnabled)
@@ -57,7 +59,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     @Rule
     TestName testName
     @Rule
-    JulLogging logging = new JulLogging(NativeLogger, FINE)
+    JulLogging logging = new JulLogging(NativeLogger, CONFIG)
 
     def eventQueue = newEventQueue()
     File testDir
@@ -91,18 +93,20 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         Assert.that(uncaughtFailureOnThread.empty, "There were uncaught exceptions, see stacktraces above")
 
         // Check if the logs (INFO and above) match our expectations
-        Map<String, Level> unexpectedLogMessages = logging.messages
-            .findAll { message, level -> level.intValue() >= Level.INFO.intValue() }
-        def remainingExpectedLogMessages = new LinkedHashMap<Pattern, Level>(expectedLogMessages)
-        unexpectedLogMessages.removeAll { message, level ->
-            remainingExpectedLogMessages.removeAll { expectedMessage, expectedLevel ->
-                expectedMessage.matcher(message).matches() && expectedLevel == level
+        if (expectedLogMessages != null) {
+            Map<String, Level> unexpectedLogMessages = logging.messages
+                .findAll { message, level -> level.intValue() >= Level.INFO.intValue() }
+            def remainingExpectedLogMessages = new LinkedHashMap<Pattern, Level>(expectedLogMessages)
+            unexpectedLogMessages.removeAll { message, level ->
+                remainingExpectedLogMessages.removeAll { expectedMessage, expectedLevel ->
+                    expectedMessage.matcher(message).matches() && expectedLevel == level
+                }
             }
+            Assert.that(
+                unexpectedLogMessages.isEmpty() && remainingExpectedLogMessages.isEmpty(),
+                createLogMessageFailure(unexpectedLogMessages, remainingExpectedLogMessages)
+            )
         }
-        Assert.that(
-            unexpectedLogMessages.isEmpty() && remainingExpectedLogMessages.isEmpty(),
-            createLogMessageFailure(unexpectedLogMessages, remainingExpectedLogMessages)
-        )
     }
 
     private static String createLogMessageFailure(Map<String, Level> unexpectedLogMessages, LinkedHashMap<Pattern, Level> remainingExpectedLogMessages) {
@@ -114,6 +118,10 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             failure += " - MISSING    $level $message\n"
         }
         return failure
+    }
+
+    void ignoreLogMessages() {
+        expectedLogMessages = null
     }
 
     void expectLogMessage(Level level, String message) {
@@ -418,28 +426,48 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             LOGGER.info("> Expecting $event")
         }
         def expectedEvents = new ArrayList<ExpectedEvent>(events)
+        expectEvents(
+            eventQueue,
+            timeoutValue,
+            timeoutUnit,
+            { !expectedEvents.empty },
+            { event ->
+                if (event == null) {
+                    if (expectedEvents.every { it.optional }) {
+                        return false
+                    } else {
+                        throw new TimeoutException("Did not receive events in $timeoutValue ${timeoutUnit.name().toLowerCase()}:\n- " + expectedEvents.join("\n- "))
+                    }
+                }
+                def expectedEventIndex = expectedEvents.findIndexOf { expected ->
+                    expected.matches(event)
+                }
+                if (expectedEventIndex == -1) {
+                    throw new RuntimeException("Unexpected event $event")
+                }
+                expectedEvents.remove(expectedEventIndex)
+                return true
+            })
+        ensureNoMoreEvents(eventQueue)
+    }
+
+    protected void expectEvents(
+        BlockingQueue<RecordedEvent> eventQueue = this.eventQueue,
+        int timeoutValue = 1,
+        TimeUnit timeoutUnit = SECONDS,
+        BooleanSupplier shouldContinue = { true },
+        Predicate<RecordedEvent> eventHandler
+    ) {
         long start = System.currentTimeMillis()
         long end = start + timeoutUnit.toMillis(timeoutValue)
-        while (!expectedEvents.empty) {
+        while (shouldContinue.asBoolean) {
             def current = System.currentTimeMillis()
             long timeout = end - current
             def event = eventQueue.poll(timeout, TimeUnit.MILLISECONDS)
-            if (event == null) {
-                if (expectedEvents.every { it.optional }) {
-                    break
-                } else {
-                    throw new TimeoutException("Did not receive events in $timeoutValue ${timeoutUnit.name().toLowerCase()}:\n- " + expectedEvents.join("\n- "))
-                }
+            if (!eventHandler.test(event)) {
+                break
             }
-            def expectedEventIndex = expectedEvents.findIndexOf { expected ->
-                expected.matches(event)
-            }
-            if (expectedEventIndex == -1) {
-                throw new RuntimeException("Unexpected event $event")
-            }
-            expectedEvents.remove(expectedEventIndex)
         }
-        ensureNoMoreEvents(eventQueue)
     }
 
     private String shorten(File file) {
