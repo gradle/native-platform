@@ -33,7 +33,9 @@ class FileEventFunctionsOverflowTest extends AbstractFileEventFunctionsTest {
         // We don't want to fail when overflow is logged
         ignoreLogMessages()
 
-        def numberOfParallelWriters = 10
+        def afterOverflowFile = new File(rootDir, "after-overflow.txt")
+
+        def numberOfParallelWriters = 100
         def executorService = Executors.newFixedThreadPool(numberOfParallelWriters)
         def readyLatch = new CountDownLatch(numberOfParallelWriters)
         def finishedLatch = new CountDownLatch(numberOfParallelWriters)
@@ -55,17 +57,14 @@ class FileEventFunctionsOverflowTest extends AbstractFileEventFunctionsTest {
         startWatcher(rootDir)
         readyLatch.await()
         startModifyingLatch.countDown()
+        finishedLatch.await()
+        waitForChangeEventLatency()
 
         then:
         expectOverflow()
 
         when:
-        // Finish receiving events
-        finishedLatch.await()
-        waitForChangeEventLatency()
-        eventQueue.clear()
-
-        def afterOverflowFile = new File(rootDir, "after-overflow.txt")
+        LOGGER.info("> Making change after overflow")
         afterOverflowFile.createNewFile()
 
         then:
