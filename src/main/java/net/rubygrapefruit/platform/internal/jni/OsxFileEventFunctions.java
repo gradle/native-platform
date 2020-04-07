@@ -21,46 +21,57 @@ import net.rubygrapefruit.platform.file.FileWatcherCallback;
 
 import java.util.concurrent.TimeUnit;
 
+/**
+ * File watcher for macOS. Reports changes to the watched paths and any of their descendants.
+ *
+ * <h3>Remarks:</h3>
+ *
+ * <ul>
+ *     <li>Changes are reported as <em>non-canonical</em> paths. This means:
+ *     <ul>
+ *         <li>When watching a path with a different case, the reported case will match
+ *         the one used in starting the watcher.</li>
+ *         <li>Symlinks are not canonicalized, and changes are reported against the watched path.</li>
+ *     </ul>
+ *     </li>
+ *
+ *     <li>Events arrive from a single background thread unique to the {@link FileWatcher}.
+ *     Calling methods from the {@link FileWatcher} inside the callback method is undefined
+ *     behavior and can lead to a deadlock.</li>
+ * </ul>
+ */
+// TODO How to set kFSEventStreamCreateFlagNoDefer when latency is non-zero?
 public class OsxFileEventFunctions extends AbstractFileEventFunctions {
+    private static final long DEFAULT_LATENCY_IN_MS = 0;
 
-    /**
-     * Start watching the given directory hierarchies.
-     *
-     * @param paths the absolute paths to watch.
-     * @param latency throttle / coalesce events for the given amount of time, {@code 0} meaning no coalescing.
-     * @param unit the time unit for {@code latency}.
-     * @param callback the callback to invoke when changes are detected.
-     *
-     * <h3>Remarks:</h3>
-     *
-     * <ul>
-     *     <li>Changes to the given paths themselves are reported.</li>
-     *
-     *     <li>Changes to any descendants to the given paths are reported.</li>
-     *
-     *     <li>Changes are reported as <em>canonical</em> paths. This means:
-     *     <ul>
-     *         <li>When watching a path with a different case, the canonical one is used to report changes.</li>
-     *         <li>Symlinks are resolved and changes are reported against the resolved path.</li>
-     *     </ul>
-     *     </li>
-     *
-     *     <li>Events arrive from a single background thread unique to the {@link FileWatcher}.</li>
-     *
-     *     <li>Removals are reported as a single
-     *     {@link net.rubygrapefruit.platform.file.FileWatcherCallback.Type#REMOVED REMOVED} event.</li>
-     *
-     *     <li>Renames are reported as the source file being
-     *     {@link net.rubygrapefruit.platform.file.FileWatcherCallback.Type#REMOVED REMOVED}
-     *     and the target being
-     *     {@link net.rubygrapefruit.platform.file.FileWatcherCallback.Type#CREATED CREATED}.</li>
-     *
-     *     <li>Exceptions happening in the callback are currently silently ignored.</li>
-     * </ul>
-     */
-    // TODO How to set kFSEventStreamCreateFlagNoDefer when latency is non-zero?
-    public FileWatcher startWatcher(long latency, TimeUnit unit, FileWatcherCallback callback) {
-        return startWatcher0(unit.toMillis(latency), new NativeFileWatcherCallback(callback));
+    @Override
+    public WatcherBuilder newWatcher(FileWatcherCallback callback) {
+        return new WatcherBuilder(callback);
+    }
+
+    public static class WatcherBuilder extends AbstractWatcherBuilder {
+        private long latencyInMillis = DEFAULT_LATENCY_IN_MS;
+
+        WatcherBuilder(FileWatcherCallback callback) {
+            super(callback);
+        }
+
+        /**
+         * Set the latency for handling events.
+         * The default is {@value DEFAULT_LATENCY_IN_MS} ms.
+         *
+         * @param latency coalesce events for the given amount of time, {@code 0} meaning no coalescing.
+         * @param unit the time unit for {@code latency}.
+         */
+        public WatcherBuilder withLatency(long latency, TimeUnit unit) {
+            latencyInMillis = unit.toMillis(latency);
+            return this;
+        }
+
+        @Override
+        public FileWatcher start() {
+            return startWatcher0(latencyInMillis, new NativeFileWatcherCallback(callback));
+        }
     }
 
     private static native FileWatcher startWatcher0(long latencyInMillis, NativeFileWatcherCallback callback);

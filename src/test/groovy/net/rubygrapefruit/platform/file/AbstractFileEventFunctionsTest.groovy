@@ -138,10 +138,9 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             FileWatcher startNewWatcherInternal(FileWatcherCallback callback, boolean preventOverflow) {
                 // Avoid setup operations to be reported
                 waitForChangeEventLatency()
-                service.startWatcher(
-                    LATENCY_IN_MILLIS, TimeUnit.MILLISECONDS,
-                    callback
-                )
+                service.newWatcher(callback)
+                    .withLatency(LATENCY_IN_MILLIS, TimeUnit.MILLISECONDS)
+                    .start()
             }
 
             @Override
@@ -160,7 +159,8 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             FileWatcher startNewWatcherInternal(FileWatcherCallback callback, boolean preventOverflow) {
                 // Avoid setup operations to be reported
                 waitForChangeEventLatency()
-                service.startWatcher(callback)
+                service.newWatcher(callback)
+                    .start()
             }
 
             @Override
@@ -184,7 +184,9 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
                 } else {
                     bufferSizeInKb = 16
                 }
-                service.startWatcher(bufferSizeInKb * 1024, callback)
+                service.newWatcher(callback)
+                    .withBufferSize(bufferSizeInKb * 1024)
+                    .start()
             }
 
             @Override

@@ -53,7 +53,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 public class Main {
     public static void main(String[] args) throws IOException {
@@ -409,13 +408,16 @@ public class Main {
         FileWatcher watcher;
         if (Platform.current().isMacOs()) {
             watcher = Native.get(OsxFileEventFunctions.class)
-                .startWatcher(300, TimeUnit.MILLISECONDS, callback);
+                .newWatcher(callback)
+                .start();
         } else if (Platform.current().isLinux()) {
             watcher = Native.get(LinuxFileEventFunctions.class)
-                .startWatcher(callback);
+                .newWatcher(callback)
+                .start();
         } else if (Platform.current().isWindows()) {
             watcher = Native.get(WindowsFileEventFunctions.class)
-                .startWatcher(64 * 1024, callback);
+                .newWatcher(callback)
+                .start();
         } else {
             throw new RuntimeException("Only Windows and macOS are supported for file watching");
         }

@@ -19,40 +19,57 @@ package net.rubygrapefruit.platform.internal.jni;
 import net.rubygrapefruit.platform.file.FileWatcher;
 import net.rubygrapefruit.platform.file.FileWatcherCallback;
 
+/**
+ * File watcher for Windows. Reports changes to the watched paths and any of their descendants.
+ *
+ * <h3>Remarks:</h3>
+ *
+ * <ul>
+ *     <li>Changes are reported as <em>canonical</em> paths. When watching a path with a
+ *     different case, the canonical one is used to report changes.</li>
+ *
+ *     <li>When reporting
+ *     {@link net.rubygrapefruit.platform.file.FileWatcherCallback.Type#REMOVED REMOVED}
+ *     events, Windows sometimes also reports a
+ *     {@link net.rubygrapefruit.platform.file.FileWatcherCallback.Type#MODIFIED MODIFIED}
+ *     event for the same file. This can happen when deleting a file or renaming it.</li>
+ *
+ *     <li>Events arrive from a single background thread unique to the {@link FileWatcher}.
+ *     Calling methods from the {@link FileWatcher} inside the callback method is undefined
+ *     behavior and can lead to a deadlock.</li>
+ ** </ul>
+ */
+// TODO What about symlinks?
+// TODO What about SUBST drives?
 public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
 
-    /**
-     * Start watching the given directory hierarchies.
-     *
-     * <h3>Remarks:</h3>
-     *
-     * <ul>
-     *     <li>Changes to any descendants to the given paths are reported.</li>
-     *
-     *     <li>Changes to the given paths themselves are not reported.</li>
-     *
-     *     <li>Changes are reported as <em>canonical</em> paths. This means:
-     *     <ul>
-     *         <li>When watching a path with a different case, the canonical one is used to report changes.</li>
-     *     </ul>
-     *
-     *     <li>Events arrive from a single background thread unique to the {@link FileWatcher}.</li>
-     *
-     *     <li>Removals are reported as a
-     *     {@link net.rubygrapefruit.platform.file.FileWatcherCallback.Type#MODIFIED MODIFIED} and a
-     *     {@link net.rubygrapefruit.platform.file.FileWatcherCallback.Type#REMOVED REMOVED} event.</li>
-     *
-     *     <li>Renames are reported as the source file being
-     *     {@link net.rubygrapefruit.platform.file.FileWatcherCallback.Type#REMOVED REMOVED}.
-     *     The creation of the target file is not reported.</li>
-     *
-     *     <li>Exceptions happening in the callback are currently silently ignored.</li>
-     * </ul>
-     */
-    // TODO What about symlinks?
-    // TODO What about SUBST drives?
-    public FileWatcher startWatcher(int bufferSize, FileWatcherCallback callback) {
-        return startWatcher0(bufferSize, new NativeFileWatcherCallback(callback));
+    public static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
+
+    @Override
+    public WatcherBuilder newWatcher(FileWatcherCallback callback) {
+        return new WatcherBuilder(callback);
+    }
+
+    public static class WatcherBuilder extends AbstractWatcherBuilder {
+        private int bufferSize = DEFAULT_BUFFER_SIZE;
+
+        private WatcherBuilder(FileWatcherCallback callback) {
+            super(callback);
+        }
+
+        /**
+         * Set the buffer size used to collect events.
+         * Default value is {@value DEFAULT_BUFFER_SIZE} bytes.
+         */
+        public WatcherBuilder withBufferSize(int bufferSize) {
+            this.bufferSize = bufferSize;
+            return this;
+        }
+
+        @Override
+        public FileWatcher start() {
+            return startWatcher0(bufferSize, new NativeFileWatcherCallback(callback));
+        }
     }
 
     private static native FileWatcher startWatcher0(int bufferSize, NativeFileWatcherCallback callback);
