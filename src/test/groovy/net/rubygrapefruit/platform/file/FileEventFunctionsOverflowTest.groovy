@@ -19,9 +19,12 @@ package net.rubygrapefruit.platform.file
 import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.Requires
 
+import java.util.concurrent.BlockingQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
+import static java.util.concurrent.TimeUnit.SECONDS
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.INVALIDATE
 
@@ -35,7 +38,7 @@ class FileEventFunctionsOverflowTest extends AbstractFileEventFunctionsTest {
 
         def afterOverflowFile = new File(rootDir, "after-overflow.txt")
 
-        def numberOfParallelWriters = 100
+        def numberOfParallelWriters = 10
         def executorService = Executors.newFixedThreadPool(numberOfParallelWriters)
         def readyLatch = new CountDownLatch(numberOfParallelWriters)
         def finishedLatch = new CountDownLatch(numberOfParallelWriters)
@@ -45,7 +48,7 @@ class FileEventFunctionsOverflowTest extends AbstractFileEventFunctionsTest {
                 def fileToChange = new File(rootDir, "file-${index}")
                 readyLatch.countDown()
                 startModifyingLatch.await()
-                100.times {
+                2000.times {
                     fileToChange.delete()
                     fileToChange.createNewFile()
                 }
@@ -57,11 +60,11 @@ class FileEventFunctionsOverflowTest extends AbstractFileEventFunctionsTest {
         startWatcher(rootDir)
         readyLatch.await()
         startModifyingLatch.countDown()
-        finishedLatch.await()
+        finishedLatch.await(5, SECONDS)
         waitForChangeEventLatency()
 
         then:
-        expectOverflow()
+        expectOverflow(5, SECONDS)
 
         when:
         LOGGER.info("> Making change after overflow")
@@ -74,16 +77,16 @@ class FileEventFunctionsOverflowTest extends AbstractFileEventFunctionsTest {
         executorService.shutdown()
     }
 
-    private boolean expectOverflow() {
+    private boolean expectOverflow(BlockingQueue<RecordedEvent> eventQueue = this.eventQueue, int timeoutValue, TimeUnit timeoutUnit) {
         boolean overflow = false
-        expectEvents { event ->
+        expectEvents(eventQueue, timeoutValue, timeoutUnit, { -> true }, { event ->
             if (event == null) {
                 return false
             } else if (event.type == INVALIDATE) {
                 overflow = true
             }
             return true
-        }
+        })
         return overflow
     }
 }
