@@ -145,7 +145,7 @@ void Server::handleEvents(
 }
 
 void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags) {
-    logToJava(FINE, "Event flags: 0x%x for %s", flags, path);
+    logToJava(FINER, "Event flags: 0x%x for '%s'", flags, path);
 
     jint type;
     if (IS_SET(flags, kFSEventStreamEventFlagHistoryDone)) {
@@ -179,7 +179,6 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
         type = FILE_EVENT_UNKNOWN;
     }
 
-    logToJava(FINE, "Changed: %s %d", path, type);
     u16string pathStr = utf8ToUtf16String(path);
     reportChange(env, type, pathStr);
 }
