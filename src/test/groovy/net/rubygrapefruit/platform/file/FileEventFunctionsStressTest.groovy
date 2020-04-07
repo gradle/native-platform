@@ -82,9 +82,11 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         20.times { iteration ->
             def watchedDirectories = createDirectoriesToWatch(numberOfWatchedDirectories, "iteration-$iteration/watchedDir-")
 
-            def executorService = Executors.newFixedThreadPool(numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories)
-            def readyLatch = new CountDownLatch(numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories)
+            def numberOfThreads = numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories
+            def executorService = Executors.newFixedThreadPool(numberOfThreads)
+            def readyLatch = new CountDownLatch(numberOfThreads)
             def startModifyingLatch = new CountDownLatch(1)
+            def inTheMiddleLatch = new CountDownLatch(numberOfThreads)
             def watcher = startNewWatcher(newEventSinkCallback())
             watchedDirectories.each { watchedDirectory ->
                 numberOfParallelWritersPerWatchedDirectory.times { index ->
@@ -93,7 +95,11 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
                         readyLatch.countDown()
                         startModifyingLatch.await()
                         fileToChange.createNewFile()
-                        500.times { modifyIndex ->
+                        200.times { modifyIndex ->
+                            fileToChange << "Change: $modifyIndex\n"
+                        }
+                        inTheMiddleLatch.countDown()
+                        300.times { modifyIndex ->
                             fileToChange << "Another change: $modifyIndex\n"
                         }
                     })
@@ -103,11 +109,16 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
 
             watcher.startWatching(watchedDirectories as File[])
             readyLatch.await()
+            LOGGER.info("> Starring modifications")
             startModifyingLatch.countDown()
-            Thread.sleep(500)
+            inTheMiddleLatch.await()
+            LOGGER.info("> Closing watcher")
             watcher.close()
+            LOGGER.info("< Closed watcher")
 
             assert executorService.awaitTermination(20, SECONDS)
+            LOGGER.info("< Finished test")
+
             assert uncaughtFailureOnThread.empty
         }
     }
