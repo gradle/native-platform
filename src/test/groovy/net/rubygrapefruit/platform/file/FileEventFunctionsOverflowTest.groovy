@@ -30,6 +30,9 @@ class FileEventFunctionsOverflowTest extends AbstractFileEventFunctionsTest {
 
     def "delivers more events after overflow event"() {
         given:
+        // We don't want to fail when overflow is logged
+        ignoreLogMessages()
+
         def numberOfParallelWriters = 10
         def executorService = Executors.newFixedThreadPool(numberOfParallelWriters)
         def readyLatch = new CountDownLatch(numberOfParallelWriters)

@@ -93,18 +93,20 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         Assert.that(uncaughtFailureOnThread.empty, "There were uncaught exceptions, see stacktraces above")
 
         // Check if the logs (INFO and above) match our expectations
-        Map<String, Level> unexpectedLogMessages = logging.messages
-            .findAll { message, level -> level.intValue() >= Level.INFO.intValue() }
-        def remainingExpectedLogMessages = new LinkedHashMap<Pattern, Level>(expectedLogMessages)
-        unexpectedLogMessages.removeAll { message, level ->
-            remainingExpectedLogMessages.removeAll { expectedMessage, expectedLevel ->
-                expectedMessage.matcher(message).matches() && expectedLevel == level
+        if (expectedLogMessages != null) {
+            Map<String, Level> unexpectedLogMessages = logging.messages
+                .findAll { message, level -> level.intValue() >= Level.INFO.intValue() }
+            def remainingExpectedLogMessages = new LinkedHashMap<Pattern, Level>(expectedLogMessages)
+            unexpectedLogMessages.removeAll { message, level ->
+                remainingExpectedLogMessages.removeAll { expectedMessage, expectedLevel ->
+                    expectedMessage.matcher(message).matches() && expectedLevel == level
+                }
             }
+            Assert.that(
+                unexpectedLogMessages.isEmpty() && remainingExpectedLogMessages.isEmpty(),
+                createLogMessageFailure(unexpectedLogMessages, remainingExpectedLogMessages)
+            )
         }
-        Assert.that(
-            unexpectedLogMessages.isEmpty() && remainingExpectedLogMessages.isEmpty(),
-            createLogMessageFailure(unexpectedLogMessages, remainingExpectedLogMessages)
-        )
     }
 
     private static String createLogMessageFailure(Map<String, Level> unexpectedLogMessages, LinkedHashMap<Pattern, Level> remainingExpectedLogMessages) {
@@ -116,6 +118,10 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             failure += " - MISSING    $level $message\n"
         }
         return failure
+    }
+
+    void ignoreLogMessages() {
+        expectedLogMessages = null
     }
 
     void expectLogMessage(Level level, String message) {
