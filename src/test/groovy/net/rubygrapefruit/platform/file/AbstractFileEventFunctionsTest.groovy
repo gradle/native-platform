@@ -177,10 +177,14 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
             @Override
             FileWatcher startNewWatcherInternal(FileWatcherCallback callback, boolean preventOverflow) {
-                int bufferSize = preventOverflow
-                    ? 1024 * 1024
-                    : 16 * 1024
-                service.startWatcher(bufferSize, callback)
+                int bufferSizeInKb
+                if (preventOverflow) {
+                    bufferSizeInKb = 16384
+                    AbstractFileEventFunctionsTest.LOGGER.info("Using $bufferSizeInKb kByte buffer to prevent overflow events");
+                } else {
+                    bufferSizeInKb = 16
+                }
+                service.startWatcher(bufferSizeInKb * 1024, callback)
             }
 
             @Override
