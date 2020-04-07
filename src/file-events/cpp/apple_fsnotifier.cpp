@@ -145,7 +145,7 @@ void Server::handleEvents(
 }
 
 void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags) {
-    logToJava(FINER, "Event flags: 0x%x for '%s'", flags, path);
+    logToJava(FINE, "Event flags: 0x%x for '%s'", flags, path);
 
     jint type;
     if (IS_SET(flags, kFSEventStreamEventFlagHistoryDone)) {
