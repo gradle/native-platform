@@ -32,6 +32,11 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
             this.callback = callback;
         }
 
+        /**
+         * Start the file watcher.
+         *
+         * @see FileWatcher#startWatching(Collection)
+         */
         public abstract FileWatcher start();
     }
 
