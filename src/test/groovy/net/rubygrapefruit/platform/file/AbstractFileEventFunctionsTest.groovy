@@ -46,7 +46,7 @@ import java.util.logging.Logger
 import java.util.regex.Pattern
 
 import static java.util.concurrent.TimeUnit.SECONDS
-import static java.util.logging.Level.FINE
+import static java.util.logging.Level.CONFIG
 
 @Timeout(value = 10, unit = SECONDS)
 @Category(JniChecksEnabled)
@@ -59,7 +59,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     @Rule
     TestName testName
     @Rule
-    JulLogging logging = new JulLogging(NativeLogger, FINE)
+    JulLogging logging = new JulLogging(NativeLogger, CONFIG)
 
     def eventQueue = newEventQueue()
     File testDir
