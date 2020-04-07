@@ -39,6 +39,8 @@ import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import java.util.function.BooleanSupplier
+import java.util.function.Predicate
 import java.util.logging.Level
 import java.util.logging.Logger
 import java.util.regex.Pattern
@@ -418,28 +420,48 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             LOGGER.info("> Expecting $event")
         }
         def expectedEvents = new ArrayList<ExpectedEvent>(events)
+        expectEvents(
+            eventQueue,
+            timeoutValue,
+            timeoutUnit,
+            { !expectedEvents.empty },
+            { event ->
+                if (event == null) {
+                    if (expectedEvents.every { it.optional }) {
+                        return false
+                    } else {
+                        throw new TimeoutException("Did not receive events in $timeoutValue ${timeoutUnit.name().toLowerCase()}:\n- " + expectedEvents.join("\n- "))
+                    }
+                }
+                def expectedEventIndex = expectedEvents.findIndexOf { expected ->
+                    expected.matches(event)
+                }
+                if (expectedEventIndex == -1) {
+                    throw new RuntimeException("Unexpected event $event")
+                }
+                expectedEvents.remove(expectedEventIndex)
+                return true
+            })
+        ensureNoMoreEvents(eventQueue)
+    }
+
+    protected void expectEvents(
+        BlockingQueue<RecordedEvent> eventQueue = this.eventQueue,
+        int timeoutValue = 1,
+        TimeUnit timeoutUnit = SECONDS,
+        BooleanSupplier shouldContinue = { true },
+        Predicate<RecordedEvent> eventHandler
+    ) {
         long start = System.currentTimeMillis()
         long end = start + timeoutUnit.toMillis(timeoutValue)
-        while (!expectedEvents.empty) {
+        while (shouldContinue.asBoolean) {
             def current = System.currentTimeMillis()
             long timeout = end - current
             def event = eventQueue.poll(timeout, TimeUnit.MILLISECONDS)
-            if (event == null) {
-                if (expectedEvents.every { it.optional }) {
-                    break
-                } else {
-                    throw new TimeoutException("Did not receive events in $timeoutValue ${timeoutUnit.name().toLowerCase()}:\n- " + expectedEvents.join("\n- "))
-                }
+            if (!eventHandler.test(event)) {
+                break
             }
-            def expectedEventIndex = expectedEvents.findIndexOf { expected ->
-                expected.matches(event)
-            }
-            if (expectedEventIndex == -1) {
-                throw new RuntimeException("Unexpected event $event")
-            }
-            expectedEvents.remove(expectedEventIndex)
         }
-        ensureNoMoreEvents(eventQueue)
     }
 
     private String shorten(File file) {
