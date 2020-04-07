@@ -415,7 +415,7 @@ public class Main {
                 .startWatcher(callback);
         } else if (Platform.current().isWindows()) {
             watcher = Native.get(WindowsFileEventFunctions.class)
-                .startWatcher(callback);
+                .startWatcher(64 * 1024, callback);
         } else {
             throw new RuntimeException("Only Windows and macOS are supported for file watching");
         }

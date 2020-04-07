@@ -17,7 +17,6 @@
 package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.internal.Platform
-import spock.lang.IgnoreIf
 import spock.lang.Requires
 import spock.lang.Timeout
 
@@ -57,7 +56,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         expectEvents change(CREATED, createdFile)
     }
 
-    def "can stop and restart watching many directory many times"() {
+    def "can stop and restart watching many directories many times"() {
         given:
         File[] watchedDirs = createDirectoriesToWatch(100)
 
@@ -118,18 +117,9 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         given:
         def watchedDirectoryDepth = 10
 
-        List<File> watchedDirectories = []
         def watchedDir = new File(rootDir, "watchedDir")
         assert watchedDir.mkdir()
-        watchedDirectories.add(watchedDir)
-        List<File> previousRoots = [watchedDir]
-        watchedDirectoryDepth.times { depth ->
-            previousRoots = previousRoots.collectMany { root ->
-                createSubdirs(root, 2)
-            }
-            watchedDirectories.addAll(previousRoots)
-        }
-        LOGGER.info("Watching ${watchedDirectories.size()} directories")
+        List<File> watchedDirectories = createHierarchy(watchedDir, watchedDirectoryDepth)
 
         when:
         def watcher = startNewWatcher(newEventSinkCallback())
@@ -143,20 +133,13 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
     }
 
     @Requires({ !Platform.current().linux })
-    // TODO Fix overflow event on Windows
-    @IgnoreIf({ Platform.current().windows })
     def "can stop watching a deep hierarchy when it has been deleted"() {
         given:
         def watchedDirectoryDepth = 10
 
         def watchedDir = new File(rootDir, "watchedDir")
         assert watchedDir.mkdir()
-        List<File> previousRoots = [watchedDir]
-        watchedDirectoryDepth.times { depth ->
-            previousRoots = previousRoots.collectMany { root ->
-                createSubdirs(root, 2)
-            }
-        }
+        createHierarchy(watchedDir, watchedDirectoryDepth)
 
         when:
         def watcher = startNewWatcher(newEventSinkCallback())
@@ -169,14 +152,30 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         noExceptionThrown()
     }
 
-    private static List<File> createSubdirs(File root, int number) {
-        List<File> dirs = []
-        number.times { index ->
-            def dir = new File(root, "dir${index}")
-            assert dir.mkdir()
-            dirs << dir
+    @Override
+    protected TestFileWatcher startNewWatcher(FileWatcherCallback callback) {
+        // Make sure we don't receive overflow events during these tests
+        return watcherFixture.startNewWatcherWithOverflowPrevention(callback)
+    }
+
+    private static List<File> createHierarchy(File root, int watchedDirectoryDepth, int branching = 2) {
+        List<File> allDirs = []
+        allDirs.add(root)
+        List<File> previousRoots = [root]
+        (watchedDirectoryDepth - 1).times { depth ->
+            previousRoots = previousRoots.collectMany { previousRoot ->
+                List<File> dirs = []
+                branching.times { index ->
+                    def dir = new File(previousRoot, "dir${index}")
+                    assert dir.mkdir()
+                    dirs << dir
+                }
+                return dirs
+            }
+            allDirs.addAll(previousRoots)
         }
-        return dirs
+        LOGGER.info "> Created ${allDirs.size()} directories"
+        return allDirs
     }
 
     private List<File> createDirectoriesToWatch(int numberOfWatchedDirectories, String prefix = "dir-") {

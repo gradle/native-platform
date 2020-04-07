@@ -8,7 +8,7 @@ using namespace std;
 // WatchPoint
 //
 
-WatchPoint::WatchPoint(Server* server, const u16string& path)
+WatchPoint::WatchPoint(Server* server, size_t bufferSize, const u16string& path)
     : path(path)
     , status(NOT_LISTENING) {
     wstring pathW(path.begin(), path.end());
@@ -27,7 +27,7 @@ WatchPoint::WatchPoint(Server* server, const u16string& path)
     this->directoryHandle = directoryHandle;
 
     this->server = server;
-    this->buffer.reserve(EVENT_BUFFER_SIZE);
+    this->buffer.reserve(bufferSize);
     ZeroMemory(&this->overlapped, sizeof(OVERLAPPED));
     this->overlapped.hEvent = this;
     switch (listen()) {
@@ -83,14 +83,14 @@ bool WatchPoint::isValidDirectory() {
 
 ListenResult WatchPoint::listen() {
     BOOL success = ReadDirectoryChangesW(
-        directoryHandle,        // handle to directory
-        &buffer[0],             // read results buffer
-        EVENT_BUFFER_SIZE,      // length of buffer
-        TRUE,                   // include children
-        EVENT_MASK,             // filter conditions
-        NULL,                   // bytes returned
-        &overlapped,            // overlapped buffer
-        &handleEventCallback    // completion routine
+        directoryHandle,              // handle to directory
+        &buffer[0],                   // read results buffer
+        (DWORD) buffer.capacity(),    // length of buffer
+        TRUE,                         // include children
+        EVENT_MASK,                   // filter conditions
+        NULL,                         // bytes returned
+        &overlapped,                  // overlapped buffer
+        &handleEventCallback          // completion routine
     );
     if (success) {
         status = LISTENING;
@@ -263,8 +263,9 @@ void Server::handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMA
 // Server
 //
 
-Server::Server(JNIEnv* env, jobject watcherCallback)
-    : AbstractServer(env, watcherCallback) {
+Server::Server(JNIEnv* env, size_t bufferSize, jobject watcherCallback)
+    : AbstractServer(env, watcherCallback)
+    , bufferSize(bufferSize) {
     startThread();
     // TODO Error handling
     SetThreadPriority(this->watcherThread.native_handle(), THREAD_PRIORITY_ABOVE_NORMAL);
@@ -354,7 +355,7 @@ void Server::registerPath(const u16string& path) {
     }
     watchPoints.emplace(piecewise_construct,
         forward_as_tuple(longPath),
-        forward_as_tuple(this, longPath));
+        forward_as_tuple(this, bufferSize, longPath));
 }
 
 bool Server::unregisterPath(const u16string& path) {
@@ -372,9 +373,9 @@ bool Server::unregisterPath(const u16string& path) {
 //
 
 JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatcher0(JNIEnv* env, jclass target, jobject javaCallback) {
-    return wrapServer(env, [env, javaCallback]() {
-        return new Server(env, javaCallback);
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatcher0(JNIEnv* env, jclass target, jint bufferSize, jobject javaCallback) {
+    return wrapServer(env, [env, bufferSize, javaCallback]() {
+        return new Server(env, bufferSize, javaCallback);
     });
 }
 
