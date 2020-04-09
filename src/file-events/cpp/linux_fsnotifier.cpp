@@ -20,7 +20,7 @@ WatchPoint::WatchPoint(const u16string& path, shared_ptr<Inotify> inotify, int w
 }
 
 bool WatchPoint::cancel() {
-    if (status == CANCELLED || status == FINISHED) {
+    if (status == CANCELLED) {
         return false;
     }
     status = CANCELLED;
@@ -196,7 +196,8 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
     if (IS_SET(mask, IN_IGNORED)) {
         // Finished with watch point
         logToJava(FINE, "Finished watching '%s'", utf16ToUtf8String(path).c_str());
-        watchPoint.status = FINISHED;
+        watchRoots.erase(event->wd);
+        watchPoints.erase(path);
         return;
     }
 
@@ -244,12 +245,7 @@ static int addInotifyWatch(const u16string& path, shared_ptr<Inotify> inotify) {
 void Server::registerPath(const u16string& path) {
     auto it = watchPoints.find(path);
     if (it != watchPoints.end()) {
-        auto& watchPoint = it->second;
-        if (watchPoint.status != FINISHED) {
-            throw FileWatcherException("Already watching path", path);
-        }
-        watchRoots.erase(watchPoint.watchDescriptor);
-        watchPoints.erase(it);
+        throw FileWatcherException("Already watching path", path);
     }
     int watchDescriptor = addInotifyWatch(path, inotify);
     if (watchRoots.find(watchDescriptor) != watchRoots.end()) {
@@ -264,7 +260,7 @@ void Server::registerPath(const u16string& path) {
 
 bool Server::unregisterPath(const u16string& path) {
     auto it = watchPoints.find(path);
-    if (it == watchPoints.end() || it->second.status == FINISHED) {
+    if (it == watchPoints.end()) {
         logToJava(INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
         return false;
     }
