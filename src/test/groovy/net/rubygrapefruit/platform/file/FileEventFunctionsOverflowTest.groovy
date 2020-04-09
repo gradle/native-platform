@@ -17,6 +17,7 @@
 package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.internal.Platform
+import spock.lang.Ignore
 import spock.lang.Requires
 
 import java.util.concurrent.BlockingQueue
@@ -28,6 +29,7 @@ import static java.util.concurrent.TimeUnit.SECONDS
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.INVALIDATE
 
+@Ignore("Flaky")
 @Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
 class FileEventFunctionsOverflowTest extends AbstractFileEventFunctionsTest {
 
