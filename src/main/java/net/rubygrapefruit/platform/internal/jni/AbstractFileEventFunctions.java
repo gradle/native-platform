@@ -8,7 +8,7 @@ import net.rubygrapefruit.platform.file.FileWatcherCallback;
 import java.io.File;
 import java.util.Collection;
 
-public class AbstractFileEventFunctions implements NativeIntegration {
+public abstract class AbstractFileEventFunctions implements NativeIntegration {
     public static String getVersion() {
         return getVersion0();
     }
@@ -24,6 +24,27 @@ public class AbstractFileEventFunctions implements NativeIntegration {
     }
 
     private native void invalidateLogLevelCache0();
+
+    public abstract static class AbstractWatcherBuilder {
+        protected final FileWatcherCallback callback;
+
+        public AbstractWatcherBuilder(FileWatcherCallback callback) {
+            this.callback = callback;
+        }
+
+        /**
+         * Start the file watcher.
+         *
+         * @see FileWatcher#startWatching(Collection)
+         */
+        public abstract FileWatcher start();
+    }
+
+    /**
+     * Configures a new watcher using a builder. Call {@link AbstractWatcherBuilder#start()} to
+     * actually start the {@link FileWatcher}.
+     */
+    public abstract AbstractWatcherBuilder newWatcher(FileWatcherCallback callback);
 
     protected static class NativeFileWatcherCallback {
         private final FileWatcherCallback delegate;

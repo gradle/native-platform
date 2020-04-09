@@ -19,21 +19,35 @@ package net.rubygrapefruit.platform.internal.jni;
 import net.rubygrapefruit.platform.file.FileWatcher;
 import net.rubygrapefruit.platform.file.FileWatcherCallback;
 
+
+/**
+ * File watcher for Linux. Reports changes to the watched paths and their immediate children.
+ * Changes to deeper descendants are not reported.
+ *
+ * <h3>Remarks:</h3>
+ *
+ * <ul>
+ *     <li>Events arrive from a single background thread unique to the {@link FileWatcher}.
+ *     Calling methods from the {@link FileWatcher} inside the callback method is undefined
+ *     behavior and can lead to a deadlock.</li>
+ * </ul>
+ */
 public class LinuxFileEventFunctions extends AbstractFileEventFunctions {
 
-    /**
-     * Start watching the given directories.
-     *
-     * <h3>Remarks:</h3>
-     *
-     * <ul>
-     *     <li>Changes to descendants to the given paths are not reported.</li>
-     * 
-     *     <li>TBD</li>
-     * </ul>
-     */
-    public FileWatcher startWatcher(FileWatcherCallback callback) {
-        return startWatcher0(new NativeFileWatcherCallback(callback));
+    @Override
+    public WatcherBuilder newWatcher(FileWatcherCallback callback) {
+        return new WatcherBuilder(callback);
+    }
+
+    public static class WatcherBuilder extends AbstractWatcherBuilder {
+        WatcherBuilder(FileWatcherCallback callback) {
+            super(callback);
+        }
+
+        @Override
+        public FileWatcher start() {
+            return startWatcher0(new NativeFileWatcherCallback(callback));
+        }
     }
 
     private static native FileWatcher startWatcher0(NativeFileWatcherCallback callback);
