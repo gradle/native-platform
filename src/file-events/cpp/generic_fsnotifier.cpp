@@ -119,11 +119,14 @@ bool AbstractServer::unregisterPaths(const vector<u16string>& paths) {
 
 void AbstractServer::terminate() {
     unique_lock<mutex> lock(mutationMutex);
-    unique_lock<mutex> terminationLock(terminationMutex);
     terminateRunLoop();
+    mutationMutex.unlock();
+
+    unique_lock<mutex> terminationLock(terminationMutex);
+    // TODO Parametrize this
     auto status = terminated.wait_for(terminationLock, THREAD_TIMEOUT);
     if (status == cv_status::timeout) {
-        throw FileWatcherException("Starting thread timed out");
+        throw FileWatcherException("Termination timed out");
     }
 }
 
