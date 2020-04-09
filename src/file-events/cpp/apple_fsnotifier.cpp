@@ -100,7 +100,7 @@ void Server::executeRunLoop() {
     CFRunLoopRun();
 }
 
-void Server::terminateInternal() {
+void Server::terminateRunLoop() {
     watchPoints.clear();
     // TODO Should we stop the runloop before destructing all the watches now?
     CFRunLoopStop(threadLoop);

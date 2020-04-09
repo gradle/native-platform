@@ -113,7 +113,7 @@ bool AbstractServer::unregisterPaths(const vector<u16string>& paths) {
 
 void AbstractServer::terminate() {
     unique_lock<mutex> lock(mutationMutex);
-    terminateInternal();
+    terminateRunLoop();
 }
 
 JNIEXPORT void JNICALL
