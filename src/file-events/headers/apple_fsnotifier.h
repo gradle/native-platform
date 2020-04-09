@@ -42,7 +42,7 @@ public:
 
 protected:
     void initializeRunLoop() override;
-    void executeRunLoop() override;
+    void runLoop() override;
 
     void registerPath(const u16string& path) override;
     bool unregisterPath(const u16string& path) override;

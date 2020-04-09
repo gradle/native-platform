@@ -96,7 +96,7 @@ void Server::initializeRunLoop() {
     CFRunLoopAddSource(threadLoop, messageSource, kCFRunLoopDefaultMode);
 }
 
-void Server::executeRunLoop() {
+void Server::runLoop() {
     CFRunLoopRun();
 }
 

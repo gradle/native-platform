@@ -94,6 +94,12 @@ jobject wrapServer(JNIEnv* env, AbstractServer* server) {
     return env->NewDirectByteBuffer(server, sizeof(server));
 }
 
+void AbstractServer::executeRunLoop() {
+    runLoop();
+    unique_lock<mutex> terminationLock(terminationMutex);
+    terminated.notify_all();
+}
+
 // TODO Add checks for terminated state
 void AbstractServer::registerPaths(const vector<u16string>& paths) {
     unique_lock<mutex> lock(mutationMutex);
@@ -113,7 +119,12 @@ bool AbstractServer::unregisterPaths(const vector<u16string>& paths) {
 
 void AbstractServer::terminate() {
     unique_lock<mutex> lock(mutationMutex);
+    unique_lock<mutex> terminationLock(terminationMutex);
     terminateRunLoop();
+    auto status = terminated.wait_for(terminationLock, THREAD_TIMEOUT);
+    if (status == cv_status::timeout) {
+        throw FileWatcherException("Starting thread timed out");
+    }
 }
 
 JNIEXPORT void JNICALL

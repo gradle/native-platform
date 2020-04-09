@@ -69,7 +69,7 @@ public:
     virtual ~AbstractServer();
 
     virtual void initializeRunLoop() = 0;
-    virtual void executeRunLoop() = 0;
+    void executeRunLoop();
 
     /**
      * Registers new watch point with the server for the given paths.
@@ -87,6 +87,7 @@ public:
     void terminate();
 
 protected:
+    virtual void runLoop() = 0;
     virtual void registerPath(const u16string& path) = 0;
     virtual bool unregisterPath(const u16string& path) = 0;
     virtual void terminateRunLoop() = 0;
@@ -95,6 +96,8 @@ protected:
     void reportError(JNIEnv* env, const exception& ex);
 
     mutex mutationMutex;
+    mutex terminationMutex;
+    condition_variable terminated;
 
 private:
     JniGlobalRef<jobject> watcherCallback;
