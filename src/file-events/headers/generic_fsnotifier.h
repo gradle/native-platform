@@ -63,129 +63,43 @@ enum WatchPointStatus {
 
 class AbstractServer;
 
-class Command {
-public:
-    Command() {};
-    virtual ~Command() {};
-
-    void execute(AbstractServer* server) {
-        try {
-            success = perform(server);
-        } catch (const exception&) {
-            failure = current_exception();
-        }
-        executed.notify_all();
-    }
-
-    virtual bool perform(AbstractServer* server) = 0;
-
-    condition_variable executed;
-    bool success;
-    exception_ptr failure;
-};
-
 class AbstractServer : public JniSupport {
 public:
     AbstractServer(JNIEnv* env, jobject watcherCallback);
     virtual ~AbstractServer();
 
-    /**
-     * Execute command on processing thread sybnchronously.
-     *
-     * Returns wether the exeuction of the command had an effect.
-     */
-    bool executeOnThread(shared_ptr<Command> command);
-
-    //
-    // Methods running on the processing thread
-    //
-
-    /**
-     * Processes queued commands, should be called from processing thread.
-     */
-    void processCommands();
+    virtual void initializeRunLoop() = 0;
+    virtual void executeRunLoop() = 0;
 
     /**
      * Registers new watch point with the server for the given paths.
-     * Runs on processing thread.
      */
     void registerPaths(const vector<u16string>& paths);
 
     /**
      * Unregisters watch points with the server for the given paths.
-     * Runs on processing thread.
      */
     bool unregisterPaths(const vector<u16string>& paths);
 
     /**
      * Terminates server.
-     * Runs on processing thread.
      */
-    virtual void terminate() = 0;
+    void terminate();
 
 protected:
     virtual void registerPath(const u16string& path) = 0;
     virtual bool unregisterPath(const u16string& path) = 0;
+    virtual void terminateInternal() = 0;
 
     void reportChange(JNIEnv* env, int type, const u16string& path);
     void reportError(JNIEnv* env, const exception& ex);
 
-    void startThread();
-    virtual void runLoop(function<void(exception_ptr)> notifyStarted) = 0;
-    virtual void processCommandsOnThread() = 0;
-
-    thread watcherThread;
+    mutex mutationMutex;
 
 private:
-    void run();
-
-    mutex watcherThreadMutex;
-    condition_variable watcherThreadStarted;
-    exception_ptr initException;
-
-    mutex mtxCommands;
-    deque<shared_ptr<Command>> commands;
-
     JniGlobalRef<jobject> watcherCallback;
     jmethodID watcherCallbackMethod;
     jmethodID watcherReportErrorMethod;
-};
-
-class RegisterPathsCommand : public Command {
-public:
-    RegisterPathsCommand(const vector<u16string>& paths)
-        : paths(paths) {
-    }
-
-    bool perform(AbstractServer* server) override {
-        server->registerPaths(paths);
-        return true;
-    }
-
-private:
-    const vector<u16string> paths;
-};
-
-class UnregisterPathsCommand : public Command {
-public:
-    UnregisterPathsCommand(const vector<u16string>& paths)
-        : paths(paths) {
-    }
-
-    bool perform(AbstractServer* server) override {
-        return server->unregisterPaths(paths);
-    }
-
-private:
-    const vector<u16string> paths;
-};
-
-class TerminateCommand : public Command {
-public:
-    bool perform(AbstractServer* server) override {
-        server->terminate();
-        return true;
-    }
 };
 
 class NativePlatformJniConstants : public JniSupport {
@@ -193,10 +107,8 @@ public:
     NativePlatformJniConstants(JavaVM* jvm);
 
     const JClass nativeExceptionClass;
-    const JClass nativeFileWatcherClass;
 };
 
 extern NativePlatformJniConstants* nativePlatformJniConstants;
 
-// TODO Use a template for the server type?
-jobject wrapServer(JNIEnv* env, function<void*()> serverStarter);
+jobject wrapServer(JNIEnv* env, AbstractServer* server);

@@ -55,7 +55,7 @@ import java.util.Date;
 import java.util.List;
 
 public class Main {
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws Exception {
         OptionParser optionParser = new OptionParser();
         optionParser.accepts("cache-dir", "The directory to cache native libraries in").withRequiredArg();
         optionParser.accepts("ansi", "Force the use of ANSI escape sequences for terminal output");
@@ -372,7 +372,7 @@ public class Main {
         System.out.println();
     }
 
-    private static void watch(String path) {
+    private static void watch(String path) throws InterruptedException {
         FileWatcher watcher = createWatcher(path, new FileWatcherCallback() {
             @Override
             public void pathChanged(Type type, String changedPath) {
@@ -404,7 +404,7 @@ public class Main {
         System.out.println("Done");
     }
 
-    private static FileWatcher createWatcher(String path, FileWatcherCallback callback) {
+    private static FileWatcher createWatcher(String path, FileWatcherCallback callback) throws InterruptedException {
         FileWatcher watcher;
         if (Platform.current().isMacOs()) {
             watcher = Native.get(OsxFileEventFunctions.class)

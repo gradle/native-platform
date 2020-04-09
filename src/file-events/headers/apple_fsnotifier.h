@@ -34,10 +34,6 @@ public:
     Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis);
     ~Server();
 
-    void registerPath(const u16string& path) override;
-    bool unregisterPath(const u16string& path) override;
-    void terminate() override;
-
     // TODO This should be private
     void handleEvents(
         size_t numEvents,
@@ -45,8 +41,12 @@ public:
         const FSEventStreamEventFlags eventFlags[]);
 
 protected:
-    void runLoop(function<void(exception_ptr)> notifyStarted) override;
-    void processCommandsOnThread() override;
+    void initializeRunLoop() override;
+    void executeRunLoop() override;
+
+    void registerPath(const u16string& path) override;
+    bool unregisterPath(const u16string& path) override;
+    void terminateInternal() override;
 
 private:
     void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);

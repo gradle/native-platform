@@ -551,8 +551,8 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         watcher.close()
 
         then:
-        def ex = thrown NativeException
-        ex.message == "Closed already"
+        def ex = thrown IllegalStateException
+        ex.message == "Watcher already closed"
     }
 
     def "can be used multiple times"() {

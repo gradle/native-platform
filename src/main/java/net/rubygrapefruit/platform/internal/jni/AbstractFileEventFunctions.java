@@ -1,12 +1,14 @@
 package net.rubygrapefruit.platform.internal.jni;
 
-import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.NativeIntegration;
 import net.rubygrapefruit.platform.file.FileWatcher;
 import net.rubygrapefruit.platform.file.FileWatcherCallback;
 
 import java.io.File;
+import java.io.InterruptedIOException;
 import java.util.Collection;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public abstract class AbstractFileEventFunctions implements NativeIntegration {
     public static String getVersion() {
@@ -37,7 +39,7 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
          *
          * @see FileWatcher#startWatching(Collection)
          */
-        public abstract FileWatcher start();
+        public abstract FileWatcher start() throws InterruptedException;
     }
 
     /**
@@ -66,23 +68,35 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
         }
     }
 
-    // Instantiated from native code
-    @SuppressWarnings("unused")
     protected static class NativeFileWatcher implements FileWatcher {
-        /**
-         * A Java object wrapper around the native server object.
-         */
-        private Object server;
+        private final Object server;
+        private final Thread processorThread;
+        private boolean closed;
 
-        public NativeFileWatcher(Object server) {
+        public NativeFileWatcher(final Object server) throws InterruptedException {
             this.server = server;
+            final CountDownLatch runLoopInitialized = new CountDownLatch(1);
+            this.processorThread = new Thread("File watcher server") {
+                @Override
+                public void run() {
+                    initializeRunLoop0(server);
+                    runLoopInitialized.countDown();
+                    executeRunLoop0(server);
+                }
+            };
+            this.processorThread.setDaemon(true);
+            this.processorThread.start();
+            // TODO Parametrize this
+            runLoopInitialized.await(5, TimeUnit.SECONDS);
         }
+
+        private native void initializeRunLoop0(Object server);
+
+        private native void executeRunLoop0(Object server);
 
         @Override
         public void startWatching(Collection<File> paths) {
-            if (server == null) {
-                throw new IllegalStateException("Watcher already closed");
-            }
+            ensureOpen();
             startWatching0(server, toAbsolutePaths(paths));
         }
 
@@ -90,9 +104,7 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
 
         @Override
         public boolean stopWatching(Collection<File> paths) {
-            if (server == null) {
-                throw new IllegalStateException("Watcher already closed");
-            }
+            ensureOpen();
             return stopWatching0(server, toAbsolutePaths(paths));
         }
 
@@ -108,14 +120,26 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
         }
 
         @Override
-        public void close() {
-            if (server == null) {
-                throw new NativeException("Closed already");
-            }
+        public void close() throws InterruptedIOException {
+            ensureOpen();
+            closed = true;
             close0(server);
-            server = null;
+            processorThread.interrupt();
+            // TODO Parametrize timeout here
+            try {
+                processorThread.join(TimeUnit.SECONDS.toMillis(5));
+            } catch (InterruptedException e) {
+                throw new InterruptedIOException(e.getMessage());
+            }
         }
 
-        protected native void close0(Object details);
+        // Rename this to terminate0() maybe?
+        protected native void close0(Object server);
+
+        private void ensureOpen() {
+            if (closed) {
+                throw new IllegalStateException("Watcher already closed");
+            }
+        }
     }
 }
