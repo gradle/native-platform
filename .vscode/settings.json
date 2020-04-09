@@ -20,5 +20,6 @@
         "jmethodID",
         "jobject",
         "jsize"
-    ]
+    ],
+    "C_Cpp.dimInactiveRegions": false
 }
