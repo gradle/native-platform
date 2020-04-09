@@ -3,6 +3,7 @@
 #ifdef _WIN32
 
 #include <Shlwapi.h>
+#include <functional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -57,27 +58,42 @@ private:
     friend static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped);
 };
 
+struct Command {
+    Server* server;
+    function<bool()> function;
+    condition_variable executed;
+    bool result;
+    exception_ptr failure;
+};
+
 class Server : public AbstractServer {
 public:
     Server(JNIEnv* env, size_t bufferSize, jobject watcherCallback);
     ~Server();
 
-    void registerPath(const u16string& path) override;
-    bool unregisterPath(const u16string& path) override;
-    void terminate() override;
-
     void handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& buffer, DWORD bytesTransferred);
+    bool executeOnRunLoop(function<bool()> command);
+
+    virtual void registerPaths(const vector<u16string>& paths) override;
+    virtual bool unregisterPaths(const vector<u16string>& paths) override;
 
 protected:
-    void runLoop(function<void(exception_ptr)> notifyStarted) override;
-    void processCommandsOnThread() override;
+    void initializeRunLoop() override;
+    void runLoop() override;
+
+    void registerPath(const u16string& path) override;
+    bool unregisterPath(const u16string& path) override;
+    void terminateRunLoop() override;
 
 private:
     void handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMATION* info);
 
+    HANDLE threadHandle;
     const size_t bufferSize;
     unordered_map<u16string, WatchPoint> watchPoints;
     bool terminated = false;
+    mutex executionMutex;
+    friend void CALLBACK executeOnRunLoopCallback(_In_ ULONG_PTR info);
 };
 
 #endif

@@ -3,7 +3,6 @@
 #include <chrono>
 #include <condition_variable>
 #include <exception>
-#include <functional>
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -74,12 +73,12 @@ public:
     /**
      * Registers new watch point with the server for the given paths.
      */
-    void registerPaths(const vector<u16string>& paths);
+    virtual void registerPaths(const vector<u16string>& paths);
 
     /**
      * Unregisters watch points with the server for the given paths.
      */
-    bool unregisterPaths(const vector<u16string>& paths);
+    virtual bool unregisterPaths(const vector<u16string>& paths);
 
     /**
      * Terminates server.
