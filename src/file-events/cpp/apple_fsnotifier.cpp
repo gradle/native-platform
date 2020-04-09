@@ -98,13 +98,14 @@ void Server::initializeRunLoop() {
 
 void Server::runLoop() {
     CFRunLoopRun();
+
+    unique_lock<mutex> lock(mutationMutex);
+    watchPoints.clear();
+    CFRelease(messageSource);
 }
 
 void Server::terminateRunLoop() {
-    watchPoints.clear();
-    // TODO Should we stop the runloop before destructing all the watches now?
     CFRunLoopStop(threadLoop);
-    CFRelease(messageSource);
 }
 
 static void handleEventsCallback(

@@ -118,9 +118,7 @@ bool AbstractServer::unregisterPaths(const vector<u16string>& paths) {
 }
 
 void AbstractServer::terminate() {
-    unique_lock<mutex> lock(mutationMutex);
     terminateRunLoop();
-    mutationMutex.unlock();
 
     unique_lock<mutex> terminationLock(terminationMutex);
     // TODO Parametrize this
