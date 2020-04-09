@@ -185,6 +185,11 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
         return;
     }
 
+    if (IS_SET(mask, IN_IGNORED) && recentlyRemovedWatchPoints.erase(event->wd)) {
+        // We've removed this via unregisterPath() not long ago
+        return;
+    }
+
     auto path = watchRoots.at(event->wd);
     auto& watchPoint = watchPoints.at(path);
 
@@ -265,11 +270,7 @@ bool Server::unregisterPath(const u16string& path) {
     }
     auto& watchPoint = it->second;
     if (watchPoint.cancel()) {
-        processQueues(0);
-    }
-    if (watchPoint.status != FINISHED) {
-        throw FileWatcherException("Could not cancel watch point", path);
-    } else {
+        recentlyRemovedWatchPoints.emplace(watchPoint.watchDescriptor);
         watchRoots.erase(watchPoint.watchDescriptor);
         watchPoints.erase(path);
     }
