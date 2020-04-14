@@ -68,7 +68,7 @@ public:
     virtual ~AbstractServer();
 
     virtual void initializeRunLoop() = 0;
-    void executeRunLoop();
+    void executeRunLoop(JNIEnv* env);
 
     /**
      * Registers new watch point with the server for the given paths.

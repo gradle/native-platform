@@ -94,8 +94,12 @@ jobject wrapServer(JNIEnv* env, AbstractServer* server) {
     return env->NewDirectByteBuffer(server, sizeof(server));
 }
 
-void AbstractServer::executeRunLoop() {
-    runLoop();
+void AbstractServer::executeRunLoop(JNIEnv* env) {
+    try {
+        runLoop();
+    } catch (const exception& ex) {
+        rethrowAsJavaException(env, ex);
+    }
     unique_lock<mutex> terminationLock(terminationMutex);
     terminated.notify_all();
 }
@@ -142,7 +146,7 @@ JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_executeRunLoop0(JNIEnv* env, jobject, jobject javaServer) {
     try {
         AbstractServer* server = getServer(env, javaServer);
-        server->executeRunLoop();
+        server->executeRunLoop(env);
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
     }
