@@ -127,6 +127,7 @@ void WatchPoint::handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred) {
 }
 
 void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& buffer, DWORD bytesTransferred) {
+    unique_lock<mutex> lock(mutationMutex);
     JNIEnv* env = getThreadEnv();
     const u16string& path = watchPoint->path;
 
