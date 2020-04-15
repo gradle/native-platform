@@ -122,9 +122,8 @@ bool AbstractServer::unregisterPaths(const vector<u16string>& paths) {
 }
 
 void AbstractServer::terminate() {
-    terminateRunLoop();
-
     unique_lock<mutex> terminationLock(terminationMutex);
+    terminateRunLoop();
     // TODO Parametrize this
     auto status = terminated.wait_for(terminationLock, THREAD_TIMEOUT);
     if (status == cv_status::timeout) {
