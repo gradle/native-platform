@@ -357,11 +357,11 @@ bool Server::executeOnRunLoop(function<bool()> function) {
     Command command;
     command.function = function;
     command.server = this;
+    unique_lock<mutex> lock(executionMutex);
     DWORD ret = QueueUserAPC(executeOnRunLoopCallback, threadHandle, (ULONG_PTR) &command);
     if (ret == 0) {
         throw FileWatcherException("Received error while queuing APC", GetLastError());
     }
-    unique_lock<mutex> lock(executionMutex);
     auto status = command.executed.wait_for(lock, THREAD_TIMEOUT);
     if (status == cv_status::timeout) {
         throw FileWatcherException("Execution timed out");
