@@ -40,6 +40,7 @@ import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.INVALIDA
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 
+@Unroll
 @Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
 class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
     def "can start and stop watcher without watching any paths"() {
@@ -70,6 +71,21 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         expectEvents change(CREATED, createdFile)
     }
 
+    @IgnoreIf({ Platform.current().linux })
+    def "can detect file created in subdirectory"() {
+        given:
+        def subDir = new File(rootDir, "sub-dir")
+        subDir.mkdirs()
+        def createdFile = new File(subDir, "created.txt")
+        startWatcher(rootDir)
+
+        when:
+        createNewFile(createdFile)
+
+        then:
+        expectEvents change(CREATED, createdFile)
+    }
+
     def "can detect directory created"() {
         given:
         def createdDir = new File(rootDir, "created")
@@ -82,9 +98,43 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         expectEvents change(CREATED, createdDir)
     }
 
+    @IgnoreIf({ Platform.current().linux })
+    def "can detect directory created in subdirectory"() {
+        given:
+        def subDir = new File(rootDir, "sub-dir")
+        subDir.mkdirs()
+        def createdDir = new File(subDir, "created")
+        startWatcher(rootDir)
+
+        when:
+        assert createdDir.mkdirs()
+
+        then:
+        expectEvents change(CREATED, createdDir)
+    }
+
     def "can detect file removed"() {
         given:
         def removedFile = new File(rootDir, "removed.txt")
+        createNewFile(removedFile)
+        startWatcher(rootDir)
+
+        when:
+        removedFile.delete()
+
+        then:
+        // Windows reports the file as modified before removing it
+        expectEvents Platform.current().windows
+            ? [change(MODIFIED, removedFile), change(REMOVED, removedFile)]
+            : [change(REMOVED, removedFile)]
+    }
+
+    @IgnoreIf({ Platform.current().linux })
+    def "can detect file removed in subdirectory"() {
+        given:
+        def subDir = new File(rootDir, "sub-dir")
+        subDir.mkdirs()
+        def removedFile = new File(subDir, "removed.txt")
         createNewFile(removedFile)
         startWatcher(rootDir)
 
@@ -111,9 +161,41 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         expectEvents change(REMOVED, removedDir)
     }
 
+    @IgnoreIf({ Platform.current().linux })
+    def "can detect directory removed in subdirectory"() {
+        given:
+        def subDir = new File(rootDir, "sub-dir")
+        subDir.mkdirs()
+        def removedDir = new File(subDir, "removed")
+        assert removedDir.mkdirs()
+        startWatcher(rootDir)
+
+        when:
+        removedDir.deleteDir()
+
+        then:
+        expectEvents change(REMOVED, removedDir)
+    }
+
     def "can detect file modified"() {
         given:
         def modifiedFile = new File(rootDir, "modified.txt")
+        createNewFile(modifiedFile)
+        startWatcher(rootDir)
+
+        when:
+        modifiedFile << "change"
+
+        then:
+        expectEvents change(MODIFIED, modifiedFile)
+    }
+
+    @IgnoreIf({ Platform.current().linux })
+    def "can detect file modified in subdirectory"() {
+        given:
+        def subDir = new File(rootDir, "sub-dir")
+        subDir.mkdirs()
+        def modifiedFile = new File(subDir, "modified.txt")
         createNewFile(modifiedFile)
         startWatcher(rootDir)
 
@@ -201,6 +283,25 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         then:
         expectEvents Platform.current().windows
             ? [change(REMOVED, sourceFile), change(CREATED, targetFile), optionalChange(MODIFIED, targetFile)]
+            : [change(REMOVED, sourceFile), change(CREATED, targetFile)]
+    }
+
+    @IgnoreIf({ Platform.current().linux })
+    def "can detect file renamed in subdirectory"() {
+        given:
+        def subDir = new File(rootDir, "sub-dir")
+        subDir.mkdirs()
+        def sourceFile = new File(subDir, "source.txt")
+        def targetFile = new File(subDir, "target.txt")
+        createNewFile(sourceFile)
+        startWatcher(rootDir)
+
+        when:
+        sourceFile.renameTo(targetFile)
+
+        then:
+        expectEvents Platform.current().windows
+            ? [change(REMOVED, sourceFile), change(CREATED, targetFile), change(MODIFIED, subDir), optionalChange(MODIFIED, targetFile)]
             : [change(REMOVED, sourceFile), change(CREATED, targetFile)]
     }
 
@@ -557,7 +658,6 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         expectEvents change(CREATED, fileInSubDir)
     }
 
-    @Unroll
     def "can watch directory with #type characters"() {
         Assume.assumeTrue(supported as boolean)
 
@@ -585,7 +685,6 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         "URL-quoted"     | "test%<directory>#2.txt" | !Platform.current().windows
     }
 
-    @Unroll
     def "can detect #ancestry removed"() {
         given:
         def parentDir = new File(rootDir, "parent")
@@ -622,7 +721,6 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         "grand-parent of watched directory" | { it.parentFile.parentFile } | !OperatingSystem.current.windows
     }
 
-    @Unroll
     def "can set log level by #action"() {
         given:
         def nativeLogger = Logger.getLogger(NativeLogger.name)
