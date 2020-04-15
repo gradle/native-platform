@@ -301,7 +301,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         then:
         expectEvents Platform.current().windows
-            ? [change(REMOVED, sourceFile), change(CREATED, targetFile), optionalChange(MODIFIED, targetFile)]
+            ? [change(REMOVED, sourceFile), change(CREATED, targetFile), change(MODIFIED, subDir), optionalChange(MODIFIED, targetFile)]
             : [change(REMOVED, sourceFile), change(CREATED, targetFile)]
     }
 
