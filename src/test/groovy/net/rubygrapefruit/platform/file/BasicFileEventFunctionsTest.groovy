@@ -725,12 +725,16 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         given:
         def nativeLogger = Logger.getLogger(NativeLogger.name)
         def originalLevel = nativeLogger.level
+        def fileChanged = new File(rootDir, "changed.txt")
+        fileChanged.createNewFile()
 
         when:
         logging.clear()
         nativeLogger.level = Level.FINEST
         ensureLogLevelInvalidated(service)
-        startWatcher()
+        startWatcher(rootDir)
+        fileChanged << "changed"
+        waitForChangeEventLatency()
 
         then:
         logging.messages.values().any { it == Level.FINE }
@@ -741,6 +745,8 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         nativeLogger.level = WARNING
         ensureLogLevelInvalidated(service)
         startWatcher()
+        fileChanged << "changed again"
+        waitForChangeEventLatency()
 
         then:
         !logging.messages.values().any { it == Level.FINE }
