@@ -342,6 +342,14 @@ void Server::runLoop() {
     CloseHandle(threadHandle);
 }
 
+struct Command {
+    Server* server;
+    function<bool()> function;
+    condition_variable executed;
+    bool result;
+    exception_ptr failure;
+};
+
 static void CALLBACK executeOnRunLoopCallback(_In_ ULONG_PTR info) {
     Command* command = (Command*) info;
     try {

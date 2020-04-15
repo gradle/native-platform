@@ -58,14 +58,6 @@ private:
     friend static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped);
 };
 
-struct Command {
-    Server* server;
-    function<bool()> function;
-    condition_variable executed;
-    bool result;
-    exception_ptr failure;
-};
-
 class Server : public AbstractServer {
 public:
     Server(JNIEnv* env, size_t bufferSize, jobject watcherCallback);
