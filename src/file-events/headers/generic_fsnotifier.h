@@ -23,7 +23,8 @@ enum FileWatchEventType {
     CREATED,
     REMOVED,
     MODIFIED,
-    INVALIDATE,
+    INVALIDATED,
+    OVERFLOWED,
     UNKNOWN
 };
 

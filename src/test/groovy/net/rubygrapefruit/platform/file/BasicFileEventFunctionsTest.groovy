@@ -36,7 +36,7 @@ import static java.util.logging.Level.INFO
 import static java.util.logging.Level.SEVERE
 import static java.util.logging.Level.WARNING
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
-import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.INVALIDATE
+import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.INVALIDATED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
 
@@ -700,7 +700,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         def expectedEvents = []
         if (Platform.current().macOs) {
-            expectedEvents << change(INVALIDATE, watchedDir)
+            expectedEvents << change(INVALIDATED, watchedDir)
             if (ancestry == "watched directory") {
                 expectedEvents << change(REMOVED, watchedDir)
             }
