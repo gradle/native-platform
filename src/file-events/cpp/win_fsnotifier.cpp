@@ -127,6 +127,7 @@ void WatchPoint::handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred) {
 }
 
 void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& buffer, DWORD bytesTransferred) {
+    unique_lock<mutex> lock(mutationMutex);
     JNIEnv* env = getThreadEnv();
     const u16string& path = watchPoint->path;
 
@@ -240,7 +241,7 @@ void Server::handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMA
         }
     }
 
-    // logToJava(FINE, "Change detected: 0x%x '%s'", info->Action, utf16ToUtf8String(changedPath).c_str());
+    logToJava(FINE, "Change detected: 0x%x '%s'", info->Action, utf16ToUtf8String(changedPath).c_str());
 
     jint type;
     if (info->Action == FILE_ACTION_ADDED || info->Action == FILE_ACTION_RENAMED_NEW_NAME) {
@@ -264,31 +265,38 @@ void Server::handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMA
 Server::Server(JNIEnv* env, size_t bufferSize, jobject watcherCallback)
     : AbstractServer(env, watcherCallback)
     , bufferSize(bufferSize) {
-    startThread();
-    // TODO Error handling
-    SetThreadPriority(this->watcherThread.native_handle(), THREAD_PRIORITY_ABOVE_NORMAL);
 }
 
-void Server::terminate() {
-    terminated = true;
-}
-
-Server::~Server() {
-    executeOnThread(shared_ptr<Command>(new TerminateCommand()));
-
-    if (watcherThread.joinable()) {
-        watcherThread.join();
+void Server::initializeRunLoop() {
+    // TODO For some reason GetCurrentThread() returns a thread that doesn't accept APCs
+    threadHandle = OpenThread(
+        THREAD_ALL_ACCESS,
+        false,
+        GetCurrentThreadId()
+    );
+    if (threadHandle == NULL) {
+        throw FileWatcherException("Couldn't open current thread", GetLastError());
     }
 }
 
-void Server::runLoop(function<void(exception_ptr)> notifyStarted) {
-    notifyStarted(nullptr);
+void Server::terminateRunLoop() {
+    executeOnRunLoop([this]() {
+        terminated = true;
+        return true;
+    });
+}
 
+Server::~Server() {
+    terminate();
+}
+
+void Server::runLoop() {
     while (!terminated) {
         SleepEx(INFINITE, true);
     }
 
     // We have received termination, cancel all watchers
+    unique_lock<mutex> lock(mutationMutex);
     logToJava(FINE, "Finished with run loop, now cancelling remaining watch points", NULL);
     int pendingWatchPoints = 0;
     for (auto& it : watchPoints) {
@@ -330,15 +338,59 @@ void Server::runLoop(function<void(exception_ptr)> notifyStarted) {
                 break;
         }
     }
+
+    CloseHandle(threadHandle);
 }
 
-static void CALLBACK processCommandsCallback(_In_ ULONG_PTR info) {
-    Server* server = (Server*) info;
-    server->processCommands();
+struct Command {
+    Server* server;
+    function<bool()> function;
+    condition_variable executed;
+    bool result;
+    exception_ptr failure;
+};
+
+static void CALLBACK executeOnRunLoopCallback(_In_ ULONG_PTR info) {
+    Command* command = (Command*) info;
+    try {
+        command->result = command->function();
+    } catch (const exception&) {
+        command->failure = current_exception();
+    }
+    unique_lock<mutex> lock(command->server->executionMutex);
+    command->executed.notify_all();
 }
 
-void Server::processCommandsOnThread() {
-    QueueUserAPC(processCommandsCallback, watcherThread.native_handle(), (ULONG_PTR) this);
+bool Server::executeOnRunLoop(function<bool()> function) {
+    Command command;
+    command.function = function;
+    command.server = this;
+    unique_lock<mutex> lock(executionMutex);
+    DWORD ret = QueueUserAPC(executeOnRunLoopCallback, threadHandle, (ULONG_PTR) &command);
+    if (ret == 0) {
+        throw FileWatcherException("Received error while queuing APC", GetLastError());
+    }
+    auto status = command.executed.wait_for(lock, THREAD_TIMEOUT);
+    if (status == cv_status::timeout) {
+        throw FileWatcherException("Execution timed out");
+    } else if (command.failure) {
+        rethrow_exception(command.failure);
+    } else {
+        return command.result;
+    }
+}
+
+void Server::registerPaths(const vector<u16string>& paths) {
+    executeOnRunLoop([this, paths]() {
+        AbstractServer::registerPaths(paths);
+        return true;
+    });
+}
+
+bool Server::unregisterPaths(const vector<u16string>& paths) {
+    return executeOnRunLoop([this, paths]() {
+        return AbstractServer::unregisterPaths(paths);
+    });
 }
 
 void Server::registerPath(const u16string& path) {
@@ -372,9 +424,7 @@ bool Server::unregisterPath(const u16string& path) {
 
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatcher0(JNIEnv* env, jclass target, jint bufferSize, jobject javaCallback) {
-    return wrapServer(env, [env, bufferSize, javaCallback]() {
-        return new Server(env, bufferSize, javaCallback);
-    });
+    return wrapServer(env, new Server(env, bufferSize, javaCallback));
 }
 
 #endif

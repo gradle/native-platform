@@ -69,10 +69,10 @@ public class OsxFileEventFunctions extends AbstractFileEventFunctions {
         }
 
         @Override
-        public FileWatcher start() {
-            return startWatcher0(latencyInMillis, new NativeFileWatcherCallback(callback));
+        public FileWatcher start() throws InterruptedException {
+            return new NativeFileWatcher(startWatcher0(latencyInMillis, new NativeFileWatcherCallback(callback)));
         }
     }
 
-    private static native FileWatcher startWatcher0(long latencyInMillis, NativeFileWatcherCallback callback);
+    private static native Object startWatcher0(long latencyInMillis, NativeFileWatcherCallback callback);
 }

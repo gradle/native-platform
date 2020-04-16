@@ -70,30 +70,6 @@ void JniSupport::rethrowJavaException(JNIEnv* env) {
     }
 }
 
-JniThreadAttacher::JniThreadAttacher(JavaVM* jvm, const char* name, bool daemon)
-    : JniSupport(jvm) {
-    JNIEnv* env;
-    JavaVMAttachArgs args = {
-        JNI_VERSION_1_6,            // version
-        const_cast<char*>(name),    // thread name
-        NULL                        // thread group
-    };
-    jint ret = daemon
-        ? jvm->AttachCurrentThreadAsDaemon((void**) &env, (void*) &args)
-        : jvm->AttachCurrentThread((void**) &env, (void*) &args);
-    if (ret != JNI_OK) {
-        cerr << "Failed to attach JNI to current thread: " << ret << endl;
-        throw runtime_error(string("Failed to attach JNI to current thread: ") + to_string(ret));
-    }
-}
-
-JniThreadAttacher::~JniThreadAttacher() {
-    jint ret = jvm->DetachCurrentThread();
-    if (ret != JNI_OK) {
-        cerr << "Failed to detach JNI from current thread: " << ret << endl;
-    }
-}
-
 BaseJniConstants::BaseJniConstants(JavaVM* jvm)
     : JniSupport(jvm)
     , classClass(getThreadEnv(), "java/lang/Class") {

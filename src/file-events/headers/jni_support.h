@@ -60,15 +60,6 @@ public:
     }
 };
 
-/**
- * Attach a native thread to JNI.
- */
-class JniThreadAttacher : public JniSupport {
-public:
-    JniThreadAttacher(JavaVM* jvm, const char* name, bool daemon);
-    ~JniThreadAttacher();
-};
-
 class BaseJniConstants : public JniSupport {
 public:
     BaseJniConstants(JavaVM* jvm);

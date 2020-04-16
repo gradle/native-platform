@@ -22,9 +22,9 @@ struct Inotify {
     const int fd;
 };
 
-struct Event {
-    Event();
-    ~Event();
+struct TerminateEvent {
+    TerminateEvent();
+    ~TerminateEvent();
 
     void trigger() const;
     void consume() const;
@@ -52,13 +52,12 @@ public:
     Server(JNIEnv* env, jobject watcherCallback);
     ~Server();
 
+protected:
+    void initializeRunLoop() override;
+    void runLoop() override;
     void registerPath(const u16string& path) override;
     bool unregisterPath(const u16string& path) override;
-
-protected:
-    void runLoop(function<void(exception_ptr)> notifyStarted) override;
-    void processCommandsOnThread() override;
-    void terminate() override;
+    void terminateRunLoop() override;
 
 private:
     void processQueues(int timeout);
@@ -69,7 +68,7 @@ private:
     unordered_map<int, u16string> watchRoots;
     unordered_set<int> recentlyRemovedWatchPoints;
     const shared_ptr<Inotify> inotify;
-    const Event processCommandsEvent;
+    const TerminateEvent terminateEvent;
     bool terminated = false;
     vector<uint8_t> buffer;
 };

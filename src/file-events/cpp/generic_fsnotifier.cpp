@@ -55,62 +55,6 @@ AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback)
 AbstractServer::~AbstractServer() {
 }
 
-void AbstractServer::startThread() {
-    unique_lock<mutex> lock(watcherThreadMutex);
-    this->watcherThread = thread(&AbstractServer::run, this);
-    auto status = this->watcherThreadStarted.wait_for(lock, THREAD_TIMEOUT);
-    if (status == cv_status::timeout) {
-        throw FileWatcherException("Starting thread timed out");
-    }
-    if (initException) {
-        if (watcherThread.joinable()) {
-            watcherThread.join();
-        }
-        rethrow_exception(initException);
-    }
-}
-
-void AbstractServer::run() {
-    JniThreadAttacher jniThread(jvm, "File watcher server", true);
-    logToJava(FINE, "Starting thread", NULL);
-
-    try {
-        runLoop([this](exception_ptr initException) {
-            unique_lock<mutex> lock(watcherThreadMutex);
-            this->initException = initException;
-            watcherThreadStarted.notify_all();
-            logToJava(FINE, "Started thread", NULL);
-        });
-    } catch (const exception& ex) {
-        reportError(getThreadEnv(), ex);
-    }
-
-    logToJava(FINE, "Stopping thread", NULL);
-}
-
-bool AbstractServer::executeOnThread(shared_ptr<Command> command) {
-    unique_lock<mutex> lock(mtxCommands);
-    commands.push_back(command);
-    processCommandsOnThread();
-    auto status = command->executed.wait_for(lock, THREAD_TIMEOUT);
-    if (status == cv_status::timeout) {
-        throw FileWatcherException("Command execution timed out");
-    }
-    if (command->failure) {
-        rethrow_exception(command->failure);
-    } else {
-        return command->success;
-    }
-}
-
-void AbstractServer::processCommands() {
-    unique_lock<mutex> lock(mtxCommands);
-    for (auto& command : commands) {
-        command->execute(this);
-    }
-    commands.clear();
-}
-
 void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) {
     jstring javaPath = env->NewString((jchar*) path.c_str(), (jsize) path.length());
     env->CallVoidMethod(watcherCallback.get(), watcherCallbackMethod, type, javaPath);
@@ -146,19 +90,23 @@ jobject rethrowAsJavaException(JNIEnv* env, const exception& e) {
     return NULL;
 }
 
-jobject wrapServer(JNIEnv* env, function<void*()> serverStarter) {
-    void* server;
-    try {
-        server = serverStarter();
-    } catch (const exception& e) {
-        return rethrowAsJavaException(env, e);
-    }
-
-    jmethodID constructor = env->GetMethodID(nativePlatformJniConstants->nativeFileWatcherClass.get(), "<init>", "(Ljava/lang/Object;)V");
-    return env->NewObject(nativePlatformJniConstants->nativeFileWatcherClass.get(), constructor, env->NewDirectByteBuffer(server, sizeof(server)));
+jobject wrapServer(JNIEnv* env, AbstractServer* server) {
+    return env->NewDirectByteBuffer(server, sizeof(server));
 }
 
+void AbstractServer::executeRunLoop(JNIEnv* env) {
+    try {
+        runLoop();
+    } catch (const exception& ex) {
+        rethrowAsJavaException(env, ex);
+    }
+    unique_lock<mutex> terminationLock(terminationMutex);
+    terminated.notify_all();
+}
+
+// TODO Add checks for terminated state
 void AbstractServer::registerPaths(const vector<u16string>& paths) {
+    unique_lock<mutex> lock(mutationMutex);
     for (auto& path : paths) {
         registerPath(path);
     }
@@ -166,10 +114,41 @@ void AbstractServer::registerPaths(const vector<u16string>& paths) {
 
 bool AbstractServer::unregisterPaths(const vector<u16string>& paths) {
     bool success = true;
+    unique_lock<mutex> lock(mutationMutex);
     for (auto& path : paths) {
         success &= unregisterPath(path);
     }
     return success;
+}
+
+void AbstractServer::terminate() {
+    unique_lock<mutex> terminationLock(terminationMutex);
+    terminateRunLoop();
+    // TODO Parametrize this
+    auto status = terminated.wait_for(terminationLock, THREAD_TIMEOUT);
+    if (status == cv_status::timeout) {
+        throw FileWatcherException("Termination timed out");
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_initializeRunLoop0(JNIEnv* env, jobject, jobject javaServer) {
+    try {
+        AbstractServer* server = getServer(env, javaServer);
+        server->initializeRunLoop();
+    } catch (const exception& e) {
+        rethrowAsJavaException(env, e);
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_executeRunLoop0(JNIEnv* env, jobject, jobject javaServer) {
+    try {
+        AbstractServer* server = getServer(env, javaServer);
+        server->executeRunLoop(env);
+    } catch (const exception& e) {
+        rethrowAsJavaException(env, e);
+    }
 }
 
 JNIEXPORT void JNICALL
@@ -178,7 +157,7 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
         AbstractServer* server = getServer(env, javaServer);
         vector<u16string> paths;
         javaToUtf16StringArray(env, javaPaths, paths);
-        server->executeOnThread(shared_ptr<Command>(new RegisterPathsCommand(paths)));
+        server->registerPaths(paths);
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
     }
@@ -190,7 +169,7 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
         AbstractServer* server = getServer(env, javaServer);
         vector<u16string> paths;
         javaToUtf16StringArray(env, javaPaths, paths);
-        return server->executeOnThread(shared_ptr<Command>(new UnregisterPathsCommand(paths)));
+        return server->unregisterPaths(paths);
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
         return false;
@@ -207,12 +186,16 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
     }
 }
 
-JNIEXPORT void JNICALL Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_invalidateLogLevelCache0(JNIEnv*, jobject) {
-    logging->invalidateLogLevelCache();
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_invalidateLogLevelCache0(JNIEnv* env, jobject) {
+    try {
+        logging->invalidateLogLevelCache();
+    } catch (const exception& e) {
+        rethrowAsJavaException(env, e);
+    }
 }
 
 NativePlatformJniConstants::NativePlatformJniConstants(JavaVM* jvm)
     : JniSupport(jvm)
-    , nativeExceptionClass(getThreadEnv(), "net/rubygrapefruit/platform/NativeException")
-    , nativeFileWatcherClass(getThreadEnv(), "net/rubygrapefruit/platform/internal/jni/AbstractFileEventFunctions$NativeFileWatcher") {
+    , nativeExceptionClass(getThreadEnv(), "net/rubygrapefruit/platform/NativeException") {
 }

@@ -41,26 +41,26 @@ Inotify::~Inotify() {
     close(fd);
 }
 
-Event::Event()
+TerminateEvent::TerminateEvent()
     : fd(eventfd(0, 0)) {
     if (fd == -1) {
         throw FileWatcherException("Couldn't register event source", errno);
     }
 }
-Event::~Event() {
+TerminateEvent::~TerminateEvent() {
     close(fd);
 }
 
-void Event::trigger() const {
+void TerminateEvent::trigger() const {
     const uint64_t increment = 1;
     write(fd, &increment, sizeof(increment));
 }
 
-void Event::consume() const {
+void TerminateEvent::consume() const {
     uint64_t counter;
     ssize_t bytesRead = read(fd, &counter, sizeof(counter));
     if (bytesRead == -1) {
-        throw FileWatcherException("Couldn't read from event notifier", errno);
+        throw FileWatcherException("Couldn't read from termination event notifier", errno);
     }
 }
 
@@ -68,24 +68,21 @@ Server::Server(JNIEnv* env, jobject watcherCallback)
     : AbstractServer(env, watcherCallback)
     , inotify(new Inotify()) {
     buffer.reserve(EVENT_BUFFER_SIZE);
-    startThread();
 }
 
-void Server::terminate() {
+void Server::terminateRunLoop() {
     logToJava(FINE, "Terminating", NULL);
-    terminated = true;
+    terminateEvent.trigger();
 }
 
 Server::~Server() {
-    executeOnThread(shared_ptr<Command>(new TerminateCommand()));
-    if (watcherThread.joinable()) {
-        watcherThread.join();
-    }
+    terminate();
 }
 
-void Server::runLoop(function<void(exception_ptr)> notifyStarted) {
-    notifyStarted(nullptr);
+void Server::initializeRunLoop() {
+}
 
+void Server::runLoop() {
     int forever = numeric_limits<int>::max();
 
     while (!terminated) {
@@ -98,7 +95,7 @@ void Server::runLoop(function<void(exception_ptr)> notifyStarted) {
 
 void Server::processQueues(int timeout) {
     struct pollfd fds[2];
-    fds[0].fd = processCommandsEvent.fd;
+    fds[0].fd = terminateEvent.fd;
     fds[1].fd = inotify->fd;
     fds[0].events = POLLIN;
     fds[1].events = POLLIN;
@@ -109,9 +106,10 @@ void Server::processQueues(int timeout) {
     }
 
     if (IS_SET(fds[0].revents, POLLIN)) {
-        processCommandsEvent.consume();
+        terminateEvent.consume();
         // Ignore counter, we only care about the notification itself
-        processCommands();
+        terminated = true;
+        return;
     }
 
     if (IS_SET(fds[1].revents, POLLIN)) {
@@ -145,6 +143,7 @@ void Server::handleEvents() {
                 break;
             default:
                 // Handle events
+                unique_lock<mutex> lock(mutationMutex);
                 JNIEnv* env = getThreadEnv();
                 logToJava(FINE, "Processing %d bytes worth of events", bytesRead);
                 int index = 0;
@@ -160,10 +159,6 @@ void Server::handleEvents() {
         }
         available -= bytesRead;
     }
-}
-
-void Server::processCommandsOnThread() {
-    processCommandsEvent.trigger();
 }
 
 void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
@@ -275,9 +270,7 @@ bool Server::unregisterPath(const u16string& path) {
 
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_startWatcher0(JNIEnv* env, jclass, jobject javaCallback) {
-    return wrapServer(env, [env, javaCallback]() {
-        return new Server(env, javaCallback);
-    });
+    return wrapServer(env, new Server(env, javaCallback));
 }
 
 #endif

@@ -60,61 +60,51 @@ WatchPoint::~WatchPoint() {
 // Server
 //
 
-void processCommandsCallback(void* info) {
-    Server* server = (Server*) info;
-    server->processCommands();
+void acceptTrigger(void*) {
+    // This does nothing, we just need a message source to keep the
+    // run loop alive when there are no watch points registered
 }
 
 Server::Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis)
     : AbstractServer(env, watcherCallback)
     , latencyInMillis(latencyInMillis) {
     CFRunLoopSourceContext context = {
-        0,                         // version;
-        (void*) this,              // info;
-        NULL,                      // retain()
-        NULL,                      // release()
-        NULL,                      // copyDescription()
-        NULL,                      // equal()
-        NULL,                      // hash()
-        NULL,                      // schedule()
-        NULL,                      // cancel()
-        processCommandsCallback    // perform()
+        0,               // version;
+        (void*) this,    // info;
+        NULL,            // retain()
+        NULL,            // release()
+        NULL,            // copyDescription()
+        NULL,            // equal()
+        NULL,            // hash()
+        NULL,            // schedule()
+        NULL,            // cancel()
+        acceptTrigger    // perform()
     };
     messageSource = CFRunLoopSourceCreate(
         kCFAllocatorDefault,    // allocator
         0,                      // index
         &context                // context
     );
-    startThread();
 }
 
 Server::~Server() {
-    executeOnThread(shared_ptr<Command>(new TerminateCommand()));
-    if (watcherThread.joinable()) {
-        watcherThread.join();
-    }
+    terminate();
+}
+
+void Server::initializeRunLoop() {
+    threadLoop = CFRunLoopGetCurrent();
+    CFRunLoopAddSource(threadLoop, messageSource, kCFRunLoopDefaultMode);
+}
+
+void Server::runLoop() {
+    CFRunLoopRun();
+
+    unique_lock<mutex> lock(mutationMutex);
+    watchPoints.clear();
     CFRelease(messageSource);
 }
 
-void Server::runLoop(function<void(exception_ptr)> notifyStarted) {
-    try {
-        threadLoop = CFRunLoopGetCurrent();
-        CFRunLoopAddSource(threadLoop, messageSource, kCFRunLoopDefaultMode);
-        notifyStarted(nullptr);
-    } catch (...) {
-        notifyStarted(current_exception());
-    }
-
-    CFRunLoopRun();
-}
-
-void Server::processCommandsOnThread() {
-    CFRunLoopSourceSignal(messageSource);
-    CFRunLoopWakeUp(threadLoop);
-}
-
-void Server::terminate() {
-    watchPoints.clear();
+void Server::terminateRunLoop() {
     CFRunLoopStop(threadLoop);
 }
 
@@ -202,9 +192,7 @@ bool Server::unregisterPath(const u16string& path) {
 
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatcher0(JNIEnv* env, jclass, long latencyInMillis, jobject javaCallback) {
-    return wrapServer(env, [env, javaCallback, latencyInMillis]() {
-        return new Server(env, javaCallback, latencyInMillis);
-    });
+    return wrapServer(env, new Server(env, javaCallback, latencyInMillis));
 }
 
 #endif
