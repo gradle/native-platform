@@ -163,7 +163,7 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
         ? ""
         : event->name;
     logToJava(FINE, "Event mask: 0x%x for %s (wd = %d, cookie = 0x%x, len = %d)", mask, eventName, event->wd, event->cookie, event->len);
-    if (IS_ANY_SET(mask, IN_UNMOUNT)) {
+    if (IS_SET(mask, IN_UNMOUNT)) {
         return;
     }
 
@@ -207,9 +207,9 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
     FileWatchEventType type;
     const u16string name = utf8ToUtf16String(eventName);
     // TODO How to handle MOVE_SELF?
-    if (IS_ANY_SET(mask, IN_CREATE | IN_MOVED_TO)) {
+    if (IS_SET(mask, IN_CREATE | IN_MOVED_TO)) {
         type = CREATED;
-    } else if (IS_ANY_SET(mask, IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM)) {
+    } else if (IS_SET(mask, IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM)) {
         type = REMOVED;
     } else if (IS_SET(mask, IN_MODIFY)) {
         type = MODIFIED;

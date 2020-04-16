@@ -136,7 +136,7 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
     FileWatchEventType type;
     if (IS_SET(flags, kFSEventStreamEventFlagHistoryDone)) {
         return;
-    } else if (IS_ANY_SET(flags,
+    } else if (IS_SET(flags,
                    kFSEventStreamEventFlagRootChanged
                        | kFSEventStreamEventFlagMount
                        | kFSEventStreamEventFlagUnmount
@@ -152,7 +152,7 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
         type = MODIFIED;
     } else if (IS_SET(flags, kFSEventStreamEventFlagItemRemoved)) {
         type = REMOVED;
-    } else if (IS_ANY_SET(flags,
+    } else if (IS_SET(flags,
                    kFSEventStreamEventFlagItemInodeMetaMod    // file locked
                        | kFSEventStreamEventFlagItemFinderInfoMod
                        | kFSEventStreamEventFlagItemChangeOwner
