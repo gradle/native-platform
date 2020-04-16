@@ -18,6 +18,7 @@ package net.rubygrapefruit.platform.file
 
 import groovy.transform.Memoized
 import net.rubygrapefruit.platform.Native
+import net.rubygrapefruit.platform.file.FileWatchEvent.Type
 import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.AbstractFileEventFunctions
 import net.rubygrapefruit.platform.internal.jni.LinuxFileEventFunctions
@@ -260,11 +261,11 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     }
 
     private class ExpectedChange implements ExpectedEvent {
-        private final FileWatchEvent.Type type
+        private final Type type
         private final File file
         final boolean optional
 
-        ExpectedChange(FileWatchEvent.Type type, File file, boolean optional) {
+        ExpectedChange(Type type, File file, boolean optional) {
             this.type = type
             this.file = file
             this.optional = optional
@@ -292,7 +293,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
         @Override
         boolean matches(FileWatchEvent event) {
-            event.type == FileWatchEvent.Type.FAILURE \
+            event.type == Type.FAILURE \
                 && type.isInstance(event.failure) \
                 && message.matcher(event.failure.message).matches()
         }
@@ -414,11 +415,11 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             : path
     }
 
-    protected ExpectedEvent change(FileWatchEvent.Type type, File file) {
+    protected ExpectedEvent change(Type type, File file) {
         new ExpectedChange(type, file, false)
     }
 
-    protected ExpectedEvent optionalChange(FileWatchEvent.Type type, File file) {
+    protected ExpectedEvent optionalChange(Type type, File file) {
         return new ExpectedChange(type, file, true)
     }
 
