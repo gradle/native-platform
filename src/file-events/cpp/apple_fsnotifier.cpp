@@ -133,7 +133,7 @@ void Server::handleEvents(
 void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags) {
     logToJava(FINE, "Event flags: 0x%x for '%s'", flags, path);
 
-    jint type;
+    FileWatchEventType type;
     if (IS_SET(flags, kFSEventStreamEventFlagHistoryDone)) {
         return;
     } else if (IS_ANY_SET(flags,
@@ -141,28 +141,28 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
                        | kFSEventStreamEventFlagMount
                        | kFSEventStreamEventFlagUnmount
                        | kFSEventStreamEventFlagMustScanSubDirs)) {
-        type = FILE_EVENT_INVALIDATE;
+        type = INVALIDATE;
     } else if (IS_SET(flags, kFSEventStreamEventFlagItemRenamed)) {
         if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
-            type = FILE_EVENT_REMOVED;
+            type = REMOVED;
         } else {
-            type = FILE_EVENT_CREATED;
+            type = CREATED;
         }
     } else if (IS_SET(flags, kFSEventStreamEventFlagItemModified)) {
-        type = FILE_EVENT_MODIFIED;
+        type = MODIFIED;
     } else if (IS_SET(flags, kFSEventStreamEventFlagItemRemoved)) {
-        type = FILE_EVENT_REMOVED;
+        type = REMOVED;
     } else if (IS_ANY_SET(flags,
                    kFSEventStreamEventFlagItemInodeMetaMod    // file locked
                        | kFSEventStreamEventFlagItemFinderInfoMod
                        | kFSEventStreamEventFlagItemChangeOwner
                        | kFSEventStreamEventFlagItemXattrMod)) {
-        type = FILE_EVENT_MODIFIED;
+        type = MODIFIED;
     } else if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
-        type = FILE_EVENT_CREATED;
+        type = CREATED;
     } else {
         logToJava(WARNING, "Unknown event 0x%x for %s", flags, path);
-        type = FILE_EVENT_UNKNOWN;
+        type = UNKNOWN;
     }
 
     u16string pathStr = utf8ToUtf16String(path);

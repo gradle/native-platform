@@ -134,7 +134,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
     try {
         if (errorCode != ERROR_SUCCESS) {
             if (errorCode == ERROR_ACCESS_DENIED && !watchPoint->isValidDirectory()) {
-                reportChange(env, FILE_EVENT_REMOVED, path);
+                reportChange(env, REMOVED, path);
             } else {
                 throw FileWatcherException("Error received when handling events", path, errorCode);
             }
@@ -149,7 +149,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
         if (bytesTransferred == 0) {
             // Got a buffer overflow => current changes lost => send INVALIDATE on root
             logToJava(INFO, "Detected overflow for %s", utf16ToUtf8String(path).c_str());
-            reportChange(env, FILE_EVENT_INVALIDATE, path);
+            reportChange(env, INVALIDATE, path);
         } else {
             int index = 0;
             for (;;) {
@@ -166,7 +166,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
             case SUCCESS:
                 break;
             case DELETED:
-                reportChange(env, FILE_EVENT_REMOVED, path);
+                reportChange(env, REMOVED, path);
                 break;
         }
     } catch (const exception& ex) {
@@ -243,16 +243,16 @@ void Server::handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMA
 
     logToJava(FINE, "Change detected: 0x%x '%s'", info->Action, utf16ToUtf8String(changedPath).c_str());
 
-    jint type;
+    FileWatchEventType type;
     if (info->Action == FILE_ACTION_ADDED || info->Action == FILE_ACTION_RENAMED_NEW_NAME) {
-        type = FILE_EVENT_CREATED;
+        type = CREATED;
     } else if (info->Action == FILE_ACTION_REMOVED || info->Action == FILE_ACTION_RENAMED_OLD_NAME) {
-        type = FILE_EVENT_REMOVED;
+        type = REMOVED;
     } else if (info->Action == FILE_ACTION_MODIFIED) {
-        type = FILE_EVENT_MODIFIED;
+        type = MODIFIED;
     } else {
         logToJava(WARNING, "Unknown event 0x%x for %s", info->Action, utf16ToUtf8String(changedPath).c_str());
-        type = FILE_EVENT_UNKNOWN;
+        type = UNKNOWN;
     }
 
     reportChange(env, type, changedPath);

@@ -171,7 +171,7 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
     if (IS_SET(mask, IN_Q_OVERFLOW)) {
         for (auto it : watchPoints) {
             auto path = it.first;
-            reportChange(env, FILE_EVENT_INVALIDATE, path);
+            reportChange(env, INVALIDATE, path);
         }
         return;
     }
@@ -204,17 +204,17 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
         return;
     }
 
-    int type;
+    FileWatchEventType type;
     const u16string name = utf8ToUtf16String(eventName);
     // TODO How to handle MOVE_SELF?
     if (IS_ANY_SET(mask, IN_CREATE | IN_MOVED_TO)) {
-        type = FILE_EVENT_CREATED;
+        type = CREATED;
     } else if (IS_ANY_SET(mask, IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM)) {
-        type = FILE_EVENT_REMOVED;
+        type = REMOVED;
     } else if (IS_SET(mask, IN_MODIFY)) {
-        type = FILE_EVENT_MODIFIED;
+        type = MODIFIED;
     } else {
-        type = FILE_EVENT_UNKNOWN;
+        type = UNKNOWN;
     }
 
     if (!name.empty()) {
