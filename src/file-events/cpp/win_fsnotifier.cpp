@@ -147,7 +147,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
         }
 
         if (bytesTransferred == 0) {
-            // This is what the documentation has to says about a zero-length dataset:
+            // This is what the documentation has to say about a zero-length dataset:
             //
             //     If the number of bytes transferred is zero, the buffer was either too large
             //     for the system to allocate or too small to provide detailed information on
@@ -175,6 +175,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
             case SUCCESS:
                 break;
             case DELETED:
+                logToJava(FINE, "Watched directory removed for %s", utf16ToUtf8String(path).c_str());
                 reportChange(env, REMOVED, path);
                 break;
         }
