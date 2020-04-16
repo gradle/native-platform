@@ -731,15 +731,15 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         "waiting for log level cache to time out" | { Thread.sleep(1500) }
     }
 
-    @Ignore
     def "jvm does not crash when event queue is blocked"() {
+        given:
         def watchedDir = new File(rootDir, "watched")
         def secondWatchedDir = new File(rootDir, "secondWatched")
         watchedDir.mkdirs()
         def blockedQueue = new ArrayBlockingQueue(1)
+        def watcher = startNewWatcher(blockedQueue, watchedDir)
 
         when:
-        startWatcher(blockedQueue, watchedDir)
         new File(watchedDir, "first").text = "first"
         new File(watchedDir, "second").text = "second"
         new File(watchedDir, "third").text = "third"
@@ -750,8 +750,17 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         when:
         watcher.startWatching(secondWatchedDir)
+
+        then:
+        noExceptionThrown()
+
+        when:
+        watcher.close()
+
         then:
         def exception = thrown(NativeException)
-        exception.message == "Command execution timed out"
+        exception.message == "Termination timed out"
+
+        expectLogMessage(SEVERE, "Caught exception: Termination timed out")
     }
 }
