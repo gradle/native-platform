@@ -47,6 +47,11 @@ public interface FileWatcherCallback {
         INVALIDATE,
 
         /**
+         * An overflow happened, all information about descendants must be discarded.
+         */
+        OVERFLOWED,
+
+        /**
          * An unknown event happened to the given path or some of its descendants,
          * discard all information about the file system.
          */

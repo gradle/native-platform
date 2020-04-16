@@ -171,7 +171,7 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
     if (IS_SET(mask, IN_Q_OVERFLOW)) {
         for (auto it : watchPoints) {
             auto path = it.first;
-            reportChange(env, INVALIDATE, path);
+            reportChange(env, OVERFLOWED, path);
         }
         return;
     }

@@ -139,9 +139,10 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
     } else if (IS_SET(flags,
                    kFSEventStreamEventFlagRootChanged
                        | kFSEventStreamEventFlagMount
-                       | kFSEventStreamEventFlagUnmount
-                       | kFSEventStreamEventFlagMustScanSubDirs)) {
+                       | kFSEventStreamEventFlagUnmount)) {
         type = INVALIDATE;
+    } else if (IS_SET(flags, kFSEventStreamEventFlagMustScanSubDirs)) {
+        type = OVERFLOWED;
     } else if (IS_SET(flags, kFSEventStreamEventFlagItemRenamed)) {
         if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
             type = REMOVED;

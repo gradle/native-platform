@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit
 
 import static java.util.concurrent.TimeUnit.SECONDS
 import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
-import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.INVALIDATE
+import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.OVERFLOWED
 
 @Ignore("Flaky")
 @Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
@@ -84,7 +84,7 @@ class FileEventFunctionsOverflowTest extends AbstractFileEventFunctionsTest {
         expectEvents(eventQueue, timeoutValue, timeoutUnit, { -> true }, { event ->
             if (event == null) {
                 return false
-            } else if (event.type == INVALIDATE) {
+            } else if (event.type == OVERFLOWED) {
                 overflow = true
             }
             return true

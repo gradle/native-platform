@@ -147,9 +147,9 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
         }
 
         if (bytesTransferred == 0) {
-            // Got a buffer overflow => current changes lost => send INVALIDATE on root
+            // Got a buffer overflow => current changes lost => send OVERFLOWED on root
             logToJava(INFO, "Detected overflow for %s", utf16ToUtf8String(path).c_str());
-            reportChange(env, INVALIDATE, path);
+            reportChange(env, OVERFLOWED, path);
         } else {
             int index = 0;
             for (;;) {
