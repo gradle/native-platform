@@ -32,7 +32,6 @@ private:
 class Server : public AbstractServer {
 public:
     Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis);
-    ~Server();
 
     // TODO This should be private
     void handleEvents(

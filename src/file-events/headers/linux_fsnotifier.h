@@ -50,7 +50,6 @@ private:
 class Server : public AbstractServer {
 public:
     Server(JNIEnv* env, jobject watcherCallback);
-    ~Server();
 
 protected:
     void initializeRunLoop() override;

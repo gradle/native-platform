@@ -75,10 +75,6 @@ void Server::terminateRunLoop() {
     terminateEvent.trigger();
 }
 
-Server::~Server() {
-    terminate();
-}
-
 void Server::initializeRunLoop() {
 }
 

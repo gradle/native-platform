@@ -61,7 +61,6 @@ private:
 class Server : public AbstractServer {
 public:
     Server(JNIEnv* env, size_t bufferSize, jobject watcherCallback);
-    ~Server();
 
     void handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& buffer, DWORD bytesTransferred);
     bool executeOnRunLoop(function<bool()> command);
