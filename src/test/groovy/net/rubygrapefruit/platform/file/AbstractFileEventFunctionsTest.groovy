@@ -38,7 +38,6 @@ import spock.lang.Timeout
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
 import java.util.function.BooleanSupplier
 import java.util.function.Predicate
 import java.util.logging.Level
@@ -340,7 +339,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     private void ensureNoMoreEvents(BlockingQueue<FileWatchEvent> eventQueue = this.eventQueue) {
         def event = eventQueue.poll()
         if (event != null) {
-            throw new RuntimeException("Unexpected event ${event.type} ${shorten(event.path)}")
+            throw new RuntimeException("Unexpected event ${shorten(event)}")
         }
     }
 
@@ -355,35 +354,53 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         expectEvents(eventQueue, timeoutValue, timeoutUnit, events as List)
     }
 
-    protected void expectEvents(BlockingQueue<FileWatchEvent> eventQueue = this.eventQueue, int timeoutValue = 1, TimeUnit timeoutUnit = SECONDS, List<ExpectedEvent> events) {
-        events.each { event ->
-            LOGGER.info("> Expecting $event")
+    protected void expectEvents(BlockingQueue<FileWatchEvent> eventQueue = this.eventQueue, int timeoutValue = 1, TimeUnit timeoutUnit = SECONDS, List<ExpectedEvent> expectedEvents) {
+        expectedEvents.each { expectedEvent ->
+            LOGGER.info("> Expecting $expectedEvent")
         }
-        def expectedEvents = new ArrayList<ExpectedEvent>(events)
+        def remainingExpectedEvents = new ArrayList<ExpectedEvent>(expectedEvents)
+        def matchedEvents = new ArrayList<FileWatchEvent>()
+        def unexpectedEvents = new ArrayList<FileWatchEvent>()
         expectEvents(
             eventQueue,
             timeoutValue,
             timeoutUnit,
-            { !expectedEvents.empty },
+            { !remainingExpectedEvents.empty },
             { event ->
                 if (event == null) {
-                    if (expectedEvents.every { it.optional }) {
-                        return false
-                    } else {
-                        throw new TimeoutException("Did not receive events in $timeoutValue ${timeoutUnit.name().toLowerCase()}:\n- " + expectedEvents.join("\n- "))
-                    }
+                    return false
                 }
                 LOGGER.info("> Received $event")
-                def expectedEventIndex = expectedEvents.findIndexOf { expected ->
-                    expected.matches(event)
+                def expectedEventIndex = remainingExpectedEvents.findIndexOf { expectedEvent ->
+                    expectedEvent.matches(event)
                 }
                 if (expectedEventIndex == -1) {
-                    throw new RuntimeException("Unexpected event $event")
+                    unexpectedEvents << event
+                } else {
+                    remainingExpectedEvents.remove(expectedEventIndex)
+                    matchedEvents << event
                 }
-                expectedEvents.remove(expectedEventIndex)
                 return true
             })
+        Assert.that(
+            remainingExpectedEvents.every { it.optional } && unexpectedEvents.empty,
+            createEventFailure(unexpectedEvents, remainingExpectedEvents, matchedEvents)
+        )
         ensureNoMoreEvents(eventQueue)
+    }
+
+    private String createEventFailure(List<FileWatchEvent> unexpectedEvents, List<ExpectedEvent> remainingExpectedEvents, List<FileWatchEvent> matchedEvents) {
+        String failure = "Events received differ from expected:\n"
+        unexpectedEvents.each { event ->
+            failure += " - UNEXPECTED ${shorten(event)}\n"
+        }
+        remainingExpectedEvents.each { event ->
+            failure += " - MISSING    $event\n"
+        }
+        matchedEvents.each { event ->
+            failure += " - MATCHED    ${shorten(event)}\n"
+        }
+        return failure
     }
 
     protected void expectEvents(
@@ -405,11 +422,15 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         }
     }
 
-    private String shorten(File file) {
+    protected String shorten(FileWatchEvent event) {
+        return event.type.name() + " " + shorten(String.valueOf(event.path))
+    }
+
+    protected String shorten(File file) {
         shorten(file.absolutePath)
     }
 
-    private String shorten(String path) {
+    protected String shorten(String path) {
         def prefix = testDir.absolutePath
         return path.startsWith(prefix + File.separator)
             ? "..." + path.substring(prefix.length())
