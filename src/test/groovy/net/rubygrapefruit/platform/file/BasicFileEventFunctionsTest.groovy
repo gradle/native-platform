@@ -731,15 +731,13 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         "waiting for log level cache to time out" | { Thread.sleep(1500) }
     }
 
-    def "jvm does not crash when event queue is blocked"() {
+    def "handles Java-side event queue overflowing"() {
         given:
-        def watchedDir = new File(rootDir, "watched")
-        def secondWatchedDir = new File(rootDir, "secondWatched")
-        watchedDir.mkdirs()
         def singleElementQueue = new ArrayBlockingQueue<FileWatchEvent>(1)
-        def watcher = startNewWatcher(singleElementQueue, watchedDir)
-        def firstFile = new File(watchedDir, "first.txt")
-        def secondFile = new File(watchedDir, "second.txt")
+        def firstFile = new File(rootDir, "first.txt")
+        def secondFile = new File(rootDir, "second.txt")
+
+        startWatcher(singleElementQueue, rootDir)
 
         when:
         createNewFile(firstFile)
@@ -754,19 +752,19 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         waitForChangeEventLatency()
 
         then:
-        singleElementQueue.peek().type == OVERFLOWED
+        // We still have the notification in there about the first file
+        singleElementQueue.peek().type == CREATED
+        singleElementQueue.peek().path == firstFile.absolutePath
 
         when:
-        watcher.startWatching(secondWatchedDir)
+        // Wait for the next event to time out and be replaced with an overflow event
+        Thread.sleep(1000)
 
         then:
-        noExceptionThrown()
-
-        when:
-        watcher.close()
+        singleElementQueue.poll().type == OVERFLOWED
 
         then:
-        noExceptionThrown()
+        singleElementQueue.empty
 
         expectLogMessage(INFO, "Event queue overflow, dropping all events")
     }

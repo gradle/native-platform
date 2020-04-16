@@ -12,6 +12,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+
 public abstract class AbstractFileEventFunctions implements NativeIntegration {
     public static String getVersion() {
         return getVersion0();
@@ -76,8 +78,9 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
         }
 
         private void queueEvent(FileWatchEvent event, boolean deliverOnOverflow) throws InterruptedException {
-            // TODO Add some timeout here
-            if (!eventQueue.offer(event)) {
+            // TODO Make the timeout configurable
+            if (!eventQueue.offer(event, 1, SECONDS)) {
+                NativeLogger.LOGGER.info("Event queue overflow, dropping all events");
                 signalOverflow();
                 if (deliverOnOverflow) {
                     eventQueue.put(event);
@@ -86,7 +89,6 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
         }
 
         private void signalOverflow() throws InterruptedException {
-            NativeLogger.LOGGER.info("Event queue overflow, dropping all events");
             eventQueue.clear();
             eventQueue.put(new ChangeEvent(FileWatchEvent.Type.OVERFLOWED, null));
         }
@@ -111,7 +113,7 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
             this.processorThread.setDaemon(true);
             this.processorThread.start();
             // TODO Parametrize this
-            runLoopInitialized.await(5, TimeUnit.SECONDS);
+            runLoopInitialized.await(5, SECONDS);
         }
 
         private native void initializeRunLoop0(Object server);
@@ -151,7 +153,7 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
             processorThread.interrupt();
             // TODO Parametrize timeout here
             try {
-                processorThread.join(TimeUnit.SECONDS.toMillis(5));
+                processorThread.join(SECONDS.toMillis(5));
             } catch (InterruptedException e) {
                 throw new InterruptedIOException(e.getMessage());
             }
