@@ -286,10 +286,6 @@ void Server::terminateRunLoop() {
     });
 }
 
-Server::~Server() {
-    terminate();
-}
-
 void Server::runLoop() {
     while (!terminated) {
         SleepEx(INFINITE, true);

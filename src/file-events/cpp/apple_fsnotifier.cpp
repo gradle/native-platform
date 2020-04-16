@@ -87,10 +87,6 @@ Server::Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis)
     );
 }
 
-Server::~Server() {
-    terminate();
-}
-
 void Server::initializeRunLoop() {
     threadLoop = CFRunLoopGetCurrent();
     CFRunLoopAddSource(threadLoop, messageSource, kCFRunLoopDefaultMode);

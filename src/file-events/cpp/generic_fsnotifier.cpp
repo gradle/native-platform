@@ -180,6 +180,7 @@ JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_close0(JNIEnv* env, jobject, jobject javaServer) {
     try {
         AbstractServer* server = getServer(env, javaServer);
+        server->terminate();
         delete server;
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
