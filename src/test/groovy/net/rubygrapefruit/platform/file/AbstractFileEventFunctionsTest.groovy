@@ -278,7 +278,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
         @Override
         String toString() {
-            return "${optional ? "optional " : ""}$type ${shorten(file)}"
+            return "${optional ? "optional " : ""}$type ${file == null ? null : shorten(file)}"
         }
     }
 
@@ -373,6 +373,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
                         throw new TimeoutException("Did not receive events in $timeoutValue ${timeoutUnit.name().toLowerCase()}:\n- " + expectedEvents.join("\n- "))
                     }
                 }
+                LOGGER.info("> Received $event")
                 def expectedEventIndex = expectedEvents.findIndexOf { expected ->
                     expected.matches(event)
                 }
