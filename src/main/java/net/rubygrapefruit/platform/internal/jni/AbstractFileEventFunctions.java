@@ -62,13 +62,33 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
         @SuppressWarnings("unused")
         public void pathChanged(int typeIndex, String path) throws InterruptedException {
             FileWatchEvent.Type type = FileWatchEvent.Type.values()[typeIndex];
-            eventQueue.put(new ChangeEvent(type, path));
+            if (type == FileWatchEvent.Type.OVERFLOWED) {
+                signalOverflow();
+            } else {
+                queueEvent(new ChangeEvent(type, path), false);
+            }
         }
 
         // Called from the native side
         @SuppressWarnings("unused")
         public void reportError(Throwable ex) throws InterruptedException {
-            eventQueue.put(new ErrorEvent(ex));
+            queueEvent(new ErrorEvent(ex), true);
+        }
+
+        private void queueEvent(FileWatchEvent event, boolean deliverOnOverflow) throws InterruptedException {
+            // TODO Add some timeout here
+            if (!eventQueue.offer(event)) {
+                signalOverflow();
+                if (deliverOnOverflow) {
+                    eventQueue.put(event);
+                }
+            }
+        }
+
+        private void signalOverflow() throws InterruptedException {
+            NativeLogger.LOGGER.info("Event queue overflow, dropping all events");
+            eventQueue.clear();
+            eventQueue.put(new ChangeEvent(FileWatchEvent.Type.OVERFLOWED, null));
         }
     }
 

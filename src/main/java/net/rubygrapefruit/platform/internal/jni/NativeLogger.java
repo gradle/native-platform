@@ -6,7 +6,7 @@ import java.util.logging.Logger;
 // Used from native
 @SuppressWarnings("unused")
 public class NativeLogger {
-    private static final Logger LOGGER = Logger.getLogger(NativeLogger.class.getName());
+    static final Logger LOGGER = Logger.getLogger(NativeLogger.class.getName());
 
     enum LogLevel {
         FINEST(Level.FINEST),

@@ -20,7 +20,6 @@ import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.AbstractFileEventFunctions
 import net.rubygrapefruit.platform.internal.jni.NativeLogger
 import org.junit.Assume
-import spock.lang.Ignore
 import spock.lang.IgnoreIf
 import spock.lang.Requires
 import spock.lang.Unroll
@@ -37,6 +36,7 @@ import static java.util.logging.Level.WARNING
 import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.CREATED
 import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.INVALIDATED
 import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.MODIFIED
+import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.OVERFLOWED
 import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.REMOVED
 
 @Unroll
@@ -736,17 +736,25 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         def watchedDir = new File(rootDir, "watched")
         def secondWatchedDir = new File(rootDir, "secondWatched")
         watchedDir.mkdirs()
-        def blockedQueue = new ArrayBlockingQueue(1)
-        def watcher = startNewWatcher(blockedQueue, watchedDir)
+        def singleElementQueue = new ArrayBlockingQueue<FileWatchEvent>(1)
+        def watcher = startNewWatcher(singleElementQueue, watchedDir)
+        def firstFile = new File(watchedDir, "first.txt")
+        def secondFile = new File(watchedDir, "second.txt")
 
         when:
-        new File(watchedDir, "first").text = "first"
-        new File(watchedDir, "second").text = "second"
-        new File(watchedDir, "third").text = "third"
+        createNewFile(firstFile)
         waitForChangeEventLatency()
 
         then:
-        blockedQueue.remainingCapacity() == 0
+        singleElementQueue.peek().type == CREATED
+        singleElementQueue.peek().path == firstFile.absolutePath
+
+        when:
+        createNewFile(secondFile)
+        waitForChangeEventLatency()
+
+        then:
+        singleElementQueue.peek().type == OVERFLOWED
 
         when:
         watcher.startWatching(secondWatchedDir)
@@ -758,9 +766,8 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         watcher.close()
 
         then:
-        def exception = thrown(NativeException)
-        exception.message == "Termination timed out"
+        noExceptionThrown()
 
-        expectLogMessage(SEVERE, "Caught exception: Termination timed out")
+        expectLogMessage(INFO, "Event queue overflow, dropping all events")
     }
 }
