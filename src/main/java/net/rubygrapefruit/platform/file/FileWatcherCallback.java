@@ -44,7 +44,7 @@ public interface FileWatcherCallback {
          * Some undisclosed changes happened under the given path,
          * all information about descendants must be discarded.
          */
-        INVALIDATE,
+        INVALIDATED,
 
         /**
          * An overflow happened, all information about descendants must be discarded.

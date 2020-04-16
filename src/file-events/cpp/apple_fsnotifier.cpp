@@ -140,7 +140,7 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
                    kFSEventStreamEventFlagRootChanged
                        | kFSEventStreamEventFlagMount
                        | kFSEventStreamEventFlagUnmount)) {
-        type = INVALIDATE;
+        type = INVALIDATED;
     } else if (IS_SET(flags, kFSEventStreamEventFlagMustScanSubDirs)) {
         type = OVERFLOWED;
     } else if (IS_SET(flags, kFSEventStreamEventFlagItemRenamed)) {
