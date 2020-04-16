@@ -730,42 +730,4 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         "invalidating the log level cache"        | { AbstractFileEventFunctions service -> service.invalidateLogLevelCache() }
         "waiting for log level cache to time out" | { Thread.sleep(1500) }
     }
-
-    def "handles Java-side event queue overflowing"() {
-        given:
-        def singleElementQueue = new ArrayBlockingQueue<FileWatchEvent>(1)
-        def firstFile = new File(rootDir, "first.txt")
-        def secondFile = new File(rootDir, "second.txt")
-
-        startWatcher(singleElementQueue, rootDir)
-
-        when:
-        createNewFile(firstFile)
-        waitForChangeEventLatency()
-
-        then:
-        singleElementQueue.peek().type == CREATED
-        singleElementQueue.peek().path == firstFile.absolutePath
-
-        when:
-        createNewFile(secondFile)
-        waitForChangeEventLatency()
-
-        then:
-        // We still have the notification in there about the first file
-        singleElementQueue.peek().type == CREATED
-        singleElementQueue.peek().path == firstFile.absolutePath
-
-        when:
-        // Wait for the next event to time out and be replaced with an overflow event
-        Thread.sleep(1000)
-
-        then:
-        singleElementQueue.poll().type == OVERFLOWED
-
-        then:
-        singleElementQueue.empty
-
-        expectLogMessage(INFO, "Event queue overflow, dropping all events")
-    }
 }
