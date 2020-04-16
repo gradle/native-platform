@@ -27,8 +27,7 @@ enum FileWatchEventType {
     UNKNOWN
 };
 
-#define IS_SET(flags, flag) (((flags) & (flag)) == (flag))
-#define IS_ANY_SET(flags, mask) (((flags) & (mask)) != 0)
+#define IS_SET(flags, mask) (((flags) & (mask)) != 0)
 
 #define THREAD_TIMEOUT (chrono::seconds(5))
 
