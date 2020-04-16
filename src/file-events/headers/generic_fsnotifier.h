@@ -19,11 +19,13 @@
 using namespace std;
 
 // Corresponds to values of FileWatcherCallback.Type
-#define FILE_EVENT_CREATED 0
-#define FILE_EVENT_REMOVED 1
-#define FILE_EVENT_MODIFIED 2
-#define FILE_EVENT_INVALIDATE 3
-#define FILE_EVENT_UNKNOWN 4
+enum FileWatchEventType {
+    CREATED,
+    REMOVED,
+    MODIFIED,
+    INVALIDATE,
+    UNKNOWN
+};
 
 #define IS_SET(flags, flag) (((flags) & (flag)) == (flag))
 #define IS_ANY_SET(flags, mask) (((flags) & (mask)) != 0)
@@ -91,7 +93,7 @@ protected:
     virtual bool unregisterPath(const u16string& path) = 0;
     virtual void terminateRunLoop() = 0;
 
-    void reportChange(JNIEnv* env, int type, const u16string& path);
+    void reportChange(JNIEnv* env, FileWatchEventType type, const u16string& path);
     void reportError(JNIEnv* env, const exception& ex);
 
     mutex mutationMutex;

@@ -55,7 +55,7 @@ AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback)
 AbstractServer::~AbstractServer() {
 }
 
-void AbstractServer::reportChange(JNIEnv* env, int type, const u16string& path) {
+void AbstractServer::reportChange(JNIEnv* env, FileWatchEventType type, const u16string& path) {
     jstring javaPath = env->NewString((jchar*) path.c_str(), (jsize) path.length());
     env->CallVoidMethod(watcherCallback.get(), watcherCallbackMethod, type, javaPath);
     env->DeleteLocalRef(javaPath);
