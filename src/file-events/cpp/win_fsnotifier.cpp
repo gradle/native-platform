@@ -279,9 +279,9 @@ Server::Server(JNIEnv* env, size_t bufferSize, jobject watcherCallback)
 void Server::initializeRunLoop() {
     // TODO For some reason GetCurrentThread() returns a thread that doesn't accept APCs
     threadHandle = OpenThread(
-        THREAD_ALL_ACCESS,
-        false,
-        GetCurrentThreadId()
+        THREAD_ALL_ACCESS,      // dwDesiredAccess
+        false,                  // bInheritHandle
+        GetCurrentThreadId()    // dwThreadId
     );
     if (threadHandle == NULL) {
         throw FileWatcherException("Couldn't open current thread", GetLastError());
