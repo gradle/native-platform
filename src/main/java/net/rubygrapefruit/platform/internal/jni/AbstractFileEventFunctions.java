@@ -65,7 +65,7 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
         public void pathChanged(int typeIndex, String path) throws InterruptedException {
             FileWatchEvent.Type type = FileWatchEvent.Type.values()[typeIndex];
             if (type == FileWatchEvent.Type.OVERFLOWED) {
-                signalOverflow();
+                signalOverflow(path);
             } else {
                 queueEvent(new ChangeEvent(type, path), false);
             }
@@ -81,16 +81,16 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
             // TODO Make the timeout configurable
             if (!eventQueue.offer(event, 1, SECONDS)) {
                 NativeLogger.LOGGER.info("Event queue overflow, dropping all events");
-                signalOverflow();
+                signalOverflow(null);
                 if (deliverOnOverflow) {
                     eventQueue.put(event);
                 }
             }
         }
 
-        private void signalOverflow() throws InterruptedException {
+        private void signalOverflow(@Nullable String path) throws InterruptedException {
             eventQueue.clear();
-            eventQueue.put(new ChangeEvent(FileWatchEvent.Type.OVERFLOWED, null));
+            eventQueue.put(new ChangeEvent(FileWatchEvent.Type.OVERFLOWED, path));
         }
     }
 
