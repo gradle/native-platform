@@ -359,7 +359,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             LOGGER.info("> Expecting $expectedEvent")
         }
         def remainingExpectedEvents = new ArrayList<ExpectedEvent>(expectedEvents)
-        def matchedEvents = new ArrayList<FileWatchEvent>()
+        def receivedEvents = new ArrayList<FileWatchEvent>()
         def unexpectedEvents = new ArrayList<FileWatchEvent>()
         expectEvents(
             eventQueue,
@@ -378,18 +378,18 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
                     unexpectedEvents << event
                 } else {
                     remainingExpectedEvents.remove(expectedEventIndex)
-                    matchedEvents << event
+                    receivedEvents << event
                 }
                 return true
             })
         Assert.that(
             remainingExpectedEvents.every { it.optional } && unexpectedEvents.empty,
-            createEventFailure(unexpectedEvents, remainingExpectedEvents, matchedEvents)
+            createEventFailure(unexpectedEvents, remainingExpectedEvents, receivedEvents)
         )
         ensureNoMoreEvents(eventQueue)
     }
 
-    private String createEventFailure(List<FileWatchEvent> unexpectedEvents, List<ExpectedEvent> remainingExpectedEvents, List<FileWatchEvent> matchedEvents) {
+    private String createEventFailure(List<FileWatchEvent> unexpectedEvents, List<ExpectedEvent> remainingExpectedEvents, List<FileWatchEvent> receivedEvents) {
         String failure = "Events received differ from expected:\n"
         unexpectedEvents.each { event ->
             failure += " - UNEXPECTED ${shorten(event)}\n"
@@ -397,8 +397,8 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         remainingExpectedEvents.each { event ->
             failure += " - MISSING    $event\n"
         }
-        matchedEvents.each { event ->
-            failure += " - MATCHED    ${shorten(event)}\n"
+        receivedEvents.each { event ->
+            failure += " - RECEIVED   ${shorten(event)}\n"
         }
         return failure
     }
