@@ -23,7 +23,6 @@ import spock.lang.Timeout
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 
 import static java.util.concurrent.TimeUnit.SECONDS
 import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.CREATED
@@ -89,7 +88,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
             def readyLatch = new CountDownLatch(numberOfThreads)
             def startModifyingLatch = new CountDownLatch(1)
             def inTheMiddleLatch = new CountDownLatch(numberOfThreads)
-            def watcher = startNewWatcher(new BlackHoleQueue<FileWatchEvent>())
+            def watcher = startNewWatcher()
             watchedDirectories.each { watchedDirectory ->
                 numberOfParallelWritersPerWatchedDirectory.times { index ->
                     executorService.submit({ ->
@@ -135,7 +134,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         List<File> watchedDirectories = createHierarchy(watchedDir, watchedDirectoryDepth)
 
         when:
-        def watcher = startNewWatcher(new BlackHoleQueue<FileWatchEvent>())
+        def watcher = startNewWatcher()
         watcher.startWatching(watchedDirectories as File[])
         waitForChangeEventLatency()
         assert rootDir.deleteDir()
@@ -155,7 +154,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         createHierarchy(watchedDir, watchedDirectoryDepth)
 
         when:
-        def watcher = startNewWatcher(new BlackHoleQueue<FileWatchEvent>())
+        def watcher = startNewWatcher()
         watcher.startWatching(watchedDir)
         waitForChangeEventLatency()
         assert watchedDir.deleteDir()
@@ -196,68 +195,6 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
             def dir = new File(rootDir, prefix + it)
             assert dir.mkdirs()
             return dir
-        }
-    }
-
-    private static class BlackHoleQueue<T> extends AbstractQueue<T> implements BlockingQueue<T> {
-
-        @Override
-        Iterator<T> iterator() {
-            throw new UnsupportedOperationException()
-        }
-
-        @Override
-        int size() {
-            throw new UnsupportedOperationException()
-        }
-
-        @Override
-        void put(T t) throws InterruptedException {
-        }
-
-        @Override
-        boolean offer(T t, long timeout, TimeUnit unit) throws InterruptedException {
-            return true
-        }
-
-        @Override
-        T take() throws InterruptedException {
-            throw new UnsupportedOperationException()
-        }
-
-        @Override
-        T poll(long timeout, TimeUnit unit) throws InterruptedException {
-            return null
-        }
-
-        @Override
-        int remainingCapacity() {
-            throw new UnsupportedOperationException()
-        }
-
-        @Override
-        int drainTo(Collection<? super T> c) {
-            throw new UnsupportedOperationException()
-        }
-
-        @Override
-        int drainTo(Collection<? super T> c, int maxElements) {
-            throw new UnsupportedOperationException()
-        }
-
-        @Override
-        boolean offer(T t) {
-            return true
-        }
-
-        @Override
-        T poll() {
-            throw new UnsupportedOperationException()
-        }
-
-        @Override
-        T peek() {
-            throw new UnsupportedOperationException()
         }
     }
 }
