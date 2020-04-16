@@ -147,7 +147,16 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
         }
 
         if (bytesTransferred == 0) {
-            // Got a buffer overflow => current changes lost => send OVERFLOWED on root
+            // This is what the documentation has to says about a zero-length dataset:
+            //
+            //     If the number of bytes transferred is zero, the buffer was either too large
+            //     for the system to allocate or too small to provide detailed information on
+            //     all the changes that occurred in the directory or subtree. In this case,
+            //     you should compute the changes by enumerating the directory or subtree.
+            //
+            // (See https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-readdirectorychangesw)
+            //
+            // We'll handle this as a simple overflow and report it as such.
             logToJava(INFO, "Detected overflow for %s", utf16ToUtf8String(path).c_str());
             reportChange(env, OVERFLOWED, path);
         } else {
