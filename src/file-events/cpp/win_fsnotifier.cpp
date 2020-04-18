@@ -63,6 +63,7 @@ WatchPoint::~WatchPoint() {
         if (cancel()) {
             SleepEx(0, true);
         }
+        close();
     } catch (const exception& ex) {
         logToJava(WARNING, "Couldn't cancel watch point %s: %s", utf16ToUtf8String(path).c_str(), ex.what());
     }
