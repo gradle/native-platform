@@ -141,6 +141,8 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
         if (errorCode != ERROR_SUCCESS) {
             if (errorCode == ERROR_ACCESS_DENIED && !watchPoint->isValidDirectory()) {
                 reportChange(env, REMOVED, path);
+                watchPoint->close();
+                return;
             } else {
                 throw FileWatcherException("Error received when handling events", path, errorCode);
             }
