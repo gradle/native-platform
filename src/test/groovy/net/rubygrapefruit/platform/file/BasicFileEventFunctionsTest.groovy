@@ -668,6 +668,10 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         when:
         def directoryRemoved = removedDir.deleteDir()
+        // On Windows we don't always manage to remove the watched directory, but it's unreliable
+        if (!Platform.current().windows) {
+            assert directoryRemoved
+        }
 
         def expectedEvents = []
         if (Platform.current().macOs) {
@@ -683,13 +687,12 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         then:
         expectEvents expectedEvents
-        directoryRemoved == expectDirectoryRemoved
 
         where:
-        ancestry                            | removedDirectory             | expectDirectoryRemoved
-        "watched directory"                 | { it }                       | true
-        "parent of watched directory"       | { it.parentFile }            | !OperatingSystem.current.windows
-        "grand-parent of watched directory" | { it.parentFile.parentFile } | !OperatingSystem.current.windows
+        ancestry                            | removedDirectory
+        "watched directory"                 | { it }
+        "parent of watched directory"       | { it.parentFile }
+        "grand-parent of watched directory" | { it.parentFile.parentFile }
     }
 
     def "can set log level by #action"() {
