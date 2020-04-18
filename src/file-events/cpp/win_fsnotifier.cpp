@@ -44,13 +44,13 @@ bool WatchPoint::cancel() {
         status = CANCELLED;
         bool cancelled = (bool) CancelIoEx(directoryHandle, &overlapped);
         if (!cancelled) {
-            status = FINISHED;
-            DWORD lastError = GetLastError();
-            if (lastError == ERROR_NOT_FOUND) {
+            DWORD cancelError = GetLastError();
+            close();
+            if (cancelError == ERROR_NOT_FOUND) {
                 // Do nothing, looks like this is a typical scenario
                 logToJava(FINE, "Watch point already finished %s", utf16ToUtf8String(path).c_str());
             } else {
-                throw FileWatcherException("Couldn't cancel watch point", path, lastError);
+                throw FileWatcherException("Couldn't cancel watch point", path, cancelError);
             }
         }
         return cancelled;
@@ -96,24 +96,30 @@ ListenResult WatchPoint::listen() {
         status = LISTENING;
         return SUCCESS;
     } else {
-        status = FINISHED;
-        DWORD lastError = GetLastError();
-        if (lastError == ERROR_ACCESS_DENIED && !isValidDirectory()) {
+        DWORD listenError = GetLastError();
+        close();
+        if (listenError == ERROR_ACCESS_DENIED && !isValidDirectory()) {
             return DELETED;
         } else {
-            throw FileWatcherException("Couldn't start watching", path, lastError);
+            throw FileWatcherException("Couldn't start watching", path, listenError);
         }
+    }
+}
+
+void WatchPoint::close() {
+    if (status != FINISHED) {
+        BOOL ret = CloseHandle(directoryHandle);
+        if (!ret) {
+            logToJava(SEVERE, "Couldn't close handle %p for '%ls': %d", directoryHandle, utf16ToUtf8String(path).c_str(), GetLastError());
+        }
+        status = FINISHED;
     }
 }
 
 void WatchPoint::handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred) {
     if (errorCode == ERROR_OPERATION_ABORTED) {
         logToJava(FINE, "Finished watching '%s', status = %d", utf16ToUtf8String(path).c_str(), status);
-        BOOL ret = CloseHandle(directoryHandle);
-        if (!ret) {
-            logToJava(SEVERE, "Couldn't close handle %p for '%ls': %d", directoryHandle, utf16ToUtf8String(path).c_str(), GetLastError());
-        }
-        status = FINISHED;
+        close();
         return;
     }
 

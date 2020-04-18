@@ -45,6 +45,7 @@ public:
 
 private:
     bool isValidDirectory();
+    void close();
 
     Server* server;
     const u16string path;
