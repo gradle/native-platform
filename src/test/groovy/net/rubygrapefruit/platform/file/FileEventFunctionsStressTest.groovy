@@ -100,12 +100,12 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
                         readyLatch.countDown()
                         startModifyingLatch.await()
                         fileToChange.createNewFile()
-                        200.times { modifyIndex ->
+                        100.times { modifyIndex ->
                             fileToChange << "Change: $modifyIndex\n"
                             changeCount.incrementAndGet()
                         }
                         inTheMiddleLatch.countDown()
-                        300.times { modifyIndex ->
+                        400.times { modifyIndex ->
                             fileToChange << "Another change: $modifyIndex\n"
                             changeCount.incrementAndGet()
                         }
