@@ -41,9 +41,10 @@ WatchPoint::WatchPoint(Server* server, size_t bufferSize, const u16string& path)
 bool WatchPoint::cancel() {
     if (status == LISTENING) {
         logToJava(FINE, "Cancelling %s", utf16ToUtf8String(path).c_str());
-        status = CANCELLED;
         bool cancelled = (bool) CancelIoEx(directoryHandle, &overlapped);
-        if (!cancelled) {
+        if (cancelled) {
+            status = CANCELLED;
+        } else {
             DWORD cancelError = GetLastError();
             close();
             if (cancelError == ERROR_NOT_FOUND) {
