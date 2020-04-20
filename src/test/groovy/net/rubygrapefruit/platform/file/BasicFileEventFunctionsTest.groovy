@@ -33,10 +33,10 @@ import java.util.regex.Pattern
 import static java.util.logging.Level.INFO
 import static java.util.logging.Level.SEVERE
 import static java.util.logging.Level.WARNING
-import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.CREATED
-import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.INVALIDATED
-import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.MODIFIED
-import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.REMOVED
+import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.CREATED
+import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.INVALIDATED
+import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.MODIFIED
+import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.REMOVED
 
 @Unroll
 @Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
@@ -748,7 +748,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         then:
         expectLogMessage(INFO, "Event queue overflow, dropping all events")
-        expectLogMessage(SEVERE, "Couldn't queue event: OVERFLOWED null")
+        expectLogMessage(SEVERE, "Couldn't queue event: OVERFLOW (EVENT_QUEUE) at null")
 
         when:
         watcher.close()

@@ -4,35 +4,19 @@ import javax.annotation.Nullable;
 
 public interface FileWatchEvent {
 
-    /**
-     * The type of the change. When {@link Type#FAILURE}, {@link #getFailure()} returns
-     * the failure, and {@link #getPath()} returns {@code null}.
-     * Otherwise {@link #getFailure()} returns {@code null} and {@link #getPath()}
-     * returns either the path of the change, or {@code null} if a path is not known.
-     */
-    Type getType();
+    void handleEvent(Handler handler);
 
-    /**
-     * The path that has been changed. Can be {@code null} when {@link #getType()} is
-     * {@link Type#FAILURE} or {@link Type#UNKNOWN}.
-     *
-     * See notes on the {@link FileWatcher} implementation for:
-     *
-     * <ul>
-     *     <li>whether calls to this method can be expected from a single thread or multiple different ones,</li>
-     *     <li>how actual events are reported.</li>
-     * </ul>
-     */
-    @Nullable
-    String getPath();
+    interface Handler {
+        void handleChangeEvent(ChangeType type, String absolutePath);
 
-    /**
-     * Returns the failure encountered when {@link #getType()} is {@link Type#FAILURE}, otherwise {@code null}.
-     */
-    @Nullable
-    Throwable getFailure();
+        void handleUnknownEvent(@Nullable String absolutePath);
 
-    enum Type {
+        void handleOverflow(OverflowType type, @Nullable String absolutePath);
+
+        void handleFailure(Throwable failure);
+    }
+
+    enum ChangeType {
         /**
          * An item with the given path has been created.
          */
@@ -52,24 +36,18 @@ public interface FileWatchEvent {
          * Some undisclosed changes happened under the given path,
          * all information about descendants must be discarded.
          */
-        INVALIDATED,
+        INVALIDATED
+    }
+
+    enum OverflowType {
+        /**
+         * The overflow happened in the operating system's routines.
+         */
+        OPERATING_SYSTEM,
 
         /**
-         * An overflow happened, all information about descendants must be discarded.
+         * The overflow happened because the Java event queue has filled up.
          */
-        OVERFLOWED,
-
-        /**
-         * An unknown event happened to the given path or some of its descendants,
-         * discard all information about the file system.
-         */
-        UNKNOWN,
-
-        /**
-         * An error happened to the given path or some of its descendants.
-         *
-         * @see FileWatchEvent#getFailure()
-         */
-        FAILURE
+        EVENT_QUEUE
     }
 }

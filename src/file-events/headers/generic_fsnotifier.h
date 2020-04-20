@@ -18,7 +18,7 @@
 
 using namespace std;
 
-// Corresponds to values of FileWatchEvent.Type
+// Corresponds to values of AbstractFileEventFunctions.EventType
 enum FileWatchEventType {
     CREATED,
     REMOVED,

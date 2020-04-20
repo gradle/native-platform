@@ -17,6 +17,7 @@
 package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.internal.Platform
+import org.spockframework.util.Nullable
 import spock.lang.Ignore
 import spock.lang.Requires
 
@@ -28,8 +29,7 @@ import java.util.concurrent.TimeUnit
 
 import static java.util.concurrent.TimeUnit.SECONDS
 import static java.util.logging.Level.INFO
-import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.CREATED
-import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.OVERFLOWED
+import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.CREATED
 
 @Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
 class FileEventFunctionsOverflowTest extends AbstractFileEventFunctionsTest {
@@ -94,15 +94,25 @@ class FileEventFunctionsOverflowTest extends AbstractFileEventFunctionsTest {
         waitForChangeEventLatency()
 
         then:
-        singleElementQueue.peek().type == CREATED
-        singleElementQueue.peek().path == firstFile.absolutePath
+        singleElementQueue.peek().handleEvent(new AbstractFileEventFunctionsTest.TestHandler() {
+            @Override
+            void handleChangeEvent(FileWatchEvent.ChangeType type, String absolutePath) {
+                assert type == CREATED
+                assert absolutePath == firstFile.absolutePath
+            }
+        })
 
         when:
         createNewFile(secondFile)
         waitForChangeEventLatency()
 
         then:
-        singleElementQueue.poll().type == OVERFLOWED
+        singleElementQueue.poll().handleEvent(new AbstractFileEventFunctionsTest.TestHandler() {
+            @Override
+            void handleOverflow(FileWatchEvent.OverflowType type, @Nullable String absolutePath) {
+                // Good
+            }
+        })
 
         then:
         singleElementQueue.empty
@@ -115,8 +125,13 @@ class FileEventFunctionsOverflowTest extends AbstractFileEventFunctionsTest {
         expectEvents(eventQueue, timeoutValue, timeoutUnit, { -> true }, { event ->
             if (event == null) {
                 return false
-            } else if (event.type == OVERFLOWED) {
-                overflow = true
+            } else {
+                event.handleEvent(new AbstractFileEventFunctionsTest.TestHandler() {
+                    @Override
+                    void handleOverflow(FileWatchEvent.OverflowType type, @Nullable String absolutePath) {
+                        overflow = true
+                    }
+                })
             }
             return true
         })

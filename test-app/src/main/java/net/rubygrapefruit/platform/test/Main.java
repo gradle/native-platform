@@ -386,13 +386,27 @@ public class Main {
                     } catch (InterruptedException e) {
                         break;
                     }
-                    if (event.getType() == FileWatchEvent.Type.FAILURE) {
-                        Throwable failure = event.getFailure();
-                        assert failure != null;
-                        failure.printStackTrace();
-                    } else {
-                        System.out.printf("Change detected: %s / '%s'%n", event.getType(), event.getPath());
-                    }
+                    event.handleEvent(new FileWatchEvent.Handler() {
+                        @Override
+                        public void handleChangeEvent(FileWatchEvent.ChangeType type, String absolutePath) {
+                            System.out.printf("Change detected: %s / '%s'%n", type, absolutePath);
+                        }
+
+                        @Override
+                        public void handleUnknownEvent(String absolutePath) {
+                            System.out.printf("Unknown event happened at %s%n", absolutePath);
+                        }
+
+                        @Override
+                        public void handleOverflow(FileWatchEvent.OverflowType type, String absolutePath) {
+                            System.out.printf("Overflow happened (path = %s, type = %s)%n", absolutePath, type);
+                        }
+
+                        @Override
+                        public void handleFailure(Throwable failure) {
+                            failure.printStackTrace();
+                        }
+                    });
                 }
             }
         }, "File watcher client");

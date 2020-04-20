@@ -2,6 +2,7 @@ package net.rubygrapefruit.platform.internal.jni;
 
 import net.rubygrapefruit.platform.NativeIntegration;
 import net.rubygrapefruit.platform.file.FileWatchEvent;
+import net.rubygrapefruit.platform.file.FileWatchEvent.OverflowType;
 import net.rubygrapefruit.platform.file.FileWatcher;
 
 import javax.annotation.Nullable;
@@ -12,7 +13,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.OVERFLOWED;
 
 public abstract class AbstractFileEventFunctions implements NativeIntegration {
     public static String getVersion() {
@@ -55,6 +55,40 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
      */
     public abstract AbstractWatcherBuilder newWatcher(BlockingQueue<FileWatchEvent> queue);
 
+    enum EventType {
+        /**
+         * An item with the given path has been created.
+         */
+        CREATED,
+
+        /**
+         * An item with the given path has been removed.
+         */
+        REMOVED,
+
+        /**
+         * An item with the given path has been modified.
+         */
+        MODIFIED,
+
+        /**
+         * Some undisclosed changes happened under the given path,
+         * all information about descendants must be discarded.
+         */
+        INVALIDATED,
+
+        /**
+         * An overflow happened, all information about descendants must be discarded.
+         */
+        OVERFLOWED,
+
+        /**
+         * An unknown event happened to the given path or some of its descendants,
+         * discard all information about the file system.
+         */
+        UNKNOWN
+    }
+
     protected static class NativeFileWatcherCallback {
 
         private final BlockingQueue<FileWatchEvent> eventQueue;
@@ -66,33 +100,56 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
         // Called from the native side
         @SuppressWarnings("unused")
         public void pathChanged(int typeIndex, String path) {
-            FileWatchEvent.Type type = FileWatchEvent.Type.values()[typeIndex];
-            if (type == OVERFLOWED) {
-                signalOverflow(path);
-            } else {
-                queueEvent(new ChangeEvent(type, path), false);
+            EventType type = EventType.values()[typeIndex];
+            switch (type) {
+                case OVERFLOWED:
+                    signalOverflow(OverflowType.OPERATING_SYSTEM, path);
+                    break;
+                case UNKNOWN:
+                    queueEvent(new UnknownEvent(path), false);
+                    break;
+                default:
+                    FileWatchEvent.ChangeType changeType;
+                    switch (type) {
+                        case CREATED:
+                            changeType = FileWatchEvent.ChangeType.CREATED;
+                            break;
+                        case MODIFIED:
+                            changeType = FileWatchEvent.ChangeType.MODIFIED;
+                            break;
+                        case REMOVED:
+                            changeType = FileWatchEvent.ChangeType.REMOVED;
+                            break;
+                        case INVALIDATED:
+                            changeType = FileWatchEvent.ChangeType.INVALIDATED;
+                            break;
+                        default:
+                            throw new AssertionError();
+                    }
+                    queueEvent(new ChangeEvent(changeType, path), false);
+                    break;
             }
         }
 
         // Called from the native side
         @SuppressWarnings("unused")
         public void reportError(Throwable ex) {
-            queueEvent(new ErrorEvent(ex), true);
+            queueEvent(new FailureEvent(ex), true);
         }
 
         private void queueEvent(FileWatchEvent event, boolean deliverOnOverflow) {
             if (!eventQueue.offer(event)) {
                 NativeLogger.LOGGER.info("Event queue overflow, dropping all events");
-                signalOverflow(null);
+                signalOverflow(OverflowType.EVENT_QUEUE, null);
                 if (deliverOnOverflow) {
                     forceQueueEvent(event);
                 }
             }
         }
 
-        private void signalOverflow(@Nullable String path) {
+        private void signalOverflow(OverflowType type, @Nullable String path) {
             eventQueue.clear();
-            forceQueueEvent(new ChangeEvent(OVERFLOWED, path));
+            forceQueueEvent(new OverflowEvent(type, path));
         }
 
         /**
@@ -190,28 +247,17 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
     }
 
     private static class ChangeEvent implements FileWatchEvent {
-        private final Type type;
+        private final ChangeType type;
         private final String path;
 
-        public ChangeEvent(Type type, String path) {
+        public ChangeEvent(ChangeType type, String path) {
             this.type = type;
             this.path = path;
         }
 
         @Override
-        public Type getType() {
-            return type;
-        }
-
-        @Override
-        public String getPath() {
-            return path;
-        }
-
-        @Nullable
-        @Override
-        public Throwable getFailure() {
-            return null;
+        public void handleEvent(Handler handler) {
+            handler.handleChangeEvent(type, path);
         }
 
         @Override
@@ -220,32 +266,59 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
         }
     }
 
-    private static class ErrorEvent implements FileWatchEvent {
-        private final Throwable failure;
+    private static class OverflowEvent implements FileWatchEvent {
+        private final OverflowType type;
+        private final String path;
 
-        public ErrorEvent(Throwable failure) {
-            this.failure = failure;
+        public OverflowEvent(OverflowType type, @Nullable String path) {
+            this.type = type;
+            this.path = path;
         }
 
         @Override
-        public Type getType() {
-            return Type.FAILURE;
-        }
-
-        @Nullable
-        @Override
-        public String getPath() {
-            return null;
-        }
-
-        @Override
-        public Throwable getFailure() {
-            return failure;
+        public void handleEvent(Handler handler) {
+            handler.handleOverflow(type, path);
         }
 
         @Override
         public String toString() {
-            return Type.FAILURE + " " + failure.getMessage();
+            return "OVERFLOW (" + type + ") at " + path;
+        }
+    }
+
+    private static class UnknownEvent implements FileWatchEvent {
+        private final String path;
+
+        public UnknownEvent(String path) {
+            this.path = path;
+        }
+
+        @Override
+        public void handleEvent(Handler handler) {
+            handler.handleUnknownEvent(path);
+        }
+
+        @Override
+        public String toString() {
+            return "UNKNOWN " + path;
+        }
+    }
+
+    private static class FailureEvent implements FileWatchEvent {
+        private final Throwable failure;
+
+        public FailureEvent(Throwable failure) {
+            this.failure = failure;
+        }
+
+        @Override
+        public void handleEvent(Handler handler) {
+            handler.handleFailure(failure);
+        }
+
+        @Override
+        public String toString() {
+            return "FAILURE " + failure.getMessage();
         }
     }
 }

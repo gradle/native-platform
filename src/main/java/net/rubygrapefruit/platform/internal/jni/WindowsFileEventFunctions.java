@@ -31,15 +31,15 @@ import java.util.concurrent.BlockingQueue;
  *     different case, the canonical one is used to report changes.</li>
  *
  *     <li>When reporting
- *     {@link net.rubygrapefruit.platform.file.FileWatchEvent.Type#REMOVED REMOVED}
+ *     {@link net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType#REMOVED REMOVED}
  *     events, Windows sometimes also reports a
- *     {@link net.rubygrapefruit.platform.file.FileWatchEvent.Type#MODIFIED MODIFIED}
+ *     {@link net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType#MODIFIED MODIFIED}
  *     event for the same file. This can happen when deleting a file or renaming it.</li>
  *
  *     <li>Events arrive from a single background thread unique to the {@link FileWatcher}.
  *     Calling methods from the {@link FileWatcher} inside the callback method is undefined
  *     behavior and can lead to a deadlock.</li>
- ** </ul>
+ * </ul>
  */
 // TODO What about symlinks?
 // TODO What about SUBST drives?
