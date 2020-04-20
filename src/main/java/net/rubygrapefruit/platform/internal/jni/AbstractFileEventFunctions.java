@@ -184,7 +184,6 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
             ensureOpen();
             closed = true;
             close0(server);
-            processorThread.interrupt();
             // TODO Parametrize timeout here
             try {
                 processorThread.join(SECONDS.toMillis(5));
