@@ -193,7 +193,7 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
         }
 
         // Rename this to terminate0() maybe?
-        protected native void close0(Object server);
+        private native void close0(Object server);
 
         private void ensureOpen() {
             if (closed) {
