@@ -10,7 +10,6 @@ import java.io.InterruptedIOException;
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -78,8 +77,7 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
         }
 
         private void queueEvent(FileWatchEvent event, boolean deliverOnOverflow) throws InterruptedException {
-            // TODO Make the timeout configurable
-            if (!eventQueue.offer(event, 1, SECONDS)) {
+            if (!eventQueue.offer(event)) {
                 NativeLogger.LOGGER.info("Event queue overflow, dropping all events");
                 signalOverflow(null);
                 if (deliverOnOverflow) {

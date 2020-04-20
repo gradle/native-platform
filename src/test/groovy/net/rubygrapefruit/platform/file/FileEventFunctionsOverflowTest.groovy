@@ -102,15 +102,6 @@ class FileEventFunctionsOverflowTest extends AbstractFileEventFunctionsTest {
         waitForChangeEventLatency()
 
         then:
-        // We still have the notification in there about the first file
-        singleElementQueue.peek().type == CREATED
-        singleElementQueue.peek().path == firstFile.absolutePath
-
-        when:
-        // Wait for the next event to time out and be replaced with an overflow event
-        Thread.sleep(1000)
-
-        then:
         singleElementQueue.poll().type == OVERFLOWED
 
         then:
