@@ -339,8 +339,8 @@ void Server::runLoop() {
 }
 
 struct Command {
-    Server* server;
     function<bool()> function;
+    mutex executionMutex;
     condition_variable executed;
     bool result;
     exception_ptr failure;
@@ -353,15 +353,14 @@ static void CALLBACK executeOnRunLoopCallback(_In_ ULONG_PTR info) {
     } catch (const exception&) {
         command->failure = current_exception();
     }
-    unique_lock<mutex> lock(command->server->executionMutex);
+    unique_lock<mutex> lock(command->executionMutex);
     command->executed.notify_all();
 }
 
 bool Server::executeOnRunLoop(function<bool()> function) {
     Command command;
     command.function = function;
-    command.server = this;
-    unique_lock<mutex> lock(executionMutex);
+    unique_lock<mutex> lock(command.executionMutex);
     DWORD ret = QueueUserAPC(executeOnRunLoopCallback, threadHandle, (ULONG_PTR) &command);
     if (ret == 0) {
         throw FileWatcherException("Received error while queuing APC", GetLastError());
