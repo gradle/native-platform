@@ -262,9 +262,10 @@ void Server::handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMA
 // Server
 //
 
-Server::Server(JNIEnv* env, size_t bufferSize, jobject watcherCallback)
+Server::Server(JNIEnv* env, size_t bufferSize, long commandTimeoutInMillis, jobject watcherCallback)
     : AbstractServer(env, watcherCallback)
-    , bufferSize(bufferSize) {
+    , bufferSize(bufferSize)
+    , commandTimeoutInMillis(commandTimeoutInMillis) {
 }
 
 void Server::initializeRunLoop() {
@@ -366,7 +367,7 @@ bool Server::executeOnRunLoop(function<bool()> function) {
     if (ret == 0) {
         throw FileWatcherException("Received error while queuing APC", GetLastError());
     }
-    auto status = command.executed.wait_for(lock, THREAD_TIMEOUT);
+    auto status = command.executed.wait_for(lock, chrono::milliseconds(commandTimeoutInMillis));
     if (status == cv_status::timeout) {
         throw FileWatcherException("Execution timed out");
     } else if (command.failure) {
@@ -419,8 +420,8 @@ bool Server::unregisterPath(const u16string& path) {
 //
 
 JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatcher0(JNIEnv* env, jclass target, jint bufferSize, jobject javaCallback) {
-    return wrapServer(env, new Server(env, bufferSize, javaCallback));
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatcher0(JNIEnv* env, jclass target, jint bufferSize, jlong commandTimeoutInMillis, jobject javaCallback) {
+    return wrapServer(env, new Server(env, bufferSize, (long) commandTimeoutInMillis, javaCallback));
 }
 
 #endif

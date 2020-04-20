@@ -19,6 +19,9 @@ package net.rubygrapefruit.platform.internal.jni;
 import net.rubygrapefruit.platform.file.FileWatcher;
 import net.rubygrapefruit.platform.file.FileWatcherCallback;
 
+import java.util.Collection;
+import java.util.concurrent.TimeUnit;
+
 /**
  * File watcher for Windows. Reports changes to the watched paths and any of their descendants.
  *
@@ -44,6 +47,7 @@ import net.rubygrapefruit.platform.file.FileWatcherCallback;
 public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
 
     public static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
+    public static final int DEFAULT_COMMAND_TIMEOUT_IN_SECONDS = 5;
 
     @Override
     public WatcherBuilder newWatcher(FileWatcherCallback callback) {
@@ -52,6 +56,7 @@ public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
 
     public static class WatcherBuilder extends AbstractWatcherBuilder {
         private int bufferSize = DEFAULT_BUFFER_SIZE;
+        private long commandTimeoutInMillis = TimeUnit.SECONDS.toMillis(DEFAULT_COMMAND_TIMEOUT_IN_SECONDS);
 
         private WatcherBuilder(FileWatcherCallback callback) {
             super(callback);
@@ -66,11 +71,26 @@ public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
             return this;
         }
 
+        /**
+         * Sets the timeout for commands to get scheduled on the run loop.
+         *
+         * Commands are {@link FileWatcher#startWatching(Collection)},
+         * {@link FileWatcher#stopWatching(Collection)} and {@link FileWatcher#close()},
+         * The Windows file watcher relies on scheduling the execution of these commands
+         * on the background thread.
+         *
+         * Defaults to {@value DEFAULT_COMMAND_TIMEOUT_IN_SECONDS} seconds.
+         */
+        public WatcherBuilder withCommandTimeout(int timeoutValue, TimeUnit timeoutUnit) {
+            this.commandTimeoutInMillis = timeoutUnit.toMillis(timeoutValue);
+            return this;
+        }
+
         @Override
         public FileWatcher start() throws InterruptedException {
-            return new NativeFileWatcher(startWatcher0(bufferSize, new NativeFileWatcherCallback(callback)));
+            return new NativeFileWatcher(startWatcher0(bufferSize, commandTimeoutInMillis, new NativeFileWatcherCallback(callback)));
         }
     }
 
-    private static native Object startWatcher0(int bufferSize, NativeFileWatcherCallback callback);
+    private static native Object startWatcher0(int bufferSize, long commandTimeoutInMillis, NativeFileWatcherCallback callback);
 }
