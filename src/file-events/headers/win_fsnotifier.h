@@ -83,7 +83,6 @@ private:
     const size_t bufferSize;
     unordered_map<u16string, WatchPoint> watchPoints;
     bool terminated = false;
-    mutex executionMutex;
     friend void CALLBACK executeOnRunLoopCallback(_In_ ULONG_PTR info);
 };
 
