@@ -339,7 +339,6 @@ void Server::runLoop() {
 }
 
 struct Command {
-    Server* server;
     function<bool()> function;
     mutex executionMutex;
     condition_variable executed;
@@ -361,7 +360,6 @@ static void CALLBACK executeOnRunLoopCallback(_In_ ULONG_PTR info) {
 bool Server::executeOnRunLoop(function<bool()> function) {
     Command command;
     command.function = function;
-    command.server = this;
     unique_lock<mutex> lock(command.executionMutex);
     DWORD ret = QueueUserAPC(executeOnRunLoopCallback, threadHandle, (ULONG_PTR) &command);
     if (ret == 0) {
