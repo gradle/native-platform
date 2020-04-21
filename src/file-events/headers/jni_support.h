@@ -19,6 +19,11 @@ public:
     JniSupport(JNIEnv* env);
 
     /**
+     * Check for a Java exception and log it.
+     */
+    static jthrowable logJavaException(JNIEnv* env);
+
+    /**
      * Check for a Java exception and rethrow as a native exception.
      */
     static void rethrowJavaException(JNIEnv* env);

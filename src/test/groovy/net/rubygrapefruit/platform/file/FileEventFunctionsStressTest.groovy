@@ -20,11 +20,13 @@ import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.Requires
 import spock.lang.Timeout
 
+import java.util.concurrent.BlockingQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 
 import static java.util.concurrent.TimeUnit.SECONDS
-import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
+import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.CREATED
 
 @Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
 class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
@@ -80,6 +82,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
 
         expect:
         20.times { iteration ->
+            LOGGER.info(">> Round #${iteration + 1}")
             def watchedDirectories = createDirectoriesToWatch(numberOfWatchedDirectories, "iteration-$iteration/watchedDir-")
 
             def numberOfThreads = numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories
@@ -87,7 +90,9 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
             def readyLatch = new CountDownLatch(numberOfThreads)
             def startModifyingLatch = new CountDownLatch(1)
             def inTheMiddleLatch = new CountDownLatch(numberOfThreads)
-            def watcher = startNewWatcher(newEventSinkCallback())
+            def eventQueue = newEventQueue()
+            def watcher = startNewWatcher(eventQueue)
+            def changeCount = new AtomicInteger()
             watchedDirectories.each { watchedDirectory ->
                 numberOfParallelWritersPerWatchedDirectory.times { index ->
                     executorService.submit({ ->
@@ -95,12 +100,14 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
                         readyLatch.countDown()
                         startModifyingLatch.await()
                         fileToChange.createNewFile()
-                        200.times { modifyIndex ->
+                        100.times { modifyIndex ->
                             fileToChange << "Change: $modifyIndex\n"
+                            changeCount.incrementAndGet()
                         }
                         inTheMiddleLatch.countDown()
-                        300.times { modifyIndex ->
+                        400.times { modifyIndex ->
                             fileToChange << "Another change: $modifyIndex\n"
+                            changeCount.incrementAndGet()
                         }
                     })
                 }
@@ -109,15 +116,18 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
 
             watcher.startWatching(watchedDirectories as File[])
             readyLatch.await()
-            LOGGER.info("> Starring modifications")
+            LOGGER.info("> Starting changes on $numberOfThreads threads")
             startModifyingLatch.countDown()
             inTheMiddleLatch.await()
-            LOGGER.info("> Closing watcher")
+            LOGGER.info("> Closing watcher (received ${eventQueue.size()} events of $changeCount changes)")
             watcher.close()
-            LOGGER.info("< Closed watcher")
+            LOGGER.info("< Closed watcher (received ${eventQueue.size()} events of $changeCount changes)")
 
             assert executorService.awaitTermination(20, SECONDS)
-            LOGGER.info("< Finished test")
+            LOGGER.info("< Finished test (received ${eventQueue.size()} events of $changeCount changes)")
+
+            // Let's make sure we free up memory as much as we can
+            eventQueue.clear()
 
             assert uncaughtFailureOnThread.empty
         }
@@ -133,7 +143,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         List<File> watchedDirectories = createHierarchy(watchedDir, watchedDirectoryDepth)
 
         when:
-        def watcher = startNewWatcher(newEventSinkCallback())
+        def watcher = startNewWatcher()
         watcher.startWatching(watchedDirectories as File[])
         waitForChangeEventLatency()
         assert rootDir.deleteDir()
@@ -153,7 +163,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         createHierarchy(watchedDir, watchedDirectoryDepth)
 
         when:
-        def watcher = startNewWatcher(newEventSinkCallback())
+        def watcher = startNewWatcher()
         watcher.startWatching(watchedDir)
         waitForChangeEventLatency()
         assert watchedDir.deleteDir()
@@ -164,9 +174,9 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
     }
 
     @Override
-    protected TestFileWatcher startNewWatcher(FileWatcherCallback callback) {
+    protected TestFileWatcher startNewWatcher(BlockingQueue<FileWatchEvent> eventQueue) {
         // Make sure we don't receive overflow events during these tests
-        return watcherFixture.startNewWatcherWithOverflowPrevention(callback)
+        return watcherFixture.startNewWatcherWithOverflowPrevention(eventQueue)
     }
 
     private static List<File> createHierarchy(File root, int watchedDirectoryDepth, int branching = 2) {

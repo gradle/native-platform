@@ -41,16 +41,17 @@ WatchPoint::WatchPoint(Server* server, size_t bufferSize, const u16string& path)
 bool WatchPoint::cancel() {
     if (status == LISTENING) {
         logToJava(FINE, "Cancelling %s", utf16ToUtf8String(path).c_str());
-        status = CANCELLED;
         bool cancelled = (bool) CancelIoEx(directoryHandle, &overlapped);
-        if (!cancelled) {
-            status = FINISHED;
-            DWORD lastError = GetLastError();
-            if (lastError == ERROR_NOT_FOUND) {
+        if (cancelled) {
+            status = CANCELLED;
+        } else {
+            DWORD cancelError = GetLastError();
+            close();
+            if (cancelError == ERROR_NOT_FOUND) {
                 // Do nothing, looks like this is a typical scenario
                 logToJava(FINE, "Watch point already finished %s", utf16ToUtf8String(path).c_str());
             } else {
-                throw FileWatcherException("Couldn't cancel watch point", path, lastError);
+                throw FileWatcherException("Couldn't cancel watch point", path, cancelError);
             }
         }
         return cancelled;
@@ -63,6 +64,7 @@ WatchPoint::~WatchPoint() {
         if (cancel()) {
             SleepEx(0, true);
         }
+        close();
     } catch (const exception& ex) {
         logToJava(WARNING, "Couldn't cancel watch point %s: %s", utf16ToUtf8String(path).c_str(), ex.what());
     }
@@ -96,24 +98,30 @@ ListenResult WatchPoint::listen() {
         status = LISTENING;
         return SUCCESS;
     } else {
-        status = FINISHED;
-        DWORD lastError = GetLastError();
-        if (lastError == ERROR_ACCESS_DENIED && !isValidDirectory()) {
+        DWORD listenError = GetLastError();
+        close();
+        if (listenError == ERROR_ACCESS_DENIED && !isValidDirectory()) {
             return DELETED;
         } else {
-            throw FileWatcherException("Couldn't start watching", path, lastError);
+            throw FileWatcherException("Couldn't start watching", path, listenError);
         }
+    }
+}
+
+void WatchPoint::close() {
+    if (status != FINISHED) {
+        BOOL ret = CloseHandle(directoryHandle);
+        if (!ret) {
+            logToJava(SEVERE, "Couldn't close handle %p for '%ls': %d", directoryHandle, utf16ToUtf8String(path).c_str(), GetLastError());
+        }
+        status = FINISHED;
     }
 }
 
 void WatchPoint::handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred) {
     if (errorCode == ERROR_OPERATION_ABORTED) {
         logToJava(FINE, "Finished watching '%s', status = %d", utf16ToUtf8String(path).c_str(), status);
-        BOOL ret = CloseHandle(directoryHandle);
-        if (!ret) {
-            logToJava(SEVERE, "Couldn't close handle %p for '%ls': %d", directoryHandle, utf16ToUtf8String(path).c_str(), GetLastError());
-        }
-        status = FINISHED;
+        close();
         return;
     }
 
@@ -135,6 +143,8 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
         if (errorCode != ERROR_SUCCESS) {
             if (errorCode == ERROR_ACCESS_DENIED && !watchPoint->isValidDirectory()) {
                 reportChange(env, REMOVED, path);
+                watchPoint->close();
+                return;
             } else {
                 throw FileWatcherException("Error received when handling events", path, errorCode);
             }
@@ -147,7 +157,16 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
         }
 
         if (bytesTransferred == 0) {
-            // Got a buffer overflow => current changes lost => send OVERFLOWED on root
+            // This is what the documentation has to say about a zero-length dataset:
+            //
+            //     If the number of bytes transferred is zero, the buffer was either too large
+            //     for the system to allocate or too small to provide detailed information on
+            //     all the changes that occurred in the directory or subtree. In this case,
+            //     you should compute the changes by enumerating the directory or subtree.
+            //
+            // (See https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-readdirectorychangesw)
+            //
+            // We'll handle this as a simple overflow and report it as such.
             logToJava(INFO, "Detected overflow for %s", utf16ToUtf8String(path).c_str());
             reportChange(env, OVERFLOWED, path);
         } else {
@@ -166,6 +185,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
             case SUCCESS:
                 break;
             case DELETED:
+                logToJava(FINE, "Watched directory removed for %s", utf16ToUtf8String(path).c_str());
                 reportChange(env, REMOVED, path);
                 break;
         }
@@ -270,9 +290,9 @@ Server::Server(JNIEnv* env, size_t bufferSize, jobject watcherCallback)
 void Server::initializeRunLoop() {
     // TODO For some reason GetCurrentThread() returns a thread that doesn't accept APCs
     threadHandle = OpenThread(
-        THREAD_ALL_ACCESS,
-        false,
-        GetCurrentThreadId()
+        THREAD_ALL_ACCESS,      // dwDesiredAccess
+        false,                  // bInheritHandle
+        GetCurrentThreadId()    // dwThreadId
     );
     if (threadHandle == NULL) {
         throw FileWatcherException("Couldn't open current thread", GetLastError());

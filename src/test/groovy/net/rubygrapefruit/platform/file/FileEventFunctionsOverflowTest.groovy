@@ -20,19 +20,21 @@ import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.Ignore
 import spock.lang.Requires
 
+import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 import static java.util.concurrent.TimeUnit.SECONDS
-import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
-import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.OVERFLOWED
+import static java.util.logging.Level.INFO
+import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.CREATED
+import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.OVERFLOWED
 
-@Ignore("Flaky")
 @Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
 class FileEventFunctionsOverflowTest extends AbstractFileEventFunctionsTest {
 
+    @Ignore("Flaky")
     def "delivers more events after overflow event"() {
         given:
         // We don't want to fail when overflow is logged
@@ -79,7 +81,36 @@ class FileEventFunctionsOverflowTest extends AbstractFileEventFunctionsTest {
         executorService.shutdown()
     }
 
-    private boolean expectOverflow(BlockingQueue<RecordedEvent> eventQueue = this.eventQueue, int timeoutValue, TimeUnit timeoutUnit) {
+    def "handles Java-side event queue overflowing"() {
+        given:
+        def singleElementQueue = new ArrayBlockingQueue<FileWatchEvent>(1)
+        def firstFile = new File(rootDir, "first.txt")
+        def secondFile = new File(rootDir, "second.txt")
+
+        startWatcher(singleElementQueue, rootDir)
+
+        when:
+        createNewFile(firstFile)
+        waitForChangeEventLatency()
+
+        then:
+        singleElementQueue.peek().type == CREATED
+        singleElementQueue.peek().path == firstFile.absolutePath
+
+        when:
+        createNewFile(secondFile)
+        waitForChangeEventLatency()
+
+        then:
+        singleElementQueue.poll().type == OVERFLOWED
+
+        then:
+        singleElementQueue.empty
+
+        expectLogMessage(INFO, "Event queue overflow, dropping all events")
+    }
+
+    private boolean expectOverflow(BlockingQueue<FileWatchEvent> eventQueue = this.eventQueue, int timeoutValue, TimeUnit timeoutUnit) {
         boolean overflow = false
         expectEvents(eventQueue, timeoutValue, timeoutUnit, { -> true }, { event ->
             if (event == null) {

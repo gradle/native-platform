@@ -20,14 +20,12 @@ import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.AbstractFileEventFunctions
 import net.rubygrapefruit.platform.internal.jni.NativeLogger
 import org.junit.Assume
-import spock.lang.Ignore
 import spock.lang.IgnoreIf
 import spock.lang.Requires
 import spock.lang.Unroll
-import spock.util.concurrent.AsyncConditions
-import spock.util.environment.OperatingSystem
 
-import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.BlockingQueue
+import java.util.concurrent.TimeUnit
 import java.util.logging.Level
 import java.util.logging.Logger
 import java.util.regex.Pattern
@@ -35,10 +33,10 @@ import java.util.regex.Pattern
 import static java.util.logging.Level.INFO
 import static java.util.logging.Level.SEVERE
 import static java.util.logging.Level.WARNING
-import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.CREATED
-import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.INVALIDATED
-import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
-import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.REMOVED
+import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.CREATED
+import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.INVALIDATED
+import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.MODIFIED
+import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.REMOVED
 
 @Unroll
 @Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
@@ -514,34 +512,6 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         expectEvents change(CREATED, new File(reportedDir, fileInUppercaseDir.name))
     }
 
-    def "can handle exception in callback"() {
-        given:
-        def createdFile = new File(rootDir, "created.txt")
-        def conditions = new AsyncConditions()
-        when:
-        def watcher = startNewWatcher(new FileWatcherCallback() {
-            @Override
-            void pathChanged(FileWatcherCallback.Type type, String path) {
-                throw new RuntimeException("Error")
-            }
-
-            @Override
-            void reportError(Throwable ex) {
-                conditions.evaluate {
-                    assert ex instanceof NativeException
-                    assert ex.message == "Caught java.lang.RuntimeException with message: Error"
-                }
-            }
-        }, rootDir)
-        createNewFile(createdFile)
-
-        then:
-        conditions.await()
-
-        cleanup:
-        watcher.close()
-    }
-
     def "fails when stopped multiple times"() {
         given:
         def watcher = startNewWatcher()
@@ -697,6 +667,10 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         when:
         def directoryRemoved = removedDir.deleteDir()
+        // On Windows we don't always manage to remove the watched directory, but it's unreliable
+        if (!Platform.current().windows) {
+            assert directoryRemoved
+        }
 
         def expectedEvents = []
         if (Platform.current().macOs) {
@@ -712,13 +686,12 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         then:
         expectEvents expectedEvents
-        directoryRemoved == expectDirectoryRemoved
 
         where:
-        ancestry                            | removedDirectory             | expectDirectoryRemoved
-        "watched directory"                 | { it }                       | true
-        "parent of watched directory"       | { it.parentFile }            | !OperatingSystem.current.windows
-        "grand-parent of watched directory" | { it.parentFile.parentFile } | !OperatingSystem.current.windows
+        ancestry                            | removedDirectory
+        "watched directory"                 | { it }
+        "parent of watched directory"       | { it.parentFile }
+        "grand-parent of watched directory" | { it.parentFile.parentFile }
     }
 
     def "can set log level by #action"() {
@@ -760,53 +733,27 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         "waiting for log level cache to time out" | { Thread.sleep(1500) }
     }
 
-    @Ignore
-    def "jvm does not crash when event queue is blocked"() {
-        def watchedDir = new File(rootDir, "watched")
-        def secondWatchedDir = new File(rootDir, "secondWatched")
-        watchedDir.mkdirs()
-        def blockedQueue = new ArrayBlockingQueue(1)
+    def "handles queue not able to take any events"() {
+        given:
+        def notAcceptingQueue = Stub(BlockingQueue) {
+            _ * offer(_ as FileWatchEvent, _ as long, _ as TimeUnit) >> false
+            _ * offer(_ as FileWatchEvent) >> false
+        }
+        def fileCreated = new File(rootDir, "changed.txt")
+        def watcher = startNewWatcher(notAcceptingQueue, rootDir)
 
         when:
-        startWatcher(blockedQueue, watchedDir)
-        new File(watchedDir, "first").text = "first"
-        new File(watchedDir, "second").text = "second"
-        new File(watchedDir, "third").text = "third"
+        fileCreated.createNewFile()
         waitForChangeEventLatency()
 
         then:
-        blockedQueue.remainingCapacity() == 0
+        expectLogMessage(INFO, "Event queue overflow, dropping all events")
+        expectLogMessage(SEVERE, "Couldn't queue event: OVERFLOWED null")
 
         when:
-        watcher.startWatching(secondWatchedDir)
-        then:
-        def exception = thrown(NativeException)
-        exception.message == "Command execution timed out"
-    }
-
-    def "can throw exception with no message from callback"() {
-        def watchedDir = new File(rootDir, "watched")
-        watchedDir.mkdirs()
-        def error
-
-        when:
-        watcher = startNewWatcher(new FileWatcherCallback() {
-            @Override
-            void pathChanged(FileWatcherCallback.Type type, String path) {
-                throw new InterruptedException()
-            }
-
-            @Override
-            void reportError(Throwable ex) {
-                error = ex
-            }
-        }, watchedDir)
-        new File(watchedDir, "new").createNewFile()
-        waitForChangeEventLatency()
+        watcher.close()
 
         then:
         noExceptionThrown()
-        error.getClass() == NativeException
-        error.message == "Caught ${InterruptedException.name}"
     }
 }

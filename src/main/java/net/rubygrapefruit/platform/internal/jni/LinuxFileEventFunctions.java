@@ -16,9 +16,10 @@
 
 package net.rubygrapefruit.platform.internal.jni;
 
+import net.rubygrapefruit.platform.file.FileWatchEvent;
 import net.rubygrapefruit.platform.file.FileWatcher;
-import net.rubygrapefruit.platform.file.FileWatcherCallback;
 
+import java.util.concurrent.BlockingQueue;
 
 /**
  * File watcher for Linux. Reports changes to the watched paths and their immediate children.
@@ -35,18 +36,18 @@ import net.rubygrapefruit.platform.file.FileWatcherCallback;
 public class LinuxFileEventFunctions extends AbstractFileEventFunctions {
 
     @Override
-    public WatcherBuilder newWatcher(FileWatcherCallback callback) {
-        return new WatcherBuilder(callback);
+    public WatcherBuilder newWatcher(BlockingQueue<FileWatchEvent> eventQueue) {
+        return new WatcherBuilder(eventQueue);
     }
 
     public static class WatcherBuilder extends AbstractWatcherBuilder {
-        WatcherBuilder(FileWatcherCallback callback) {
-            super(callback);
+        WatcherBuilder(BlockingQueue<FileWatchEvent> eventQueue) {
+            super(eventQueue);
         }
 
         @Override
         public FileWatcher start() throws InterruptedException {
-            return new NativeFileWatcher(startWatcher0(new NativeFileWatcherCallback(callback)));
+            return new NativeFileWatcher(startWatcher0(new NativeFileWatcherCallback(eventQueue)));
         }
     }
 

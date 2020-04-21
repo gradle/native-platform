@@ -22,7 +22,7 @@ import spock.lang.Ignore
 import spock.lang.Requires
 
 import static java.nio.file.Files.createSymbolicLink
-import static net.rubygrapefruit.platform.file.FileWatcherCallback.Type.MODIFIED
+import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.MODIFIED
 
 @Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
 class SymlinkFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
