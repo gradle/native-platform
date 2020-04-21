@@ -33,6 +33,7 @@ import net.rubygrapefruit.platform.file.Files;
 import net.rubygrapefruit.platform.file.PosixFileInfo;
 import net.rubygrapefruit.platform.file.PosixFiles;
 import net.rubygrapefruit.platform.internal.Platform;
+import net.rubygrapefruit.platform.internal.jni.AbstractFileEventFunctions;
 import net.rubygrapefruit.platform.internal.jni.LinuxFileEventFunctions;
 import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions;
 import net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions;
@@ -55,7 +56,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Main {
     public static void main(String[] args) throws Exception {
@@ -376,51 +376,34 @@ public class Main {
     }
 
     private static void watch(String path) throws InterruptedException {
-        final BlockingQueue<FileWatchEvent> eventQueue = new ArrayBlockingQueue<FileWatchEvent>(16);
-        Thread processorThread = new Thread(new Runnable() {
+        AbstractFileEventFunctions.AbstractWatcherBuilder watcherBuilder = createWatcherBuilder();
+        FileWatcher watcher = watcherBuilder.startWithHandler(new FileWatchEvent.Handler() {
             @Override
-            public void run() {
-                final AtomicBoolean terminated = new AtomicBoolean(false);
-                while (!terminated.get()) {
-                    FileWatchEvent event;
-                    try {
-                        event = eventQueue.take();
-                    } catch (InterruptedException e) {
-                        break;
-                    }
-                    event.handleEvent(new FileWatchEvent.Handler() {
-                        @Override
-                        public void handleChangeEvent(FileWatchEvent.ChangeType type, String absolutePath) {
-                            System.out.printf("Change detected: %s / '%s'%n", type, absolutePath);
-                        }
-
-                        @Override
-                        public void handleUnknownEvent(String absolutePath) {
-                            System.out.printf("Unknown event happened at %s%n", absolutePath);
-                        }
-
-                        @Override
-                        public void handleOverflow(FileWatchEvent.OverflowType type, String absolutePath) {
-                            System.out.printf("Overflow happened (path = %s, type = %s)%n", absolutePath, type);
-                        }
-
-                        @Override
-                        public void handleFailure(Throwable failure) {
-                            failure.printStackTrace();
-                        }
-
-                        @Override
-                        public void handleTerminated() {
-                            System.out.printf("Terminated%n");
-                            terminated.set(true);
-                        }
-                    });
-                }
+            public void handleChangeEvent(FileWatchEvent.ChangeType type, String absolutePath) {
+                System.out.printf("Change detected: %s / '%s'%n", type, absolutePath);
             }
-        }, "File watcher client");
-        processorThread.setDaemon(true);
-        processorThread.start();
-        FileWatcher watcher = createWatcher(path, eventQueue);
+
+            @Override
+            public void handleUnknownEvent(String absolutePath) {
+                System.out.printf("Unknown event happened at %s%n", absolutePath);
+            }
+
+            @Override
+            public void handleOverflow(FileWatchEvent.OverflowType type, String absolutePath) {
+                System.out.printf("Overflow happened (path = %s, type = %s)%n", absolutePath, type);
+            }
+
+            @Override
+            public void handleFailure(Throwable failure) {
+                failure.printStackTrace();
+            }
+
+            @Override
+            public void handleTerminated() {
+                System.out.printf("Terminated%n");
+            }
+        });
+        watcher.startWatching(Collections.singleton(new File(path)));
         try {
             System.out.println("Waiting - type ctrl-d to exit ...");
             while (true) {
@@ -440,25 +423,20 @@ public class Main {
         }
     }
 
-    private static FileWatcher createWatcher(String path, BlockingQueue<FileWatchEvent> eventQueue) throws InterruptedException {
-        FileWatcher watcher;
+    private static AbstractFileEventFunctions.AbstractWatcherBuilder createWatcherBuilder() {
+        BlockingQueue<FileWatchEvent> eventQueue = new ArrayBlockingQueue<FileWatchEvent>(16);
         if (Platform.current().isMacOs()) {
-            watcher = Native.get(OsxFileEventFunctions.class)
-                .newWatcher(eventQueue)
-                .start();
+            return Native.get(OsxFileEventFunctions.class)
+                .newWatcher(eventQueue);
         } else if (Platform.current().isLinux()) {
-            watcher = Native.get(LinuxFileEventFunctions.class)
-                .newWatcher(eventQueue)
-                .start();
+            return Native.get(LinuxFileEventFunctions.class)
+                .newWatcher(eventQueue);
         } else if (Platform.current().isWindows()) {
-            watcher = Native.get(WindowsFileEventFunctions.class)
-                .newWatcher(eventQueue)
-                .start();
+            return Native.get(WindowsFileEventFunctions.class)
+                .newWatcher(eventQueue);
         } else {
             throw new RuntimeException("Only Windows and macOS are supported for file watching");
         }
-        watcher.startWatching(Collections.singleton(new File(path)));
-        return watcher;
     }
 
     private static void ls(String path) {

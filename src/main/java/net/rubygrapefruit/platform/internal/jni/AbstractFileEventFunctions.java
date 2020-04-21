@@ -11,6 +11,7 @@ import java.io.InterruptedIOException;
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -44,6 +45,84 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
          * @see FileWatcher#startWatching(Collection)
          */
         public abstract FileWatcher start() throws InterruptedException;
+
+        /**
+         * Starts the file watcher with a thread consuming the events and
+         * feeding them to the given {@link FileWatchEvent.Handler}.
+         *
+         * The started thread will terminate once the returned
+         * {@link FileWatcher} is {@link FileWatcher#close() closed}.
+         */
+        public FileWatcher startWithHandler(FileWatchEvent.Handler handler) throws InterruptedException {
+            return startWithHandler(new ThreadConfigurator() {
+                @Override
+                public void configure(Thread processorThread) {
+                    // Do nothing
+                }
+            }, handler);
+        }
+
+        /**
+         * Starts the file watcher with a thread consuming the events and
+         * feeding them to the given {@link FileWatchEvent.Handler}.
+         *
+         * The started thread will terminate once the returned
+         * {@link FileWatcher} is {@link FileWatcher#close() closed},
+         * or when it is {@link Thread#interrupt() interrupted}.
+         *
+         * Allows the configuration of the thread created via the given
+         * {@link ThreadConfigurator} before it is started.
+         */
+        public FileWatcher startWithHandler(ThreadConfigurator threadConfigurator, final FileWatchEvent.Handler handler) throws InterruptedException {
+            Thread processorThread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    final AtomicBoolean terminated = new AtomicBoolean(false);
+                    while (!terminated.get() && !Thread.interrupted()) {
+                        FileWatchEvent event;
+                        try {
+                            event = eventQueue.take();
+                        } catch (InterruptedException e) {
+                            break;
+                        }
+                        event.handleEvent(new FileWatchEvent.Handler() {
+                            @Override
+                            public void handleChangeEvent(FileWatchEvent.ChangeType type, String absolutePath) {
+                                handler.handleChangeEvent(type, absolutePath);
+                            }
+
+                            @Override
+                            public void handleUnknownEvent(String absolutePath) {
+                                handler.handleUnknownEvent(absolutePath);
+                            }
+
+                            @Override
+                            public void handleOverflow(FileWatchEvent.OverflowType type, String absolutePath) {
+                                handler.handleOverflow(type, absolutePath);
+                            }
+
+                            @Override
+                            public void handleFailure(Throwable failure) {
+                                handler.handleFailure(failure);
+                            }
+
+                            @Override
+                            public void handleTerminated() {
+                                terminated.set(true);
+                                handler.handleTerminated();
+                            }
+                        });
+                    }
+                }
+            }, "File watcher event handler");
+            threadConfigurator.configure(processorThread);
+            processorThread.start();
+            return start();
+        }
+    }
+
+    interface ThreadConfigurator {
+        void configure(Thread processorThread);
     }
 
     /**
@@ -137,6 +216,8 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
             queueEvent(new FailureEvent(ex), true);
         }
 
+        // Called from the native side
+        @SuppressWarnings("unused")
         public void reportTermination() {
             queueEvent(TerminationEvent.INSTANCE, true);
         }
