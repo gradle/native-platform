@@ -50,7 +50,7 @@ AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback)
     jclass callbackClass = env->GetObjectClass(watcherCallback);
     this->watcherCallbackMethod = env->GetMethodID(callbackClass, "pathChanged", "(ILjava/lang/String;)V");
     this->watcherReportErrorMethod = env->GetMethodID(callbackClass, "reportError", "(Ljava/lang/Throwable;)V");
-    this->watcherReportTerminationMethod = env->GetMethodID(callbackClass, "reportTermination", "()V");
+    this->watcherReportTerminationMethod = env->GetMethodID(callbackClass, "reportTermination", "(Z)V");
 }
 
 AbstractServer::~AbstractServer() {
@@ -74,8 +74,8 @@ void AbstractServer::reportError(JNIEnv* env, const exception& exception) {
     getJavaExceptionAndPrintStacktrace(env);
 }
 
-void AbstractServer::reportTermination(JNIEnv* env) {
-    env->CallVoidMethod(watcherCallback.get(), watcherReportTerminationMethod);
+void AbstractServer::reportTermination(JNIEnv* env, bool successful) {
+    env->CallVoidMethod(watcherCallback.get(), watcherReportTerminationMethod, successful);
     getJavaExceptionAndPrintStacktrace(env);
 }
 
@@ -132,10 +132,11 @@ void AbstractServer::terminate(JNIEnv* env) {
     terminateRunLoop();
     // TODO Parametrize this
     auto status = terminated.wait_for(terminationLock, THREAD_TIMEOUT);
-    if (status == cv_status::timeout) {
+    bool timedOut = status == cv_status::timeout;
+    reportTermination(env, !timedOut);
+    if (timedOut) {
         throw FileWatcherException("Termination timed out");
     }
-    reportTermination(env);
 }
 
 JNIEXPORT void JNICALL

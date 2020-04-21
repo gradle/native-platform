@@ -107,9 +107,9 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
                             }
 
                             @Override
-                            public void handleTerminated() {
+                            public void handleTerminated(boolean successful) {
                                 terminated = true;
-                                handler.handleTerminated();
+                                handler.handleTerminated(successful);
                             }
                         });
                     }
@@ -218,8 +218,8 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
 
         // Called from the native side
         @SuppressWarnings("unused")
-        public void reportTermination() {
-            queueEvent(TerminationEvent.INSTANCE, true);
+        public void reportTermination(boolean successful) {
+            queueEvent(new TerminationEvent(successful), true);
         }
 
         private void queueEvent(FileWatchEvent event, boolean deliverOnOverflow) {
@@ -408,19 +408,20 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
     }
 
     private static class TerminationEvent implements FileWatchEvent {
-        public static final FileWatchEvent INSTANCE = new TerminationEvent();
+        private final boolean successful;
 
-        private TerminationEvent() {
+        public TerminationEvent(boolean successful) {
+            this.successful = successful;
         }
 
         @Override
         public void handleEvent(Handler handler) {
-            handler.handleTerminated();
+            handler.handleTerminated(successful);
         }
 
         @Override
         public String toString() {
-            return "TERMINATE";
+            return "TERMINATE successful: " + successful;
         }
     }
 }

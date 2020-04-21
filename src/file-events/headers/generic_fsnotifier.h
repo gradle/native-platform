@@ -95,7 +95,7 @@ protected:
 
     void reportChange(JNIEnv* env, FileWatchEventType type, const u16string& path);
     void reportError(JNIEnv* env, const exception& ex);
-    void reportTermination(JNIEnv* env);
+    void reportTermination(JNIEnv* env, bool successful);
 
     mutex mutationMutex;
     mutex terminationMutex;

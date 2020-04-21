@@ -15,7 +15,7 @@ public interface FileWatchEvent {
 
         void handleFailure(Throwable failure);
 
-        void handleTerminated();
+        void handleTerminated(boolean successful);
     }
 
     enum ChangeType {

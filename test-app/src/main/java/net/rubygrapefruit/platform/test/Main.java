@@ -399,8 +399,8 @@ public class Main {
             }
 
             @Override
-            public void handleTerminated() {
-                System.out.printf("Terminated%n");
+            public void handleTerminated(boolean successful) {
+                System.out.printf("Terminated %s%n", successful ? "successfully" : "unsuccessfully");
             }
         });
         watcher.startWatching(Collections.singleton(new File(path)));

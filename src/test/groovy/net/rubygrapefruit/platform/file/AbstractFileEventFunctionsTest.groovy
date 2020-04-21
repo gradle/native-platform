@@ -323,12 +323,18 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     }
 
     private class ExpectedTermination implements ExpectedEvent {
+        private final boolean successful
+
+        ExpectedTermination(boolean successful) {
+            this.successful = successful
+        }
+
         @Override
         boolean matches(FileWatchEvent event) {
             def matcher = new MatcherHandler() {
                 @Override
-                void handleTerminated() {
-                    matched = true
+                void handleTerminated(boolean successful) {
+                    matched = ExpectedTermination.this.successful == successful
                 }
             }
             event.handleEvent(matcher)
@@ -342,7 +348,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
         @Override
         String toString() {
-            return "TERMINATE"
+            return "TERMINATE successful = $successful"
         }
     }
 
@@ -484,8 +490,8 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             }
 
             @Override
-            void handleTerminated() {
-                shortened = "TERMINATE"
+            void handleTerminated(boolean successful) {
+                shortened = "TERMINATE successful = $successful"
             }
         })
         assert shortened != null
@@ -522,8 +528,8 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         return new ExpectedFailure(type, message)
     }
 
-    protected ExpectedEvent termination() {
-        return new ExpectedTermination()
+    protected ExpectedEvent termination(boolean successful = true) {
+        return new ExpectedTermination(successful)
     }
 
     protected void createNewFile(File file) {
@@ -565,7 +571,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         void handleFailure(Throwable failure) {}
 
         @Override
-        void handleTerminated() {}
+        void handleTerminated(boolean successful) {}
     }
 
     protected static class TestHandler implements FileWatchEvent.Handler {
@@ -590,7 +596,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         }
 
         @Override
-        void handleTerminated() {
+        void handleTerminated(boolean successful) {
             throw new IllegalStateException("Received unexpected termination")
         }
     }

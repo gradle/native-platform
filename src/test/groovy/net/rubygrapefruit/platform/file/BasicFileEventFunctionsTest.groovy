@@ -43,18 +43,30 @@ import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.REMOVED
 class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
     def "can start and stop watcher without watching any paths"() {
         when:
-        startWatcher()
+        def watcher = startNewWatcher()
 
         then:
         noExceptionThrown()
+
+        when:
+        watcher.close()
+
+        then:
+        expectEvents termination(true)
     }
 
     def "can open and close watcher on a directory without receiving any events"() {
         when:
-        startWatcher(rootDir)
+        def watcher = startNewWatcher(rootDir)
 
         then:
         noExceptionThrown()
+
+        when:
+        watcher.close()
+
+        then:
+        expectEvents termination(true)
     }
 
     def "can detect file created"() {
@@ -761,6 +773,6 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         then:
         expectLogMessage(INFO, "Event queue overflow, dropping all events")
         expectLogMessage(SEVERE, "Couldn't queue event: OVERFLOW (EVENT_QUEUE) at null")
-        expectLogMessage(SEVERE, "Couldn't queue event: TERMINATE")
+        expectLogMessage(SEVERE, "Couldn't queue event: TERMINATE successful: true")
     }
 }
