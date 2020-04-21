@@ -55,6 +55,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Main {
     public static void main(String[] args) throws Exception {
@@ -379,7 +380,8 @@ public class Main {
         Thread processorThread = new Thread(new Runnable() {
             @Override
             public void run() {
-                while (!Thread.currentThread().isInterrupted()) {
+                final AtomicBoolean terminated = new AtomicBoolean(false);
+                while (!terminated.get()) {
                     FileWatchEvent event;
                     try {
                         event = eventQueue.take();
@@ -406,6 +408,12 @@ public class Main {
                         public void handleFailure(Throwable failure) {
                             failure.printStackTrace();
                         }
+
+                        @Override
+                        public void handleTerminated() {
+                            System.out.printf("Terminated%n");
+                            terminated.set(true);
+                        }
                     });
                 }
             }
@@ -429,9 +437,7 @@ public class Main {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            processorThread.interrupt();
         }
-        System.out.println("Done");
     }
 
     private static FileWatcher createWatcher(String path, BlockingQueue<FileWatchEvent> eventQueue) throws InterruptedException {

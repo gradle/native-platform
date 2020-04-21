@@ -50,6 +50,7 @@ AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback)
     jclass callbackClass = env->GetObjectClass(watcherCallback);
     this->watcherCallbackMethod = env->GetMethodID(callbackClass, "pathChanged", "(ILjava/lang/String;)V");
     this->watcherReportErrorMethod = env->GetMethodID(callbackClass, "reportError", "(Ljava/lang/Throwable;)V");
+    this->watcherReportTerminationMethod = env->GetMethodID(callbackClass, "reportTermination", "()V");
 }
 
 AbstractServer::~AbstractServer() {
@@ -70,6 +71,11 @@ void AbstractServer::reportError(JNIEnv* env, const exception& exception) {
     env->CallVoidMethod(watcherCallback.get(), watcherReportErrorMethod, javaException);
     env->DeleteLocalRef(javaMessage);
     env->DeleteLocalRef(javaException);
+    getJavaExceptionAndPrintStacktrace(env);
+}
+
+void AbstractServer::reportTermination(JNIEnv* env) {
+    env->CallVoidMethod(watcherCallback.get(), watcherReportTerminationMethod);
     getJavaExceptionAndPrintStacktrace(env);
 }
 
@@ -121,7 +127,7 @@ bool AbstractServer::unregisterPaths(const vector<u16string>& paths) {
     return success;
 }
 
-void AbstractServer::terminate() {
+void AbstractServer::terminate(JNIEnv* env) {
     unique_lock<mutex> terminationLock(terminationMutex);
     terminateRunLoop();
     // TODO Parametrize this
@@ -129,6 +135,7 @@ void AbstractServer::terminate() {
     if (status == cv_status::timeout) {
         throw FileWatcherException("Termination timed out");
     }
+    reportTermination(env);
 }
 
 JNIEXPORT void JNICALL
@@ -180,7 +187,7 @@ JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_close0(JNIEnv* env, jobject, jobject javaServer) {
     try {
         AbstractServer* server = getServer(env, javaServer);
-        server->terminate();
+        server->terminate(env);
         delete server;
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);

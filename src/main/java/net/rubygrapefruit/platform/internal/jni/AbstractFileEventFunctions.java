@@ -137,6 +137,10 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
             queueEvent(new FailureEvent(ex), true);
         }
 
+        public void reportTermination() {
+            queueEvent(TerminationEvent.INSTANCE, true);
+        }
+
         private void queueEvent(FileWatchEvent event, boolean deliverOnOverflow) {
             if (!eventQueue.offer(event)) {
                 NativeLogger.LOGGER.info("Event queue overflow, dropping all events");
@@ -319,6 +323,23 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
         @Override
         public String toString() {
             return "FAILURE " + failure.getMessage();
+        }
+    }
+
+    private static class TerminationEvent implements FileWatchEvent {
+        public static final FileWatchEvent INSTANCE = new TerminationEvent();
+
+        private TerminationEvent() {
+        }
+
+        @Override
+        public void handleEvent(Handler handler) {
+            handler.handleTerminated();
+        }
+
+        @Override
+        public String toString() {
+            return "TERMINATE";
         }
     }
 }

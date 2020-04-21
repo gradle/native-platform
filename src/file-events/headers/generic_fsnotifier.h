@@ -85,7 +85,7 @@ public:
     /**
      * Terminates server.
      */
-    void terminate();
+    void terminate(JNIEnv* env);
 
 protected:
     virtual void runLoop() = 0;
@@ -95,6 +95,7 @@ protected:
 
     void reportChange(JNIEnv* env, FileWatchEventType type, const u16string& path);
     void reportError(JNIEnv* env, const exception& ex);
+    void reportTermination(JNIEnv* env);
 
     mutex mutationMutex;
     mutex terminationMutex;
@@ -104,6 +105,7 @@ private:
     JniGlobalRef<jobject> watcherCallback;
     jmethodID watcherCallbackMethod;
     jmethodID watcherReportErrorMethod;
+    jmethodID watcherReportTerminationMethod;
 };
 
 class NativePlatformJniConstants : public JniSupport {

@@ -14,6 +14,8 @@ public interface FileWatchEvent {
         void handleOverflow(OverflowType type, @Nullable String absolutePath);
 
         void handleFailure(Throwable failure);
+
+        void handleTerminated();
     }
 
     enum ChangeType {

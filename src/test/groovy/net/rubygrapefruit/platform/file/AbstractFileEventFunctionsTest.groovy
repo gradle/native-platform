@@ -274,14 +274,14 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
         @Override
         boolean matches(FileWatchEvent event) {
-            boolean matched = false
-            event.handleEvent(new MatcherHandler() {
+            def matcher = new MatcherHandler() {
                 @Override
                 void handleChangeEvent(ChangeType type, String absolutePath) {
                     matched = ExpectedChange.this.type == type && ExpectedChange.this.file.absolutePath == absolutePath
                 }
-            })
-            return matched
+            }
+            event.handleEvent(matcher)
+            return matcher.matched
         }
 
         @Override
@@ -301,14 +301,14 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
         @Override
         boolean matches(FileWatchEvent event) {
-            boolean matched = false
-            event.handleEvent(new MatcherHandler() {
+            def matcher = new MatcherHandler() {
                 @Override
                 void handleFailure(Throwable failure) {
                     matched = type.isInstance(failure) && message.matcher(failure.message).matches()
                 }
-            })
-            return matched
+            }
+            event.handleEvent(matcher)
+            return matcher.matched
         }
 
         @Override
@@ -319,6 +319,30 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         @Override
         String toString() {
             return "FAILURE /${message.pattern()}/"
+        }
+    }
+
+    private class ExpectedTermination implements ExpectedEvent {
+        @Override
+        boolean matches(FileWatchEvent event) {
+            def matcher = new MatcherHandler() {
+                @Override
+                void handleTerminated() {
+                    matched = true
+                }
+            }
+            event.handleEvent(matcher)
+            return matcher.matched
+        }
+
+        @Override
+        boolean isOptional() {
+            return false
+        }
+
+        @Override
+        String toString() {
+            return "TERMINATE"
         }
     }
 
@@ -458,6 +482,11 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             void handleFailure(Throwable failure) {
                 shortened = "FAILURE $failure"
             }
+
+            @Override
+            void handleTerminated() {
+                shortened = "TERMINATE"
+            }
         })
         assert shortened != null
         return shortened
@@ -493,6 +522,10 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         return new ExpectedFailure(type, message)
     }
 
+    protected ExpectedEvent termination() {
+        return new ExpectedTermination()
+    }
+
     protected void createNewFile(File file) {
         LOGGER.info("> Creating ${shorten(file)}")
         file.createNewFile()
@@ -517,6 +550,8 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     }
 
     private static class MatcherHandler implements FileWatchEvent.Handler {
+        boolean matched
+
         @Override
         void handleChangeEvent(ChangeType type, String absolutePath) {}
 
@@ -528,6 +563,9 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
         @Override
         void handleFailure(Throwable failure) {}
+
+        @Override
+        void handleTerminated() {}
     }
 
     protected static class TestHandler implements FileWatchEvent.Handler {
@@ -549,6 +587,11 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         @Override
         void handleFailure(Throwable failure) {
             throw new IllegalStateException(String.format("Received unexpected failure", failure))
+        }
+
+        @Override
+        void handleTerminated() {
+            throw new IllegalStateException("Received unexpected termination")
         }
     }
 }

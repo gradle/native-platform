@@ -536,7 +536,12 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         then:
         expectEvents change(CREATED, firstFile)
+
+        when:
         stopWatcher()
+
+        then:
+        expectEvents termination()
 
         when:
         startWatcher(rootDir)
@@ -754,6 +759,8 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         watcher.close()
 
         then:
-        noExceptionThrown()
+        expectLogMessage(INFO, "Event queue overflow, dropping all events")
+        expectLogMessage(SEVERE, "Couldn't queue event: OVERFLOW (EVENT_QUEUE) at null")
+        expectLogMessage(SEVERE, "Couldn't queue event: TERMINATE")
     }
 }
