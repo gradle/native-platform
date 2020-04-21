@@ -80,6 +80,9 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         def numberOfParallelWritersPerWatchedDirectory = 10
         def numberOfWatchedDirectories = 10
 
+        // We don't care about overflows here
+        ignoreLogMessages()
+
         expect:
         20.times { iteration ->
             LOGGER.info(">> Round #${iteration + 1}")
