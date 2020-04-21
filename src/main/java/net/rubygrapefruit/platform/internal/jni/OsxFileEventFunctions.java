@@ -16,9 +16,10 @@
 
 package net.rubygrapefruit.platform.internal.jni;
 
+import net.rubygrapefruit.platform.file.FileWatchEvent;
 import net.rubygrapefruit.platform.file.FileWatcher;
-import net.rubygrapefruit.platform.file.FileWatcherCallback;
 
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -45,15 +46,15 @@ public class OsxFileEventFunctions extends AbstractFileEventFunctions {
     private static final long DEFAULT_LATENCY_IN_MS = 0;
 
     @Override
-    public WatcherBuilder newWatcher(FileWatcherCallback callback) {
-        return new WatcherBuilder(callback);
+    public WatcherBuilder newWatcher(BlockingQueue<FileWatchEvent> eventQueue) {
+        return new WatcherBuilder(eventQueue);
     }
 
     public static class WatcherBuilder extends AbstractWatcherBuilder {
         private long latencyInMillis = DEFAULT_LATENCY_IN_MS;
 
-        WatcherBuilder(FileWatcherCallback callback) {
-            super(callback);
+        WatcherBuilder(BlockingQueue<FileWatchEvent> eventQueue) {
+            super(eventQueue);
         }
 
         /**
@@ -70,7 +71,7 @@ public class OsxFileEventFunctions extends AbstractFileEventFunctions {
 
         @Override
         public FileWatcher start() throws InterruptedException {
-            return new NativeFileWatcher(startWatcher0(latencyInMillis, new NativeFileWatcherCallback(callback)));
+            return new NativeFileWatcher(startWatcher0(latencyInMillis, new NativeFileWatcherCallback(eventQueue)));
         }
     }
 

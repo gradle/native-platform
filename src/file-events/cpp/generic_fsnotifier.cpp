@@ -59,7 +59,7 @@ void AbstractServer::reportChange(JNIEnv* env, FileWatchEventType type, const u1
     jstring javaPath = env->NewString((jchar*) path.c_str(), (jsize) path.length());
     env->CallVoidMethod(watcherCallback.get(), watcherCallbackMethod, type, javaPath);
     env->DeleteLocalRef(javaPath);
-    rethrowJavaException(env);
+    logJavaException(env);
 }
 
 void AbstractServer::reportError(JNIEnv* env, const exception& exception) {
@@ -70,7 +70,7 @@ void AbstractServer::reportError(JNIEnv* env, const exception& exception) {
     env->CallVoidMethod(watcherCallback.get(), watcherReportErrorMethod, javaException);
     env->DeleteLocalRef(javaMessage);
     env->DeleteLocalRef(javaException);
-    rethrowJavaException(env);
+    logJavaException(env);
 }
 
 AbstractServer* getServer(JNIEnv* env, jobject javaServer) {

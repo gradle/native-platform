@@ -1,11 +1,20 @@
 package net.rubygrapefruit.platform.file;
 
-/**
- * A callback that is invoked whenever a path has changed.
- */
-public interface FileWatcherCallback {
+import javax.annotation.Nullable;
+
+public interface FileWatchEvent {
+
     /**
-     * The given path has changed.
+     * The type of the change. When {@link Type#FAILURE}, {@link #getFailure()} returns
+     * the failure, and {@link #getPath()} returns {@code null}.
+     * Otherwise {@link #getFailure()} returns {@code null} and {@link #getPath()}
+     * returns either the path of the change, or {@code null} if a path is not known.
+     */
+    Type getType();
+
+    /**
+     * The path that has been changed. Can be {@code null} when {@link #getType()} is
+     * {@link Type#FAILURE} or {@link Type#UNKNOWN}.
      *
      * See notes on the {@link FileWatcher} implementation for:
      *
@@ -13,16 +22,15 @@ public interface FileWatcherCallback {
      *     <li>whether calls to this method can be expected from a single thread or multiple different ones,</li>
      *     <li>how actual events are reported.</li>
      * </ul>
-     *
-     * @param type the type of the change.
-     * @param path the path of the change.
-     *             For {@link Type#UNKNOWN} it can be {@code null}.
      */
-    // Invoked from native code
-    @SuppressWarnings("unused")
-    void pathChanged(Type type, String path);
+    @Nullable
+    String getPath();
 
-    void reportError(Throwable ex);
+    /**
+     * Returns the failure encountered when {@link #getType()} is {@link Type#FAILURE}, otherwise {@code null}.
+     */
+    @Nullable
+    Throwable getFailure();
 
     enum Type {
         /**
@@ -55,6 +63,13 @@ public interface FileWatcherCallback {
          * An unknown event happened to the given path or some of its descendants,
          * discard all information about the file system.
          */
-        UNKNOWN
+        UNKNOWN,
+
+        /**
+         * An error happened to the given path or some of its descendants.
+         *
+         * @see FileWatchEvent#getFailure()
+         */
+        FAILURE
     }
 }

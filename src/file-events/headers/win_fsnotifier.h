@@ -45,6 +45,7 @@ public:
 
 private:
     bool isValidDirectory();
+    void close();
 
     Server* server;
     const u16string path;
@@ -84,7 +85,6 @@ private:
     const long commandTimeoutInMillis;
     unordered_map<u16string, WatchPoint> watchPoints;
     bool terminated = false;
-    mutex executionMutex;
     friend void CALLBACK executeOnRunLoopCallback(_In_ ULONG_PTR info);
 };
 

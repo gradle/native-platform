@@ -16,8 +16,10 @@
 
 package net.rubygrapefruit.platform.internal.jni;
 
+import net.rubygrapefruit.platform.file.FileWatchEvent;
 import net.rubygrapefruit.platform.file.FileWatcher;
-import net.rubygrapefruit.platform.file.FileWatcherCallback;
+
+import java.util.concurrent.BlockingQueue;
 
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
@@ -32,9 +34,9 @@ import java.util.concurrent.TimeUnit;
  *     different case, the canonical one is used to report changes.</li>
  *
  *     <li>When reporting
- *     {@link net.rubygrapefruit.platform.file.FileWatcherCallback.Type#REMOVED REMOVED}
+ *     {@link net.rubygrapefruit.platform.file.FileWatchEvent.Type#REMOVED REMOVED}
  *     events, Windows sometimes also reports a
- *     {@link net.rubygrapefruit.platform.file.FileWatcherCallback.Type#MODIFIED MODIFIED}
+ *     {@link net.rubygrapefruit.platform.file.FileWatchEvent.Type#MODIFIED MODIFIED}
  *     event for the same file. This can happen when deleting a file or renaming it.</li>
  *
  *     <li>Events arrive from a single background thread unique to the {@link FileWatcher}.
@@ -50,16 +52,16 @@ public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
     public static final int DEFAULT_COMMAND_TIMEOUT_IN_SECONDS = 5;
 
     @Override
-    public WatcherBuilder newWatcher(FileWatcherCallback callback) {
-        return new WatcherBuilder(callback);
+    public WatcherBuilder newWatcher(BlockingQueue<FileWatchEvent> eventQueue) {
+        return new WatcherBuilder(eventQueue);
     }
 
     public static class WatcherBuilder extends AbstractWatcherBuilder {
         private int bufferSize = DEFAULT_BUFFER_SIZE;
         private long commandTimeoutInMillis = TimeUnit.SECONDS.toMillis(DEFAULT_COMMAND_TIMEOUT_IN_SECONDS);
 
-        private WatcherBuilder(FileWatcherCallback callback) {
-            super(callback);
+        private WatcherBuilder(BlockingQueue<FileWatchEvent> eventQueue) {
+            super(eventQueue);
         }
 
         /**
@@ -88,7 +90,7 @@ public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
 
         @Override
         public FileWatcher start() throws InterruptedException {
-            return new NativeFileWatcher(startWatcher0(bufferSize, commandTimeoutInMillis, new NativeFileWatcherCallback(callback)));
+            return new NativeFileWatcher(startWatcher0(bufferSize, commandTimeoutInMillis, new NativeFileWatcherCallback(eventQueue)));
         }
     }
 
