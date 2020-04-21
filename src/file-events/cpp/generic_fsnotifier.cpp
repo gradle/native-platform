@@ -48,27 +48,44 @@ AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback)
     : JniSupport(env)
     , watcherCallback(env, watcherCallback) {
     jclass callbackClass = env->GetObjectClass(watcherCallback);
-    this->watcherCallbackMethod = env->GetMethodID(callbackClass, "pathChanged", "(ILjava/lang/String;)V");
-    this->watcherReportErrorMethod = env->GetMethodID(callbackClass, "reportError", "(Ljava/lang/Throwable;)V");
+    this->watcherReportChangeEventMethod = env->GetMethodID(callbackClass, "reportChangeEvent", "(ILjava/lang/String;)V");
+    this->watcherReportUnknownEventMethod = env->GetMethodID(callbackClass, "reportUnknownEvent", "(Ljava/lang/String;)V");
+    this->watcherReportOverflowMethod = env->GetMethodID(callbackClass, "reportOverflow", "(Ljava/lang/String;)V");
+    this->watcherReportFailureMethod = env->GetMethodID(callbackClass, "reportFailure", "(Ljava/lang/Throwable;)V");
     this->watcherReportTerminationMethod = env->GetMethodID(callbackClass, "reportTermination", "(Z)V");
 }
 
 AbstractServer::~AbstractServer() {
 }
 
-void AbstractServer::reportChange(JNIEnv* env, FileWatchEventType type, const u16string& path) {
+void AbstractServer::reportChangeEvent(JNIEnv* env, ChangeType type, const u16string& path) {
     jstring javaPath = env->NewString((jchar*) path.c_str(), (jsize) path.length());
-    env->CallVoidMethod(watcherCallback.get(), watcherCallbackMethod, type, javaPath);
+    env->CallVoidMethod(watcherCallback.get(), watcherReportChangeEventMethod, type, javaPath);
     env->DeleteLocalRef(javaPath);
     getJavaExceptionAndPrintStacktrace(env);
 }
 
-void AbstractServer::reportError(JNIEnv* env, const exception& exception) {
+void AbstractServer::reportUnknownEvent(JNIEnv* env, const u16string& path) {
+    jstring javaPath = env->NewString((jchar*) path.c_str(), (jsize) path.length());
+    env->CallVoidMethod(watcherCallback.get(), watcherReportChangeEventMethod, javaPath);
+    env->DeleteLocalRef(javaPath);
+    getJavaExceptionAndPrintStacktrace(env);
+}
+
+void AbstractServer::reportOverflow(JNIEnv* env, const u16string& path) {
+    logToJava(INFO, "Detected overflow for %s", utf16ToUtf8String(path).c_str());
+    jstring javaPath = env->NewString((jchar*) path.c_str(), (jsize) path.length());
+    env->CallVoidMethod(watcherCallback.get(), watcherReportOverflowMethod, javaPath);
+    env->DeleteLocalRef(javaPath);
+    getJavaExceptionAndPrintStacktrace(env);
+}
+
+void AbstractServer::reportFailure(JNIEnv* env, const exception& exception) {
     u16string message = utf8ToUtf16String(exception.what());
     jstring javaMessage = env->NewString((jchar*) message.c_str(), (jsize) message.length());
     jmethodID constructor = env->GetMethodID(nativePlatformJniConstants->nativeExceptionClass.get(), "<init>", "(Ljava/lang/String;)V");
     jobject javaException = env->NewObject(nativePlatformJniConstants->nativeExceptionClass.get(), constructor, javaMessage);
-    env->CallVoidMethod(watcherCallback.get(), watcherReportErrorMethod, javaException);
+    env->CallVoidMethod(watcherCallback.get(), watcherReportFailureMethod, javaException);
     env->DeleteLocalRef(javaMessage);
     env->DeleteLocalRef(javaException);
     getJavaExceptionAndPrintStacktrace(env);
