@@ -11,7 +11,6 @@ import java.io.InterruptedIOException;
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -75,10 +74,11 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
          */
         public FileWatcher startWithHandler(ThreadConfigurator threadConfigurator, final FileWatchEvent.Handler handler) throws InterruptedException {
             Thread processorThread = new Thread(new Runnable() {
+                private volatile boolean terminated;
+
                 @Override
                 public void run() {
-                    final AtomicBoolean terminated = new AtomicBoolean(false);
-                    while (!terminated.get() && !Thread.interrupted()) {
+                    while (!terminated && !Thread.interrupted()) {
                         FileWatchEvent event;
                         try {
                             event = eventQueue.take();
@@ -108,7 +108,7 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
 
                             @Override
                             public void handleTerminated() {
-                                terminated.set(true);
+                                terminated = true;
                                 handler.handleTerminated();
                             }
                         });
