@@ -9,7 +9,7 @@ public interface FileWatchEvent {
     interface Handler {
         void handleChangeEvent(ChangeType type, String absolutePath);
 
-        void handleUnknownEvent(@Nullable String absolutePath);
+        void handleUnknownEvent(String absolutePath);
 
         void handleOverflow(OverflowType type, @Nullable String absolutePath);
 
