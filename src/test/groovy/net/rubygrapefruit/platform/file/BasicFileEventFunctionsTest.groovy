@@ -23,9 +23,9 @@ import org.junit.Assume
 import spock.lang.IgnoreIf
 import spock.lang.Requires
 import spock.lang.Unroll
-import spock.util.environment.OperatingSystem
 
-import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.BlockingQueue
+import java.util.concurrent.TimeUnit
 import java.util.logging.Level
 import java.util.logging.Logger
 import java.util.regex.Pattern
@@ -36,7 +36,6 @@ import static java.util.logging.Level.WARNING
 import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.CREATED
 import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.INVALIDATED
 import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.MODIFIED
-import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.OVERFLOWED
 import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.REMOVED
 
 @Unroll
@@ -732,5 +731,29 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         action                                    | ensureLogLevelInvalidated
         "invalidating the log level cache"        | { AbstractFileEventFunctions service -> service.invalidateLogLevelCache() }
         "waiting for log level cache to time out" | { Thread.sleep(1500) }
+    }
+
+    def "handles queue not able to take any events"() {
+        given:
+        def notAcceptingQueue = Stub(BlockingQueue) {
+            _ * offer(_ as FileWatchEvent, _ as long, _ as TimeUnit) >> false
+            _ * offer(_ as FileWatchEvent) >> false
+        }
+        def fileCreated = new File(rootDir, "changed.txt")
+        def watcher = startNewWatcher(notAcceptingQueue, rootDir)
+
+        when:
+        fileCreated.createNewFile()
+        waitForChangeEventLatency()
+
+        then:
+        expectLogMessage(INFO, "Event queue overflow, dropping all events")
+        expectLogMessage(SEVERE, "Couldn't queue event: OVERFLOWED null")
+
+        when:
+        watcher.close()
+
+        then:
+        noExceptionThrown()
     }
 }

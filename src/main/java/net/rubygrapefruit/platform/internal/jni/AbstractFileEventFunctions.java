@@ -12,6 +12,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.OVERFLOWED;
 
 public abstract class AbstractFileEventFunctions implements NativeIntegration {
     public static String getVersion() {
@@ -46,8 +47,11 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
     }
 
     /**
-     * Configures a new watcher using a builder. Call {@link AbstractWatcherBuilder#start()} to
-     * actually start the {@link FileWatcher}.
+     * Configures a new watcher using a builder.
+     * Call {@link AbstractWatcherBuilder#start()} to actually start the {@link FileWatcher}.
+     *
+     * The queue must have a total capacity of at least 2 elements.
+     * The caller should only consume events from the queue, and never add any of their own.
      */
     public abstract AbstractWatcherBuilder newWatcher(BlockingQueue<FileWatchEvent> queue);
 
@@ -61,9 +65,9 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
 
         // Called from the native side
         @SuppressWarnings("unused")
-        public void pathChanged(int typeIndex, String path) throws InterruptedException {
+        public void pathChanged(int typeIndex, String path) {
             FileWatchEvent.Type type = FileWatchEvent.Type.values()[typeIndex];
-            if (type == FileWatchEvent.Type.OVERFLOWED) {
+            if (type == OVERFLOWED) {
                 signalOverflow(path);
             } else {
                 queueEvent(new ChangeEvent(type, path), false);
@@ -72,23 +76,41 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
 
         // Called from the native side
         @SuppressWarnings("unused")
-        public void reportError(Throwable ex) throws InterruptedException {
+        public void reportError(Throwable ex) {
             queueEvent(new ErrorEvent(ex), true);
         }
 
-        private void queueEvent(FileWatchEvent event, boolean deliverOnOverflow) throws InterruptedException {
+        private void queueEvent(FileWatchEvent event, boolean deliverOnOverflow) {
             if (!eventQueue.offer(event)) {
                 NativeLogger.LOGGER.info("Event queue overflow, dropping all events");
                 signalOverflow(null);
                 if (deliverOnOverflow) {
-                    eventQueue.put(event);
+                    forceQueueEvent(event);
                 }
             }
         }
 
-        private void signalOverflow(@Nullable String path) throws InterruptedException {
+        private void signalOverflow(@Nullable String path) {
             eventQueue.clear();
-            eventQueue.put(new ChangeEvent(FileWatchEvent.Type.OVERFLOWED, path));
+            forceQueueEvent(new ChangeEvent(OVERFLOWED, path));
+        }
+
+        /**
+         * Queue event to a queue that we expect has enough capacity to accept the event.
+         * We expect there is enough space because we just cleared the queue, and thus
+         * it should have enough space.
+         *
+         * This can fail if the queue is extremely small (has 0 capacity, or has a capacity of
+         * 1 and we are trying to queue an error event here right after an overflow event).
+         * The queue can also be full if some other thread is adding events to it.
+         * Both a queue with a less than two element capacity and pushing events from user code
+         * are forbidden. If they occur the best we can do is log the situation.
+         */
+        private void forceQueueEvent(FileWatchEvent event) {
+            boolean eventPublished = eventQueue.offer(event);
+            if (!eventPublished) {
+                NativeLogger.LOGGER.severe("Couldn't queue event: " + event);
+            }
         }
     }
 
