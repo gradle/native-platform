@@ -21,7 +21,7 @@ public:
     /**
      * Check for a Java exception and log it.
      */
-    static jthrowable logJavaException(JNIEnv* env);
+    static jthrowable getJavaExceptionAndPrintStacktrace(JNIEnv* env);
 
     /**
      * Check for a Java exception and rethrow as a native exception.
