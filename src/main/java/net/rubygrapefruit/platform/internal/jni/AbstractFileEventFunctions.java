@@ -55,40 +55,6 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
      */
     public abstract AbstractWatcherBuilder newWatcher(BlockingQueue<FileWatchEvent> queue);
 
-    enum EventType {
-        /**
-         * An item with the given path has been created.
-         */
-        CREATED,
-
-        /**
-         * An item with the given path has been removed.
-         */
-        REMOVED,
-
-        /**
-         * An item with the given path has been modified.
-         */
-        MODIFIED,
-
-        /**
-         * Some undisclosed changes happened under the given path,
-         * all information about descendants must be discarded.
-         */
-        INVALIDATED,
-
-        /**
-         * An overflow happened, all information about descendants must be discarded.
-         */
-        OVERFLOWED,
-
-        /**
-         * An unknown event happened to the given path or some of its descendants,
-         * discard all information about the file system.
-         */
-        UNKNOWN
-    }
-
     protected static class NativeFileWatcherCallback {
 
         private final BlockingQueue<FileWatchEvent> eventQueue;
@@ -99,41 +65,26 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
 
         // Called from the native side
         @SuppressWarnings("unused")
-        public void pathChanged(int typeIndex, String path) {
-            EventType type = EventType.values()[typeIndex];
-            switch (type) {
-                case OVERFLOWED:
-                    signalOverflow(OverflowType.OPERATING_SYSTEM, path);
-                    break;
-                case UNKNOWN:
-                    queueEvent(new UnknownEvent(path), false);
-                    break;
-                default:
-                    FileWatchEvent.ChangeType changeType;
-                    switch (type) {
-                        case CREATED:
-                            changeType = FileWatchEvent.ChangeType.CREATED;
-                            break;
-                        case MODIFIED:
-                            changeType = FileWatchEvent.ChangeType.MODIFIED;
-                            break;
-                        case REMOVED:
-                            changeType = FileWatchEvent.ChangeType.REMOVED;
-                            break;
-                        case INVALIDATED:
-                            changeType = FileWatchEvent.ChangeType.INVALIDATED;
-                            break;
-                        default:
-                            throw new AssertionError();
-                    }
-                    queueEvent(new ChangeEvent(changeType, path), false);
-                    break;
-            }
+        public void reportChangeEvent(int typeIndex, String path) {
+            FileWatchEvent.ChangeType type = FileWatchEvent.ChangeType.values()[typeIndex];
+            queueEvent(new ChangeEvent(type, path), false);
         }
 
         // Called from the native side
         @SuppressWarnings("unused")
-        public void reportError(Throwable ex) {
+        public void reportUnknownEvent(String path) {
+            queueEvent(new UnknownEvent(path), false);
+        }
+
+        // Called from the native side
+        @SuppressWarnings("unused")
+        public void reportOverflow(@Nullable String path) {
+            signalOverflow(OverflowType.OPERATING_SYSTEM, path);
+        }
+
+        // Called from the native side
+        @SuppressWarnings("unused")
+        public void reportFailure(Throwable ex) {
             queueEvent(new FailureEvent(ex), true);
         }
 

@@ -112,7 +112,7 @@ void Server::processQueues(int timeout) {
         try {
             handleEvents();
         } catch (const exception& ex) {
-            reportError(getThreadEnv(), ex);
+            reportFailure(getThreadEnv(), ex);
         }
     }
 }
@@ -171,7 +171,7 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
     if (IS_SET(mask, IN_Q_OVERFLOW)) {
         for (auto it : watchPoints) {
             auto path = it.first;
-            reportChange(env, OVERFLOWED, path);
+            reportOverflow(env, path);
         }
         return;
     }
@@ -204,8 +204,14 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
         return;
     }
 
-    FileWatchEventType type;
+    ChangeType type;
     const u16string name = utf8ToUtf16String(eventName);
+
+    if (!name.empty()) {
+        path.append(u"/");
+        path.append(name);
+    }
+
     // TODO How to handle MOVE_SELF?
     if (IS_SET(mask, IN_CREATE | IN_MOVED_TO)) {
         type = CREATED;
@@ -214,14 +220,12 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
     } else if (IS_SET(mask, IN_MODIFY)) {
         type = MODIFIED;
     } else {
-        type = UNKNOWN;
+        logToJava(WARNING, "Unknown event 0x%x for %s", mask, utf16ToUtf8String(path).c_str());
+        reportUnknownEvent(env, path);
+        return;
     }
 
-    if (!name.empty()) {
-        path.append(u"/");
-        path.append(name);
-    }
-    reportChange(env, type, path);
+    reportChangeEvent(env, type, path);
 }
 
 static int addInotifyWatch(const u16string& path, shared_ptr<Inotify> inotify) {

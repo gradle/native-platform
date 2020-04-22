@@ -142,7 +142,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
     try {
         if (errorCode != ERROR_SUCCESS) {
             if (errorCode == ERROR_ACCESS_DENIED && !watchPoint->isValidDirectory()) {
-                reportChange(env, REMOVED, path);
+                reportChangeEvent(env, REMOVED, path);
                 watchPoint->close();
                 return;
             } else {
@@ -167,8 +167,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
             // (See https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-readdirectorychangesw)
             //
             // We'll handle this as a simple overflow and report it as such.
-            logToJava(INFO, "Detected overflow for %s", utf16ToUtf8String(path).c_str());
-            reportChange(env, OVERFLOWED, path);
+            reportOverflow(env, path);
         } else {
             int index = 0;
             for (;;) {
@@ -186,11 +185,11 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
                 break;
             case DELETED:
                 logToJava(FINE, "Watched directory removed for %s", utf16ToUtf8String(path).c_str());
-                reportChange(env, REMOVED, path);
+                reportChangeEvent(env, REMOVED, path);
                 break;
         }
     } catch (const exception& ex) {
-        reportError(env, ex);
+        reportFailure(env, ex);
     }
 }
 
@@ -263,7 +262,7 @@ void Server::handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMA
 
     logToJava(FINE, "Change detected: 0x%x '%s'", info->Action, utf16ToUtf8String(changedPath).c_str());
 
-    FileWatchEventType type;
+    ChangeType type;
     if (info->Action == FILE_ACTION_ADDED || info->Action == FILE_ACTION_RENAMED_NEW_NAME) {
         type = CREATED;
     } else if (info->Action == FILE_ACTION_REMOVED || info->Action == FILE_ACTION_RENAMED_OLD_NAME) {
@@ -272,10 +271,11 @@ void Server::handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMA
         type = MODIFIED;
     } else {
         logToJava(WARNING, "Unknown event 0x%x for %s", info->Action, utf16ToUtf8String(changedPath).c_str());
-        type = UNKNOWN;
+        reportUnknownEvent(env, changedPath);
+        return;
     }
 
-    reportChange(env, type, changedPath);
+    reportChangeEvent(env, type, changedPath);
 }
 
 //

@@ -18,14 +18,12 @@
 
 using namespace std;
 
-// Corresponds to values of AbstractFileEventFunctions.EventType
-enum FileWatchEventType {
+// Corresponds to values of FileWatchEvent.ChangeType
+enum ChangeType {
     CREATED,
     REMOVED,
     MODIFIED,
-    INVALIDATED,
-    OVERFLOWED,
-    UNKNOWN
+    INVALIDATED
 };
 
 #define IS_SET(flags, mask) (((flags) & (mask)) != 0)
@@ -93,8 +91,10 @@ protected:
     virtual bool unregisterPath(const u16string& path) = 0;
     virtual void terminateRunLoop() = 0;
 
-    void reportChange(JNIEnv* env, FileWatchEventType type, const u16string& path);
-    void reportError(JNIEnv* env, const exception& ex);
+    void reportChangeEvent(JNIEnv* env, ChangeType type, const u16string& path);
+    void reportUnknownEvent(JNIEnv* env, const u16string& path);
+    void reportOverflow(JNIEnv* env, const u16string& path);
+    void reportFailure(JNIEnv* env, const exception& ex);
     void reportTermination(JNIEnv* env, bool successful);
 
     mutex mutationMutex;
@@ -103,8 +103,10 @@ protected:
 
 private:
     JniGlobalRef<jobject> watcherCallback;
-    jmethodID watcherCallbackMethod;
-    jmethodID watcherReportErrorMethod;
+    jmethodID watcherReportChangeEventMethod;
+    jmethodID watcherReportUnknownEventMethod;
+    jmethodID watcherReportOverflowMethod;
+    jmethodID watcherReportFailureMethod;
     jmethodID watcherReportTerminationMethod;
 };
 

@@ -126,23 +126,29 @@ void Server::handleEvents(
             handleEvent(env, eventPaths[i], eventFlags[i]);
         }
     } catch (const exception& ex) {
-        reportError(env, ex);
+        reportFailure(env, ex);
     }
 }
 
 void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags) {
     logToJava(FINE, "Event flags: 0x%x for '%s'", flags, path);
 
-    FileWatchEventType type;
     if (IS_SET(flags, kFSEventStreamEventFlagHistoryDone)) {
         return;
-    } else if (IS_SET(flags,
-                   kFSEventStreamEventFlagRootChanged
-                       | kFSEventStreamEventFlagMount
-                       | kFSEventStreamEventFlagUnmount)) {
+    }
+
+    u16string pathStr = utf8ToUtf16String(path);
+    if (IS_SET(flags, kFSEventStreamEventFlagMustScanSubDirs)) {
+        reportOverflow(env, pathStr);
+        return;
+    }
+
+    ChangeType type;
+    if (IS_SET(flags,
+            kFSEventStreamEventFlagRootChanged
+                | kFSEventStreamEventFlagMount
+                | kFSEventStreamEventFlagUnmount)) {
         type = INVALIDATED;
-    } else if (IS_SET(flags, kFSEventStreamEventFlagMustScanSubDirs)) {
-        type = OVERFLOWED;
     } else if (IS_SET(flags, kFSEventStreamEventFlagItemRenamed)) {
         if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
             type = REMOVED;
@@ -163,11 +169,11 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
         type = CREATED;
     } else {
         logToJava(WARNING, "Unknown event 0x%x for %s", flags, path);
-        type = UNKNOWN;
+        reportUnknownEvent(env, pathStr);
+        return;
     }
 
-    u16string pathStr = utf8ToUtf16String(path);
-    reportChange(env, type, pathStr);
+    reportChangeEvent(env, type, pathStr);
 }
 
 void Server::registerPath(const u16string& path) {
