@@ -350,6 +350,22 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
             : [change(CREATED, targetFileInside)]
     }
 
+    def "can rename watched directory"() {
+        given:
+        def watchedDirectory = new File(rootDir, "watched")
+        watchedDirectory.mkdirs()
+        startWatcher(watchedDirectory)
+
+        when:
+        watchedDirectory.renameTo(new File(rootDir, "newWatched"))
+        waitForChangeEventLatency()
+        then:
+        if (Platform.current().linux) {
+            expectLogMessage(WARNING, Pattern.compile("Unknown event 0x800 for ${Pattern.quote(watchedDirectory.absolutePath)}"))
+        }
+        noExceptionThrown()
+    }
+
     def "can receive multiple events from the same directory"() {
         given:
         def firstFile = new File(rootDir, "first.txt")
