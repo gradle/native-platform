@@ -30,6 +30,7 @@ import java.util.logging.Level
 import java.util.logging.Logger
 import java.util.regex.Pattern
 
+import static java.util.concurrent.TimeUnit.SECONDS
 import static java.util.logging.Level.INFO
 import static java.util.logging.Level.SEVERE
 import static java.util.logging.Level.WARNING
@@ -790,5 +791,14 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         expectLogMessage(INFO, "Event queue overflow, dropping all events")
         expectLogMessage(SEVERE, "Couldn't queue event: OVERFLOW (EVENT_QUEUE) at null")
         expectLogMessage(SEVERE, "Couldn't queue event: TERMINATE successful: true")
+    }
+
+    def "can handle watcher start timing out"() {
+        when:
+        service.newWatcher(eventQueue).start(0, SECONDS)
+
+        then:
+        def ex = thrown AbstractFileEventFunctions.FileWatcherTimeoutException
+        ex.message == "Starting the watcher timed out"
     }
 }

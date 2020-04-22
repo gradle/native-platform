@@ -46,8 +46,8 @@ public class LinuxFileEventFunctions extends AbstractFileEventFunctions {
         }
 
         @Override
-        public FileWatcher start() throws InterruptedException {
-            return new NativeFileWatcher(startWatcher0(new NativeFileWatcherCallback(eventQueue)));
+        protected Object startWatcher(NativeFileWatcherCallback callback) {
+            return startWatcher0(callback);
         }
     }
 

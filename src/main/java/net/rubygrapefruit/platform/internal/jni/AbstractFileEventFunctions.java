@@ -1,5 +1,6 @@
 package net.rubygrapefruit.platform.internal.jni;
 
+import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.NativeIntegration;
 import net.rubygrapefruit.platform.file.FileWatchEvent;
 import net.rubygrapefruit.platform.file.FileWatchEvent.OverflowType;
@@ -11,6 +12,7 @@ import java.io.InterruptedIOException;
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -32,7 +34,9 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
     private native void invalidateLogLevelCache0();
 
     public abstract static class AbstractWatcherBuilder {
-        protected final BlockingQueue<FileWatchEvent> eventQueue;
+        public static final long DEFAULT_START_TIMEOUT_IN_SECONDS = 5;
+
+        private final BlockingQueue<FileWatchEvent> eventQueue;
 
         public AbstractWatcherBuilder(BlockingQueue<FileWatchEvent> eventQueue) {
             this.eventQueue = eventQueue;
@@ -41,9 +45,31 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
         /**
          * Start the file watcher.
          *
+         * @throws FileWatcherTimeoutException if the watcher did not start up
+         * in {@value DEFAULT_START_TIMEOUT_IN_SECONDS} seconds.
+         * @throws InterruptedException if the current thread has been interrupted.
+         *
          * @see FileWatcher#startWatching(Collection)
          */
-        public abstract FileWatcher start() throws InterruptedException;
+        public FileWatcher start() throws InterruptedException {
+            return start(DEFAULT_START_TIMEOUT_IN_SECONDS, SECONDS);
+        }
+
+        /**
+         * Start the file watcher with the given timeout.
+         *
+         * @throws FileWatcherTimeoutException if the watcher did not start up in
+         * the given timeout.
+         * @throws InterruptedException if the current thread has been interrupted.
+         *
+         * @see FileWatcher#startWatching(Collection)
+         */
+        public FileWatcher start(long startTimeout, TimeUnit startTimeoutUnit) throws InterruptedException {
+            Object server = startWatcher(new NativeFileWatcherCallback(eventQueue));
+            return new NativeFileWatcher(server, startTimeout, startTimeoutUnit);
+        }
+
+        protected abstract Object startWatcher(NativeFileWatcherCallback callback);
     }
 
     /**
@@ -133,7 +159,7 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
         private final Thread processorThread;
         private boolean closed;
 
-        public NativeFileWatcher(final Object server) throws InterruptedException {
+        public NativeFileWatcher(final Object server, long startTimeout, TimeUnit startTimeoutUnit) throws InterruptedException {
             this.server = server;
             final CountDownLatch runLoopInitialized = new CountDownLatch(1);
             this.processorThread = new Thread("File watcher server") {
@@ -146,8 +172,11 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
             };
             this.processorThread.setDaemon(true);
             this.processorThread.start();
-            // TODO Parametrize this
-            runLoopInitialized.await(5, SECONDS);
+            boolean started = runLoopInitialized.await(startTimeout, startTimeoutUnit);
+            if (!started) {
+                // TODO Shall we close() here?
+                throw new FileWatcherTimeoutException("Starting the watcher timed out");
+            }
         }
 
         private native void initializeRunLoop0(Object server);
@@ -293,6 +322,26 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
         @Override
         public String toString() {
             return "TERMINATE successful: " + successful;
+        }
+    }
+
+    public static class FileWatcherException extends NativeException {
+        public FileWatcherException(String message, Throwable cause) {
+            super(message, cause);
+        }
+
+        public FileWatcherException(String message) {
+            super(message);
+        }
+    }
+
+    public static class FileWatcherTimeoutException extends FileWatcherException {
+        public FileWatcherTimeoutException(String message, Throwable cause) {
+            super(message, cause);
+        }
+
+        public FileWatcherTimeoutException(String message) {
+            super(message);
         }
     }
 }
