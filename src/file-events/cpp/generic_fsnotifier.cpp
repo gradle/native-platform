@@ -67,7 +67,7 @@ void AbstractServer::reportChangeEvent(JNIEnv* env, ChangeType type, const u16st
 
 void AbstractServer::reportUnknownEvent(JNIEnv* env, const u16string& path) {
     jstring javaPath = env->NewString((jchar*) path.c_str(), (jsize) path.length());
-    env->CallVoidMethod(watcherCallback.get(), watcherReportChangeEventMethod, javaPath);
+    env->CallVoidMethod(watcherCallback.get(), watcherReportUnknownEventMethod, javaPath);
     env->DeleteLocalRef(javaPath);
     getJavaExceptionAndPrintStacktrace(env);
 }
