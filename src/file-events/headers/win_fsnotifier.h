@@ -61,7 +61,7 @@ private:
 
 class Server : public AbstractServer {
 public:
-    Server(JNIEnv* env, size_t bufferSize, jobject watcherCallback);
+    Server(JNIEnv* env, size_t bufferSize, long commandTimeoutInMillis, jobject watcherCallback);
 
     void handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& buffer, DWORD bytesTransferred);
     bool executeOnRunLoop(function<bool()> command);
@@ -82,6 +82,7 @@ private:
 
     HANDLE threadHandle;
     const size_t bufferSize;
+    const long commandTimeoutInMillis;
     unordered_map<u16string, WatchPoint> watchPoints;
     bool terminated = false;
     friend void CALLBACK executeOnRunLoopCallback(_In_ ULONG_PTR info);
