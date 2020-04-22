@@ -18,7 +18,8 @@ package net.rubygrapefruit.platform.file
 
 import groovy.transform.Memoized
 import net.rubygrapefruit.platform.Native
-import net.rubygrapefruit.platform.file.FileWatchEvent.Type
+import net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType
+import net.rubygrapefruit.platform.file.FileWatchEvent.OverflowType
 import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.AbstractFileEventFunctions
 import net.rubygrapefruit.platform.internal.jni.LinuxFileEventFunctions
@@ -32,6 +33,7 @@ import org.junit.experimental.categories.Category
 import org.junit.rules.TemporaryFolder
 import org.junit.rules.TestName
 import org.spockframework.util.Assert
+import org.spockframework.util.Nullable
 import spock.lang.Specification
 import spock.lang.Timeout
 
@@ -260,11 +262,11 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     }
 
     private class ExpectedChange implements ExpectedEvent {
-        private final Type type
+        private final ChangeType type
         private final File file
         final boolean optional
 
-        ExpectedChange(Type type, File file, boolean optional) {
+        ExpectedChange(ChangeType type, File file, boolean optional) {
             this.type = type
             this.file = file
             this.optional = optional
@@ -272,7 +274,14 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
         @Override
         boolean matches(FileWatchEvent event) {
-            type == event.type && file.absolutePath == event.path
+            def matcher = new MatcherHandler() {
+                @Override
+                void handleChangeEvent(ChangeType type, String absolutePath) {
+                    matched = ExpectedChange.this.type == type && ExpectedChange.this.file.absolutePath == absolutePath
+                }
+            }
+            event.handleEvent(matcher)
+            return matcher.matched
         }
 
         @Override
@@ -292,9 +301,14 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
         @Override
         boolean matches(FileWatchEvent event) {
-            event.type == Type.FAILURE \
-                && type.isInstance(event.failure) \
-                && message.matcher(event.failure.message).matches()
+            def matcher = new MatcherHandler() {
+                @Override
+                void handleFailure(Throwable failure) {
+                    matched = type.isInstance(failure) && message.matcher(failure.message).matches()
+                }
+            }
+            event.handleEvent(matcher)
+            return matcher.matched
         }
 
         @Override
@@ -305,6 +319,36 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         @Override
         String toString() {
             return "FAILURE /${message.pattern()}/"
+        }
+    }
+
+    private class ExpectedTermination implements ExpectedEvent {
+        private final boolean successful
+
+        ExpectedTermination(boolean successful) {
+            this.successful = successful
+        }
+
+        @Override
+        boolean matches(FileWatchEvent event) {
+            def matcher = new MatcherHandler() {
+                @Override
+                void handleTerminated(boolean successful) {
+                    matched = ExpectedTermination.this.successful == successful
+                }
+            }
+            event.handleEvent(matcher)
+            return matcher.matched
+        }
+
+        @Override
+        boolean isOptional() {
+            return false
+        }
+
+        @Override
+        String toString() {
+            return "TERMINATE successful = $successful"
         }
     }
 
@@ -339,7 +383,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     private void ensureNoMoreEvents(BlockingQueue<FileWatchEvent> eventQueue = this.eventQueue) {
         def event = eventQueue.poll()
         if (event != null) {
-            throw new RuntimeException("Unexpected event ${shorten(event)}")
+            throw new RuntimeException("Unexpected event ${format(event)}")
         }
     }
 
@@ -392,13 +436,13 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     private String createEventFailure(List<FileWatchEvent> unexpectedEvents, List<ExpectedEvent> remainingExpectedEvents, List<FileWatchEvent> receivedEvents) {
         String failure = "Events received differ from expected:\n"
         unexpectedEvents.each { event ->
-            failure += " - UNEXPECTED ${shorten(event)}\n"
+            failure += " - UNEXPECTED ${format(event)}\n"
         }
         remainingExpectedEvents.each { event ->
             failure += " - MISSING    $event\n"
         }
         receivedEvents.each { event ->
-            failure += " - RECEIVED   ${shorten(event)}\n"
+            failure += " - RECEIVED   ${format(event)}\n"
         }
         return failure
     }
@@ -422,26 +466,57 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         }
     }
 
-    protected String shorten(FileWatchEvent event) {
-        return event.type.name() + " " + shorten(String.valueOf(event.path))
+    protected String format(FileWatchEvent event) {
+        String shortened = null
+        event.handleEvent(new FileWatchEvent.Handler() {
+            @Override
+            void handleChangeEvent(ChangeType type, String absolutePath) {
+                shortened = type.name() + " " + shorten(absolutePath)
+            }
+
+            @Override
+            void handleUnknownEvent(@Nullable String absolutePath) {
+                shortened = "UNKNOWN ${shorten(absolutePath)}"
+            }
+
+            @Override
+            void handleOverflow(OverflowType type, @Nullable String absolutePath) {
+                shortened = "OVERFLOW ${shorten(absolutePath)} ($type)"
+            }
+
+            @Override
+            void handleFailure(Throwable failure) {
+                shortened = "FAILURE $failure"
+            }
+
+            @Override
+            void handleTerminated(boolean successful) {
+                shortened = "TERMINATE successful = $successful"
+            }
+        })
+        assert shortened != null
+        return shortened
     }
 
     protected String shorten(File file) {
         shorten(file.absolutePath)
     }
 
-    protected String shorten(String path) {
+    protected String shorten(@Nullable String path) {
+        if (path == null) {
+            return "null"
+        }
         def prefix = testDir.absolutePath
         return path.startsWith(prefix + File.separator)
             ? "..." + path.substring(prefix.length())
             : path
     }
 
-    protected ExpectedEvent change(Type type, File file) {
+    protected ExpectedEvent change(ChangeType type, File file) {
         new ExpectedChange(type, file, false)
     }
 
-    protected ExpectedEvent optionalChange(Type type, File file) {
+    protected ExpectedEvent optionalChange(ChangeType type, File file) {
         return new ExpectedChange(type, file, true)
     }
 
@@ -451,6 +526,10 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
     protected ExpectedEvent failure(Class<? extends Throwable> type = Exception, Pattern message) {
         return new ExpectedFailure(type, message)
+    }
+
+    protected ExpectedEvent termination(boolean successful = true) {
+        return new ExpectedTermination(successful)
     }
 
     protected void createNewFile(File file) {
@@ -473,6 +552,52 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
         boolean stopWatching(File... paths) {
             delegate.stopWatching(paths as List)
+        }
+    }
+
+    private static class MatcherHandler implements FileWatchEvent.Handler {
+        boolean matched
+
+        @Override
+        void handleChangeEvent(ChangeType type, String absolutePath) {}
+
+        @Override
+        void handleOverflow(OverflowType type, @Nullable String absolutePath) {}
+
+        @Override
+        void handleUnknownEvent(@Nullable String absolutePath) {}
+
+        @Override
+        void handleFailure(Throwable failure) {}
+
+        @Override
+        void handleTerminated(boolean successful) {}
+    }
+
+    protected static class TestHandler implements FileWatchEvent.Handler {
+        @Override
+        void handleChangeEvent(ChangeType type, String absolutePath) {
+            throw new IllegalStateException(String.format("Received unexpected change with %s / %s", type, absolutePath))
+        }
+
+        @Override
+        void handleOverflow(OverflowType type, @Nullable String absolutePath) {
+            throw new IllegalStateException(String.format("Received unexpected %s overflow at %s", type, absolutePath))
+        }
+
+        @Override
+        void handleUnknownEvent(@Nullable String absolutePath) {
+            throw new IllegalStateException(String.format("Received unexpected unknown event at %s", absolutePath))
+        }
+
+        @Override
+        void handleFailure(Throwable failure) {
+            throw new IllegalStateException(String.format("Received unexpected failure", failure))
+        }
+
+        @Override
+        void handleTerminated(boolean successful) {
+            throw new IllegalStateException("Received unexpected termination")
         }
     }
 }

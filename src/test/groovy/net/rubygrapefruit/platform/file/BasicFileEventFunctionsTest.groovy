@@ -33,28 +33,40 @@ import java.util.regex.Pattern
 import static java.util.logging.Level.INFO
 import static java.util.logging.Level.SEVERE
 import static java.util.logging.Level.WARNING
-import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.CREATED
-import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.INVALIDATED
-import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.MODIFIED
-import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.REMOVED
+import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.CREATED
+import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.INVALIDATED
+import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.MODIFIED
+import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.REMOVED
 
 @Unroll
 @Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
 class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
     def "can start and stop watcher without watching any paths"() {
         when:
-        startWatcher()
+        def watcher = startNewWatcher()
 
         then:
         noExceptionThrown()
+
+        when:
+        watcher.close()
+
+        then:
+        expectEvents termination(true)
     }
 
     def "can open and close watcher on a directory without receiving any events"() {
         when:
-        startWatcher(rootDir)
+        def watcher = startNewWatcher(rootDir)
 
         then:
         noExceptionThrown()
+
+        when:
+        watcher.close()
+
+        then:
+        expectEvents termination(true)
     }
 
     def "can detect file created"() {
@@ -536,7 +548,12 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         then:
         expectEvents change(CREATED, firstFile)
+
+        when:
         stopWatcher()
+
+        then:
+        expectEvents termination()
 
         when:
         startWatcher(rootDir)
@@ -748,12 +765,14 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         then:
         expectLogMessage(INFO, "Event queue overflow, dropping all events")
-        expectLogMessage(SEVERE, "Couldn't queue event: OVERFLOWED null")
+        expectLogMessage(SEVERE, "Couldn't queue event: OVERFLOW (EVENT_QUEUE) at null")
 
         when:
         watcher.close()
 
         then:
-        noExceptionThrown()
+        expectLogMessage(INFO, "Event queue overflow, dropping all events")
+        expectLogMessage(SEVERE, "Couldn't queue event: OVERFLOW (EVENT_QUEUE) at null")
+        expectLogMessage(SEVERE, "Couldn't queue event: TERMINATE successful: true")
     }
 }

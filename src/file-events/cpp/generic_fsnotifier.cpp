@@ -50,6 +50,7 @@ AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback)
     jclass callbackClass = env->GetObjectClass(watcherCallback);
     this->watcherCallbackMethod = env->GetMethodID(callbackClass, "pathChanged", "(ILjava/lang/String;)V");
     this->watcherReportErrorMethod = env->GetMethodID(callbackClass, "reportError", "(Ljava/lang/Throwable;)V");
+    this->watcherReportTerminationMethod = env->GetMethodID(callbackClass, "reportTermination", "(Z)V");
 }
 
 AbstractServer::~AbstractServer() {
@@ -59,7 +60,7 @@ void AbstractServer::reportChange(JNIEnv* env, FileWatchEventType type, const u1
     jstring javaPath = env->NewString((jchar*) path.c_str(), (jsize) path.length());
     env->CallVoidMethod(watcherCallback.get(), watcherCallbackMethod, type, javaPath);
     env->DeleteLocalRef(javaPath);
-    logJavaException(env);
+    getJavaExceptionAndPrintStacktrace(env);
 }
 
 void AbstractServer::reportError(JNIEnv* env, const exception& exception) {
@@ -70,7 +71,12 @@ void AbstractServer::reportError(JNIEnv* env, const exception& exception) {
     env->CallVoidMethod(watcherCallback.get(), watcherReportErrorMethod, javaException);
     env->DeleteLocalRef(javaMessage);
     env->DeleteLocalRef(javaException);
-    logJavaException(env);
+    getJavaExceptionAndPrintStacktrace(env);
+}
+
+void AbstractServer::reportTermination(JNIEnv* env, bool successful) {
+    env->CallVoidMethod(watcherCallback.get(), watcherReportTerminationMethod, successful);
+    getJavaExceptionAndPrintStacktrace(env);
 }
 
 AbstractServer* getServer(JNIEnv* env, jobject javaServer) {
@@ -121,12 +127,14 @@ bool AbstractServer::unregisterPaths(const vector<u16string>& paths) {
     return success;
 }
 
-void AbstractServer::terminate() {
+void AbstractServer::terminate(JNIEnv* env) {
     unique_lock<mutex> terminationLock(terminationMutex);
     terminateRunLoop();
     // TODO Parametrize this
     auto status = terminated.wait_for(terminationLock, THREAD_TIMEOUT);
-    if (status == cv_status::timeout) {
+    bool timedOut = status == cv_status::timeout;
+    reportTermination(env, !timedOut);
+    if (timedOut) {
         throw FileWatcherException("Termination timed out");
     }
 }
@@ -180,7 +188,7 @@ JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_close0(JNIEnv* env, jobject, jobject javaServer) {
     try {
         AbstractServer* server = getServer(env, javaServer);
-        server->terminate();
+        server->terminate(env);
         delete server;
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);

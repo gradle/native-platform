@@ -33,7 +33,7 @@ JNIEnv* JniSupport::getThreadEnv() {
     return env;
 }
 
-jthrowable JniSupport::logJavaException(JNIEnv* env) {
+jthrowable JniSupport::getJavaExceptionAndPrintStacktrace(JNIEnv* env) {
     jthrowable exception = env->ExceptionOccurred();
     if (exception != nullptr) {
         env->ExceptionDescribe();
@@ -43,7 +43,7 @@ jthrowable JniSupport::logJavaException(JNIEnv* env) {
 }
 
 void JniSupport::rethrowJavaException(JNIEnv* env) {
-    jthrowable exception = logJavaException(env);
+    jthrowable exception = getJavaExceptionAndPrintStacktrace(env);
     if (exception != nullptr) {
         env->ExceptionDescribe();
         env->ExceptionClear();

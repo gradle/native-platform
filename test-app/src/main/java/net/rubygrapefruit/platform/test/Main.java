@@ -55,6 +55,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Main {
     public static void main(String[] args) throws Exception {
@@ -379,24 +380,44 @@ public class Main {
         Thread processorThread = new Thread(new Runnable() {
             @Override
             public void run() {
-                while (!Thread.currentThread().isInterrupted()) {
+                final AtomicBoolean terminated = new AtomicBoolean(false);
+                while (!terminated.get()) {
                     FileWatchEvent event;
                     try {
                         event = eventQueue.take();
                     } catch (InterruptedException e) {
                         break;
                     }
-                    if (event.getType() == FileWatchEvent.Type.FAILURE) {
-                        Throwable failure = event.getFailure();
-                        assert failure != null;
-                        failure.printStackTrace();
-                    } else {
-                        System.out.printf("Change detected: %s / '%s'%n", event.getType(), event.getPath());
-                    }
+                    event.handleEvent(new FileWatchEvent.Handler() {
+                        @Override
+                        public void handleChangeEvent(FileWatchEvent.ChangeType type, String absolutePath) {
+                            System.out.printf("Change detected: %s / '%s'%n", type, absolutePath);
+                        }
+
+                        @Override
+                        public void handleUnknownEvent(String absolutePath) {
+                            System.out.printf("Unknown event happened at %s%n", absolutePath);
+                        }
+
+                        @Override
+                        public void handleOverflow(FileWatchEvent.OverflowType type, String absolutePath) {
+                            System.out.printf("Overflow happened (path = %s, type = %s)%n", absolutePath, type);
+                        }
+
+                        @Override
+                        public void handleFailure(Throwable failure) {
+                            failure.printStackTrace();
+                        }
+
+                        @Override
+                        public void handleTerminated(boolean successful) {
+                            System.out.printf("Terminated %s%n", successful ? "successfully" : "unsuccessfully");
+                            terminated.set(true);
+                        }
+                    });
                 }
             }
-        }, "File watcher client");
-        processorThread.setDaemon(true);
+        }, "File watcher event handler");
         processorThread.start();
         FileWatcher watcher = createWatcher(path, eventQueue);
         try {
@@ -415,9 +436,7 @@ public class Main {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            processorThread.interrupt();
         }
-        System.out.println("Done");
     }
 
     private static FileWatcher createWatcher(String path, BlockingQueue<FileWatchEvent> eventQueue) throws InterruptedException {

@@ -26,7 +26,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
 import static java.util.concurrent.TimeUnit.SECONDS
-import static net.rubygrapefruit.platform.file.FileWatchEvent.Type.CREATED
+import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.CREATED
 
 @Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
 class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
