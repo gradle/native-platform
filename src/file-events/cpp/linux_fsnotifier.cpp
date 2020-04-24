@@ -181,7 +181,16 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
         return;
     }
 
-    auto path = watchRoots.at(event->wd);
+    auto it = watchRoots.find(event->wd);
+    if (it == watchRoots.end()) {
+        if (recentlyRemovedWatchPoints.find(event->wd) == recentlyRemovedWatchPoints.end()) {
+            throw FileWatcherException("Received event for unknown file descriptor");
+        } else {
+            logToJava(FINE, "Received event for recently removed file descriptor %d", event->wd);
+            return;
+        }
+    }
+    auto path = it->second;
     auto& watchPoint = watchPoints.at(path);
 
     if (IS_SET(mask, IN_IGNORED)) {
