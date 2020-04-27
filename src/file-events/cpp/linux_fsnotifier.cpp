@@ -13,7 +13,7 @@
 #define EVENT_MASK (IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_EXCL_UNLINK | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO | IN_ONLYDIR)
 
 WatchPoint::WatchPoint(const u16string& path, shared_ptr<Inotify> inotify, int watchDescriptor)
-    : status(LISTENING)
+    : status(WatchPointStatus::LISTENING)
     , watchDescriptor(watchDescriptor)
     , inotify(inotify)
     , path(path) {
