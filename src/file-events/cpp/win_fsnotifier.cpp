@@ -39,11 +39,11 @@ WatchPoint::WatchPoint(Server* server, size_t bufferSize, const u16string& path)
 }
 
 bool WatchPoint::cancel() {
-    if (status == LISTENING) {
+    if (status == WatchPointStatus::LISTENING) {
         logToJava(FINE, "Cancelling %s", utf16ToUtf8String(path).c_str());
         bool cancelled = (bool) CancelIoEx(directoryHandle, &overlapped);
         if (cancelled) {
-            status = CANCELLED;
+            status = WatchPointStatus::CANCELLED;
         } else {
             DWORD cancelError = GetLastError();
             close();
@@ -95,7 +95,7 @@ ListenResult WatchPoint::listen() {
         &handleEventCallback          // completion routine
     );
     if (success) {
-        status = LISTENING;
+        status = WatchPointStatus::LISTENING;
         return SUCCESS;
     } else {
         DWORD listenError = GetLastError();
@@ -109,12 +109,12 @@ ListenResult WatchPoint::listen() {
 }
 
 void WatchPoint::close() {
-    if (status != FINISHED) {
+    if (status != WatchPointStatus::FINISHED) {
         BOOL ret = CloseHandle(directoryHandle);
         if (!ret) {
             logToJava(SEVERE, "Couldn't close handle %p for '%ls': %d", directoryHandle, utf16ToUtf8String(path).c_str(), GetLastError());
         }
-        status = FINISHED;
+        status = WatchPointStatus::FINISHED;
     }
 }
 
@@ -125,12 +125,12 @@ void WatchPoint::handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred) {
         return;
     }
 
-    if (status != LISTENING) {
+    if (status != WatchPointStatus::LISTENING) {
         logToJava(FINE, "Ignoring incoming events for %s as watch-point is not listening (%d bytes, errorCode = %d, status = %d)",
             utf16ToUtf8String(path).c_str(), bytesTransferred, errorCode, status);
         return;
     }
-    status = NOT_LISTENING;
+    status = WatchPointStatus::NOT_LISTENING;
     server->handleEvents(this, errorCode, buffer, bytesTransferred);
 }
 
@@ -414,7 +414,7 @@ void Server::registerPath(const u16string& path) {
     convertToLongPathIfNeeded(longPath);
     auto it = watchPoints.find(longPath);
     if (it != watchPoints.end()) {
-        if (it->second.status != FINISHED) {
+        if (it->second.status != WatchPointStatus::FINISHED) {
             throw FileWatcherException("Already watching path", path);
         }
         watchPoints.erase(it);

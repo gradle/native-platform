@@ -35,6 +35,28 @@ enum ListenResult {
     DELETED
 };
 
+enum class WatchPointStatus {
+    /**
+     * The watch point has been constructed, but not currently listening.
+     */
+    NOT_LISTENING,
+
+    /**
+     * The watch point is listening, expect events to arrive.
+     */
+    LISTENING,
+
+    /**
+     * The watch point has been cancelled, expect ERROR_OPERATION_ABORTED event.
+     */
+    CANCELLED,
+
+    /**
+     * The watch point has been cancelled, the ERROR_OPERATION_ABORTED event arrived; or starting the listener caused an error.
+     */
+    FINISHED
+};
+
 class WatchPoint {
 public:
     WatchPoint(Server* server, size_t bufferSize, const u16string& path);

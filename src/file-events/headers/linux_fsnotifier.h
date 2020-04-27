@@ -32,6 +32,18 @@ struct TerminateEvent {
     const int fd;
 };
 
+enum class WatchPointStatus {
+    /**
+     * The watch point is listening, expect events to arrive.
+     */
+    LISTENING,
+
+    /**
+     * The watch point has been cancelled, expect IN_IGNORED event.
+     */
+    CANCELLED
+};
+
 class WatchPoint {
 public:
     WatchPoint(const u16string& path, const shared_ptr<Inotify> inotify, int watchDescriptor);

@@ -20,10 +20,10 @@ WatchPoint::WatchPoint(const u16string& path, shared_ptr<Inotify> inotify, int w
 }
 
 bool WatchPoint::cancel() {
-    if (status == CANCELLED) {
+    if (status == WatchPointStatus::CANCELLED) {
         return false;
     }
-    status = CANCELLED;
+    status = WatchPointStatus::CANCELLED;
     if (inotify_rm_watch(inotify->fd, watchDescriptor) != 0) {
         throw FileWatcherException("Couldn't stop watching", path, errno);
     }
@@ -201,7 +201,7 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
         return;
     }
 
-    if (watchPoint.status != LISTENING) {
+    if (watchPoint.status != WatchPointStatus::LISTENING) {
         logToJava(FINE, "Ignoring incoming events for %s as watch-point is not listening (status = %d)",
             utf16ToUtf8String(path).c_str(), watchPoint.status);
         return;
