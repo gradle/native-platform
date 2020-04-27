@@ -24,7 +24,7 @@ using namespace std;
 class Server;
 class WatchPoint;
 
-enum ListenResult {
+enum class ListenResult {
     /**
      * Listening succeeded.
      */

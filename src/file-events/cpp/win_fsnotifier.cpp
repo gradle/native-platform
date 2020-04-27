@@ -96,12 +96,12 @@ ListenResult WatchPoint::listen() {
     );
     if (success) {
         status = WatchPointStatus::LISTENING;
-        return SUCCESS;
+        return ListenResult::SUCCESS;
     } else {
         DWORD listenError = GetLastError();
         close();
         if (listenError == ERROR_ACCESS_DENIED && !isValidDirectory()) {
-            return DELETED;
+            return ListenResult::DELETED;
         } else {
             throw FileWatcherException("Couldn't start watching", path, listenError);
         }
