@@ -10,7 +10,7 @@ using namespace std;
 
 WatchPoint::WatchPoint(Server* server, size_t bufferSize, const u16string& path)
     : path(path)
-    , status(NOT_LISTENING) {
+    , status(WatchPointStatus::NOT_LISTENING) {
     wstring pathW(path.begin(), path.end());
     HANDLE directoryHandle = CreateFileW(
         pathW.c_str(),          // pointer to the file name
@@ -31,9 +31,9 @@ WatchPoint::WatchPoint(Server* server, size_t bufferSize, const u16string& path)
     ZeroMemory(&this->overlapped, sizeof(OVERLAPPED));
     this->overlapped.hEvent = this;
     switch (listen()) {
-        case SUCCESS:
+        case ListenResult::SUCCESS:
             break;
-        case DELETED:
+        case ListenResult::DELETED:
             throw FileWatcherException("Couldn't start watching because path is not a directory", path);
     }
 }
@@ -181,9 +181,9 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
         }
 
         switch (watchPoint->listen()) {
-            case SUCCESS:
+            case ListenResult::SUCCESS:
                 break;
-            case DELETED:
+            case ListenResult::DELETED:
                 logToJava(LogLevel::FINE, "Watched directory removed for %s", utf16ToUtf8String(path).c_str());
                 reportChangeEvent(env, ChangeType::REMOVED, path);
                 break;
@@ -319,7 +319,7 @@ void Server::runLoop() {
     for (auto& it : watchPoints) {
         auto& watchPoint = it.second;
         switch (watchPoint.status) {
-            case LISTENING:
+            case WatchPointStatus::LISTENING:
                 try {
                     if (watchPoint.cancel()) {
                         pendingWatchPoints++;
@@ -328,7 +328,7 @@ void Server::runLoop() {
                     logToJava(LogLevel::SEVERE, "%s", ex.what());
                 }
                 break;
-            case CANCELLED:
+            case WatchPointStatus::CANCELLED:
                 pendingWatchPoints++;
                 break;
             default:
@@ -346,8 +346,8 @@ void Server::runLoop() {
     for (auto& it : watchPoints) {
         auto& watchPoint = it.second;
         switch (watchPoint.status) {
-            case NOT_LISTENING:
-            case FINISHED:
+            case WatchPointStatus::NOT_LISTENING:
+            case WatchPointStatus::FINISHED:
                 break;
             default:
                 logToJava(LogLevel::WARNING, "Watch point %s did not finish before termination timeout (status = %d)",
