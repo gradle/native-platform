@@ -22,7 +22,7 @@ bool Logging::enabled(LogLevel level) {
         rethrowJavaException(env);
         lastLevelCheck = current;
     }
-    return minimumLogLevel <= level;
+    return minimumLogLevel <= static_cast<int>(level);
 }
 
 void Logging::send(LogLevel level, const char* fmt, ...) {

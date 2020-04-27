@@ -131,7 +131,7 @@ void Server::handleEvents(
 }
 
 void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags) {
-    logToJava(FINE, "Event flags: 0x%x for '%s'", flags, path);
+    logToJava(LogLevel::FINE, "Event flags: 0x%x for '%s'", flags, path);
 
     if (IS_SET(flags, kFSEventStreamEventFlagHistoryDone)) {
         return;
@@ -148,27 +148,27 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
             kFSEventStreamEventFlagRootChanged
                 | kFSEventStreamEventFlagMount
                 | kFSEventStreamEventFlagUnmount)) {
-        type = INVALIDATED;
+        type = ChangeType::INVALIDATED;
     } else if (IS_SET(flags, kFSEventStreamEventFlagItemRenamed)) {
         if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
-            type = REMOVED;
+            type = ChangeType::REMOVED;
         } else {
-            type = CREATED;
+            type = ChangeType::CREATED;
         }
     } else if (IS_SET(flags, kFSEventStreamEventFlagItemModified)) {
-        type = MODIFIED;
+        type = ChangeType::MODIFIED;
     } else if (IS_SET(flags, kFSEventStreamEventFlagItemRemoved)) {
-        type = REMOVED;
+        type = ChangeType::REMOVED;
     } else if (IS_SET(flags,
                    kFSEventStreamEventFlagItemInodeMetaMod    // file locked
                        | kFSEventStreamEventFlagItemFinderInfoMod
                        | kFSEventStreamEventFlagItemChangeOwner
                        | kFSEventStreamEventFlagItemXattrMod)) {
-        type = MODIFIED;
+        type = ChangeType::MODIFIED;
     } else if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
-        type = CREATED;
+        type = ChangeType::CREATED;
     } else {
-        logToJava(WARNING, "Unknown event 0x%x for %s", flags, path);
+        logToJava(LogLevel::WARNING, "Unknown event 0x%x for %s", flags, path);
         reportUnknownEvent(env, pathStr);
         return;
     }
@@ -187,7 +187,7 @@ void Server::registerPath(const u16string& path) {
 
 bool Server::unregisterPath(const u16string& path) {
     if (watchPoints.erase(path) == 0) {
-        logToJava(INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
+        logToJava(LogLevel::INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
         return false;
     }
     return true;

@@ -13,17 +13,17 @@
 #define EVENT_MASK (IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_EXCL_UNLINK | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO | IN_ONLYDIR)
 
 WatchPoint::WatchPoint(const u16string& path, shared_ptr<Inotify> inotify, int watchDescriptor)
-    : status(LISTENING)
+    : status(WatchPointStatus::LISTENING)
     , watchDescriptor(watchDescriptor)
     , inotify(inotify)
     , path(path) {
 }
 
 bool WatchPoint::cancel() {
-    if (status == CANCELLED) {
+    if (status == WatchPointStatus::CANCELLED) {
         return false;
     }
-    status = CANCELLED;
+    status = WatchPointStatus::CANCELLED;
     if (inotify_rm_watch(inotify->fd, watchDescriptor) != 0) {
         throw FileWatcherException("Couldn't stop watching", path, errno);
     }
@@ -71,7 +71,7 @@ Server::Server(JNIEnv* env, jobject watcherCallback)
 }
 
 void Server::terminateRunLoop() {
-    logToJava(FINE, "Terminating", NULL);
+    logToJava(LogLevel::FINE, "Terminating", NULL);
     terminateEvent.trigger();
 }
 
@@ -141,7 +141,7 @@ void Server::handleEvents() {
                 // Handle events
                 unique_lock<mutex> lock(mutationMutex);
                 JNIEnv* env = getThreadEnv();
-                logToJava(FINE, "Processing %d bytes worth of events", bytesRead);
+                logToJava(LogLevel::FINE, "Processing %d bytes worth of events", bytesRead);
                 int index = 0;
                 int count = 0;
                 while (index < bytesRead) {
@@ -150,7 +150,7 @@ void Server::handleEvents() {
                     index += sizeof(struct inotify_event) + event->len;
                     count++;
                 }
-                logToJava(FINE, "Processed %d events", count);
+                logToJava(LogLevel::FINE, "Processed %d events", count);
                 break;
         }
         available -= bytesRead;
@@ -162,7 +162,7 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
     const char* eventName = (event->len == 0)
         ? ""
         : event->name;
-    logToJava(FINE, "Event mask: 0x%x for %s (wd = %d, cookie = 0x%x, len = %d)", mask, eventName, event->wd, event->cookie, event->len);
+    logToJava(LogLevel::FINE, "Event mask: 0x%x for %s (wd = %d, cookie = 0x%x, len = %d)", mask, eventName, event->wd, event->cookie, event->len);
     if (IS_SET(mask, IN_UNMOUNT)) {
         return;
     }
@@ -186,7 +186,7 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
         if (recentlyRemovedWatchPoints.find(event->wd) == recentlyRemovedWatchPoints.end()) {
             throw FileWatcherException(string("Received event for unknown watch descriptor ") + to_string(event->wd));
         } else {
-            logToJava(FINE, "Ignoring incoming events for recently removed watch descriptor %d", event->wd);
+            logToJava(LogLevel::FINE, "Ignoring incoming events for recently removed watch descriptor %d", event->wd);
             return;
         }
     }
@@ -195,20 +195,20 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
 
     if (IS_SET(mask, IN_IGNORED)) {
         // Finished with watch point
-        logToJava(FINE, "Finished watching '%s'", utf16ToUtf8String(path).c_str());
+        logToJava(LogLevel::FINE, "Finished watching '%s'", utf16ToUtf8String(path).c_str());
         watchRoots.erase(event->wd);
         watchPoints.erase(path);
         return;
     }
 
-    if (watchPoint.status != LISTENING) {
-        logToJava(FINE, "Ignoring incoming events for %s as watch-point is not listening (status = %d)",
+    if (watchPoint.status != WatchPointStatus::LISTENING) {
+        logToJava(LogLevel::FINE, "Ignoring incoming events for %s as watch-point is not listening (status = %d)",
             utf16ToUtf8String(path).c_str(), watchPoint.status);
         return;
     }
 
     if (terminated) {
-        logToJava(FINE, "Ignoring incoming events for %s because server is terminating (status = %d)",
+        logToJava(LogLevel::FINE, "Ignoring incoming events for %s because server is terminating (status = %d)",
             utf16ToUtf8String(path).c_str(), watchPoint.status);
         return;
     }
@@ -223,13 +223,13 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
 
     // TODO How to handle MOVE_SELF?
     if (IS_SET(mask, IN_CREATE | IN_MOVED_TO)) {
-        type = CREATED;
+        type = ChangeType::CREATED;
     } else if (IS_SET(mask, IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM)) {
-        type = REMOVED;
+        type = ChangeType::REMOVED;
     } else if (IS_SET(mask, IN_MODIFY)) {
-        type = MODIFIED;
+        type = ChangeType::MODIFIED;
     } else {
-        logToJava(WARNING, "Unknown event 0x%x for %s", mask, utf16ToUtf8String(path).c_str());
+        logToJava(LogLevel::WARNING, "Unknown event 0x%x for %s", mask, utf16ToUtf8String(path).c_str());
         reportUnknownEvent(env, path);
         return;
     }
@@ -265,7 +265,7 @@ void Server::registerPath(const u16string& path) {
 bool Server::unregisterPath(const u16string& path) {
     auto it = watchPoints.find(path);
     if (it == watchPoints.end()) {
-        logToJava(INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
+        logToJava(LogLevel::INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
         return false;
     }
     auto& watchPoint = it->second;

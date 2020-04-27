@@ -24,7 +24,7 @@ using namespace std;
 class Server;
 class WatchPoint;
 
-enum ListenResult {
+enum class ListenResult {
     /**
      * Listening succeeded.
      */
@@ -33,6 +33,28 @@ enum ListenResult {
      * Target directory has been removed.
      */
     DELETED
+};
+
+enum class WatchPointStatus {
+    /**
+     * The watch point has been constructed, but not currently listening.
+     */
+    NOT_LISTENING,
+
+    /**
+     * The watch point is listening, expect events to arrive.
+     */
+    LISTENING,
+
+    /**
+     * The watch point has been cancelled, expect ERROR_OPERATION_ABORTED event.
+     */
+    CANCELLED,
+
+    /**
+     * The watch point has been cancelled, the ERROR_OPERATION_ABORTED event arrived; or starting the listener caused an error.
+     */
+    FINISHED
 };
 
 class WatchPoint {
