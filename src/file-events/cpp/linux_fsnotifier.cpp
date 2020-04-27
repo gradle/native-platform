@@ -181,7 +181,16 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
         return;
     }
 
-    auto path = watchRoots.at(event->wd);
+    auto it = watchRoots.find(event->wd);
+    if (it == watchRoots.end()) {
+        if (recentlyRemovedWatchPoints.find(event->wd) == recentlyRemovedWatchPoints.end()) {
+            throw FileWatcherException(string("Received event for unknown watch descriptor ") + to_string(event->wd));
+        } else {
+            logToJava(FINE, "Ignoring incoming events for recently removed watch descriptor %d", event->wd);
+            return;
+        }
+    }
+    auto path = it->second;
     auto& watchPoint = watchPoints.at(path);
 
     if (IS_SET(mask, IN_IGNORED)) {
