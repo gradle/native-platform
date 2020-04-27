@@ -131,7 +131,7 @@ void Server::handleEvents(
 }
 
 void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags) {
-    logToJava(FINE, "Event flags: 0x%x for '%s'", flags, path);
+    logToJava(LogLevel::FINE, "Event flags: 0x%x for '%s'", flags, path);
 
     if (IS_SET(flags, kFSEventStreamEventFlagHistoryDone)) {
         return;
@@ -168,7 +168,7 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
     } else if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
         type = ChangeType::CREATED;
     } else {
-        logToJava(WARNING, "Unknown event 0x%x for %s", flags, path);
+        logToJava(LogLevel::WARNING, "Unknown event 0x%x for %s", flags, path);
         reportUnknownEvent(env, pathStr);
         return;
     }
@@ -187,7 +187,7 @@ void Server::registerPath(const u16string& path) {
 
 bool Server::unregisterPath(const u16string& path) {
     if (watchPoints.erase(path) == 0) {
-        logToJava(INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
+        logToJava(LogLevel::INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
         return false;
     }
     return true;

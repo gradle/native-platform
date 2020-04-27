@@ -40,7 +40,7 @@ WatchPoint::WatchPoint(Server* server, size_t bufferSize, const u16string& path)
 
 bool WatchPoint::cancel() {
     if (status == WatchPointStatus::LISTENING) {
-        logToJava(FINE, "Cancelling %s", utf16ToUtf8String(path).c_str());
+        logToJava(LogLevel::FINE, "Cancelling %s", utf16ToUtf8String(path).c_str());
         bool cancelled = (bool) CancelIoEx(directoryHandle, &overlapped);
         if (cancelled) {
             status = WatchPointStatus::CANCELLED;
@@ -49,7 +49,7 @@ bool WatchPoint::cancel() {
             close();
             if (cancelError == ERROR_NOT_FOUND) {
                 // Do nothing, looks like this is a typical scenario
-                logToJava(FINE, "Watch point already finished %s", utf16ToUtf8String(path).c_str());
+                logToJava(LogLevel::FINE, "Watch point already finished %s", utf16ToUtf8String(path).c_str());
             } else {
                 throw FileWatcherException("Couldn't cancel watch point", path, cancelError);
             }
@@ -66,7 +66,7 @@ WatchPoint::~WatchPoint() {
         }
         close();
     } catch (const exception& ex) {
-        logToJava(WARNING, "Couldn't cancel watch point %s: %s", utf16ToUtf8String(path).c_str(), ex.what());
+        logToJava(LogLevel::WARNING, "Couldn't cancel watch point %s: %s", utf16ToUtf8String(path).c_str(), ex.what());
     }
 }
 
@@ -112,7 +112,7 @@ void WatchPoint::close() {
     if (status != WatchPointStatus::FINISHED) {
         BOOL ret = CloseHandle(directoryHandle);
         if (!ret) {
-            logToJava(SEVERE, "Couldn't close handle %p for '%ls': %d", directoryHandle, utf16ToUtf8String(path).c_str(), GetLastError());
+            logToJava(LogLevel::SEVERE, "Couldn't close handle %p for '%ls': %d", directoryHandle, utf16ToUtf8String(path).c_str(), GetLastError());
         }
         status = WatchPointStatus::FINISHED;
     }
@@ -120,13 +120,13 @@ void WatchPoint::close() {
 
 void WatchPoint::handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred) {
     if (errorCode == ERROR_OPERATION_ABORTED) {
-        logToJava(FINE, "Finished watching '%s', status = %d", utf16ToUtf8String(path).c_str(), status);
+        logToJava(LogLevel::FINE, "Finished watching '%s', status = %d", utf16ToUtf8String(path).c_str(), status);
         close();
         return;
     }
 
     if (status != WatchPointStatus::LISTENING) {
-        logToJava(FINE, "Ignoring incoming events for %s as watch-point is not listening (%d bytes, errorCode = %d, status = %d)",
+        logToJava(LogLevel::FINE, "Ignoring incoming events for %s as watch-point is not listening (%d bytes, errorCode = %d, status = %d)",
             utf16ToUtf8String(path).c_str(), bytesTransferred, errorCode, status);
         return;
     }
@@ -151,7 +151,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
         }
 
         if (terminated) {
-            logToJava(FINE, "Ignoring incoming events for %s because server is terminating (%d bytes, status = %d)",
+            logToJava(LogLevel::FINE, "Ignoring incoming events for %s because server is terminating (%d bytes, status = %d)",
                 utf16ToUtf8String(path).c_str(), bytesTransferred, watchPoint->status);
             return;
         }
@@ -184,7 +184,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
             case SUCCESS:
                 break;
             case DELETED:
-                logToJava(FINE, "Watched directory removed for %s", utf16ToUtf8String(path).c_str());
+                logToJava(LogLevel::FINE, "Watched directory removed for %s", utf16ToUtf8String(path).c_str());
                 reportChangeEvent(env, ChangeType::REMOVED, path);
                 break;
         }
@@ -260,7 +260,7 @@ void Server::handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMA
         }
     }
 
-    logToJava(FINE, "Change detected: 0x%x '%s'", info->Action, utf16ToUtf8String(changedPath).c_str());
+    logToJava(LogLevel::FINE, "Change detected: 0x%x '%s'", info->Action, utf16ToUtf8String(changedPath).c_str());
 
     ChangeType type;
     if (info->Action == FILE_ACTION_ADDED || info->Action == FILE_ACTION_RENAMED_NEW_NAME) {
@@ -270,7 +270,7 @@ void Server::handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMA
     } else if (info->Action == FILE_ACTION_MODIFIED) {
         type = ChangeType::MODIFIED;
     } else {
-        logToJava(WARNING, "Unknown event 0x%x for %s", info->Action, utf16ToUtf8String(changedPath).c_str());
+        logToJava(LogLevel::WARNING, "Unknown event 0x%x for %s", info->Action, utf16ToUtf8String(changedPath).c_str());
         reportUnknownEvent(env, changedPath);
         return;
     }
@@ -314,7 +314,7 @@ void Server::runLoop() {
 
     // We have received termination, cancel all watchers
     unique_lock<mutex> lock(mutationMutex);
-    logToJava(FINE, "Finished with run loop, now cancelling remaining watch points", NULL);
+    logToJava(LogLevel::FINE, "Finished with run loop, now cancelling remaining watch points", NULL);
     int pendingWatchPoints = 0;
     for (auto& it : watchPoints) {
         auto& watchPoint = it.second;
@@ -325,7 +325,7 @@ void Server::runLoop() {
                         pendingWatchPoints++;
                     }
                 } catch (const exception& ex) {
-                    logToJava(SEVERE, "%s", ex.what());
+                    logToJava(LogLevel::SEVERE, "%s", ex.what());
                 }
                 break;
             case CANCELLED:
@@ -338,7 +338,7 @@ void Server::runLoop() {
 
     // If there are any pending watchers, wait for them to finish
     if (pendingWatchPoints > 0) {
-        logToJava(FINE, "Waiting for %d pending watch points to finish", pendingWatchPoints);
+        logToJava(LogLevel::FINE, "Waiting for %d pending watch points to finish", pendingWatchPoints);
         SleepEx(0, true);
     }
 
@@ -350,7 +350,7 @@ void Server::runLoop() {
             case FINISHED:
                 break;
             default:
-                logToJava(WARNING, "Watch point %s did not finish before termination timeout (status = %d)",
+                logToJava(LogLevel::WARNING, "Watch point %s did not finish before termination timeout (status = %d)",
                     utf16ToUtf8String(watchPoint.path).c_str(), watchPoint.status);
                 break;
         }
@@ -428,7 +428,7 @@ bool Server::unregisterPath(const u16string& path) {
     u16string longPath = path;
     convertToLongPathIfNeeded(longPath);
     if (watchPoints.erase(longPath) == 0) {
-        logToJava(INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
+        logToJava(LogLevel::INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
         return false;
     }
     return true;

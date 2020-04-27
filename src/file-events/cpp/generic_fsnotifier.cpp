@@ -73,7 +73,7 @@ void AbstractServer::reportUnknownEvent(JNIEnv* env, const u16string& path) {
 }
 
 void AbstractServer::reportOverflow(JNIEnv* env, const u16string& path) {
-    logToJava(INFO, "Detected overflow for %s", utf16ToUtf8String(path).c_str());
+    logToJava(LogLevel::INFO, "Detected overflow for %s", utf16ToUtf8String(path).c_str());
     jstring javaPath = env->NewString((jchar*) path.c_str(), (jsize) path.length());
     env->CallVoidMethod(watcherCallback.get(), watcherReportOverflowMethod, javaPath);
     env->DeleteLocalRef(javaPath);
@@ -105,7 +105,7 @@ AbstractServer* getServer(JNIEnv* env, jobject javaServer) {
 }
 
 jobject rethrowAsJavaException(JNIEnv* env, const exception& e) {
-    logToJava(SEVERE, "Caught exception: %s", e.what());
+    logToJava(LogLevel::SEVERE, "Caught exception: %s", e.what());
     jint ret = env->ThrowNew(nativePlatformJniConstants->nativeExceptionClass.get(), e.what());
     if (ret != 0) {
         cerr << "JNI ThrowNew returned %d when rethrowing native exception: " << ret << endl;
