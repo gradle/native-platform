@@ -19,7 +19,7 @@
 using namespace std;
 
 // Corresponds to values of FileWatchEvent.ChangeType
-enum ChangeType {
+enum class ChangeType {
     CREATED,
     REMOVED,
     MODIFIED,

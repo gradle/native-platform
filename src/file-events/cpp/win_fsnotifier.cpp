@@ -142,7 +142,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
     try {
         if (errorCode != ERROR_SUCCESS) {
             if (errorCode == ERROR_ACCESS_DENIED && !watchPoint->isValidDirectory()) {
-                reportChangeEvent(env, REMOVED, path);
+                reportChangeEvent(env, ChangeType::REMOVED, path);
                 watchPoint->close();
                 return;
             } else {
@@ -185,7 +185,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
                 break;
             case DELETED:
                 logToJava(FINE, "Watched directory removed for %s", utf16ToUtf8String(path).c_str());
-                reportChangeEvent(env, REMOVED, path);
+                reportChangeEvent(env, ChangeType::REMOVED, path);
                 break;
         }
     } catch (const exception& ex) {
@@ -264,11 +264,11 @@ void Server::handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMA
 
     ChangeType type;
     if (info->Action == FILE_ACTION_ADDED || info->Action == FILE_ACTION_RENAMED_NEW_NAME) {
-        type = CREATED;
+        type = ChangeType::CREATED;
     } else if (info->Action == FILE_ACTION_REMOVED || info->Action == FILE_ACTION_RENAMED_OLD_NAME) {
-        type = REMOVED;
+        type = ChangeType::REMOVED;
     } else if (info->Action == FILE_ACTION_MODIFIED) {
-        type = MODIFIED;
+        type = ChangeType::MODIFIED;
     } else {
         logToJava(WARNING, "Unknown event 0x%x for %s", info->Action, utf16ToUtf8String(changedPath).c_str());
         reportUnknownEvent(env, changedPath);

@@ -223,11 +223,11 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
 
     // TODO How to handle MOVE_SELF?
     if (IS_SET(mask, IN_CREATE | IN_MOVED_TO)) {
-        type = CREATED;
+        type = ChangeType::CREATED;
     } else if (IS_SET(mask, IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM)) {
-        type = REMOVED;
+        type = ChangeType::REMOVED;
     } else if (IS_SET(mask, IN_MODIFY)) {
-        type = MODIFIED;
+        type = ChangeType::MODIFIED;
     } else {
         logToJava(WARNING, "Unknown event 0x%x for %s", mask, utf16ToUtf8String(path).c_str());
         reportUnknownEvent(env, path);

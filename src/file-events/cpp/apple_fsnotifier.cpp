@@ -148,25 +148,25 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
             kFSEventStreamEventFlagRootChanged
                 | kFSEventStreamEventFlagMount
                 | kFSEventStreamEventFlagUnmount)) {
-        type = INVALIDATED;
+        type = ChangeType::INVALIDATED;
     } else if (IS_SET(flags, kFSEventStreamEventFlagItemRenamed)) {
         if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
-            type = REMOVED;
+            type = ChangeType::REMOVED;
         } else {
-            type = CREATED;
+            type = ChangeType::CREATED;
         }
     } else if (IS_SET(flags, kFSEventStreamEventFlagItemModified)) {
-        type = MODIFIED;
+        type = ChangeType::MODIFIED;
     } else if (IS_SET(flags, kFSEventStreamEventFlagItemRemoved)) {
-        type = REMOVED;
+        type = ChangeType::REMOVED;
     } else if (IS_SET(flags,
                    kFSEventStreamEventFlagItemInodeMetaMod    // file locked
                        | kFSEventStreamEventFlagItemFinderInfoMod
                        | kFSEventStreamEventFlagItemChangeOwner
                        | kFSEventStreamEventFlagItemXattrMod)) {
-        type = MODIFIED;
+        type = ChangeType::MODIFIED;
     } else if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
-        type = CREATED;
+        type = ChangeType::CREATED;
     } else {
         logToJava(WARNING, "Unknown event 0x%x for %s", flags, path);
         reportUnknownEvent(env, pathStr);
