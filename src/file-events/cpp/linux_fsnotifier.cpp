@@ -19,15 +19,22 @@ WatchPoint::WatchPoint(const u16string& path, shared_ptr<Inotify> inotify, int w
     , path(path) {
 }
 
-bool WatchPoint::cancel() {
+CancelResult WatchPoint::cancel() {
     if (status == WatchPointStatus::CANCELLED) {
-        return false;
+        return CancelResult::ALREADY_CANCELLED;
     }
     status = WatchPointStatus::CANCELLED;
     if (inotify_rm_watch(inotify->fd, watchDescriptor) != 0) {
-        throw FileWatcherException("Couldn't stop watching", path, errno);
+        switch (errno) {
+            case EINVAL:
+                logToJava(LogLevel::INFO, "Couldn't stop watching %s (probably because the directory was removed)", utf16ToUtf8String(path).c_str());
+                return CancelResult::NOT_CANCELLED;
+                break;
+            default:
+                throw FileWatcherException("Couldn't stop watching", path, errno);
+        }
     }
-    return true;
+    return CancelResult::CANCELLED;
 }
 
 Inotify::Inotify()
@@ -269,12 +276,14 @@ bool Server::unregisterPath(const u16string& path) {
         return false;
     }
     auto& watchPoint = it->second;
-    if (watchPoint.cancel()) {
-        recentlyRemovedWatchPoints.emplace(watchPoint.watchDescriptor);
-        watchRoots.erase(watchPoint.watchDescriptor);
-        watchPoints.erase(path);
+    CancelResult ret = watchPoint.cancel();
+    if (ret == CancelResult::ALREADY_CANCELLED) {
+        return false;
     }
-    return true;
+    recentlyRemovedWatchPoints.emplace(watchPoint.watchDescriptor);
+    watchRoots.erase(watchPoint.watchDescriptor);
+    watchPoints.erase(it);
+    return ret == CancelResult::CANCELLED;
 }
 
 JNIEXPORT jobject JNICALL

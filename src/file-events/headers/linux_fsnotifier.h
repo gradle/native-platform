@@ -44,11 +44,28 @@ enum class WatchPointStatus {
     CANCELLED
 };
 
+enum class CancelResult {
+    /**
+     * The watch point was successfully cancelled.
+     */
+    CANCELLED,
+
+    /**
+     * The watch point was not cancelled (probably because it was removed).
+     */
+    NOT_CANCELLED,
+
+    /**
+     * The watch poing has already been cancelled earlier.
+     */
+    ALREADY_CANCELLED
+};
+
 class WatchPoint {
 public:
     WatchPoint(const u16string& path, const shared_ptr<Inotify> inotify, int watchDescriptor);
 
-    bool cancel();
+    CancelResult cancel();
 
 private:
     WatchPointStatus status;
