@@ -148,6 +148,36 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         noExceptionThrown()
     }
 
+    @Requires({ Platform.current().linux })
+    def "can stop watching many directories while they aer being deleted"() {
+        given:
+        def watchedDirectoryDepth = 8
+        ignoreLogMessages()
+
+        def watchedDir = new File(rootDir, "watchedDir")
+        assert watchedDir.mkdir()
+        List<File> watchedDirectories = createHierarchy(watchedDir, watchedDirectoryDepth)
+
+        def onslaught = new OnslaughtExecuter(watchedDirectories.size())
+        def watcher = startNewWatcher()
+        watcher.startWatching(watchedDirectories)
+        waitForChangeEventLatency()
+        watchedDirectories.each { watchedDirectory ->
+            onslaught.submit({ ->
+                watcher.stopWatching(watchedDirectory)
+            })
+        }
+
+        when:
+        onslaught.start()
+        assert rootDir.deleteDir()
+        onslaught.terminate(5, SECONDS)
+
+        then:
+        noExceptionThrown()
+        logging.messages.keySet().any { it ==~ /Couldn't stop watching .* \(probably because the directory was removed\)/ }
+    }
+
     @Requires({ !Platform.current().linux })
     def "can stop watching a deep hierarchy when it has been deleted"() {
         given:
