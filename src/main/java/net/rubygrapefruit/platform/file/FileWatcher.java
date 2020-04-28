@@ -1,5 +1,6 @@
 package net.rubygrapefruit.platform.file;
 
+import javax.annotation.concurrent.NotThreadSafe;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -8,6 +9,7 @@ import java.util.Collection;
 /**
  * A handle for watching file system locations.
  */
+@NotThreadSafe
 public interface FileWatcher extends Closeable {
     void startWatching(Collection<File> paths);
 
