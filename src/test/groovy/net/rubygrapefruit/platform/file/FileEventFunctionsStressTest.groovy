@@ -23,7 +23,9 @@ import spock.lang.Unroll
 
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 import static java.util.concurrent.TimeUnit.SECONDS
@@ -89,19 +91,15 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         def watchedDirectories = createDirectoriesToWatch(numberOfWatchedDirectories)
 
         def numberOfThreads = numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories
-        def executorService = Executors.newFixedThreadPool(numberOfThreads)
-        def readyLatch = new CountDownLatch(numberOfThreads)
-        def startModifyingLatch = new CountDownLatch(1)
+        def onslaught = new OnslaughtExecuter(numberOfThreads)
         def inTheMiddleLatch = new CountDownLatch(numberOfThreads)
         def watcher = startNewWatcher()
         def changeCount = new AtomicInteger()
         watchedDirectories.each { watchedDirectory ->
             numberOfParallelWritersPerWatchedDirectory.times { index ->
-                executorService.submit({ ->
-                    def fileToChange = new File(watchedDirectory, "file${index}.txt")
-                    readyLatch.countDown()
-                    startModifyingLatch.await()
-                    fileToChange.createNewFile()
+                def fileToChange = new File(watchedDirectory, "file${index}.txt")
+                fileToChange.createNewFile()
+                onslaught.submit({ ->
                     100.times { modifyIndex ->
                         fileToChange << "Change: $modifyIndex\n"
                         changeCount.incrementAndGet()
@@ -116,16 +114,14 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         }
 
         watcher.startWatching(watchedDirectories)
-        readyLatch.await()
-        LOGGER.info("> Starting changes on $numberOfThreads threads")
-        startModifyingLatch.countDown()
+        onslaught.start()
+
         inTheMiddleLatch.await()
         LOGGER.info("> Closing watcher (received ${eventQueue.size()} events of $changeCount changes)")
         watcher.close()
         LOGGER.info("< Closed watcher (received ${eventQueue.size()} events of $changeCount changes)")
 
-        executorService.shutdown()
-        assert executorService.awaitTermination(20, SECONDS)
+        onslaught.terminate(20, SECONDS)
         LOGGER.info("< Finished test (received ${eventQueue.size()} events of $changeCount changes)")
 
         where:
@@ -203,6 +199,42 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
             def dir = new File(rootDir, "dir-$it")
             assert dir.mkdirs()
             return dir
+        }
+    }
+
+    private static class OnslaughtExecuter {
+        private final ExecutorService executorService
+        private final CountDownLatch readyLatch
+        private final CountDownLatch startLatch
+        private final int numberOfThreads
+        private int submittedCount
+
+        OnslaughtExecuter(int numberOfThreads) {
+            this.numberOfThreads = numberOfThreads
+            this.executorService = Executors.newFixedThreadPool(numberOfThreads)
+            this.readyLatch = new CountDownLatch(numberOfThreads)
+            this.startLatch = new CountDownLatch(1)
+        }
+
+        void submit(Runnable job) {
+            submittedCount++
+            executorService.submit({ ->
+                readyLatch.countDown()
+                startLatch.await()
+                job.run()
+            })
+        }
+
+        void start() {
+            assert submittedCount == numberOfThreads
+            readyLatch.await()
+            LOGGER.info("> Starting onslaught on $numberOfThreads threads")
+            startLatch.countDown()
+        }
+
+        void terminate(long timeout, TimeUnit unit) {
+            executorService.shutdown()
+            assert executorService.awaitTermination(timeout, unit)
         }
     }
 }
