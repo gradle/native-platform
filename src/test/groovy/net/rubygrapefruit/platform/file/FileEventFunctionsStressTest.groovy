@@ -91,15 +91,14 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         def watchedDirectories = createDirectoriesToWatch(numberOfWatchedDirectories)
 
         def numberOfThreads = numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories
-        def onslaught = new OnslaughtExecuter(numberOfThreads)
         def inTheMiddleLatch = new CountDownLatch(numberOfThreads)
-        def watcher = startNewWatcher()
         def changeCount = new AtomicInteger()
-        watchedDirectories.each { watchedDirectory ->
-            numberOfParallelWritersPerWatchedDirectory.times { index ->
+        def watcher = startNewWatcher()
+        def onslaught = new OnslaughtExecuter(watchedDirectories.collectMany { watchedDirectory ->
+            (1..numberOfParallelWritersPerWatchedDirectory).collect { index ->
                 def fileToChange = new File(watchedDirectory, "file${index}.txt")
                 fileToChange.createNewFile()
-                onslaught.submit({ ->
+                return { ->
                     100.times { modifyIndex ->
                         fileToChange << "Change: $modifyIndex\n"
                         changeCount.incrementAndGet()
@@ -109,10 +108,11 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
                         fileToChange << "Another change: $modifyIndex\n"
                         changeCount.incrementAndGet()
                     }
-                })
+                } as Runnable
             }
-        }
+        })
 
+        onslaught.awaitReady()
         watcher.startWatching(watchedDirectories)
         onslaught.start()
 
@@ -157,16 +157,13 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         def watchedDir = new File(rootDir, "watchedDir")
         assert watchedDir.mkdir()
         List<File> watchedDirectories = createHierarchy(watchedDir, watchedDirectoryDepth)
-
-        def onslaught = new OnslaughtExecuter(watchedDirectories.size())
         def watcher = startNewWatcher()
+        def onslaught = new OnslaughtExecuter(watchedDirectories.collect { watchedDirectory ->
+            return { -> watcher.stopWatching(watchedDirectory) } as Runnable
+        })
+
+        onslaught.awaitReady()
         watcher.startWatching(watchedDirectories)
-        waitForChangeEventLatency()
-        watchedDirectories.each { watchedDirectory ->
-            onslaught.submit({ ->
-                watcher.stopWatching(watchedDirectory)
-            })
-        }
 
         when:
         onslaught.start()
@@ -237,27 +234,27 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         private final CountDownLatch readyLatch
         private final CountDownLatch startLatch
         private final int numberOfThreads
-        private int submittedCount
 
-        OnslaughtExecuter(int numberOfThreads) {
-            this.numberOfThreads = numberOfThreads
+        OnslaughtExecuter(Collection<Runnable> jobs) {
+            this.numberOfThreads = jobs.size()
             this.executorService = Executors.newFixedThreadPool(numberOfThreads)
             this.readyLatch = new CountDownLatch(numberOfThreads)
             this.startLatch = new CountDownLatch(1)
+            jobs.each { job ->
+                executorService.submit({ ->
+                    readyLatch.countDown()
+                    startLatch.await()
+                    job.run()
+                })
+            }
         }
 
-        void submit(Runnable job) {
-            submittedCount++
-            executorService.submit({ ->
-                readyLatch.countDown()
-                startLatch.await()
-                job.run()
-            })
+        void awaitReady() {
+            readyLatch.await()
         }
 
         void start() {
-            assert submittedCount == numberOfThreads
-            readyLatch.await()
+            awaitReady()
             LOGGER.info("> Starting onslaught on $numberOfThreads threads")
             startLatch.countDown()
         }
