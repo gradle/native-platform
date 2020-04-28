@@ -149,7 +149,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
     }
 
     @Requires({ Platform.current().linux })
-    def "can stop watching many directories while they aer being deleted"() {
+    def "can stop watching many directories while they are being deleted"() {
         given:
         def watchedDirectoryDepth = 8
         ignoreLogMessages()
