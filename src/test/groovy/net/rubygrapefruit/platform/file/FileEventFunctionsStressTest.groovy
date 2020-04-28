@@ -19,6 +19,7 @@ package net.rubygrapefruit.platform.file
 import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.Requires
 import spock.lang.Timeout
+import spock.lang.Unroll
 
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.CountDownLatch
@@ -74,8 +75,9 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         noExceptionThrown()
     }
 
-    @Timeout(value = 180, unit = SECONDS)
-    def "can start and stop watching directory while changes are being made to its contents"() {
+    @Timeout(value = 20, unit = SECONDS)
+    @Unroll
+    def "can start and stop watching directory while changes are being made to its contents, round #round"() {
         given:
         def numberOfParallelWritersPerWatchedDirectory = 10
         def numberOfWatchedDirectories = 10
@@ -84,56 +86,50 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         ignoreLogMessages()
 
         expect:
-        20.times { iteration ->
-            LOGGER.info(">> Round #${iteration + 1}")
-            def watchedDirectories = createDirectoriesToWatch(numberOfWatchedDirectories, "iteration-$iteration/watchedDir-")
+        def watchedDirectories = createDirectoriesToWatch(numberOfWatchedDirectories)
 
-            def numberOfThreads = numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories
-            def executorService = Executors.newFixedThreadPool(numberOfThreads)
-            def readyLatch = new CountDownLatch(numberOfThreads)
-            def startModifyingLatch = new CountDownLatch(1)
-            def inTheMiddleLatch = new CountDownLatch(numberOfThreads)
-            def eventQueue = newEventQueue()
-            def watcher = startNewWatcher(eventQueue)
-            def changeCount = new AtomicInteger()
-            watchedDirectories.each { watchedDirectory ->
-                numberOfParallelWritersPerWatchedDirectory.times { index ->
-                    executorService.submit({ ->
-                        def fileToChange = new File(watchedDirectory, "file${index}.txt")
-                        readyLatch.countDown()
-                        startModifyingLatch.await()
-                        fileToChange.createNewFile()
-                        100.times { modifyIndex ->
-                            fileToChange << "Change: $modifyIndex\n"
-                            changeCount.incrementAndGet()
-                        }
-                        inTheMiddleLatch.countDown()
-                        400.times { modifyIndex ->
-                            fileToChange << "Another change: $modifyIndex\n"
-                            changeCount.incrementAndGet()
-                        }
-                    })
-                }
+        def numberOfThreads = numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories
+        def executorService = Executors.newFixedThreadPool(numberOfThreads)
+        def readyLatch = new CountDownLatch(numberOfThreads)
+        def startModifyingLatch = new CountDownLatch(1)
+        def inTheMiddleLatch = new CountDownLatch(numberOfThreads)
+        def watcher = startNewWatcher()
+        def changeCount = new AtomicInteger()
+        watchedDirectories.each { watchedDirectory ->
+            numberOfParallelWritersPerWatchedDirectory.times { index ->
+                executorService.submit({ ->
+                    def fileToChange = new File(watchedDirectory, "file${index}.txt")
+                    readyLatch.countDown()
+                    startModifyingLatch.await()
+                    fileToChange.createNewFile()
+                    100.times { modifyIndex ->
+                        fileToChange << "Change: $modifyIndex\n"
+                        changeCount.incrementAndGet()
+                    }
+                    inTheMiddleLatch.countDown()
+                    400.times { modifyIndex ->
+                        fileToChange << "Another change: $modifyIndex\n"
+                        changeCount.incrementAndGet()
+                    }
+                })
             }
-            executorService.shutdown()
-
-            watcher.startWatching(watchedDirectories as File[])
-            readyLatch.await()
-            LOGGER.info("> Starting changes on $numberOfThreads threads")
-            startModifyingLatch.countDown()
-            inTheMiddleLatch.await()
-            LOGGER.info("> Closing watcher (received ${eventQueue.size()} events of $changeCount changes)")
-            watcher.close()
-            LOGGER.info("< Closed watcher (received ${eventQueue.size()} events of $changeCount changes)")
-
-            assert executorService.awaitTermination(20, SECONDS)
-            LOGGER.info("< Finished test (received ${eventQueue.size()} events of $changeCount changes)")
-
-            // Let's make sure we free up memory as much as we can
-            eventQueue.clear()
-
-            assert uncaughtFailureOnThread.empty
         }
+
+        watcher.startWatching(watchedDirectories as File[])
+        readyLatch.await()
+        LOGGER.info("> Starting changes on $numberOfThreads threads")
+        startModifyingLatch.countDown()
+        inTheMiddleLatch.await()
+        LOGGER.info("> Closing watcher (received ${eventQueue.size()} events of $changeCount changes)")
+        watcher.close()
+        LOGGER.info("< Closed watcher (received ${eventQueue.size()} events of $changeCount changes)")
+
+        executorService.shutdown()
+        assert executorService.awaitTermination(20, SECONDS)
+        LOGGER.info("< Finished test (received ${eventQueue.size()} events of $changeCount changes)")
+
+        where:
+        round << (1..20)
     }
 
     @Requires({ Platform.current().linux })
@@ -202,9 +198,9 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         return allDirs
     }
 
-    private List<File> createDirectoriesToWatch(int numberOfWatchedDirectories, String prefix = "dir-") {
+    private List<File> createDirectoriesToWatch(int numberOfWatchedDirectories) {
         (1..numberOfWatchedDirectories).collect {
-            def dir = new File(rootDir, prefix + it)
+            def dir = new File(rootDir, "dir-$it")
             assert dir.mkdirs()
             return dir
         }
