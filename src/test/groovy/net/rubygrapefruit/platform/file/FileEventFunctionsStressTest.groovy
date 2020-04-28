@@ -115,7 +115,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
             }
         }
 
-        watcher.startWatching(watchedDirectories as File[])
+        watcher.startWatching(watchedDirectories)
         readyLatch.await()
         LOGGER.info("> Starting changes on $numberOfThreads threads")
         startModifyingLatch.countDown()
@@ -133,7 +133,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
     }
 
     @Requires({ Platform.current().linux })
-    def "can stop watching many directories when they have been deleted"() {
+    def "can close watcher with many directories when they have been deleted"() {
         given:
         def watchedDirectoryDepth = 10
 
@@ -143,7 +143,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
 
         when:
         def watcher = startNewWatcher()
-        watcher.startWatching(watchedDirectories as File[])
+        watcher.startWatching(watchedDirectories)
         waitForChangeEventLatency()
         assert rootDir.deleteDir()
         watcher.close()
