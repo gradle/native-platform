@@ -22,7 +22,7 @@ import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.gradle
 import jetbrains.buildServer.configs.kotlin.v2019_2.triggers.vcs
 
 open class NativePlatformBuild(agent: Agent, init: BuildType.() -> Unit = {}) : BuildType({
-    name = "Build ($agent)"
+    name = "Test on $agent"
     id = RelativeId("Build$agent")
 
     runOn(agent)
@@ -59,7 +59,7 @@ open class NativePlatformBuild(agent: Agent, init: BuildType.() -> Unit = {}) : 
 })
 
 class BuildTrigger(dependencies: List<BuildType>) : BuildType({
-    name = "Build (Trigger)"
+    name = "Run platform tests (Trigger)"
 
     vcs {
         root(DslContext.settingsRoot)
