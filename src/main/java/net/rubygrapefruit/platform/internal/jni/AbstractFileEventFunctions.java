@@ -1,5 +1,6 @@
 package net.rubygrapefruit.platform.internal.jni;
 
+import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.NativeIntegration;
 import net.rubygrapefruit.platform.file.FileWatchEvent;
 import net.rubygrapefruit.platform.file.FileWatchEvent.OverflowType;
@@ -7,10 +8,10 @@ import net.rubygrapefruit.platform.file.FileWatcher;
 
 import javax.annotation.Nullable;
 import java.io.File;
-import java.io.InterruptedIOException;
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -32,7 +33,9 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
     private native void invalidateLogLevelCache0();
 
     public abstract static class AbstractWatcherBuilder {
-        protected final BlockingQueue<FileWatchEvent> eventQueue;
+        public static final long DEFAULT_START_TIMEOUT_IN_SECONDS = 5;
+
+        private final BlockingQueue<FileWatchEvent> eventQueue;
 
         public AbstractWatcherBuilder(BlockingQueue<FileWatchEvent> eventQueue) {
             this.eventQueue = eventQueue;
@@ -41,9 +44,31 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
         /**
          * Start the file watcher.
          *
+         * @throws FileWatcherTimeoutException if the watcher did not start up
+         * in {@value DEFAULT_START_TIMEOUT_IN_SECONDS} seconds.
+         * @throws InterruptedException if the current thread has been interrupted.
+         *
          * @see FileWatcher#startWatching(Collection)
          */
-        public abstract FileWatcher start() throws InterruptedException;
+        public FileWatcher start() throws InterruptedException {
+            return start(DEFAULT_START_TIMEOUT_IN_SECONDS, SECONDS);
+        }
+
+        /**
+         * Start the file watcher with the given timeout.
+         *
+         * @throws FileWatcherTimeoutException if the watcher did not start up in
+         * the given timeout.
+         * @throws InterruptedException if the current thread has been interrupted.
+         *
+         * @see FileWatcher#startWatching(Collection)
+         */
+        public FileWatcher start(long startTimeout, TimeUnit startTimeoutUnit) throws InterruptedException {
+            Object server = startWatcher(new NativeFileWatcherCallback(eventQueue));
+            return new NativeFileWatcher(server, startTimeout, startTimeoutUnit);
+        }
+
+        protected abstract Object startWatcher(NativeFileWatcherCallback callback);
     }
 
     /**
@@ -90,8 +115,8 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
 
         // Called from the native side
         @SuppressWarnings("unused")
-        public void reportTermination(boolean successful) {
-            queueEvent(new TerminationEvent(successful), true);
+        public void reportTermination() {
+            queueEvent(TerminationEvent.INSTANCE, true);
         }
 
         private void queueEvent(FileWatchEvent event, boolean deliverOnOverflow) {
@@ -131,9 +156,9 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
     protected static class NativeFileWatcher implements FileWatcher {
         private final Object server;
         private final Thread processorThread;
-        private boolean closed;
+        private boolean shutdown;
 
-        public NativeFileWatcher(final Object server) throws InterruptedException {
+        public NativeFileWatcher(final Object server, long startTimeout, TimeUnit startTimeoutUnit) throws InterruptedException {
             this.server = server;
             final CountDownLatch runLoopInitialized = new CountDownLatch(1);
             this.processorThread = new Thread("File watcher server") {
@@ -146,8 +171,11 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
             };
             this.processorThread.setDaemon(true);
             this.processorThread.start();
-            // TODO Parametrize this
-            runLoopInitialized.await(5, SECONDS);
+            boolean started = runLoopInitialized.await(startTimeout, startTimeoutUnit);
+            if (!started) {
+                // TODO Shall we close() here?
+                throw new FileWatcherTimeoutException("Starting the watcher timed out");
+            }
         }
 
         private native void initializeRunLoop0(Object server);
@@ -180,23 +208,33 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
         }
 
         @Override
-        public void close() throws InterruptedIOException {
+        public void shutdown() {
             ensureOpen();
-            closed = true;
-            close0(server);
-            // TODO Parametrize timeout here
-            try {
-                processorThread.join(SECONDS.toMillis(5));
-            } catch (InterruptedException e) {
-                throw new InterruptedIOException(e.getMessage());
+            shutdown = true;
+            shutdown0(server);
+        }
+
+        private native void shutdown0(Object server);
+
+        @Override
+        public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+            long timeoutInMillis = unit.toMillis(timeout);
+            long startTime = System.currentTimeMillis();
+            boolean successful = awaitTermination0(server, timeoutInMillis);
+            if (successful) {
+                long endTime = System.currentTimeMillis();
+                long remainingTimeout = timeoutInMillis - (endTime - startTime);
+                processorThread.join(remainingTimeout);
+                return !processorThread.isAlive();
+            } else {
+                return false;
             }
         }
 
-        // Rename this to terminate0() maybe?
-        private native void close0(Object server);
+        private native boolean awaitTermination0(Object server, long timeoutInMillis);
 
         private void ensureOpen() {
-            if (closed) {
+            if (shutdown) {
                 throw new IllegalStateException("Watcher already closed");
             }
         }
@@ -279,20 +317,30 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
     }
 
     private static class TerminationEvent implements FileWatchEvent {
-        private final boolean successful;
+        public final static TerminationEvent INSTANCE = new TerminationEvent();
 
-        public TerminationEvent(boolean successful) {
-            this.successful = successful;
-        }
+        private TerminationEvent() {}
 
         @Override
         public void handleEvent(Handler handler) {
-            handler.handleTerminated(successful);
+            handler.handleTerminated();
         }
 
         @Override
         public String toString() {
-            return "TERMINATE successful: " + successful;
+            return "TERMINATE";
+        }
+    }
+
+    public static class FileWatcherException extends NativeException {
+        public FileWatcherException(String message) {
+            super(message);
+        }
+    }
+
+    public static class FileWatcherTimeoutException extends FileWatcherException {
+        public FileWatcherTimeoutException(String message) {
+            super(message);
         }
     }
 }

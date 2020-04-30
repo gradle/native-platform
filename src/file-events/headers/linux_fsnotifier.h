@@ -22,9 +22,9 @@ struct Inotify {
     const int fd;
 };
 
-struct TerminateEvent {
-    TerminateEvent();
-    ~TerminateEvent();
+struct ShutdownEvent {
+    ShutdownEvent();
+    ~ShutdownEvent();
 
     void trigger() const;
     void consume() const;
@@ -85,7 +85,7 @@ protected:
     void runLoop() override;
     void registerPath(const u16string& path) override;
     bool unregisterPath(const u16string& path) override;
-    void terminateRunLoop() override;
+    void shutdownRunLoop() override;
 
 private:
     void processQueues(int timeout);
@@ -96,8 +96,8 @@ private:
     unordered_map<int, u16string> watchRoots;
     unordered_set<int> recentlyRemovedWatchPoints;
     const shared_ptr<Inotify> inotify;
-    const TerminateEvent terminateEvent;
-    bool terminated = false;
+    const ShutdownEvent shutdownEvent;
+    bool shouldTerminate = false;
     vector<uint8_t> buffer;
 };
 

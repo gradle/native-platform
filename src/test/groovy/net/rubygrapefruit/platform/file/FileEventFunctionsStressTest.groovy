@@ -38,7 +38,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         when:
         100.times { i ->
             startWatcher(rootDir)
-            stopWatcher()
+            shutdownWatcher()
         }
 
         then:
@@ -117,9 +117,11 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         onslaught.start()
 
         inTheMiddleLatch.await()
-        LOGGER.info("> Closing watcher (received ${eventQueue.size()} events of $changeCount changes)")
-        watcher.close()
-        LOGGER.info("< Closed watcher (received ${eventQueue.size()} events of $changeCount changes)")
+        LOGGER.info("> Shutting down watcher (received ${eventQueue.size()} events of $changeCount changes)")
+        watcher.shutdown()
+        LOGGER.info("< Shut down watcher, waiting for termination (received ${eventQueue.size()} events of $changeCount changes)")
+        assert watcher.awaitTermination(20, SECONDS)
+        LOGGER.info("< Watcher terminated (received ${eventQueue.size()} events of $changeCount changes)")
 
         onslaught.terminate(20, SECONDS)
         LOGGER.info("< Finished test (received ${eventQueue.size()} events of $changeCount changes)")
@@ -142,7 +144,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         watcher.startWatching(watchedDirectories)
         waitForChangeEventLatency()
         assert rootDir.deleteDir()
-        watcher.close()
+        shutdownWatcher(watcher)
 
         then:
         noExceptionThrown()
@@ -188,7 +190,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         watcher.startWatching(watchedDir)
         waitForChangeEventLatency()
         assert watchedDir.deleteDir()
-        watcher.close()
+        shutdownWatcher(watcher)
 
         then:
         noExceptionThrown()

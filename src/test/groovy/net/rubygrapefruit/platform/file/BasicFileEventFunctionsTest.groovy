@@ -30,6 +30,7 @@ import java.util.logging.Level
 import java.util.logging.Logger
 import java.util.regex.Pattern
 
+import static java.util.concurrent.TimeUnit.SECONDS
 import static java.util.logging.Level.INFO
 import static java.util.logging.Level.SEVERE
 import static java.util.logging.Level.WARNING
@@ -41,7 +42,7 @@ import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.REMOVED
 @Unroll
 @Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
 class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
-    def "can start and stop watcher without watching any paths"() {
+    def "can start and shutdown watcher without watching any paths"() {
         when:
         def watcher = startNewWatcher()
 
@@ -49,13 +50,13 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         noExceptionThrown()
 
         when:
-        watcher.close()
+        shutdownWatcher(watcher)
 
         then:
-        expectEvents termination(true)
+        expectEvents termination()
     }
 
-    def "can open and close watcher on a directory without receiving any events"() {
+    def "can start and shutdown watcher on a directory without receiving any events"() {
         when:
         def watcher = startNewWatcher(rootDir)
 
@@ -63,10 +64,10 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         noExceptionThrown()
 
         when:
-        watcher.close()
+        shutdownWatcher(watcher)
 
         then:
-        expectEvents termination(true)
+        expectEvents termination()
     }
 
     def "can detect file created"() {
@@ -543,10 +544,10 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
     def "fails when stopped multiple times"() {
         given:
         def watcher = startNewWatcher()
-        watcher.close()
+        shutdownWatcher(watcher)
 
         when:
-        watcher.close()
+        watcher.shutdown()
 
         then:
         def ex = thrown IllegalStateException
@@ -566,7 +567,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         expectEvents change(CREATED, firstFile)
 
         when:
-        stopWatcher()
+        shutdownWatcher()
 
         then:
         expectEvents termination()
@@ -611,8 +612,8 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         expectEvents secondQueue, change(CREATED, secondFile)
 
         cleanup:
-        firstWatcher.close()
-        secondWatcher.close()
+        shutdownWatcher(firstWatcher)
+        shutdownWatcher(secondWatcher)
     }
 
     @Requires({ !Platform.current().linux })
@@ -746,7 +747,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         logging.messages.values().any { it == Level.FINE }
 
         when:
-        stopWatcher()
+        shutdownWatcher()
         logging.clear()
         nativeLogger.level = WARNING
         ensureLogLevelInvalidated(service)
@@ -784,11 +785,20 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         expectLogMessage(SEVERE, "Couldn't queue event: OVERFLOW (EVENT_QUEUE) at null")
 
         when:
-        watcher.close()
+        shutdownWatcher(watcher)
 
         then:
         expectLogMessage(INFO, "Event queue overflow, dropping all events")
         expectLogMessage(SEVERE, "Couldn't queue event: OVERFLOW (EVENT_QUEUE) at null")
-        expectLogMessage(SEVERE, "Couldn't queue event: TERMINATE successful: true")
+        expectLogMessage(SEVERE, "Couldn't queue event: TERMINATE")
+    }
+
+    def "can handle watcher start timing out"() {
+        when:
+        service.newWatcher(eventQueue).start(0, SECONDS)
+
+        then:
+        def ex = thrown AbstractFileEventFunctions.FileWatcherTimeoutException
+        ex.message == "Starting the watcher timed out"
     }
 }

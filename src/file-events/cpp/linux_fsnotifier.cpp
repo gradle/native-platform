@@ -48,22 +48,22 @@ Inotify::~Inotify() {
     close(fd);
 }
 
-TerminateEvent::TerminateEvent()
+ShutdownEvent::ShutdownEvent()
     : fd(eventfd(0, 0)) {
     if (fd == -1) {
         throw FileWatcherException("Couldn't register event source", errno);
     }
 }
-TerminateEvent::~TerminateEvent() {
+ShutdownEvent::~ShutdownEvent() {
     close(fd);
 }
 
-void TerminateEvent::trigger() const {
+void ShutdownEvent::trigger() const {
     const uint64_t increment = 1;
     write(fd, &increment, sizeof(increment));
 }
 
-void TerminateEvent::consume() const {
+void ShutdownEvent::consume() const {
     uint64_t counter;
     ssize_t bytesRead = read(fd, &counter, sizeof(counter));
     if (bytesRead == -1) {
@@ -77,18 +77,17 @@ Server::Server(JNIEnv* env, jobject watcherCallback)
     buffer.reserve(EVENT_BUFFER_SIZE);
 }
 
-void Server::terminateRunLoop() {
-    logToJava(LogLevel::FINE, "Terminating", NULL);
-    terminateEvent.trigger();
+void Server::initializeRunLoop() {
 }
 
-void Server::initializeRunLoop() {
+void Server::shutdownRunLoop() {
+    shutdownEvent.trigger();
 }
 
 void Server::runLoop() {
     int forever = numeric_limits<int>::max();
 
-    while (!terminated) {
+    while (!shouldTerminate) {
         processQueues(forever);
     }
 
@@ -98,7 +97,7 @@ void Server::runLoop() {
 
 void Server::processQueues(int timeout) {
     struct pollfd fds[2];
-    fds[0].fd = terminateEvent.fd;
+    fds[0].fd = shutdownEvent.fd;
     fds[1].fd = inotify->fd;
     fds[0].events = POLLIN;
     fds[1].events = POLLIN;
@@ -109,9 +108,9 @@ void Server::processQueues(int timeout) {
     }
 
     if (IS_SET(fds[0].revents, POLLIN)) {
-        terminateEvent.consume();
+        shutdownEvent.consume();
         // Ignore counter, we only care about the notification itself
-        terminated = true;
+        shouldTerminate = true;
         return;
     }
 
@@ -214,7 +213,7 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
         return;
     }
 
-    if (terminated) {
+    if (shouldTerminate) {
         logToJava(LogLevel::FINE, "Ignoring incoming events for %s because server is terminating (status = %d)",
             utf16ToUtf8String(path).c_str(), watchPoint.status);
         return;

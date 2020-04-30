@@ -52,7 +52,7 @@ AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback)
     this->watcherReportUnknownEventMethod = env->GetMethodID(callbackClass, "reportUnknownEvent", "(Ljava/lang/String;)V");
     this->watcherReportOverflowMethod = env->GetMethodID(callbackClass, "reportOverflow", "(Ljava/lang/String;)V");
     this->watcherReportFailureMethod = env->GetMethodID(callbackClass, "reportFailure", "(Ljava/lang/Throwable;)V");
-    this->watcherReportTerminationMethod = env->GetMethodID(callbackClass, "reportTermination", "(Z)V");
+    this->watcherReportTerminationMethod = env->GetMethodID(callbackClass, "reportTermination", "()V");
 }
 
 AbstractServer::~AbstractServer() {
@@ -91,8 +91,8 @@ void AbstractServer::reportFailure(JNIEnv* env, const exception& exception) {
     getJavaExceptionAndPrintStacktrace(env);
 }
 
-void AbstractServer::reportTermination(JNIEnv* env, bool successful) {
-    env->CallVoidMethod(watcherCallback.get(), watcherReportTerminationMethod, successful);
+void AbstractServer::reportTermination(JNIEnv* env) {
+    env->CallVoidMethod(watcherCallback.get(), watcherReportTerminationMethod);
     getJavaExceptionAndPrintStacktrace(env);
 }
 
@@ -124,7 +124,9 @@ void AbstractServer::executeRunLoop(JNIEnv* env) {
         rethrowAsJavaException(env, ex);
     }
     unique_lock<mutex> terminationLock(terminationMutex);
-    terminated.notify_all();
+    terminated = true;
+    reportTermination(env);
+    terminationVariable.notify_all();
 }
 
 // TODO Add checks for terminated state
@@ -144,16 +146,14 @@ bool AbstractServer::unregisterPaths(const vector<u16string>& paths) {
     return success;
 }
 
-void AbstractServer::terminate(JNIEnv* env) {
+bool AbstractServer::awaitTermination(long timeoutInMillis) {
     unique_lock<mutex> terminationLock(terminationMutex);
-    terminateRunLoop();
-    // TODO Parametrize this
-    auto status = terminated.wait_for(terminationLock, THREAD_TIMEOUT);
-    bool timedOut = status == cv_status::timeout;
-    reportTermination(env, !timedOut);
-    if (timedOut) {
-        throw FileWatcherException("Termination timed out");
+    if (terminated) {
+        return true;
     }
+    auto status = terminationVariable.wait_for(terminationLock, chrono::milliseconds(timeoutInMillis));
+    bool success = status != cv_status::timeout;
+    return success;
 }
 
 JNIEXPORT void JNICALL
@@ -202,13 +202,27 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_close0(JNIEnv* env, jobject, jobject javaServer) {
+Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_shutdown0(JNIEnv* env, jobject, jobject javaServer) {
     try {
         AbstractServer* server = getServer(env, javaServer);
-        server->terminate(env);
-        delete server;
+        server->shutdownRunLoop();
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
+    }
+}
+
+JNIEXPORT jboolean JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_awaitTermination0(JNIEnv* env, jobject, jobject javaServer, jlong timeoutInMillis) {
+    try {
+        AbstractServer* server = getServer(env, javaServer);
+        bool successful = server->awaitTermination((long) timeoutInMillis);
+        if (successful) {
+            delete server;
+        }
+        return successful;
+    } catch (const exception& e) {
+        rethrowAsJavaException(env, e);
+        return false;
     }
 }
 

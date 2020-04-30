@@ -100,7 +100,7 @@ void Server::runLoop() {
     CFRelease(messageSource);
 }
 
-void Server::terminateRunLoop() {
+void Server::shutdownRunLoop() {
     CFRunLoopStop(threadLoop);
 }
 
