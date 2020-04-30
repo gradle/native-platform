@@ -19,10 +19,13 @@ package net.rubygrapefruit.platform.file
 import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.Requires
 import spock.lang.Timeout
+import spock.lang.Unroll
 
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 import static java.util.concurrent.TimeUnit.SECONDS
@@ -74,8 +77,9 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         noExceptionThrown()
     }
 
-    @Timeout(value = 180, unit = SECONDS)
-    def "can start and stop watching directory while changes are being made to its contents"() {
+    @Timeout(value = 20, unit = SECONDS)
+    @Unroll
+    def "can start and stop watching directory while changes are being made to its contents, round #round"() {
         given:
         def numberOfParallelWritersPerWatchedDirectory = 10
         def numberOfWatchedDirectories = 10
@@ -84,60 +88,48 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         ignoreLogMessages()
 
         expect:
-        20.times { iteration ->
-            LOGGER.info(">> Round #${iteration + 1}")
-            def watchedDirectories = createDirectoriesToWatch(numberOfWatchedDirectories, "iteration-$iteration/watchedDir-")
+        def watchedDirectories = createDirectoriesToWatch(numberOfWatchedDirectories)
 
-            def numberOfThreads = numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories
-            def executorService = Executors.newFixedThreadPool(numberOfThreads)
-            def readyLatch = new CountDownLatch(numberOfThreads)
-            def startModifyingLatch = new CountDownLatch(1)
-            def inTheMiddleLatch = new CountDownLatch(numberOfThreads)
-            def eventQueue = newEventQueue()
-            def watcher = startNewWatcher(eventQueue)
-            def changeCount = new AtomicInteger()
-            watchedDirectories.each { watchedDirectory ->
-                numberOfParallelWritersPerWatchedDirectory.times { index ->
-                    executorService.submit({ ->
-                        def fileToChange = new File(watchedDirectory, "file${index}.txt")
-                        readyLatch.countDown()
-                        startModifyingLatch.await()
-                        fileToChange.createNewFile()
-                        100.times { modifyIndex ->
-                            fileToChange << "Change: $modifyIndex\n"
-                            changeCount.incrementAndGet()
-                        }
-                        inTheMiddleLatch.countDown()
-                        400.times { modifyIndex ->
-                            fileToChange << "Another change: $modifyIndex\n"
-                            changeCount.incrementAndGet()
-                        }
-                    })
-                }
+        def numberOfThreads = numberOfParallelWritersPerWatchedDirectory * numberOfWatchedDirectories
+        def inTheMiddleLatch = new CountDownLatch(numberOfThreads)
+        def changeCount = new AtomicInteger()
+        def watcher = startNewWatcher()
+        def onslaught = new OnslaughtExecuter(watchedDirectories.collectMany { watchedDirectory ->
+            (1..numberOfParallelWritersPerWatchedDirectory).collect { index ->
+                def fileToChange = new File(watchedDirectory, "file${index}.txt")
+                fileToChange.createNewFile()
+                return { ->
+                    100.times { modifyIndex ->
+                        fileToChange << "Change: $modifyIndex\n"
+                        changeCount.incrementAndGet()
+                    }
+                    inTheMiddleLatch.countDown()
+                    400.times { modifyIndex ->
+                        fileToChange << "Another change: $modifyIndex\n"
+                        changeCount.incrementAndGet()
+                    }
+                } as Runnable
             }
-            executorService.shutdown()
+        })
 
-            watcher.startWatching(watchedDirectories as File[])
-            readyLatch.await()
-            LOGGER.info("> Starting changes on $numberOfThreads threads")
-            startModifyingLatch.countDown()
-            inTheMiddleLatch.await()
-            LOGGER.info("> Closing watcher (received ${eventQueue.size()} events of $changeCount changes)")
-            watcher.close()
-            LOGGER.info("< Closed watcher (received ${eventQueue.size()} events of $changeCount changes)")
+        onslaught.awaitReady()
+        watcher.startWatching(watchedDirectories)
+        onslaught.start()
 
-            assert executorService.awaitTermination(20, SECONDS)
-            LOGGER.info("< Finished test (received ${eventQueue.size()} events of $changeCount changes)")
+        inTheMiddleLatch.await()
+        LOGGER.info("> Closing watcher (received ${eventQueue.size()} events of $changeCount changes)")
+        watcher.close()
+        LOGGER.info("< Closed watcher (received ${eventQueue.size()} events of $changeCount changes)")
 
-            // Let's make sure we free up memory as much as we can
-            eventQueue.clear()
+        onslaught.terminate(20, SECONDS)
+        LOGGER.info("< Finished test (received ${eventQueue.size()} events of $changeCount changes)")
 
-            assert uncaughtFailureOnThread.empty
-        }
+        where:
+        round << (1..20)
     }
 
     @Requires({ Platform.current().linux })
-    def "can stop watching many directories when they have been deleted"() {
+    def "can close watcher with many directories when they have been deleted"() {
         given:
         def watchedDirectoryDepth = 10
 
@@ -147,10 +139,36 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
 
         when:
         def watcher = startNewWatcher()
-        watcher.startWatching(watchedDirectories as File[])
+        watcher.startWatching(watchedDirectories)
         waitForChangeEventLatency()
         assert rootDir.deleteDir()
         watcher.close()
+
+        then:
+        noExceptionThrown()
+    }
+
+    @Requires({ Platform.current().linux })
+    def "can stop watching many directories while they are being deleted"() {
+        given:
+        def watchedDirectoryDepth = 8
+        ignoreLogMessages()
+
+        def watchedDir = new File(rootDir, "watchedDir")
+        assert watchedDir.mkdir()
+        List<File> watchedDirectories = createHierarchy(watchedDir, watchedDirectoryDepth)
+        def watcher = startNewWatcher()
+        def onslaught = new OnslaughtExecuter(watchedDirectories.collect { watchedDirectory ->
+            return { -> watcher.stopWatching(watchedDirectory) } as Runnable
+        })
+
+        onslaught.awaitReady()
+        watcher.startWatching(watchedDirectories)
+
+        when:
+        onslaught.start()
+        assert rootDir.deleteDir()
+        onslaught.terminate(5, SECONDS)
 
         then:
         noExceptionThrown()
@@ -202,11 +220,47 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         return allDirs
     }
 
-    private List<File> createDirectoriesToWatch(int numberOfWatchedDirectories, String prefix = "dir-") {
+    private List<File> createDirectoriesToWatch(int numberOfWatchedDirectories) {
         (1..numberOfWatchedDirectories).collect {
-            def dir = new File(rootDir, prefix + it)
+            def dir = new File(rootDir, "dir-$it")
             assert dir.mkdirs()
             return dir
+        }
+    }
+
+    private static class OnslaughtExecuter {
+        private final ExecutorService executorService
+        private final CountDownLatch readyLatch
+        private final CountDownLatch startLatch
+        private final int numberOfThreads
+
+        OnslaughtExecuter(Collection<Runnable> jobs) {
+            this.numberOfThreads = jobs.size()
+            this.executorService = Executors.newFixedThreadPool(numberOfThreads)
+            this.readyLatch = new CountDownLatch(numberOfThreads)
+            this.startLatch = new CountDownLatch(1)
+            jobs.each { job ->
+                executorService.submit({ ->
+                    readyLatch.countDown()
+                    startLatch.await()
+                    job.run()
+                })
+            }
+        }
+
+        void awaitReady() {
+            readyLatch.await()
+        }
+
+        void start() {
+            awaitReady()
+            LOGGER.info("> Starting onslaught on $numberOfThreads threads")
+            startLatch.countDown()
+        }
+
+        void terminate(long timeout, TimeUnit unit) {
+            executorService.shutdown()
+            assert executorService.awaitTermination(timeout, unit)
         }
     }
 }
