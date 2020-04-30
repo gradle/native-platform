@@ -150,7 +150,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
             }
         }
 
-        if (terminated) {
+        if (shouldTerminate) {
             logToJava(LogLevel::FINE, "Ignoring incoming events for %s because server is terminating (%d bytes, status = %d)",
                 utf16ToUtf8String(path).c_str(), bytesTransferred, watchPoint->status);
             return;
@@ -300,15 +300,15 @@ void Server::initializeRunLoop() {
     }
 }
 
-void Server::terminateRunLoop() {
+void Server::shutdownRunLoop() {
     executeOnRunLoop([this]() {
-        terminated = true;
+        shouldTerminate = true;
         return true;
     });
 }
 
 void Server::runLoop() {
-    while (!terminated) {
+    while (!shouldTerminate) {
         SleepEx(INFINITE, true);
     }
 

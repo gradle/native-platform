@@ -19,9 +19,8 @@ package net.rubygrapefruit.platform.internal.jni;
 import net.rubygrapefruit.platform.file.FileWatchEvent;
 import net.rubygrapefruit.platform.file.FileWatcher;
 
-import java.util.concurrent.BlockingQueue;
-
 import java.util.Collection;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -77,7 +76,7 @@ public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
          * Sets the timeout for commands to get scheduled on the run loop.
          *
          * Commands are {@link FileWatcher#startWatching(Collection)},
-         * {@link FileWatcher#stopWatching(Collection)} and {@link FileWatcher#close()},
+         * {@link FileWatcher#stopWatching(Collection)} and {@link FileWatcher#shutdown()},
          * The Windows file watcher relies on scheduling the execution of these commands
          * on the background thread.
          *

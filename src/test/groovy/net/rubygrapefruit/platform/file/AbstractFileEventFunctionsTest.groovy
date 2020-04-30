@@ -84,7 +84,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     }
 
     def cleanup() {
-        stopWatcher()
+        shutdownWatcher()
         LOGGER.info("<<< Finished '${testName.methodName}'")
 
         uncaughtFailureOnThread.each {
@@ -323,18 +323,12 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     }
 
     private class ExpectedTermination implements ExpectedEvent {
-        private final boolean successful
-
-        ExpectedTermination(boolean successful) {
-            this.successful = successful
-        }
-
         @Override
         boolean matches(FileWatchEvent event) {
             def matcher = new MatcherHandler() {
                 @Override
-                void handleTerminated(boolean successful) {
-                    matched = ExpectedTermination.this.successful == successful
+                void handleTerminated() {
+                    matched = true
                 }
             }
             event.handleEvent(matcher)
@@ -348,7 +342,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
         @Override
         String toString() {
-            return "TERMINATE successful = $successful"
+            return "TERMINATE"
         }
     }
 
@@ -374,10 +368,17 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         watcherFixture.startNewWatcher(eventQueue)
     }
 
-    protected void stopWatcher() {
+    protected void shutdownWatcher() {
         def copyWatcher = watcher
         watcher = null
-        copyWatcher?.close()
+        if (copyWatcher != null) {
+            shutdownWatcher(copyWatcher)
+        }
+    }
+
+    protected static void shutdownWatcher(FileWatcher watcher) {
+        watcher.shutdown()
+        assert watcher.awaitTermination(5, SECONDS)
     }
 
     private void ensureNoMoreEvents(BlockingQueue<FileWatchEvent> eventQueue = this.eventQueue) {
@@ -490,8 +491,8 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             }
 
             @Override
-            void handleTerminated(boolean successful) {
-                shortened = "TERMINATE successful = $successful"
+            void handleTerminated() {
+                shortened = "TERMINATE"
             }
         })
         assert shortened != null
@@ -528,8 +529,8 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         return new ExpectedFailure(type, message)
     }
 
-    protected ExpectedEvent termination(boolean successful = true) {
-        return new ExpectedTermination(successful)
+    protected ExpectedEvent termination() {
+        return new ExpectedTermination()
     }
 
     protected void createNewFile(File file) {
@@ -571,7 +572,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         void handleFailure(Throwable failure) {}
 
         @Override
-        void handleTerminated(boolean successful) {}
+        void handleTerminated() {}
     }
 
     protected static class TestHandler implements FileWatchEvent.Handler {
@@ -596,7 +597,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         }
 
         @Override
-        void handleTerminated(boolean successful) {
+        void handleTerminated() {
             throw new IllegalStateException("Received unexpected termination")
         }
     }

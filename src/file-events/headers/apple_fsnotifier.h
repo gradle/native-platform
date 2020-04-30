@@ -45,7 +45,7 @@ protected:
 
     void registerPath(const u16string& path) override;
     bool unregisterPath(const u16string& path) override;
-    void terminateRunLoop() override;
+    void shutdownRunLoop() override;
 
 private:
     void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);

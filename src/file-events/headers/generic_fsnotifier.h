@@ -28,8 +28,6 @@ enum class ChangeType {
 
 #define IS_SET(flags, mask) (((flags) & (mask)) != 0)
 
-#define THREAD_TIMEOUT (chrono::seconds(5))
-
 struct FileWatcherException : public runtime_error {
 public:
     FileWatcherException(const string& message, const u16string& path, int errorCode);
@@ -59,25 +57,30 @@ public:
     virtual bool unregisterPaths(const vector<u16string>& paths);
 
     /**
-     * Terminates server.
+     * Shuts the server down.
      */
-    void terminate(JNIEnv* env);
+    virtual void shutdownRunLoop() = 0;
+
+    /**
+     * Waits for the given timeout for the server to finsih terminating.
+     */
+    bool awaitTermination(long timeoutInMillis);
 
 protected:
     virtual void runLoop() = 0;
     virtual void registerPath(const u16string& path) = 0;
     virtual bool unregisterPath(const u16string& path) = 0;
-    virtual void terminateRunLoop() = 0;
 
     void reportChangeEvent(JNIEnv* env, ChangeType type, const u16string& path);
     void reportUnknownEvent(JNIEnv* env, const u16string& path);
     void reportOverflow(JNIEnv* env, const u16string& path);
     void reportFailure(JNIEnv* env, const exception& ex);
-    void reportTermination(JNIEnv* env, bool successful);
+    void reportTermination(JNIEnv* env);
 
     mutex mutationMutex;
     mutex terminationMutex;
-    condition_variable terminated;
+    condition_variable terminationVariable;
+    bool terminated = false;
 
 private:
     JniGlobalRef<jobject> watcherCallback;

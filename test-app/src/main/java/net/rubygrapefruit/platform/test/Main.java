@@ -46,7 +46,6 @@ import net.rubygrapefruit.platform.terminal.TerminalSize;
 import net.rubygrapefruit.platform.terminal.Terminals;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
@@ -55,6 +54,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Main {
@@ -410,8 +410,8 @@ public class Main {
                         }
 
                         @Override
-                        public void handleTerminated(boolean successful) {
-                            System.out.printf("Terminated %s%n", successful ? "successfully" : "unsuccessfully");
+                        public void handleTerminated() {
+                            System.out.printf("Terminated%n");
                             terminated.set(true);
                         }
                     });
@@ -431,10 +431,9 @@ public class Main {
         } catch (Exception e) {
             throw new RuntimeException(e);
         } finally {
-            try {
-                watcher.close();
-            } catch (IOException e) {
-                e.printStackTrace();
+            watcher.shutdown();
+            if (!watcher.awaitTermination(5, TimeUnit.SECONDS)) {
+                System.out.println("Shutting down watcher timed out");
             }
         }
     }

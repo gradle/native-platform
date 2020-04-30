@@ -97,7 +97,7 @@ protected:
 
     void registerPath(const u16string& path) override;
     bool unregisterPath(const u16string& path) override;
-    void terminateRunLoop() override;
+    void shutdownRunLoop() override;
 
 private:
     void handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMATION* info);
@@ -106,7 +106,7 @@ private:
     const size_t bufferSize;
     const long commandTimeoutInMillis;
     unordered_map<u16string, WatchPoint> watchPoints;
-    bool terminated = false;
+    bool shouldTerminate = false;
     friend void CALLBACK executeOnRunLoopCallback(_In_ ULONG_PTR info);
 };
 
