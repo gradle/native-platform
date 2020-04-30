@@ -172,7 +172,6 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
 
         then:
         noExceptionThrown()
-        logging.messages.keySet().any { it ==~ /Couldn't stop watching .* \(probably because the directory was removed\)/ }
     }
 
     @Requires({ !Platform.current().linux })
