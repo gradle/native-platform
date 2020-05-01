@@ -22,7 +22,8 @@ import spock.lang.Ignore
 import spock.lang.Requires
 
 import static java.nio.file.Files.createSymbolicLink
-import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.CREATED
+import static net.rubygrapefruit.platform.file.AbstractFileEventFunctionsTest.PlatformType.MAC_OS
+import static net.rubygrapefruit.platform.file.AbstractFileEventFunctionsTest.PlatformType.OTHERWISE
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.MODIFIED
 
 @Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
@@ -41,9 +42,10 @@ class SymlinkFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         watchedFile << "change"
 
         then:
-        expectEvents Platform.current().macOs
-            ? change(MODIFIED, canonicalFile)
-            : change(MODIFIED, watchedFile)
+        expectEvents byPlatform(
+            (MAC_OS):     [change(MODIFIED, canonicalFile)],
+            (OTHERWISE) : [change(MODIFIED, watchedFile)]
+        )
     }
 
     @Requires({ Platform.current().macOs || Platform.current().windows })
@@ -62,9 +64,10 @@ class SymlinkFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         linkedFile << "change"
 
         then:
-        expectEvents Platform.current().macOs
-            ? [change(MODIFIED, canonicalFile), change(MODIFIED, canonicalFile)]
-            : [change(MODIFIED, linkedFile), change(MODIFIED, canonicalFile)]
+        expectEvents byPlatform(
+            (MAC_OS):    [change(MODIFIED, canonicalFile), change(MODIFIED, canonicalFile)],
+            (OTHERWISE): [change(MODIFIED, linkedFile), change(MODIFIED, canonicalFile)]
+        )
     }
 
     @Requires({ Platform.current().linux })

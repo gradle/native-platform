@@ -387,6 +387,12 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         assert watcher.awaitTermination(5, SECONDS)
     }
 
+    protected static <T> T byPlatform(Map<PlatformType, T> platforms) {
+        T match = platforms.find { platform, _ -> platform.matches(Platform.current()) }?.value
+        Assert.that(match != null, "No match for platform ${Platform.current()}")
+        return match
+    }
+
     private void ensureNoMoreEvents(BlockingQueue<FileWatchEvent> eventQueue = this.eventQueue) {
         def receivedEvents = new ArrayList<FileWatchEvent>()
         eventQueue.drainTo(receivedEvents)
@@ -606,5 +612,34 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         void handleTerminated() {
             throw new IllegalStateException("Received unexpected termination")
         }
+    }
+
+    protected static enum PlatformType {
+        LINUX() {
+            @Override
+            boolean matches(Platform platform) {
+                return platform.linux
+            }
+        },
+        MAC_OS() {
+            @Override
+            boolean matches(Platform platform) {
+                return platform.macOs
+            }
+        },
+        WINDOWS() {
+            @Override
+            boolean matches(Platform platform) {
+                return platform.windows
+            }
+        },
+        OTHERWISE() {
+            @Override
+            boolean matches(Platform platform) {
+                return true
+            }
+        };
+
+        abstract boolean matches(Platform platform)
     }
 }

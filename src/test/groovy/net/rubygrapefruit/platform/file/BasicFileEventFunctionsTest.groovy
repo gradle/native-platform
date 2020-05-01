@@ -34,6 +34,8 @@ import static java.util.concurrent.TimeUnit.SECONDS
 import static java.util.logging.Level.INFO
 import static java.util.logging.Level.SEVERE
 import static java.util.logging.Level.WARNING
+import static net.rubygrapefruit.platform.file.AbstractFileEventFunctionsTest.PlatformType.OTHERWISE
+import static net.rubygrapefruit.platform.file.AbstractFileEventFunctionsTest.PlatformType.WINDOWS
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.CREATED
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.INVALIDATED
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.MODIFIED
@@ -135,9 +137,10 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         then:
         // Windows reports the file as modified before removing it
-        expectEvents Platform.current().windows
-            ? [change(MODIFIED, removedFile), change(REMOVED, removedFile)]
-            : [change(REMOVED, removedFile)]
+        expectEvents byPlatform(
+            (WINDOWS):   [change(MODIFIED, removedFile), change(REMOVED, removedFile)],
+            (OTHERWISE): [change(REMOVED, removedFile)]
+        )
     }
 
     @IgnoreIf({ Platform.current().linux })
@@ -154,9 +157,10 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         then:
         // Windows reports the file as modified before removing it
-        expectEvents Platform.current().windows
-            ? [change(MODIFIED, removedFile), change(REMOVED, removedFile)]
-            : [change(REMOVED, removedFile)]
+        expectEvents byPlatform(
+            (WINDOWS):   [change(MODIFIED, removedFile), change(REMOVED, removedFile)],
+            (OTHERWISE): [change(REMOVED, removedFile)]
+        )
     }
 
     def "can detect directory removed"() {
@@ -292,9 +296,10 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         sourceFile.renameTo(targetFile)
 
         then:
-        expectEvents Platform.current().windows
-            ? [change(REMOVED, sourceFile), change(CREATED, targetFile), optionalChange(MODIFIED, targetFile)]
-            : [change(REMOVED, sourceFile), change(CREATED, targetFile)]
+        expectEvents byPlatform(
+            (WINDOWS):   [change(REMOVED, sourceFile), change(CREATED, targetFile), optionalChange(MODIFIED, targetFile)],
+            (OTHERWISE): [change(REMOVED, sourceFile), change(CREATED, targetFile)]
+        )
     }
 
     @IgnoreIf({ Platform.current().linux })
@@ -311,9 +316,10 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         sourceFile.renameTo(targetFile)
 
         then:
-        expectEvents Platform.current().windows
-            ? [change(REMOVED, sourceFile), change(CREATED, targetFile), change(MODIFIED, subDir), optionalChange(MODIFIED, targetFile)]
-            : [change(REMOVED, sourceFile), change(CREATED, targetFile)]
+        expectEvents byPlatform(
+            (WINDOWS):   [change(REMOVED, sourceFile), change(CREATED, targetFile), change(MODIFIED, subDir), optionalChange(MODIFIED, targetFile)],
+            (OTHERWISE): [change(REMOVED, sourceFile), change(CREATED, targetFile)]
+        )
     }
 
     def "can detect file moved out"() {
@@ -346,9 +352,10 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         sourceFileOutside.renameTo(targetFileInside)
 
         then:
-        expectEvents Platform.current().windows
-            ? [change(CREATED, targetFileInside), optionalChange(MODIFIED, targetFileInside)]
-            : [change(CREATED, targetFileInside)]
+        expectEvents byPlatform(
+            (WINDOWS):   [change(CREATED, targetFileInside), optionalChange(MODIFIED, targetFileInside)],
+            (OTHERWISE): [change(CREATED, targetFileInside)]
+        )
     }
 
     def "can rename watched directory"() {
