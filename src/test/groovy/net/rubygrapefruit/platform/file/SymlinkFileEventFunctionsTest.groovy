@@ -22,12 +22,12 @@ import spock.lang.Ignore
 import spock.lang.Requires
 
 import static java.nio.file.Files.createSymbolicLink
+import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.CREATED
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.MODIFIED
 
 @Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
 class SymlinkFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
-    @Requires({ Platform.current().linux || Platform.current().macOs })
     def "can detect changes in symlinked watched directory"() {
         given:
         def canonicalFile = new File(rootDir, "modified.txt")
@@ -46,7 +46,7 @@ class SymlinkFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
             : change(MODIFIED, watchedFile)
     }
 
-    @Requires({ Platform.current().macOs })
+    @Requires({ Platform.current().macOs || Platform.current().windows })
     def "can watch directory via symlink and directly at the same time"() {
         given:
         def canonicalDir = new File(rootDir, "watchedDir")
@@ -62,10 +62,9 @@ class SymlinkFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         linkedFile << "change"
 
         then:
-        // TODO Figure out what to do on other OSs
         expectEvents Platform.current().macOs
             ? [change(MODIFIED, canonicalFile), change(MODIFIED, canonicalFile)]
-            : []
+            : [change(MODIFIED, linkedFile), change(MODIFIED, canonicalFile)]
     }
 
     @Requires({ Platform.current().linux })

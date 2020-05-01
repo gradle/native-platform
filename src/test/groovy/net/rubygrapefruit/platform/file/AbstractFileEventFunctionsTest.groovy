@@ -388,10 +388,12 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     }
 
     private void ensureNoMoreEvents(BlockingQueue<FileWatchEvent> eventQueue = this.eventQueue) {
-        def event = eventQueue.poll()
-        if (event != null) {
-            throw new RuntimeException("Unexpected event ${format(event)}")
-        }
+        def receivedEvents = new ArrayList<FileWatchEvent>()
+        eventQueue.drainTo(receivedEvents)
+        Assert.that(
+            receivedEvents.empty,
+            createEventFailure(receivedEvents.collectEntries { event -> [event, UNEXPECTED]}, [])
+        )
     }
 
     protected void expectNoEvents(BlockingQueue<FileWatchEvent> eventQueue = this.eventQueue) {
