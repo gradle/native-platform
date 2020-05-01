@@ -809,8 +809,14 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         def createdFile = new File(watchedDir, "created.txt")
         startWatcher(watchedDir)
 
-        assert watchedDir.delete()
-        assert watchedDir.mkdir()
+        def directoryRemoved = watchedDir.delete()
+        def directoryRecreated = watchedDir.mkdirs()
+        if (!Platform.current().windows) {
+            assert directoryRemoved
+            assert directoryRecreated
+        }
+        waitForChangeEventLatency()
+
         // Restart watching freshly recreated directory on platforms that auto-unregister on deletion
         if (!Platform.current().macOs) {
             watcher.startWatching(watchedDir)
