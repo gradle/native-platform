@@ -36,6 +36,8 @@
 #include <termios.h>
 #include <unistd.h>
 
+jmethodID fileStatDetailsMethodId;
+
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getSystemInfo(JNIEnv* env, jclass target, jobject info, jobject result) {
     jclass infoClass = env->GetObjectClass(info);
@@ -115,13 +117,6 @@ void unpackStat(struct stat* source, file_stat_t* result) {
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv* env, jclass target, jstring path, jboolean followLink, jobject dest, jobject result) {
-    jclass destClass = env->GetObjectClass(dest);
-    jmethodID mid = env->GetMethodID(destClass, "details", "(IIIIJJI)V");
-    if (mid == NULL) {
-        mark_failed_with_message(env, "could not find method", result);
-        return;
-    }
-
     struct stat fileInfo;
     char* pathStr = java_to_char(env, path, result);
     if (pathStr == NULL) {
@@ -140,12 +135,12 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv* en
     }
 
     if (retval != 0) {
-        env->CallVoidMethod(dest, mid, FILE_TYPE_MISSING, (jint) 0, (jint) 0, (jint) 0, (jlong) 0, (jlong) 0, (jint) 0);
+        env->CallVoidMethod(dest, fileStatDetailsMethodId, FILE_TYPE_MISSING, (jint) 0, (jint) 0, (jint) 0, (jlong) 0, (jlong) 0, (jint) 0);
     } else {
         file_stat_t fileResult;
         unpackStat(&fileInfo, &fileResult);
         env->CallVoidMethod(dest,
-            mid,
+            fileStatDetailsMethodId,
             fileResult.fileType,
             (jint) (0777 & fileInfo.st_mode),
             (jint) fileInfo.st_uid,
@@ -409,6 +404,18 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixTerminalFunctions_resetInputM
         return;
     }
     tcsetattr(STDIN_FILENO, TCSANOW, &original_input_mode);
+}
+
+JNIEXPORT jint JNICALL
+JNI_OnLoad(JavaVM* jvm, void*) {
+    JNIEnv* env;
+    jint ret = jvm->GetEnv((void**) &env, JNI_VERSION_1_6);
+    if (ret != JNI_OK) {
+        return -1;
+    }
+    jclass destClass = env->FindClass("net/rubygrapefruit/platform/internal/FileStat");
+    fileStatDetailsMethodId = env->GetMethodID(destClass, "details", "(IIIIJJI)V");
+    return JNI_VERSION_1_6;
 }
 
 #endif
