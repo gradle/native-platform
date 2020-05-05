@@ -811,7 +811,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         def directoryRemoved = watchedDir.delete()
         def directoryRecreated = watchedDir.mkdirs()
-        // On Windows we don't always manage to remove the watched directory, but it's unreliable
+        // On Windows we don't always manage to remove the watched directory, it's unreliable
         if (!Platform.current().windows) {
             assert directoryRemoved
             assert directoryRecreated
