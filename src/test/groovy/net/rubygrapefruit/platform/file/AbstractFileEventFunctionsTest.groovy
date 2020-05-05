@@ -424,14 +424,14 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
                 def expectedEventIndex = remainingExpectedEvents.findIndexOf { expectedEvent ->
                     expectedEvent.matches(event)
                 }
-                EventStatus expected
+                EventStatus status
                 if (expectedEventIndex == -1) {
-                    expected = UNEXPECTED
+                    status = UNEXPECTED
                 } else {
                     remainingExpectedEvents.remove(expectedEventIndex)
-                    expected = EXPECTED
+                    status = EXPECTED
                 }
-                receivedEvents.put(event, expected)
+                receivedEvents.put(event, status)
                 return true
             })
         Assert.that(
