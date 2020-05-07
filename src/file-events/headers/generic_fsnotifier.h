@@ -78,11 +78,12 @@ protected:
     void reportTermination(JNIEnv* env);
 
     mutex mutationMutex;
+
+private:
     mutex terminationMutex;
     condition_variable terminationVariable;
     bool terminated = false;
 
-private:
     JniGlobalRef<jobject> watcherCallback;
     jmethodID watcherReportChangeEventMethod;
     jmethodID watcherReportUnknownEventMethod;
