@@ -25,6 +25,7 @@ import spock.lang.Unroll
 import static java.nio.file.Files.createSymbolicLink
 import static net.rubygrapefruit.platform.file.AbstractFileEventFunctionsTest.PlatformType.MAC_OS
 import static net.rubygrapefruit.platform.file.AbstractFileEventFunctionsTest.PlatformType.OTHERWISE
+import static net.rubygrapefruit.platform.file.AbstractFileEventFunctionsTest.PlatformType.WINDOWS
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.CREATED
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.REMOVED
@@ -44,7 +45,11 @@ class SymlinkFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         createSymlink(link, target)
 
         then:
-        expectEvents change(CREATED, link)
+        // Windows sometimes reports a modification after the creation
+        expectEvents byPlatform(
+            (WINDOWS): [change(CREATED, link), optionalChange(MODIFIED, link)],
+            (OTHERWISE): [change(CREATED, link)]
+        )
 
         where:
         description    | initialize
@@ -65,7 +70,11 @@ class SymlinkFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         link.delete()
 
         then:
-        expectEvents change(REMOVED, link)
+        // Windows sometimes reports a modification before the removal
+        expectEvents byPlatform(
+            (WINDOWS):   [optionalChange(MODIFIED, link), change(REMOVED, link)],
+            (OTHERWISE): [change(REMOVED, link)]
+        )
 
         where:
         description    | initialize
