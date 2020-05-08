@@ -173,7 +173,7 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
             this.processorThread.start();
             boolean started = runLoopInitialized.await(startTimeout, startTimeoutUnit);
             if (!started) {
-                // TODO Shall we close() here?
+                // Note: we don't close here because we have no idea what state the native backend is in
                 throw new FileWatcherTimeoutException("Starting the watcher timed out");
             }
         }
