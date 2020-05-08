@@ -43,7 +43,6 @@ import java.util.concurrent.TimeUnit;
  *     behavior and can lead to a deadlock.</li>
  * </ul>
  */
-// TODO What about SUBST drives?
 public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
 
     public static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
