@@ -21,6 +21,7 @@ import net.rubygrapefruit.platform.internal.jni.AbstractFileEventFunctions
 import net.rubygrapefruit.platform.internal.jni.NativeLogger
 import org.junit.Assume
 import spock.lang.IgnoreIf
+import spock.lang.Issue
 import spock.lang.Requires
 import spock.lang.Unroll
 
@@ -358,6 +359,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         )
     }
 
+    @Issue("https://github.com/gradle/native-platform/issues/193")
     def "can rename watched directory"() {
         given:
         def watchedDirectory = new File(rootDir, "watched")

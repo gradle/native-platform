@@ -129,7 +129,6 @@ void AbstractServer::executeRunLoop(JNIEnv* env) {
     terminationVariable.notify_all();
 }
 
-// TODO Add checks for terminated state
 void AbstractServer::registerPaths(const vector<u16string>& paths) {
     unique_lock<mutex> lock(mutationMutex);
     for (auto& path : paths) {

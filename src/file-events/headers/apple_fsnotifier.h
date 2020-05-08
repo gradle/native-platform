@@ -33,12 +33,6 @@ class Server : public AbstractServer {
 public:
     Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis);
 
-    // TODO This should be private
-    void handleEvents(
-        size_t numEvents,
-        char** eventPaths,
-        const FSEventStreamEventFlags eventFlags[]);
-
 protected:
     void initializeRunLoop() override;
     void runLoop() override;
@@ -49,6 +43,18 @@ protected:
 
 private:
     void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);
+    void handleEvents(
+        size_t numEvents,
+        char** eventPaths,
+        const FSEventStreamEventFlags eventFlags[]);
+
+    friend void handleEventsCallback(
+        ConstFSEventStreamRef stream,
+        void* clientCallBackInfo,
+        size_t numEvents,
+        void* eventPaths,
+        const FSEventStreamEventFlags eventFlags[],
+        const FSEventStreamEventId eventIds[]);
 
     const long latencyInMillis;
     unordered_map<u16string, WatchPoint> watchPoints;

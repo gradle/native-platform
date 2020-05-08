@@ -289,7 +289,8 @@ Server::Server(JNIEnv* env, size_t bufferSize, long commandTimeoutInMillis, jobj
 }
 
 void Server::initializeRunLoop() {
-    // TODO For some reason GetCurrentThread() returns a thread that doesn't accept APCs
+    // For some reason GetCurrentThread() returns a thread that doesn't accept APCs
+    // so we need to use OpenThread() instead.
     threadHandle = OpenThread(
         THREAD_ALL_ACCESS,      // dwDesiredAccess
         false,                  // bInheritHandle

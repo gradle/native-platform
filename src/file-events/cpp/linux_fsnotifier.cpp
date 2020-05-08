@@ -227,7 +227,6 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
         path.append(name);
     }
 
-    // TODO How to handle MOVE_SELF?
     if (IS_SET(mask, IN_CREATE | IN_MOVED_TO)) {
         type = ChangeType::CREATED;
     } else if (IS_SET(mask, IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM)) {
