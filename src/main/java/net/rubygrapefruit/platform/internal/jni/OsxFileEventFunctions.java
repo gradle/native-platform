@@ -41,7 +41,6 @@ import java.util.concurrent.TimeUnit;
  *     behavior and can lead to a deadlock.</li>
  * </ul>
  */
-// TODO How to set kFSEventStreamCreateFlagNoDefer when latency is non-zero?
 public class OsxFileEventFunctions extends AbstractFileEventFunctions {
     private static final long DEFAULT_LATENCY_IN_MS = 0;
 
