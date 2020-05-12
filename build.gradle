@@ -311,6 +311,7 @@ model {
                     cppCompiler.args "-Wformat=2"               // Check printf format strings
                     cppCompiler.args "-Werror"                  // Warnings are errors
                     cppCompiler.args "-Wno-format-nonliteral"   // Allow printf to have dynamic format string
+                    cppCompiler.args "-Wno-unguarded-availability-new" // Newly introduced flags are not available on older macOS versions
                     linker.args "-pthread"
                 } else if (targetPlatform.operatingSystem.windows) {
                     cppCompiler.args "/DEBUG"                   // Produce debug output

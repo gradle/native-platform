@@ -130,45 +130,78 @@ void Server::handleEvents(
     }
 }
 
-void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags) {
-    logToJava(LogLevel::FINE, "Event flags: 0x%x for '%s'", flags, path);
+/**
+ * List of events ignored by our implementation.
+ * Anything not ignored here should be handled.
+ * If macOS later adds more flags, we'll report those as unknown events this way.
+ */
+static const FSEventStreamEventFlags IGNORED_FLAGS = kFSEventStreamCreateFlagNone
+    // | kFSEventStreamEventFlagMustScanSubDirs
+    | kFSEventStreamEventFlagUserDropped
+    | kFSEventStreamEventFlagKernelDropped
+    | kFSEventStreamEventFlagEventIdsWrapped
+    | kFSEventStreamEventFlagHistoryDone
+    // | kFSEventStreamEventFlagRootChanged
+    // | kFSEventStreamEventFlagMount
+    // | kFSEventStreamEventFlagUnmount
+    // | kFSEventStreamEventFlagItemCreated
+    // | kFSEventStreamEventFlagItemRemoved
+    // | kFSEventStreamEventFlagItemInodeMetaMod
+    // | kFSEventStreamEventFlagItemRenamed
+    // | kFSEventStreamEventFlagItemModified
+    // | kFSEventStreamEventFlagItemFinderInfoMod
+    // | kFSEventStreamEventFlagItemChangeOwner
+    // | kFSEventStreamEventFlagItemXattrMod
+    | kFSEventStreamEventFlagItemIsFile
+    | kFSEventStreamEventFlagItemIsDir
+    | kFSEventStreamEventFlagItemIsSymlink
+    | kFSEventStreamEventFlagOwnEvent
+    | kFSEventStreamEventFlagItemIsHardlink
+    | kFSEventStreamEventFlagItemIsLastHardlink
+    | kFSEventStreamEventFlagItemCloned;
 
-    if (IS_SET(flags, kFSEventStreamEventFlagHistoryDone)) {
+void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags) {
+    FSEventStreamEventFlags normalizedFlags = flags & ~IGNORED_FLAGS;
+    logToJava(LogLevel::FINE, "Event flags: 0x%x (normalized: 0x%x) for '%s'", flags, normalizedFlags, path);
+
+    u16string pathStr = utf8ToUtf16String(path);
+
+    if (normalizedFlags == kFSEventStreamCreateFlagNone) {
+        logToJava(LogLevel::FINE, "Ignoring event 0x%x for %s", flags, path);
         return;
     }
 
-    u16string pathStr = utf8ToUtf16String(path);
-    if (IS_SET(flags, kFSEventStreamEventFlagMustScanSubDirs)) {
+    if (IS_SET(normalizedFlags, kFSEventStreamEventFlagMustScanSubDirs)) {
         reportOverflow(env, pathStr);
         return;
     }
 
     ChangeType type;
-    if (IS_SET(flags,
+    if (IS_SET(normalizedFlags,
             kFSEventStreamEventFlagRootChanged
                 | kFSEventStreamEventFlagMount
                 | kFSEventStreamEventFlagUnmount)) {
         type = ChangeType::INVALIDATED;
-    } else if (IS_SET(flags, kFSEventStreamEventFlagItemRenamed)) {
-        if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
+    } else if (IS_SET(normalizedFlags, kFSEventStreamEventFlagItemRenamed)) {
+        if (IS_SET(normalizedFlags, kFSEventStreamEventFlagItemCreated)) {
             type = ChangeType::REMOVED;
         } else {
             type = ChangeType::CREATED;
         }
-    } else if (IS_SET(flags, kFSEventStreamEventFlagItemModified)) {
+    } else if (IS_SET(normalizedFlags, kFSEventStreamEventFlagItemModified)) {
         type = ChangeType::MODIFIED;
-    } else if (IS_SET(flags, kFSEventStreamEventFlagItemRemoved)) {
+    } else if (IS_SET(normalizedFlags, kFSEventStreamEventFlagItemRemoved)) {
         type = ChangeType::REMOVED;
-    } else if (IS_SET(flags,
+    } else if (IS_SET(normalizedFlags,
                    kFSEventStreamEventFlagItemInodeMetaMod    // file locked
                        | kFSEventStreamEventFlagItemFinderInfoMod
                        | kFSEventStreamEventFlagItemChangeOwner
                        | kFSEventStreamEventFlagItemXattrMod)) {
         type = ChangeType::MODIFIED;
-    } else if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
+    } else if (IS_SET(normalizedFlags, kFSEventStreamEventFlagItemCreated)) {
         type = ChangeType::CREATED;
     } else {
-        logToJava(LogLevel::WARNING, "Unknown event 0x%x for %s", flags, path);
+        logToJava(LogLevel::WARNING, "Unknown event 0x%x (normalized: 0x%x) for %s", flags, normalizedFlags, path);
         reportUnknownEvent(env, pathStr);
         return;
     }
