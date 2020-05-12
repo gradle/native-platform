@@ -9,13 +9,15 @@ public class NativeLogger {
     static final Logger LOGGER = Logger.getLogger(NativeLogger.class.getName());
 
     enum LogLevel {
+        ALL(Level.ALL),
         FINEST(Level.FINEST),
         FINER(Level.FINER),
         FINE(Level.FINE),
         CONFIG(Level.CONFIG),
         INFO(Level.INFO),
         WARNING(Level.WARNING),
-        SEVERE(Level.SEVERE);
+        SEVERE(Level.SEVERE),
+        OFF(Level.OFF);
 
         private final Level delegate;
 
