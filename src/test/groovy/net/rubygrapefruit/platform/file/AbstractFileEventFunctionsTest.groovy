@@ -58,7 +58,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     public static final Logger LOGGER = Logger.getLogger(AbstractFileEventFunctionsTest.name)
 
     @Rule
-    TemporaryFolder tmpDir
+    TemporaryFolder tmpDir = new TemporaryFolder(tmpDir())
     @Rule
     TestName testName
     @Rule
@@ -74,6 +74,14 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
     // We could do this with @Delegate, but Groovy doesn't let us :(
     protected FileWatcherFixture watcherFixture
+
+    private static File tmpDir() {
+        File tmpFile = new File(System.getProperty("test.directory")).absoluteFile
+        if (!tmpFile.directory) {
+            assert tmpFile.mkdirs()
+        }
+        return tmpFile
+    }
 
     def setup() {
         watcherFixture = FileWatcherFixture.of(Platform.current())
