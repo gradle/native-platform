@@ -147,7 +147,7 @@ void Server::handleEvents() {
                 // Handle events
                 unique_lock<mutex> lock(mutationMutex);
                 JNIEnv* env = getThreadEnv();
-                logToJava(LogLevel::FINE, "Processing %d bytes worth of events", bytesRead);
+                logToJava(LogLevel::WARNING, "Processing %d bytes worth of events", bytesRead);
                 int index = 0;
                 int count = 0;
                 while (index < bytesRead) {
@@ -156,7 +156,7 @@ void Server::handleEvents() {
                     index += sizeof(struct inotify_event) + event->len;
                     count++;
                 }
-                logToJava(LogLevel::FINE, "Processed %d events", count);
+                logToJava(LogLevel::WARNING, "Processed %d events", count);
                 break;
         }
         available -= bytesRead;
@@ -168,7 +168,7 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
     const char* eventName = (event->len == 0)
         ? ""
         : event->name;
-    logToJava(LogLevel::FINE, "Event mask: 0x%x for %s (wd = %d, cookie = 0x%x, len = %d)", mask, eventName, event->wd, event->cookie, event->len);
+    logToJava(LogLevel::WARNING, "Event mask: 0x%x for %s (wd = %d, cookie = 0x%x, len = %d)", mask, eventName, event->wd, event->cookie, event->len);
     if (IS_SET(mask, IN_UNMOUNT)) {
         return;
     }
@@ -184,6 +184,7 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
 
     if (IS_SET(mask, IN_IGNORED) && recentlyRemovedWatchPoints.erase(event->wd)) {
         // We've removed this via unregisterPath() not long ago
+        logToJava(LogLevel::WARNING, "Finished watching (wd = %d)", event->wd);
         return;
     }
 
@@ -192,7 +193,7 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
         if (recentlyRemovedWatchPoints.find(event->wd) == recentlyRemovedWatchPoints.end()) {
             throw FileWatcherException(string("Received event for unknown watch descriptor ") + to_string(event->wd));
         } else {
-            logToJava(LogLevel::FINE, "Ignoring incoming events for recently removed watch descriptor %d", event->wd);
+            logToJava(LogLevel::WARNING, "Ignoring incoming events for recently removed watch descriptor (wd = %d)", event->wd);
             return;
         }
     }
@@ -201,7 +202,7 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
 
     if (IS_SET(mask, IN_IGNORED)) {
         // Finished with watch point
-        logToJava(LogLevel::FINE, "Finished watching '%s'", utf16ToUtf8String(path).c_str());
+        logToJava(LogLevel::WARNING, "Finished watching '%s'", utf16ToUtf8String(path).c_str());
         watchRoots.erase(event->wd);
         watchPoints.erase(path);
         return;
@@ -260,6 +261,7 @@ void Server::registerPath(const u16string& path) {
     if (watchRoots.find(watchDescriptor) != watchRoots.end()) {
         throw FileWatcherException("Already watching path", path);
     }
+    logToJava(LogLevel::WARNING, "Watching path %s (wd = %d)", utf16ToUtf8String(path).c_str(), watchDescriptor);
     auto result = watchPoints.emplace(piecewise_construct,
         forward_as_tuple(path),
         forward_as_tuple(path, inotify, watchDescriptor));
@@ -270,12 +272,14 @@ void Server::registerPath(const u16string& path) {
 bool Server::unregisterPath(const u16string& path) {
     auto it = watchPoints.find(path);
     if (it == watchPoints.end()) {
-        logToJava(LogLevel::INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
+        logToJava(LogLevel::WARNING, "Path is not watched: '%s'", utf16ToUtf8String(path).c_str());
         return false;
     }
     auto& watchPoint = it->second;
+    logToJava(LogLevel::WARNING, "Cancelling watching path '%s' (wd = %d)", utf16ToUtf8String(path).c_str(), watchPoint.watchDescriptor);
     CancelResult ret = watchPoint.cancel();
     if (ret == CancelResult::ALREADY_CANCELLED) {
+        logToJava(LogLevel::WARNING, "Watch point already cancelled '%s'", utf16ToUtf8String(path).c_str());
         return false;
     }
     recentlyRemovedWatchPoints.emplace(watchPoint.watchDescriptor);
