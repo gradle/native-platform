@@ -131,7 +131,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
     }
 
     @Requires({ Platform.current().linux })
-    def "can close watcher with many directories when they have been deleted"() {
+    def "can close watcher for directory hierarchy while it is being deleted"() {
         given:
         def watchedDirectoryDepth = 10
 
@@ -151,7 +151,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
     }
 
     @Requires({ Platform.current().linux })
-    def "can stop watching many directories while they are being deleted"() {
+    def "can stop watching directory hiearchy while it is being deleted"() {
         given:
         def watchedDirectoryDepth = 8
         ignoreLogMessages()
@@ -170,6 +170,45 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         when:
         onslaught.start()
         assert rootDir.deleteDir()
+        onslaught.terminate(5, SECONDS)
+
+        then:
+        noExceptionThrown()
+    }
+
+    def "can stop watching many directories while they are being deleted"() {
+        given:
+        def watchedDirectoryCount = 100
+        def files = { File dir -> (1..100).collect { index -> new File(dir, "file-${index}.txt") } }
+        ignoreLogMessages()
+
+        List<File> watchedDirectories = (1..watchedDirectoryCount).collect { index ->
+            def dir = new File(rootDir, "dir-$index")
+            assert dir.mkdirs()
+            files(dir).each { it.createNewFile() }
+            return dir
+        }
+
+        def watcher = startNewWatcher()
+
+        def stopWatchingJobs = watchedDirectories.collect { dir ->
+            return {
+                watcher.stopWatching(dir)
+            } as Runnable
+        }
+        def deleteDirectoriesJobs = watchedDirectories.collect { dir ->
+            return {
+                files(dir).each { assert it.delete() }
+                dir.delete()
+            } as Runnable
+        }
+        def onslaught = new OnslaughtExecuter(stopWatchingJobs + deleteDirectoriesJobs)
+
+        onslaught.awaitReady()
+        watcher.startWatching(watchedDirectories)
+
+        when:
+        onslaught.start()
         onslaught.terminate(5, SECONDS)
 
         then:
@@ -236,11 +275,12 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         private final CountDownLatch startLatch
         private final int numberOfThreads
 
-        OnslaughtExecuter(Collection<Runnable> jobs) {
+        OnslaughtExecuter(List<Runnable> jobs) {
             this.numberOfThreads = jobs.size()
             this.executorService = Executors.newFixedThreadPool(numberOfThreads)
             this.readyLatch = new CountDownLatch(numberOfThreads)
             this.startLatch = new CountDownLatch(1)
+            Collections.shuffle(jobs)
             jobs.each { job ->
                 executorService.submit({ ->
                     readyLatch.countDown()
