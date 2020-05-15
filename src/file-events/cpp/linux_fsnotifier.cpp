@@ -186,14 +186,14 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
     if (iWatchRoot == watchRoots.end()) {
         auto iRecentlyUnregisteredWatchPoint = recentlyUnregisteredWatchPoints.find(event->wd);
         if (iRecentlyUnregisteredWatchPoint == recentlyUnregisteredWatchPoints.end()) {
-            throw FileWatcherException(string("Received event for unknown watch descriptor ") + to_string(event->wd));
+            logToJava(LogLevel::INFO, "Received event for unknown watch descriptor %d", event->wd);
         } else {
+            // We've removed this via unregisterPath() not long ago
             auto& path = iRecentlyUnregisteredWatchPoint->second;
             if (IS_SET(mask, IN_IGNORED)) {
-                // We've removed this via unregisterPath() not long ago
+                recentlyUnregisteredWatchPoints.erase(iRecentlyUnregisteredWatchPoint);
                 logToJava(LogLevel::FINE, "Finished watching recently unregistered watch point '%s' (wd = %d)",
                     utf16ToUtf8String(path).c_str(), event->wd);
-                recentlyUnregisteredWatchPoints.erase(iRecentlyUnregisteredWatchPoint);
             } else {
                 logToJava(LogLevel::FINE, "Ignoring incoming events for recently removed watch descriptor for '%s' (wd = %d)",
                     utf16ToUtf8String(path).c_str(), event->wd);
