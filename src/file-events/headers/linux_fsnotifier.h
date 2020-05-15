@@ -6,7 +6,6 @@
 #include <sys/eventfd.h>
 #include <sys/inotify.h>
 #include <unordered_map>
-#include <unordered_set>
 
 #include "generic_fsnotifier.h"
 #include "net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions.h"
@@ -94,7 +93,7 @@ private:
 
     unordered_map<u16string, WatchPoint> watchPoints;
     unordered_map<int, u16string> watchRoots;
-    unordered_set<int> recentlyRemovedWatchPoints;
+    unordered_map<int, u16string> recentlyUnregisteredWatchRoots;
     const shared_ptr<Inotify> inotify;
     const ShutdownEvent shutdownEvent;
     bool shouldTerminate = false;

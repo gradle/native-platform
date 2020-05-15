@@ -182,26 +182,33 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
         return;
     }
 
-    if (IS_SET(mask, IN_IGNORED) && recentlyRemovedWatchPoints.erase(event->wd)) {
-        // We've removed this via unregisterPath() not long ago
+    auto iWatchRoot = watchRoots.find(event->wd);
+    if (iWatchRoot == watchRoots.end()) {
+        auto iRecentlyUnregisteredWatchPoint = recentlyUnregisteredWatchRoots.find(event->wd);
+        if (iRecentlyUnregisteredWatchPoint == recentlyUnregisteredWatchRoots.end()) {
+            logToJava(LogLevel::INFO, "Received event for unknown watch descriptor %d", event->wd);
+        } else {
+            // We've removed this via unregisterPath() not long ago
+            auto& path = iRecentlyUnregisteredWatchPoint->second;
+            if (IS_SET(mask, IN_IGNORED)) {
+                recentlyUnregisteredWatchRoots.erase(iRecentlyUnregisteredWatchPoint);
+                logToJava(LogLevel::FINE, "Finished watching recently unregistered watch point '%s' (wd = %d)",
+                    utf16ToUtf8String(path).c_str(), event->wd);
+            } else {
+                logToJava(LogLevel::FINE, "Ignoring incoming events for recently removed watch descriptor for '%s' (wd = %d)",
+                    utf16ToUtf8String(path).c_str(), event->wd);
+            }
+        }
         return;
     }
 
-    auto it = watchRoots.find(event->wd);
-    if (it == watchRoots.end()) {
-        if (recentlyRemovedWatchPoints.find(event->wd) == recentlyRemovedWatchPoints.end()) {
-            throw FileWatcherException(string("Received event for unknown watch descriptor ") + to_string(event->wd));
-        } else {
-            logToJava(LogLevel::FINE, "Ignoring incoming events for recently removed watch descriptor %d", event->wd);
-            return;
-        }
-    }
-    auto path = it->second;
+    auto path = iWatchRoot->second;
     auto& watchPoint = watchPoints.at(path);
 
     if (IS_SET(mask, IN_IGNORED)) {
         // Finished with watch point
-        logToJava(LogLevel::FINE, "Finished watching '%s'", utf16ToUtf8String(path).c_str());
+        logToJava(LogLevel::FINE, "Finished watching still registered '%s' (wd = %d)",
+            utf16ToUtf8String(path).c_str(), event->wd);
         watchRoots.erase(event->wd);
         watchPoints.erase(path);
         return;
@@ -278,7 +285,7 @@ bool Server::unregisterPath(const u16string& path) {
     if (ret == CancelResult::ALREADY_CANCELLED) {
         return false;
     }
-    recentlyRemovedWatchPoints.emplace(watchPoint.watchDescriptor);
+    recentlyUnregisteredWatchRoots.emplace(watchPoint.watchDescriptor, path);
     watchRoots.erase(watchPoint.watchDescriptor);
     watchPoints.erase(it);
     return ret == CancelResult::CANCELLED;

@@ -17,6 +17,7 @@ versions {
 ext.isCiServer = System.getenv().get("CI") != null
 
 tasks.withType(Test) {
+    systemProperty "test.directory", layout.buildDirectory.dir("test files").map { it.asFile.absolutePath }.get()
     retry {
         maxRetries = isCiServer ? 1 : 0
         maxFailures = 10
