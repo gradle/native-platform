@@ -184,16 +184,16 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
 
     auto iWatchRoot = watchRoots.find(event->wd);
     if (iWatchRoot == watchRoots.end()) {
-        auto iRecentlyDeletedWatchPoint = recentlyRemovedWatchPoints.find(event->wd);
-        if (iRecentlyDeletedWatchPoint == recentlyRemovedWatchPoints.end()) {
+        auto iRecentlyUnregisteredWatchPoint = recentlyUnregisteredWatchPoints.find(event->wd);
+        if (iRecentlyUnregisteredWatchPoint == recentlyUnregisteredWatchPoints.end()) {
             throw FileWatcherException(string("Received event for unknown watch descriptor ") + to_string(event->wd));
         } else {
-            auto& path = iRecentlyDeletedWatchPoint->second;
+            auto& path = iRecentlyUnregisteredWatchPoint->second;
             if (IS_SET(mask, IN_IGNORED)) {
                 // We've removed this via unregisterPath() not long ago
                 logToJava(LogLevel::FINE, "Finished watching recently unregistered watch point '%s' (wd = %d)",
                     utf16ToUtf8String(path).c_str(), event->wd);
-                recentlyRemovedWatchPoints.erase(iRecentlyDeletedWatchPoint);
+                recentlyUnregisteredWatchPoints.erase(iRecentlyUnregisteredWatchPoint);
             } else {
                 logToJava(LogLevel::FINE, "Ignoring incoming events for recently removed watch descriptor for '%s' (wd = %d)",
                     utf16ToUtf8String(path).c_str(), event->wd);
@@ -285,7 +285,7 @@ bool Server::unregisterPath(const u16string& path) {
     if (ret == CancelResult::ALREADY_CANCELLED) {
         return false;
     }
-    recentlyRemovedWatchPoints.emplace(watchPoint.watchDescriptor, path);
+    recentlyUnregisteredWatchPoints.emplace(watchPoint.watchDescriptor, path);
     watchRoots.erase(watchPoint.watchDescriptor);
     watchPoints.erase(it);
     return ret == CancelResult::CANCELLED;
