@@ -93,7 +93,7 @@ private:
 
     unordered_map<u16string, WatchPoint> watchPoints;
     unordered_map<int, u16string> watchRoots;
-    unordered_map<int, u16string> recentlyUnregisteredWatchPoints;
+    unordered_map<int, u16string> recentlyUnregisteredWatchRoots;
     const shared_ptr<Inotify> inotify;
     const ShutdownEvent shutdownEvent;
     bool shouldTerminate = false;
