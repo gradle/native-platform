@@ -191,9 +191,9 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
             // We've removed this via unregisterPath() not long ago
             auto& path = iRecentlyUnregisteredWatchPoint->second;
             if (IS_SET(mask, IN_IGNORED)) {
-                recentlyUnregisteredWatchRoots.erase(iRecentlyUnregisteredWatchPoint);
                 logToJava(LogLevel::FINE, "Finished watching recently unregistered watch point '%s' (wd = %d)",
                     utf16ToUtf8String(path).c_str(), event->wd);
+                recentlyUnregisteredWatchRoots.erase(iRecentlyUnregisteredWatchPoint);
             } else {
                 logToJava(LogLevel::FINE, "Ignoring incoming events for recently removed watch descriptor for '%s' (wd = %d)",
                     utf16ToUtf8String(path).c_str(), event->wd);
