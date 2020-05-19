@@ -40,6 +40,16 @@ private const val versionPostfixParameterName = "versionPostfix"
 class NativePlatformPublishProject(releaseType: ReleaseType, agentsForAllJniPublications: List<Agent>, agentsForNcursesOnlyPublications: List<Agent>, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) : Project({
     id = RelativeId("Publish${releaseType.name}")
     name = "Publish ${releaseType.name}"
+
+    cleanup {
+        keepRule {
+            id = "KEEP_PUBLISHED_ARTIFACTS"
+            keepAtLeast = builds(10)
+            dataToKeep = everything()
+            applyPerEachBranch = false
+            preserveArtifactsDependencies = true
+        }
+    }
 }) {
     val nativeLibraryAllJniBuilds = agentsForAllJniPublications.map { agent ->
         NativeLibraryPublish(releaseType, agent, buildAndTest, buildReceiptSource).also(::buildType)
