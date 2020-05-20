@@ -11,7 +11,7 @@ apply plugin: ReleasePlugin
 
 versions {
     nextVersion = '0.22'
-    nextSnapshot = '2'
+    nextSnapshot = '4'
 }
 
 ext.isCiServer = System.getenv().get("CI") != null
