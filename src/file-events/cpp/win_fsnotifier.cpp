@@ -61,9 +61,8 @@ bool WatchPoint::cancel() {
 
 WatchPoint::~WatchPoint() {
     try {
-        if (cancel()) {
-            SleepEx(0, true);
-        }
+        cancel();
+        SleepEx(0, true);
         close();
     } catch (const exception& ex) {
         logToJava(LogLevel::WARNING, "Couldn't cancel watch point %s: %s", utf16ToUtf8String(path).c_str(), ex.what());
