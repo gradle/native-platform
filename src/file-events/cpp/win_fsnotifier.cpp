@@ -110,9 +110,15 @@ ListenResult WatchPoint::listen() {
 
 void WatchPoint::close() {
     if (status != WatchPointStatus::FINISHED) {
-        BOOL ret = CloseHandle(directoryHandle);
-        if (!ret) {
-            logToJava(LogLevel::SEVERE, "Couldn't close handle %p for '%ls': %d", directoryHandle, utf16ToUtf8String(path).c_str(), GetLastError());
+        try {
+            BOOL ret = CloseHandle(directoryHandle);
+            if (!ret) {
+                logToJava(LogLevel::SEVERE, "Couldn't close handle %p for '%ls': %d", directoryHandle, utf16ToUtf8String(path).c_str(), GetLastError());
+            }
+        } catch (const exception& ex) {
+            // Apparently with debugging enabled CloseHandle() can also throw, see:
+            // https://docs.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-closehandle#return-value
+            logToJava(LogLevel::SEVERE, "Couldn't close handle %p for '%ls': %s", directoryHandle, utf16ToUtf8String(path).c_str(), ex.what());
         }
         status = WatchPointStatus::FINISHED;
     }
