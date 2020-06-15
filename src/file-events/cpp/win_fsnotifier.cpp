@@ -61,9 +61,8 @@ bool WatchPoint::cancel() {
 
 WatchPoint::~WatchPoint() {
     try {
-        if (cancel()) {
-            SleepEx(0, true);
-        }
+        cancel();
+        SleepEx(0, true);
         close();
     } catch (const exception& ex) {
         logToJava(LogLevel::WARNING, "Couldn't cancel watch point %s: %s", utf16ToUtf8String(path).c_str(), ex.what());
@@ -322,32 +321,19 @@ void Server::runLoop() {
     // We have received termination, cancel all watchers
     unique_lock<mutex> lock(mutationMutex);
     logToJava(LogLevel::FINE, "Finished with run loop, now cancelling remaining watch points", NULL);
-    int pendingWatchPoints = 0;
     for (auto& it : watchPoints) {
         auto& watchPoint = it.second;
-        switch (watchPoint.status) {
-            case WatchPointStatus::LISTENING:
-                try {
-                    if (watchPoint.cancel()) {
-                        pendingWatchPoints++;
-                    }
-                } catch (const exception& ex) {
-                    logToJava(LogLevel::SEVERE, "%s", ex.what());
-                }
-                break;
-            case WatchPointStatus::CANCELLED:
-                pendingWatchPoints++;
-                break;
-            default:
-                break;
+        if (watchPoint.status == WatchPointStatus::LISTENING) {
+            try {
+                watchPoint.cancel();
+            } catch (const exception& ex) {
+                logToJava(LogLevel::SEVERE, "%s", ex.what());
+            }
         }
     }
 
-    // If there are any pending watchers, wait for them to finish
-    if (pendingWatchPoints > 0) {
-        logToJava(LogLevel::FINE, "Waiting for %d pending watch points to finish", pendingWatchPoints);
-        SleepEx(0, true);
-    }
+    logToJava(LogLevel::FINE, "Waiting for any pending watch points to abort completely", NULL);
+    SleepEx(0, true);
 
     // Warn about  any unfinished watchpoints
     for (auto& it : watchPoints) {
