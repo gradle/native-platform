@@ -111,9 +111,10 @@ class NativeLibraryPublish(releaseType: ReleaseType = ReleaseType.Snapshot, agen
         name = "Publish $agent ${releaseType.name}"
         id = RelativeId("Publishing_Publish${agent}${releaseType.name}")
         runOn(agent)
-        if (agent == Agent.Windows) {
-            artifactRules = "build/**/*.pdb"
-        }
+        artifactRules = """
+            build/**/*.pdb
+            build/libs/**
+        """.trimIndent()
     })
 
 class NativeLibraryPublishNcurses(releaseType: ReleaseType = ReleaseType.Snapshot, agent: Agent, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
