@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit;
 public interface FileWatcher {
     void startWatching(Collection<File> paths);
 
+    @CheckReturnValue
     boolean stopWatching(Collection<File> paths);
 
     /**
