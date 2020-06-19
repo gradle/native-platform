@@ -119,16 +119,16 @@ javadoc {
 
 task sourceZip(type: Jar) {
     from sourceSets.main.allSource
-    classifier = 'sources'
+    archiveClassifier = 'sources'
 }
 
 task javadocZip(type: Jar) {
     from javadoc
-    classifier = 'javadoc'
+    archiveClassifier = 'javadoc'
 }
 
 task emptyZip(type: Jar) {
-    classifier = 'empty'
+    archiveClassifier = 'empty'
 }
 
 def variantNames = new LinkedHashSet()
