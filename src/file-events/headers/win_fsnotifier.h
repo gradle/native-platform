@@ -63,7 +63,7 @@ public:
     ~WatchPoint();
 
     ListenResult listen();
-    bool cancel();
+    void cancel();
 
 private:
     bool isValidDirectory();

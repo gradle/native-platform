@@ -38,10 +38,17 @@ WatchPoint::WatchPoint(Server* server, size_t bufferSize, const u16string& path)
     }
 }
 
-bool WatchPoint::cancel() {
+void WatchPoint::cancel() {
     if (status == WatchPointStatus::LISTENING) {
         logToJava(LogLevel::FINE, "Cancelling %s", utf16ToUtf8String(path).c_str());
-        bool cancelled = (bool) CancelIoEx(directoryHandle, &overlapped);
+        bool cancelled;
+        try {
+            cancelled = (bool) CancelIoEx(directoryHandle, &overlapped);
+        } catch (const exception& ex) {
+            close();
+            logToJava(LogLevel::SEVERE, "CancelIoEx threw exception for path %s: %s", utf16ToUtf8String(path).c_str(), ex.what());
+            return;
+        }
         if (cancelled) {
             status = WatchPointStatus::CANCELLED;
         } else {
@@ -54,9 +61,7 @@ bool WatchPoint::cancel() {
                 throw FileWatcherException("Couldn't cancel watch point", path, cancelError);
             }
         }
-        return cancelled;
     }
-    return false;
 }
 
 WatchPoint::~WatchPoint() {
