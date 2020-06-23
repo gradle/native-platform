@@ -36,6 +36,21 @@ public:
     FileWatcherException(const string& message);
 };
 
+struct InsufficientResourcesFileWatcherException : public FileWatcherException {
+public:
+    InsufficientResourcesFileWatcherException(const string& message);
+};
+
+struct InotifyInstanceLimitTooLowException : public InsufficientResourcesFileWatcherException {
+public:
+    InotifyInstanceLimitTooLowException();
+};
+
+struct InotifyWatchesLimitTooLowException : public InsufficientResourcesFileWatcherException {
+public:
+    InotifyWatchesLimitTooLowException();
+};
+
 class AbstractServer;
 
 class AbstractServer : public JniSupport {
@@ -97,8 +112,13 @@ public:
     NativePlatformJniConstants(JavaVM* jvm);
 
     const JClass nativeExceptionClass;
+    const JClass inotifyWatchesLimitTooLowExceptionClass;
+    const JClass inotifyInstanceLimitTooLowExceptionClass;
 };
 
 extern NativePlatformJniConstants* nativePlatformJniConstants;
 
 jobject wrapServer(JNIEnv* env, AbstractServer* server);
+
+jobject rethrowAsJavaException(JNIEnv* env, const exception& e);
+jobject rethrowAsJavaException(JNIEnv* env, const exception& e, jclass exceptionClass);

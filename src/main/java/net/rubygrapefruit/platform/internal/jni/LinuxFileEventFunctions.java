@@ -46,7 +46,7 @@ public class LinuxFileEventFunctions extends AbstractFileEventFunctions {
         }
 
         @Override
-        protected Object startWatcher(NativeFileWatcherCallback callback) {
+        protected Object startWatcher(NativeFileWatcherCallback callback) throws InotifyInstanceLimitTooLowException {
             return startWatcher0(callback);
         }
     }

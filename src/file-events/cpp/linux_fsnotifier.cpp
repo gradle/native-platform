@@ -40,6 +40,9 @@ CancelResult WatchPoint::cancel() {
 Inotify::Inotify()
     : fd(inotify_init1(IN_CLOEXEC | IN_NONBLOCK)) {
     if (fd == -1) {
+        if (errno == EMFILE) {
+            throw InotifyInstanceLimitTooLowException();
+        }
         throw FileWatcherException("Couldn't register inotify handle", errno);
     }
 }
@@ -253,6 +256,9 @@ static int addInotifyWatch(const u16string& path, shared_ptr<Inotify> inotify) {
     string pathNarrow = utf16ToUtf8String(path);
     int fdWatch = inotify_add_watch(inotify->fd, pathNarrow.c_str(), EVENT_MASK);
     if (fdWatch == -1) {
+        if (errno == ENOSPC) {
+            throw InotifyWatchesLimitTooLowException();
+        }
         throw FileWatcherException("Couldn't add watch", path, errno);
     }
     return fdWatch;
@@ -293,7 +299,12 @@ bool Server::unregisterPath(const u16string& path) {
 
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_startWatcher0(JNIEnv* env, jclass, jobject javaCallback) {
-    return wrapServer(env, new Server(env, javaCallback));
+    try {
+        return wrapServer(env, new Server(env, javaCallback));
+    } catch (const InotifyInstanceLimitTooLowException& e) {
+        rethrowAsJavaException(env, e, nativePlatformJniConstants->inotifyInstanceLimitTooLowExceptionClass.get());
+        return NULL;
+    }
 }
 
 #endif

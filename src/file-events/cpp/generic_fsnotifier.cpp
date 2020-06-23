@@ -44,6 +44,18 @@ FileWatcherException::FileWatcherException(const string& message)
     : runtime_error(message) {
 }
 
+InsufficientResourcesFileWatcherException::InsufficientResourcesFileWatcherException(const string& message)
+    : FileWatcherException(message) {
+}
+
+InotifyInstanceLimitTooLowException::InotifyInstanceLimitTooLowException()
+    : InsufficientResourcesFileWatcherException("Inotify instance limit too low") {
+}
+
+InotifyWatchesLimitTooLowException::InotifyWatchesLimitTooLowException()
+    : InsufficientResourcesFileWatcherException("Inotify watches limit too low") {
+}
+
 AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback)
     : JniSupport(env)
     , watcherCallback(env, watcherCallback) {
@@ -106,7 +118,11 @@ AbstractServer* getServer(JNIEnv* env, jobject javaServer) {
 
 jobject rethrowAsJavaException(JNIEnv* env, const exception& e) {
     logToJava(LogLevel::SEVERE, "Caught exception: %s", e.what());
-    jint ret = env->ThrowNew(nativePlatformJniConstants->nativeExceptionClass.get(), e.what());
+    return rethrowAsJavaException(env, e, nativePlatformJniConstants->nativeExceptionClass.get());
+}
+
+jobject rethrowAsJavaException(JNIEnv* env, const exception& e, jclass exceptionClass) {
+    jint ret = env->ThrowNew(exceptionClass, e.what());
     if (ret != 0) {
         cerr << "JNI ThrowNew returned %d when rethrowing native exception: " << ret << endl;
     }
@@ -182,6 +198,8 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
         vector<u16string> paths;
         javaToUtf16StringArray(env, javaPaths, paths);
         server->registerPaths(paths);
+    } catch (const InotifyWatchesLimitTooLowException& e) {
+        rethrowAsJavaException(env, e, nativePlatformJniConstants->inotifyWatchesLimitTooLowExceptionClass.get());
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
     }
@@ -236,5 +254,7 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_invalid
 
 NativePlatformJniConstants::NativePlatformJniConstants(JavaVM* jvm)
     : JniSupport(jvm)
-    , nativeExceptionClass(getThreadEnv(), "net/rubygrapefruit/platform/NativeException") {
+    , nativeExceptionClass(getThreadEnv(), "net/rubygrapefruit/platform/NativeException")
+    , inotifyWatchesLimitTooLowExceptionClass(getThreadEnv(), "net/rubygrapefruit/platform/internal/jni/InotifyWatchesLimitTooLowException")
+    , inotifyInstanceLimitTooLowExceptionClass(getThreadEnv(), "net/rubygrapefruit/platform/internal/jni/InotifyInstanceLimitTooLowException") {
 }
