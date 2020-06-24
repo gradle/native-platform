@@ -44,16 +44,12 @@ FileWatcherException::FileWatcherException(const string& message)
     : runtime_error(message) {
 }
 
+JavaExceptionThrownException::JavaExceptionThrownException()
+    : runtime_error("Java exception thrown from native code") {
+}
+
 InsufficientResourcesFileWatcherException::InsufficientResourcesFileWatcherException(const string& message)
     : FileWatcherException(message) {
-}
-
-InotifyInstanceLimitTooLowException::InotifyInstanceLimitTooLowException()
-    : InsufficientResourcesFileWatcherException("Inotify instance limit too low") {
-}
-
-InotifyWatchesLimitTooLowException::InotifyWatchesLimitTooLowException()
-    : InsufficientResourcesFileWatcherException("Inotify watches limit too low") {
 }
 
 AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback)
@@ -198,8 +194,8 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
         vector<u16string> paths;
         javaToUtf16StringArray(env, javaPaths, paths);
         server->registerPaths(paths);
-    } catch (const InotifyWatchesLimitTooLowException& e) {
-        rethrowAsJavaException(env, e, nativePlatformJniConstants->inotifyWatchesLimitTooLowExceptionClass.get());
+    } catch (const JavaExceptionThrownException& e) {
+        // Ignore, the Java exception has already been thrown.
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
     }

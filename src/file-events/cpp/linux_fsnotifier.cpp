@@ -12,6 +12,14 @@
 
 #define EVENT_MASK (IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_EXCL_UNLINK | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO | IN_ONLYDIR)
 
+InotifyInstanceLimitTooLowException::InotifyInstanceLimitTooLowException()
+    : InsufficientResourcesFileWatcherException("Inotify instance limit too low") {
+}
+
+InotifyWatchesLimitTooLowException::InotifyWatchesLimitTooLowException()
+    : InsufficientResourcesFileWatcherException("Inotify watches limit too low") {
+}
+
 WatchPoint::WatchPoint(const u16string& path, shared_ptr<Inotify> inotify, int watchDescriptor)
     : status(WatchPointStatus::LISTENING)
     , watchDescriptor(watchDescriptor)
@@ -252,12 +260,13 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
     reportChangeEvent(env, type, path);
 }
 
-static int addInotifyWatch(const u16string& path, shared_ptr<Inotify> inotify) {
+static int addInotifyWatch(const u16string& path, shared_ptr<Inotify> inotify, JNIEnv* env) {
     string pathNarrow = utf16ToUtf8String(path);
     int fdWatch = inotify_add_watch(inotify->fd, pathNarrow.c_str(), EVENT_MASK);
     if (fdWatch == -1) {
         if (errno == ENOSPC) {
-            throw InotifyWatchesLimitTooLowException();
+            rethrowAsJavaException(env, InotifyWatchesLimitTooLowException(), nativePlatformJniConstants->inotifyWatchesLimitTooLowExceptionClass.get());
+            throw JavaExceptionThrownException();
         }
         throw FileWatcherException("Couldn't add watch", path, errno);
     }
@@ -269,7 +278,7 @@ void Server::registerPath(const u16string& path) {
     if (it != watchPoints.end()) {
         throw FileWatcherException("Already watching path", path);
     }
-    int watchDescriptor = addInotifyWatch(path, inotify);
+    int watchDescriptor = addInotifyWatch(path, inotify, getThreadEnv());
     if (watchRoots.find(watchDescriptor) != watchRoots.end()) {
         throw FileWatcherException("Already watching path", path);
     }

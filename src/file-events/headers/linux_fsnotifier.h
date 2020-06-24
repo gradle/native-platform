@@ -12,6 +12,16 @@
 
 using namespace std;
 
+struct InotifyInstanceLimitTooLowException : public InsufficientResourcesFileWatcherException {
+public:
+    InotifyInstanceLimitTooLowException();
+};
+
+struct InotifyWatchesLimitTooLowException : public InsufficientResourcesFileWatcherException {
+public:
+    InotifyWatchesLimitTooLowException();
+};
+
 class Server;
 
 struct Inotify {

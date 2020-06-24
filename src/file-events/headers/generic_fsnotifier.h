@@ -36,19 +36,14 @@ public:
     FileWatcherException(const string& message);
 };
 
+struct JavaExceptionThrownException : public runtime_error {
+public:
+    JavaExceptionThrownException();
+};
+
 struct InsufficientResourcesFileWatcherException : public FileWatcherException {
 public:
     InsufficientResourcesFileWatcherException(const string& message);
-};
-
-struct InotifyInstanceLimitTooLowException : public InsufficientResourcesFileWatcherException {
-public:
-    InotifyInstanceLimitTooLowException();
-};
-
-struct InotifyWatchesLimitTooLowException : public InsufficientResourcesFileWatcherException {
-public:
-    InotifyWatchesLimitTooLowException();
 };
 
 class AbstractServer;
