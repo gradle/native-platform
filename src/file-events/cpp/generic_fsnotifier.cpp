@@ -250,7 +250,5 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_invalid
 
 NativePlatformJniConstants::NativePlatformJniConstants(JavaVM* jvm)
     : JniSupport(jvm)
-    , nativeExceptionClass(getThreadEnv(), "net/rubygrapefruit/platform/NativeException")
-    , inotifyWatchesLimitTooLowExceptionClass(getThreadEnv(), "net/rubygrapefruit/platform/internal/jni/InotifyWatchesLimitTooLowException")
-    , inotifyInstanceLimitTooLowExceptionClass(getThreadEnv(), "net/rubygrapefruit/platform/internal/jni/InotifyInstanceLimitTooLowException") {
+    , nativeExceptionClass(getThreadEnv(), "net/rubygrapefruit/platform/NativeException") {
 }

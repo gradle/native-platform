@@ -265,7 +265,7 @@ static int addInotifyWatch(const u16string& path, shared_ptr<Inotify> inotify, J
     int fdWatch = inotify_add_watch(inotify->fd, pathNarrow.c_str(), EVENT_MASK);
     if (fdWatch == -1) {
         if (errno == ENOSPC) {
-            rethrowAsJavaException(env, InotifyWatchesLimitTooLowException(), nativePlatformJniConstants->inotifyWatchesLimitTooLowExceptionClass.get());
+            rethrowAsJavaException(env, InotifyWatchesLimitTooLowException(), linuxJniConstants->inotifyWatchesLimitTooLowExceptionClass.get());
             throw JavaExceptionThrownException();
         }
         throw FileWatcherException("Couldn't add watch", path, errno);
@@ -311,9 +311,14 @@ Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_startWatch
     try {
         return wrapServer(env, new Server(env, javaCallback));
     } catch (const InotifyInstanceLimitTooLowException& e) {
-        rethrowAsJavaException(env, e, nativePlatformJniConstants->inotifyInstanceLimitTooLowExceptionClass.get());
+        rethrowAsJavaException(env, e, linuxJniConstants->inotifyInstanceLimitTooLowExceptionClass.get());
         return NULL;
     }
 }
 
+LinuxJniConstants::LinuxJniConstants(JavaVM* jvm)
+    : JniSupport(jvm)
+    , inotifyWatchesLimitTooLowExceptionClass(getThreadEnv(), "net/rubygrapefruit/platform/internal/jni/InotifyWatchesLimitTooLowException")
+    , inotifyInstanceLimitTooLowExceptionClass(getThreadEnv(), "net/rubygrapefruit/platform/internal/jni/InotifyInstanceLimitTooLowException") {
+}
 #endif

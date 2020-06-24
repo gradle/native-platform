@@ -107,8 +107,6 @@ public:
     NativePlatformJniConstants(JavaVM* jvm);
 
     const JClass nativeExceptionClass;
-    const JClass inotifyWatchesLimitTooLowExceptionClass;
-    const JClass inotifyInstanceLimitTooLowExceptionClass;
 };
 
 extern NativePlatformJniConstants* nativePlatformJniConstants;
