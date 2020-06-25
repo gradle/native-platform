@@ -12,6 +12,14 @@
 
 #define EVENT_MASK (IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_EXCL_UNLINK | IN_MODIFY | IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO | IN_ONLYDIR)
 
+InotifyInstanceLimitTooLowException::InotifyInstanceLimitTooLowException()
+    : InsufficientResourcesFileWatcherException("Inotify instance limit too low") {
+}
+
+InotifyWatchesLimitTooLowException::InotifyWatchesLimitTooLowException()
+    : InsufficientResourcesFileWatcherException("Inotify watches limit too low") {
+}
+
 WatchPoint::WatchPoint(const u16string& path, shared_ptr<Inotify> inotify, int watchDescriptor)
     : status(WatchPointStatus::LISTENING)
     , watchDescriptor(watchDescriptor)
@@ -40,6 +48,9 @@ CancelResult WatchPoint::cancel() {
 Inotify::Inotify()
     : fd(inotify_init1(IN_CLOEXEC | IN_NONBLOCK)) {
     if (fd == -1) {
+        if (errno == EMFILE) {
+            throw InotifyInstanceLimitTooLowException();
+        }
         throw FileWatcherException("Couldn't register inotify handle", errno);
     }
 }
@@ -249,10 +260,14 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
     reportChangeEvent(env, type, path);
 }
 
-static int addInotifyWatch(const u16string& path, shared_ptr<Inotify> inotify) {
+static int addInotifyWatch(const u16string& path, shared_ptr<Inotify> inotify, JNIEnv* env) {
     string pathNarrow = utf16ToUtf8String(path);
     int fdWatch = inotify_add_watch(inotify->fd, pathNarrow.c_str(), EVENT_MASK);
     if (fdWatch == -1) {
+        if (errno == ENOSPC) {
+            rethrowAsJavaException(env, InotifyWatchesLimitTooLowException(), linuxJniConstants->inotifyWatchesLimitTooLowExceptionClass.get());
+            throw JavaExceptionThrownException();
+        }
         throw FileWatcherException("Couldn't add watch", path, errno);
     }
     return fdWatch;
@@ -263,7 +278,7 @@ void Server::registerPath(const u16string& path) {
     if (it != watchPoints.end()) {
         throw FileWatcherException("Already watching path", path);
     }
-    int watchDescriptor = addInotifyWatch(path, inotify);
+    int watchDescriptor = addInotifyWatch(path, inotify, getThreadEnv());
     if (watchRoots.find(watchDescriptor) != watchRoots.end()) {
         throw FileWatcherException("Already watching path", path);
     }
@@ -293,7 +308,17 @@ bool Server::unregisterPath(const u16string& path) {
 
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_startWatcher0(JNIEnv* env, jclass, jobject javaCallback) {
-    return wrapServer(env, new Server(env, javaCallback));
+    try {
+        return wrapServer(env, new Server(env, javaCallback));
+    } catch (const InotifyInstanceLimitTooLowException& e) {
+        rethrowAsJavaException(env, e, linuxJniConstants->inotifyInstanceLimitTooLowExceptionClass.get());
+        return NULL;
+    }
 }
 
+LinuxJniConstants::LinuxJniConstants(JavaVM* jvm)
+    : JniSupport(jvm)
+    , inotifyWatchesLimitTooLowExceptionClass(getThreadEnv(), "net/rubygrapefruit/platform/internal/jni/InotifyWatchesLimitTooLowException")
+    , inotifyInstanceLimitTooLowExceptionClass(getThreadEnv(), "net/rubygrapefruit/platform/internal/jni/InotifyInstanceLimitTooLowException") {
+}
 #endif

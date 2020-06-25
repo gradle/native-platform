@@ -36,6 +36,19 @@ public:
     FileWatcherException(const string& message);
 };
 
+// Throwing a Java exception from native code does not change the program flow.
+// So it may be necessary to throw a native exception as well which then can be catched in the outmost level just before returning to Java.
+// The idea here is that the catch clause for this exception is always empty.
+struct JavaExceptionThrownException : public runtime_error {
+public:
+    JavaExceptionThrownException();
+};
+
+struct InsufficientResourcesFileWatcherException : public FileWatcherException {
+public:
+    InsufficientResourcesFileWatcherException(const string& message);
+};
+
 class AbstractServer;
 
 class AbstractServer : public JniSupport {
@@ -102,3 +115,6 @@ public:
 extern NativePlatformJniConstants* nativePlatformJniConstants;
 
 jobject wrapServer(JNIEnv* env, AbstractServer* server);
+
+jobject rethrowAsJavaException(JNIEnv* env, const exception& e);
+jobject rethrowAsJavaException(JNIEnv* env, const exception& e, jclass exceptionClass);

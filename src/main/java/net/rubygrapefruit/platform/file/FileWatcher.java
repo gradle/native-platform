@@ -1,5 +1,7 @@
 package net.rubygrapefruit.platform.file;
 
+import net.rubygrapefruit.platform.internal.jni.InsufficientResourcesForWatchingException;
+
 import javax.annotation.CheckReturnValue;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.io.File;
@@ -11,7 +13,7 @@ import java.util.concurrent.TimeUnit;
  */
 @NotThreadSafe
 public interface FileWatcher {
-    void startWatching(Collection<File> paths);
+    void startWatching(Collection<File> paths) throws InsufficientResourcesForWatchingException;
 
     @CheckReturnValue
     boolean stopWatching(Collection<File> paths);

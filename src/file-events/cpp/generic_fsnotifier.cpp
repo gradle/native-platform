@@ -44,6 +44,14 @@ FileWatcherException::FileWatcherException(const string& message)
     : runtime_error(message) {
 }
 
+JavaExceptionThrownException::JavaExceptionThrownException()
+    : runtime_error("Java exception thrown from native code") {
+}
+
+InsufficientResourcesFileWatcherException::InsufficientResourcesFileWatcherException(const string& message)
+    : FileWatcherException(message) {
+}
+
 AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback)
     : JniSupport(env)
     , watcherCallback(env, watcherCallback) {
@@ -106,7 +114,11 @@ AbstractServer* getServer(JNIEnv* env, jobject javaServer) {
 
 jobject rethrowAsJavaException(JNIEnv* env, const exception& e) {
     logToJava(LogLevel::SEVERE, "Caught exception: %s", e.what());
-    jint ret = env->ThrowNew(nativePlatformJniConstants->nativeExceptionClass.get(), e.what());
+    return rethrowAsJavaException(env, e, nativePlatformJniConstants->nativeExceptionClass.get());
+}
+
+jobject rethrowAsJavaException(JNIEnv* env, const exception& e, jclass exceptionClass) {
+    jint ret = env->ThrowNew(exceptionClass, e.what());
     if (ret != 0) {
         cerr << "JNI ThrowNew returned %d when rethrowing native exception: " << ret << endl;
     }
@@ -182,6 +194,8 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
         vector<u16string> paths;
         javaToUtf16StringArray(env, javaPaths, paths);
         server->registerPaths(paths);
+    } catch (const JavaExceptionThrownException& e) {
+        // Ignore, the Java exception has already been thrown.
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
     }

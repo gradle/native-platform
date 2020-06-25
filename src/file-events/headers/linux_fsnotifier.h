@@ -12,6 +12,16 @@
 
 using namespace std;
 
+struct InotifyInstanceLimitTooLowException : public InsufficientResourcesFileWatcherException {
+public:
+    InotifyInstanceLimitTooLowException();
+};
+
+struct InotifyWatchesLimitTooLowException : public InsufficientResourcesFileWatcherException {
+public:
+    InotifyWatchesLimitTooLowException();
+};
+
 class Server;
 
 struct Inotify {
@@ -99,5 +109,15 @@ private:
     bool shouldTerminate = false;
     vector<uint8_t> buffer;
 };
+
+class LinuxJniConstants : public JniSupport {
+public:
+    LinuxJniConstants(JavaVM* jvm);
+
+    const JClass inotifyWatchesLimitTooLowExceptionClass;
+    const JClass inotifyInstanceLimitTooLowExceptionClass;
+};
+
+extern LinuxJniConstants* linuxJniConstants;
 
 #endif
