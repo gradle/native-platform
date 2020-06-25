@@ -46,7 +46,7 @@ fun BuildFeatures.publishCommitStatus() {
         publisher = github {
             githubUrl = "https://api.github.com"
             authType = personalToken {
-                token = "credentialsJSON:5306bfc7-041e-46e8-8d61-1d49424e7b04"
+                token = "%github.bot-teamcity.token%"
             }
         }
     }
