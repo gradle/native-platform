@@ -114,7 +114,7 @@ class NativeLibraryPublish(releaseType: ReleaseType = ReleaseType.Snapshot, agen
         artifactRules = """
             build/**/*.pdb
             build/libs/**
-        """.trimIndent()
+        """.trimIndent() + "\n${archiveReports}"
     })
 
 class NativeLibraryPublishNcurses(releaseType: ReleaseType = ReleaseType.Snapshot, agent: Agent, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
@@ -122,6 +122,7 @@ class NativeLibraryPublishNcurses(releaseType: ReleaseType = ReleaseType.Snapsho
         name = "Publish $agent ${releaseType.name}"
         id = RelativeId("Publishing_Publish${agent}${releaseType.name}")
         runOn(agent)
+        artifactRules = archiveReports
     })
 
 class PublishJavaApi(releaseType: ReleaseType = ReleaseType.Snapshot, nativeLibraryPublishingBuilds: List<NativePlatformPublishSnapshot>, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
@@ -129,6 +130,7 @@ class PublishJavaApi(releaseType: ReleaseType = ReleaseType.Snapshot, nativeLibr
         name = "Publish Native Platform ${releaseType.name}"
         id = RelativeId("Publishing_PublishJavaApi${releaseType.name}")
         runOn(Agent.Linux)
+        artifactRules = archiveReports
         params {
             if (releaseType.userProvidedVersion) {
                 param(versionPostfixParameterName, "%reverse.dep.*.$versionPostfixParameterName%")

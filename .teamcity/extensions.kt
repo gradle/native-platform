@@ -40,6 +40,10 @@ const val buildScanInit = "-I gradle/init-scripts/build-scan.init.gradle.kts"
 
 const val buildReceipt = "build-receipt.properties"
 
+const val archiveReports = """build/reports/** => reports
+buildSrc/build/reports/** => buildSrc/reports
+testApp/build/reports/** => testApp/reports"""
+
 fun BuildFeatures.publishCommitStatus() {
     commitStatusPublisher {
         vcsRootExtId = DslContext.settingsRoot.id?.value
