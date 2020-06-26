@@ -194,7 +194,7 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
         vector<u16string> paths;
         javaToUtf16StringArray(env, javaPaths, paths);
         server->registerPaths(paths);
-    } catch (const JavaExceptionThrownException& e) {
+    } catch (const JavaExceptionThrownException&) {
         // Ignore, the Java exception has already been thrown.
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
