@@ -43,7 +43,6 @@
       <component group="net.sf.jopt-simple" name="jopt-simple" version="4.2">
          <artifact name="jopt-simple-4.2.jar">
             <pgp value="517b94f8d0a46317a28d8ab30da8a5ec02d11ead"/>
-            <sha256 value="c07a0c9bfbafeb740f2bf8dad2025b7830345686b22c780197b88d8fae287202" origin="Generated from the artifact on disk by wolfs since the signature sometimes can't be downloaded"/>
          </artifact>
       </component>
       <component group="org.checkerframework" name="checker-qual" version="2.10.0">
