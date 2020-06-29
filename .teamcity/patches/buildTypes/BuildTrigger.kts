@@ -29,10 +29,11 @@ changeBuildType(RelativeId("BuildTrigger")) {
             }
         }
         feature1.apply {
+            vcsRootExtId = ""
             publisher = github {
                 githubUrl = "https://api.github.com"
                 authType = personalToken {
-                    token = "%github.bot-teamcity.token%"
+                    token = "credentialsJSON:5fe7c16b-cef8-4e22-a305-52f6ae768b72"
                 }
             }
         }
