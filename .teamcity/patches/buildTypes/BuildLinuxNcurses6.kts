@@ -32,7 +32,7 @@ changeBuildType(RelativeId("BuildLinuxNcurses6")) {
             publisher = github {
                 githubUrl = "https://api.github.com"
                 authType = personalToken {
-                    token = "credentialsJSON:ecc6ec89-b940-4699-a466-cec87f0285da"
+                    token = "%github.bot-teamcity.token%"
                 }
             }
         }

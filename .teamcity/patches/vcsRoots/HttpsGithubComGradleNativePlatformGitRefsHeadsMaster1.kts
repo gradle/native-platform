@@ -19,7 +19,7 @@ create(DslContext.projectId, GitVcsRoot({
     """.trimIndent()
     authMethod = password {
         userName = "bot-teamcity"
-        password = "credentialsJSON:5fe7c16b-cef8-4e22-a305-52f6ae768b72"
+        password = "%github.bot-teamcity.token%"
     }
 }))
 
