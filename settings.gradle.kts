@@ -10,3 +10,9 @@ include("testApp")
 project(":testApp").projectDir = File(rootDir, "test-app")
 
 enableFeaturePreview("GROOVY_COMPILATION_AVOIDANCE")
+
+gradleEnterprise {
+    buildScan {
+        publishAlways()
+    }
+}
