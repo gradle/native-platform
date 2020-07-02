@@ -27,6 +27,10 @@ To debug in IntelliJ Idea, open the 'Maven Projects' tool window (View
 version = "2019.2"
 
 project {
+    params {
+        param("env.GRADLE_ENTERPRISE_ACCESS_KEY", "%ge.gradle.org.access.key%")
+    }
+
     val buildReceiptSource = NativePlatformBuild(Agent.Linux) {
         artifactRules = listOf(artifactRules, buildReceipt).joinToString("\n")
     }
