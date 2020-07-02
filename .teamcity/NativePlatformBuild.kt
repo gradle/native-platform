@@ -33,7 +33,7 @@ open class NativePlatformBuild(agent: Agent, init: BuildType.() -> Unit = {}) : 
 
     steps {
         gradle {
-            tasks = "clean build $buildScanInit"
+            tasks = "clean build"
             buildFile = ""
         }
     }

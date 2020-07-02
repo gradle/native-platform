@@ -38,8 +38,6 @@ fun BuildType.runOn(agent: Agent) {
     }
 }
 
-const val buildScanInit = "-I gradle/init-scripts/build-scan.init.gradle.kts"
-
 const val buildReceipt = "build-receipt.properties"
 
 const val archiveReports = """build/reports/** => reports
