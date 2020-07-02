@@ -28,6 +28,8 @@ fun BuildType.runOn(agent: Agent) {
     requirements {
         contains("teamcity.agent.jvm.os.name", agent.agentOsName)
         contains("teamcity.agent.jvm.os.arch", agent.agentArch)
+        // Don't run any builds on CentOs 8 for now.
+        doesNotContain("teamcity.agent.jvm.os.version", "el8")
         when (agent.curses) {
             CursesRequirement.Curses6 -> contains("system.ncurses.version", "ncurses6")
             CursesRequirement.Curses5 -> doesNotContain("system.ncurses.version", "ncurses6")
