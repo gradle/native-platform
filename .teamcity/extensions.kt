@@ -1,6 +1,7 @@
 import jetbrains.buildServer.configs.kotlin.v2019_2.BuildFeatures
 import jetbrains.buildServer.configs.kotlin.v2019_2.BuildType
 import jetbrains.buildServer.configs.kotlin.v2019_2.DslContext
+import jetbrains.buildServer.configs.kotlin.v2019_2.Requirements
 import jetbrains.buildServer.configs.kotlin.v2019_2.buildFeatures.commitStatusPublisher
 import jetbrains.buildServer.configs.kotlin.v2019_2.buildFeatures.freeDiskSpace
 
@@ -20,21 +21,18 @@ import jetbrains.buildServer.configs.kotlin.v2019_2.buildFeatures.freeDiskSpace
  * limitations under the License.
  */
 
+fun Requirements.requireAgent(agent: Agent) {
+    agent.os.addAgentRequirements(this)
+    contains("teamcity.agent.jvm.os.arch", agent.architecture.agentRequirementForOs(agent.os))
+}
+
 fun BuildType.runOn(agent: Agent) {
     params {
         param("env.JAVA_HOME", agent.java8Home)
     }
 
     requirements {
-        contains("teamcity.agent.jvm.os.name", agent.agentOsName)
-        contains("teamcity.agent.jvm.os.arch", agent.agentArch)
-        // Don't run any builds on CentOs 8 for now.
-        doesNotContain("teamcity.agent.jvm.os.version", "el8")
-        when (agent.curses) {
-            CursesRequirement.Curses6 -> contains("system.ncurses.version", "ncurses6")
-            CursesRequirement.Curses5 -> doesNotContain("system.ncurses.version", "ncurses6")
-            CursesRequirement.None -> {}
-        }
+        requireAgent(agent)
     }
 }
 

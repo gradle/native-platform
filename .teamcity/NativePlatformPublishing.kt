@@ -25,8 +25,8 @@ import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.gradle
 class Publishing(buildAndTest: List<BuildType>, buildReceiptSource: BuildType) : Project({
     name = "Publishing"
 
-    val agentsForAllJniPublications = listOf(Agent.Linux, Agent.MacOs, Agent.Windows, Agent.LinuxAarch64, Agent.FreeBsd)
-    val agentsForNcursesOnlyPublications = listOf(Agent.LinuxAarch64Ncurses5, Agent.LinuxNcurses6)
+    val agentsForAllJniPublications = listOf(Agent.UbuntuAmd64, Agent.MacOsAmd64, Agent.WindowsAmd64, Agent.AmazonLinuxAarch64, Agent.FreeBsdAmd64)
+    val agentsForNcursesOnlyPublications = listOf(Agent.UbuntuAarch64, Agent.AmazonLinuxAmd64)
 
     ReleaseType.values().forEach { releaseType ->
         val publishProject = NativePlatformPublishProject(releaseType, agentsForAllJniPublications, agentsForNcursesOnlyPublications, buildAndTest, buildReceiptSource)
@@ -108,8 +108,11 @@ open class NativePlatformPublishSnapshot(releaseType: ReleaseType, uploadTasks: 
 
 class NativeLibraryPublish(releaseType: ReleaseType = ReleaseType.Snapshot, agent: Agent, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
     NativePlatformPublishSnapshot(releaseType, listOf(":uploadJni"), buildAndTest, buildReceiptSource, {
-        name = "Publish $agent ${releaseType.name}"
-        id = RelativeId("Publishing_Publish${agent}${releaseType.name}")
+        val extraQualification = if (agent.os is Linux)
+            "general and ${agent.os.ncurses.toString().toLowerCase()} "
+        else ""
+        name = "Publish ${agent.os.osType} ${agent.architecture} $extraQualification${releaseType.name}"
+        id = RelativeId("Publishing_Publish${agent.os.osType}${agent.architecture}${releaseType.name}")
         runOn(agent)
         artifactRules = """
             build/**/*.pdb
@@ -119,8 +122,9 @@ class NativeLibraryPublish(releaseType: ReleaseType = ReleaseType.Snapshot, agen
 
 class NativeLibraryPublishNcurses(releaseType: ReleaseType = ReleaseType.Snapshot, agent: Agent, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
     NativePlatformPublishSnapshot(releaseType, listOf(":uploadNcursesJni"), buildAndTest, buildReceiptSource, {
-        name = "Publish $agent ${releaseType.name}"
-        id = RelativeId("Publishing_Publish${agent}${releaseType.name}")
+        val linuxOs: Linux = agent.os as Linux
+        name = "Publish ${linuxOs.osType} ${agent.architecture} ${linuxOs.ncurses.toString().toLowerCase()} only ${releaseType.name}"
+        id = RelativeId("Publishing_Publish${linuxOs.osType}${agent.architecture}${linuxOs.ncurses}${releaseType.name}")
         runOn(agent)
         artifactRules = archiveReports
     })
@@ -129,7 +133,7 @@ class PublishJavaApi(releaseType: ReleaseType = ReleaseType.Snapshot, nativeLibr
     NativePlatformPublishSnapshot(releaseType, listOf(":uploadMain", ":testApp:uploadMain"), buildAndTest, buildReceiptSource, {
         name = "Publish Native Platform ${releaseType.name}"
         id = RelativeId("Publishing_PublishJavaApi${releaseType.name}")
-        runOn(Agent.Linux)
+        runOn(Agent.UbuntuAmd64)
         artifactRules = archiveReports
         params {
             if (releaseType.userProvidedVersion) {
