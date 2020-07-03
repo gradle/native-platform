@@ -31,11 +31,11 @@ project {
         param("env.GRADLE_ENTERPRISE_ACCESS_KEY", "%ge.gradle.org.access.key%")
     }
 
-    val buildReceiptSource = NativePlatformBuild(Agent.Linux) {
+    val buildReceiptSource = NativePlatformBuild(Agent.UbuntuAmd64) {
         artifactRules = listOf(artifactRules, buildReceipt).joinToString("\n")
     }
     val builds = listOf(buildReceiptSource) +
-        Agent.values().filter { it != Agent.Linux }.map { NativePlatformBuild(it) }
+        Agent.values().filter { it !in listOf(Agent.UbuntuAmd64, Agent.CentOsAmd64) }.map { NativePlatformBuild(it) }
     builds.forEach(::buildType)
     buildType(BuildTrigger(builds))
 

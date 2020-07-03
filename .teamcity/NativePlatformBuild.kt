@@ -80,7 +80,7 @@ class BuildTrigger(dependencies: List<BuildType>) : BuildType({
         }
     }
 
-    runOn(Agent.Linux)
+    runOn(Agent.UbuntuAmd64)
 
     features {
         publishCommitStatus()
