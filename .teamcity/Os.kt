@@ -7,16 +7,14 @@ interface Os {
 
     object Ubuntu : Linux(Ncurses.Ncurses5) {
         override fun Requirements.additionalRequirements() {
-            doesNotContain("system.ncurses.version", "ncurses6")
-            doesNotContain(osVersionParameter, "el8")
+            contains(osDistributionNameParameter, "ubuntu")
         }
         override val java8Home: String = "%linux.java8.oracle.64bit%"
     }
 
     object AmazonLinux : Linux(Ncurses.Ncurses6) {
         override fun Requirements.additionalRequirements() {
-            contains("system.ncurses.version", "ncurses6")
-            doesNotContain(osVersionParameter, "el8")
+            contains(osDistributionNameParameter, "amazon")
         }
 
         override val java8Home: String = "%linux.java8.openjdk.aarch64%"
@@ -24,7 +22,7 @@ interface Os {
 
     object CentOs : Linux(Ncurses.Ncurses6) {
         override fun Requirements.additionalRequirements() {
-            contains(osVersionParameter, "el8")
+            contains(osDistributionNameParameter, "centos")
         }
 
         override val java8Home: String = "/usr/lib/jvm/java"
@@ -43,7 +41,7 @@ interface Os {
     }
 }
 
-private const val osVersionParameter = "teamcity.agent.jvm.os.version"
+private const val osDistributionNameParameter = "system.agent.os.distribution.name"
 
 abstract class OsWithNameRequirement(private val osName: String, override val osType: String) : Os {
     override fun addAgentRequirements(requirements: Requirements) {
