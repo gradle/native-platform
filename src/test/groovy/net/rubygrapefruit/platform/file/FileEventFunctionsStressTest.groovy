@@ -17,6 +17,7 @@
 package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.internal.Platform
+import net.rubygrapefruit.platform.internal.jni.NativeLogger
 import spock.lang.Requires
 import spock.lang.Timeout
 import spock.lang.Unroll
@@ -27,6 +28,8 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.logging.Level
+import java.util.logging.Logger
 
 import static java.util.concurrent.TimeUnit.SECONDS
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.CREATED
@@ -151,7 +154,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
     }
 
     @Requires({ Platform.current().linux })
-    def "can stop watching directory hiearchy while it is being deleted"() {
+    def "can stop watching directory hierarchy while it is being deleted"() {
         given:
         def watchedDirectoryDepth = 8
         ignoreLogMessages()
@@ -174,6 +177,50 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
 
         then:
         noExceptionThrown()
+    }
+
+    def "can start and stop watching directories without losing events"() {
+        given:
+        Logger.getLogger(NativeLogger.name).level = Level.FINE
+        def watchedDir = new File(rootDir, "watchedDir")
+        assert watchedDir.mkdir()
+        def changedFiles = (1..200).collect { index ->
+            return new File(watchedDir, "file-${index}.txt")
+        }
+        def otherDirs = (1..5).collect { index ->
+            def dir = new File(rootDir, "dir-$index")
+            dir.mkdirs()
+            return dir
+        }
+        def watcher = startNewWatcher(watchedDir)
+        def onslaught = new OnslaughtExecuter(
+            (otherDirs.collect { otherDir ->
+                { ->
+                    Thread.sleep((long) (Math.random() * 100))
+                    watcher.startWatching(otherDir)
+                } as Runnable
+            }) + (changedFiles.collect { changedFile ->
+                { ->
+                    Thread.sleep((long) (Math.random() * 500))
+                    LOGGER.fine("> Creating ${changedFile.name}")
+                    changedFile.createNewFile()
+                } as Runnable
+            })
+        )
+
+        onslaught.awaitReady()
+
+        when:
+        onslaught.start()
+        onslaught.terminate(5, SECONDS)
+        def expectedEvents = changedFiles.collect { file -> change(CREATED, file) }
+
+        then:
+        expectEvents(eventQueue, 5, SECONDS, expectedEvents)
+
+        cleanup:
+        watcher.shutdown()
+        watcher.awaitTermination(5, SECONDS)
     }
 
     def "can stop watching many directories while they are being deleted"() {
