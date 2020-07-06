@@ -2,14 +2,12 @@ import jetbrains.buildServer.configs.kotlin.v2019_2.Requirements
 
 interface Os {
     fun addAgentRequirements(requirements: Requirements)
-    val java8Home: String
     val osType: String
 
     object Ubuntu : Linux(Ncurses.Ncurses5) {
         override fun Requirements.additionalRequirements() {
             contains(osDistributionNameParameter, "ubuntu")
         }
-        override val java8Home: String = "%linux.java8.oracle.64bit%"
     }
 
     object AmazonLinux : Linux(Ncurses.Ncurses6) {
@@ -17,7 +15,6 @@ interface Os {
             contains(osDistributionNameParameter, "amazon")
         }
 
-        override val java8Home: String = "%linux.java8.openjdk.aarch64%"
     }
 
     object CentOs : Linux(Ncurses.Ncurses6) {
@@ -25,19 +22,15 @@ interface Os {
             contains(osDistributionNameParameter, "centos")
         }
 
-        override val java8Home: String = "/usr/lib/jvm/java"
     }
 
     object MacOs : OsWithNameRequirement("Mac OS X", "MacOs") {
-        override val java8Home: String = "%macos.java8.oracle.64bit%"
     }
 
     object Windows : OsWithNameRequirement("Windows", "Windows") {
-        override val java8Home: String = "%windows.java8.oracle.64bit%"
     }
 
     object FreeBsd : OsWithNameRequirement("FreeBSD", "FreeBsd") {
-        override val java8Home: String = "%freebsd.java8.openjdk.64bit%"
     }
 }
 

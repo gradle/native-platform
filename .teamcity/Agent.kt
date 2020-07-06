@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-enum class Agent(val os: Os, val architecture: Architecture, val java8Home: String = os.java8Home) {
+enum class Agent(val os: Os, val architecture: Architecture) {
     UbuntuAmd64(os = Os.Ubuntu, architecture = Architecture.Amd64),
-    UbuntuAarch64(os = Os.Ubuntu, architecture = Architecture.Aarch64, java8Home = "/usr/lib/jvm/java-8-openjdk-arm64"),
+    UbuntuAarch64(os = Os.Ubuntu, architecture = Architecture.Aarch64),
     AmazonLinuxAmd64(os = Os.AmazonLinux, architecture = Architecture.Amd64),
     AmazonLinuxAarch64(os = Os.AmazonLinux, architecture = Architecture.Aarch64),
     CentOsAmd64(os = Os.CentOs, architecture = Architecture.Amd64),
