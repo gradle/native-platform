@@ -10,12 +10,12 @@ void Server::createEventStream() {
         return;
     }
 
-    CFMutableArrayRef pathArray = CFArrayCreateMutable(NULL,  watchPoints.size(), NULL);
+    CFMutableArrayRef pathArray = CFArrayCreateMutable(NULL, watchPoints.size(), NULL);
     if (pathArray == NULL) {
         throw FileWatcherException("Could not allocate array to store roots to watch");
     }
 
-    for (auto &path : watchPoints) {
+    for (auto& path : watchPoints) {
         CFStringRef cfPath = CFStringCreateWithCharacters(NULL, (UniChar*) path.c_str(), path.length());
         if (cfPath == nullptr) {
             throw FileWatcherException("Could not allocate CFString for path", path);
@@ -26,12 +26,13 @@ void Server::createEventStream() {
     }
 
     FSEventStreamContext context = {
-        0,                 // version, must be 0
-        (void*) this,      // info
-        NULL,              // retain
-        NULL,              // release
-        NULL               // copyDescription
+        0,               // version, must be 0
+        (void*) this,    // info
+        NULL,            // retain
+        NULL,            // release
+        NULL             // copyDescription
     };
+    logToJava(LogLevel::FINE, "Starting stream from %d", lastSeenEventId);
     FSEventStreamRef eventStream = FSEventStreamCreate(
         NULL,
         &handleEventsCallback,
@@ -74,14 +75,31 @@ void Server::closeEventStream() {
 // Server
 //
 
-void acceptTrigger(void*) {
-    // This does nothing, we just need a message source to keep the
-    // run loop alive when there are no watch points registered
+void acceptTrigger(void* info) {
+    Server *server = (Server*) info;
+    server->handleCommands();
 }
 
-Server::Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis)
+void Server::handleCommands() {
+    unique_lock<mutex> lock(commandMutex);
+    while (!commands.empty()) {
+        auto command = commands.front();
+        commands.pop();
+        executeCommand(command);
+    }
+}
+
+void Server::queueOnRunLoop(Command* command) {
+    unique_lock<mutex> lock(commandMutex);
+    commands.push(command);
+    CFRunLoopSourceSignal(messageSource);
+    CFRunLoopWakeUp(threadLoop);
+}
+
+Server::Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis, long commandTimeoutInMillis)
     : AbstractServer(env, watcherCallback)
-    , latencyInMillis(latencyInMillis) {
+    , latencyInMillis(latencyInMillis)
+    , commandTimeoutInMillis(commandTimeoutInMillis) {
     CFRunLoopSourceContext context = {
         0,               // version;
         (void*) this,    // info;
@@ -229,6 +247,19 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
     reportChangeEvent(env, type, pathStr);
 }
 
+void Server::registerPaths(const vector<u16string>& paths) {
+    executeOnRunLoop(commandTimeoutInMillis, [this, paths]() {
+        AbstractServer::registerPaths(paths);
+        return true;
+    });
+}
+
+bool Server::unregisterPaths(const vector<u16string>& paths) {
+    return executeOnRunLoop(commandTimeoutInMillis, [this, paths]() {
+        return AbstractServer::unregisterPaths(paths);
+    });
+}
+
 void Server::registerPath(const u16string& path) {
     if (watchPoints.find(path) != watchPoints.end()) {
         throw FileWatcherException("Already watching path", path);
@@ -247,13 +278,15 @@ bool Server::unregisterPath(const u16string& path) {
 }
 
 void Server::updateEventStream() {
+    logToJava(LogLevel::FINE, "Updating watchers", NULL);
     closeEventStream();
     createEventStream();
+    logToJava(LogLevel::FINE, "Finished updating watchers", NULL);
 }
 
 JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatcher0(JNIEnv* env, jclass, long latencyInMillis, jobject javaCallback) {
-    return wrapServer(env, new Server(env, javaCallback, latencyInMillis));
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatcher0(JNIEnv* env, jclass, long latencyInMillis, long commandTimeoutInMillis, jobject javaCallback) {
+    return wrapServer(env, new Server(env, javaCallback, latencyInMillis, commandTimeoutInMillis));
 }
 
 #endif

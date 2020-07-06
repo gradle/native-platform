@@ -3,6 +3,7 @@
 #if defined(__APPLE__)
 
 #include <CoreServices/CoreServices.h>
+#include <queue>
 #include <unordered_set>
 
 #include "generic_fsnotifier.h"
@@ -22,11 +23,15 @@ static void handleEventsCallback(
 
 class Server : public AbstractServer {
 public:
-    Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis);
+    Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis, long commandTimeoutInMillis);
 
 protected:
     void initializeRunLoop() override;
     void runLoop() override;
+    virtual void queueOnRunLoop(Command* command) override;
+
+    virtual void registerPaths(const vector<u16string>& paths) override;
+    virtual bool unregisterPaths(const vector<u16string>& paths) override;
 
     void registerPath(const u16string& path) override;
     bool unregisterPath(const u16string& path) override;
@@ -36,6 +41,9 @@ private:
     void updateEventStream();
     void createEventStream();
     void closeEventStream();
+
+    void handleCommands();
+    friend void acceptTrigger(void* info);
 
     void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);
     void handleEvents(
@@ -57,6 +65,9 @@ private:
     unordered_set<u16string> watchPoints;
     FSEventStreamRef eventStream = nullptr;
 
+    mutex commandMutex;
+    queue<Command*> commands;
+    const long commandTimeoutInMillis;
     CFRunLoopRef threadLoop;
     CFRunLoopSourceRef messageSource;
 };

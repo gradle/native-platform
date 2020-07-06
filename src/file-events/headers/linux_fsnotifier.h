@@ -92,6 +92,8 @@ public:
 protected:
     void initializeRunLoop() override;
     void runLoop() override;
+    virtual void queueOnRunLoop(Command* command) override;
+
     void registerPath(const u16string& path) override;
     bool unregisterPath(const u16string& path) override;
     void shutdownRunLoop() override;

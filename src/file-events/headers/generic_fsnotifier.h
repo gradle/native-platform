@@ -3,6 +3,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <exception>
+#include <functional>
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -51,6 +52,14 @@ public:
 
 class AbstractServer;
 
+struct Command {
+    function<bool()> action;
+    mutex executionMutex;
+    condition_variable executed;
+    bool result;
+    exception_ptr failure;
+};
+
 class AbstractServer : public JniSupport {
 public:
     AbstractServer(JNIEnv* env, jobject watcherCallback);
@@ -81,6 +90,10 @@ public:
 
 protected:
     virtual void runLoop() = 0;
+    bool executeOnRunLoop(const long timeout, function<bool()> function);
+    virtual void queueOnRunLoop(Command* command) = 0;
+    static void executeCommand(Command* command);
+
     virtual void registerPath(const u16string& path) = 0;
     virtual bool unregisterPath(const u16string& path) = 0;
 

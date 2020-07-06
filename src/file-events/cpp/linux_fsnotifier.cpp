@@ -91,6 +91,11 @@ Server::Server(JNIEnv* env, jobject watcherCallback)
 void Server::initializeRunLoop() {
 }
 
+void Server::queueOnRunLoop(Command*) {
+    // We don't queue stuff on Linux
+    abort();
+}
+
 void Server::shutdownRunLoop() {
     shutdownEvent.trigger();
 }
