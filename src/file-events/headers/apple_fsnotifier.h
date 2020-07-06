@@ -3,7 +3,7 @@
 #if defined(__APPLE__)
 
 #include <CoreServices/CoreServices.h>
-#include <unordered_map>
+#include <unordered_set>
 
 #include "generic_fsnotifier.h"
 #include "net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions.h"
@@ -20,15 +20,6 @@ static void handleEventsCallback(
     const FSEventStreamEventFlags eventFlags[],
     const FSEventStreamEventId*);
 
-class WatchPoint {
-public:
-    WatchPoint(Server* server, CFRunLoopRef runLoop, const u16string& path, long latencyInMillis);
-    ~WatchPoint();
-
-private:
-    FSEventStreamRef watcherStream;
-};
-
 class Server : public AbstractServer {
 public:
     Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis);
@@ -42,11 +33,16 @@ protected:
     void shutdownRunLoop() override;
 
 private:
+    void updateEventStream();
+    void createEventStream();
+    void closeEventStream();
+
     void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);
     void handleEvents(
         size_t numEvents,
         char** eventPaths,
-        const FSEventStreamEventFlags eventFlags[]);
+        const FSEventStreamEventFlags eventFlags[],
+        const FSEventStreamEventId eventIds[]);
 
     friend void handleEventsCallback(
         ConstFSEventStreamRef stream,
@@ -57,7 +53,9 @@ private:
         const FSEventStreamEventId eventIds[]);
 
     const long latencyInMillis;
-    unordered_map<u16string, WatchPoint> watchPoints;
+    FSEventStreamEventId lastSeenEventId = kFSEventStreamEventIdSinceNow;
+    unordered_set<u16string> watchPoints;
+    FSEventStreamRef eventStream = nullptr;
 
     CFRunLoopRef threadLoop;
     CFRunLoopSourceRef messageSource;

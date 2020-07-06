@@ -209,7 +209,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
 
         when:
         onslaught.start()
-        onslaught.terminate(5, SECONDS)
+        onslaught.terminate(10, SECONDS)
 
         then:
         noExceptionThrown()
@@ -273,6 +273,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         private final ExecutorService executorService
         private final CountDownLatch readyLatch
         private final CountDownLatch startLatch
+        private final AtomicInteger finishedCounter
         private final int numberOfThreads
 
         OnslaughtExecuter(List<Runnable> jobs) {
@@ -280,12 +281,14 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
             this.executorService = Executors.newFixedThreadPool(numberOfThreads)
             this.readyLatch = new CountDownLatch(numberOfThreads)
             this.startLatch = new CountDownLatch(1)
+            this.finishedCounter = new AtomicInteger()
             Collections.shuffle(jobs)
             jobs.each { job ->
                 executorService.submit({ ->
                     readyLatch.countDown()
                     startLatch.await()
                     job.run()
+                    finishedCounter.incrementAndGet()
                 })
             }
         }
@@ -302,7 +305,11 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
 
         void terminate(long timeout, TimeUnit unit) {
             executorService.shutdown()
-            assert executorService.awaitTermination(timeout, unit)
+            try {
+                assert executorService.awaitTermination(timeout, unit)
+            } finally {
+                LOGGER.info("> Finished ${finishedCounter} of ${numberOfThreads} jobs")
+            }
         }
     }
 }

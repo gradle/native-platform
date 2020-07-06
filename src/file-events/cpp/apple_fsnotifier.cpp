@@ -4,43 +4,56 @@
 
 using namespace std;
 
-WatchPoint::WatchPoint(Server* server, CFRunLoopRef runLoop, const u16string& path, long latencyInMillis) {
-    CFStringRef cfPath = CFStringCreateWithCharacters(NULL, (UniChar*) path.c_str(), path.length());
-    if (cfPath == nullptr) {
-        throw FileWatcherException("Could not allocate CFString for path", path);
+void Server::createEventStream() {
+    // Do not try to create an event stream if there's nothing to watch
+    if (watchPoints.empty()) {
+        return;
     }
-    CFMutableArrayRef pathArray = CFArrayCreateMutable(NULL, 1, NULL);
+
+    CFMutableArrayRef pathArray = CFArrayCreateMutable(NULL,  watchPoints.size(), NULL);
     if (pathArray == NULL) {
-        throw FileWatcherException("Could not allocate array to store root to watch", path);
+        throw FileWatcherException("Could not allocate array to store roots to watch");
     }
-    CFArrayAppendValue(pathArray, cfPath);
+
+    for (auto &path : watchPoints) {
+        CFStringRef cfPath = CFStringCreateWithCharacters(NULL, (UniChar*) path.c_str(), path.length());
+        if (cfPath == nullptr) {
+            throw FileWatcherException("Could not allocate CFString for path", path);
+        }
+        CFArrayAppendValue(pathArray, cfPath);
+        // Do not release path separately as it causes a segmentation fault
+        // CFRelease(cfPath);
+    }
 
     FSEventStreamContext context = {
         0,                 // version, must be 0
-        (void*) server,    // info
+        (void*) this,      // info
         NULL,              // retain
         NULL,              // release
         NULL               // copyDescription
     };
-    FSEventStreamRef watcherStream = FSEventStreamCreate(
+    FSEventStreamRef eventStream = FSEventStreamCreate(
         NULL,
         &handleEventsCallback,
         &context,
         pathArray,
-        kFSEventStreamEventIdSinceNow,
+        lastSeenEventId,
         latencyInMillis / 1000.0,
         kFSEventStreamCreateFlagNoDefer | kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagWatchRoot);
     CFRelease(pathArray);
-    CFRelease(cfPath);
-    if (watcherStream == NULL) {
-        throw FileWatcherException("Couldn't add watch", path);
+    if (eventStream == NULL) {
+        throw FileWatcherException("Couldn't update event stream");
     }
-    FSEventStreamScheduleWithRunLoop(watcherStream, runLoop, kCFRunLoopDefaultMode);
-    FSEventStreamStart(watcherStream);
-    this->watcherStream = watcherStream;
+    FSEventStreamScheduleWithRunLoop(eventStream, threadLoop, kCFRunLoopDefaultMode);
+    FSEventStreamStart(eventStream);
+    this->eventStream = eventStream;
 }
 
-WatchPoint::~WatchPoint() {
+void Server::closeEventStream() {
+    if (eventStream == nullptr) {
+        return;
+    }
+
     // Reading the Apple docs it seems we should call FSEventStreamFlushSync() here.
     // But doing so produces this log:
     //
@@ -51,9 +64,10 @@ WatchPoint::~WatchPoint() {
     // As the comment mentions, even Watchman doesn't flush:
     // https://github.com/facebook/watchman/blob/b397e00cf566f361282a456122eef4e909f26182/watcher/fsevents.cpp#L276-L285
     // FSEventStreamFlushSync(watcherStream);
-    FSEventStreamStop(watcherStream);
-    FSEventStreamInvalidate(watcherStream);
-    FSEventStreamRelease(watcherStream);
+    FSEventStreamStop(eventStream);
+    FSEventStreamInvalidate(eventStream);
+    FSEventStreamRelease(eventStream);
+    eventStream = nullptr;
 }
 
 //
@@ -96,7 +110,7 @@ void Server::runLoop() {
     CFRunLoopRun();
 
     unique_lock<mutex> lock(mutationMutex);
-    watchPoints.clear();
+    closeEventStream();
     CFRelease(messageSource);
 }
 
@@ -110,21 +124,27 @@ static void handleEventsCallback(
     size_t numEvents,
     void* eventPaths,
     const FSEventStreamEventFlags eventFlags[],
-    const FSEventStreamEventId*) {
+    const FSEventStreamEventId eventIds[]) {
     Server* server = (Server*) clientCallBackInfo;
-    server->handleEvents(numEvents, (char**) eventPaths, eventFlags);
+    server->handleEvents(numEvents, (char**) eventPaths, eventFlags, eventIds);
 }
 
 void Server::handleEvents(
     size_t numEvents,
     char** eventPaths,
-    const FSEventStreamEventFlags eventFlags[]) {
+    const FSEventStreamEventFlags eventFlags[],
+    const FSEventStreamEventId eventIds[]) {
     JNIEnv* env = getThreadEnv();
 
     try {
+        FSEventStreamEventId currentEventId = lastSeenEventId;
         for (size_t i = 0; i < numEvents; i++) {
             handleEvent(env, eventPaths[i], eventFlags[i]);
+            currentEventId = eventIds[numEvents - 1];
         }
+
+        unique_lock<mutex> lock(mutationMutex);
+        lastSeenEventId = currentEventId;
     } catch (const exception& ex) {
         reportFailure(env, ex);
     }
@@ -213,9 +233,8 @@ void Server::registerPath(const u16string& path) {
     if (watchPoints.find(path) != watchPoints.end()) {
         throw FileWatcherException("Already watching path", path);
     }
-    watchPoints.emplace(piecewise_construct,
-        forward_as_tuple(path),
-        forward_as_tuple(this, threadLoop, path, latencyInMillis));
+    watchPoints.emplace(path);
+    updateEventStream();
 }
 
 bool Server::unregisterPath(const u16string& path) {
@@ -223,7 +242,13 @@ bool Server::unregisterPath(const u16string& path) {
         logToJava(LogLevel::INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
         return false;
     }
+    updateEventStream();
     return true;
+}
+
+void Server::updateEventStream() {
+    closeEventStream();
+    createEventStream();
 }
 
 JNIEXPORT jobject JNICALL
