@@ -28,7 +28,7 @@ fun Requirements.requireAgent(agent: Agent) {
 
 fun BuildType.runOn(agent: Agent) {
     params {
-        param("env.JAVA_HOME", agent.java8Home)
+        param("env.JAVA_HOME", "%env.JDK_18_x64%")
     }
 
     requirements {
