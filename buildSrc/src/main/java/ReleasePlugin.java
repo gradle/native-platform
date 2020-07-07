@@ -66,7 +66,7 @@ public class ReleasePlugin implements Plugin<Project> {
 
         project.allprojects(subproject -> {
             subproject.getPlugins().apply(UploadPlugin.class);
-            subproject.getPlugins().apply(PublishSnapshotPlugin.class);
+            subproject.getPlugins().apply(PublishPlugin.class);
             subproject.setVersion(versionCalculator);
 
             // Use authenticated snapshot/bintray repo while building a test distribution during snapshot/release
@@ -106,7 +106,7 @@ public class ReleasePlugin implements Plugin<Project> {
                 PublishingExtension.class,
                 extension -> extension.getPublications().withType(MavenPublication.class, publication -> {
                     String uploadTaskName = buildType.getReleaseRepository() == VersionDetails.ReleaseRepository.Snapshots
-                            ? PublishSnapshotPlugin.uploadTaskName(publication)
+                            ? PublishPlugin.uploadTaskName(publication)
                             : UploadPlugin.uploadTaskName(publication);
                     TaskProvider<Task> uploadTask = project.getTasks().named(uploadTaskName);
                     if (BasePublishPlugin.isMainPublication(publication)) {
