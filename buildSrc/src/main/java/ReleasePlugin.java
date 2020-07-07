@@ -39,6 +39,9 @@ public class ReleasePlugin implements Plugin<Project> {
     private static final String UPLOAD_MAIN_TASK_NAME = "uploadMain";
     private static final String UPLOAD_JNI_TASK_NAME = "uploadJni";
     private static final String UPLOAD_NCURSES_JNI_TASK_NAME = "uploadNcursesJni";
+    private static final String PUBLISH_MAIN_TO_LOCAL_REPO_TASK_NAME = "publishMainToLocalRepo";
+    private static final String PUBLISH_JNI_TO_LOCAL_REPO_TASK_NAME = "publishJniToLocalRepo";
+    private static final String PUBLISH_NCURSES_JNI_TO_LOCAL_REPO_TASK_NAME = "publishNcursesJniToLocalRepo";
     private static final String ALPHA_VERSION_PROPERTY_NAME = "alpha";
 
     @Override
@@ -102,6 +105,18 @@ public class ReleasePlugin implements Plugin<Project> {
         uploadNcursesJniLifecycle.setGroup("Upload");
         uploadNcursesJniLifecycle.setDescription("Upload only ncurses5/6 JNI publications");
 
+        Task publishMainToLocalRepoLifecycle = project.getTasks().maybeCreate(PUBLISH_MAIN_TO_LOCAL_REPO_TASK_NAME);
+        publishMainToLocalRepoLifecycle.setGroup("Publishing");
+        publishMainToLocalRepoLifecycle.setDescription("Publishing Main publication to local repository");
+
+        Task publishJniToLocalRepoLifecycle = project.getTasks().maybeCreate(PUBLISH_JNI_TO_LOCAL_REPO_TASK_NAME);
+        publishJniToLocalRepoLifecycle.setGroup("Publishing");
+        publishJniToLocalRepoLifecycle.setDescription("Publishing all JNI publications to local repository");
+
+        Task publishNcursesJniToLocalRepoLifecycle = project.getTasks().maybeCreate(PUBLISH_NCURSES_JNI_TO_LOCAL_REPO_TASK_NAME);
+        publishNcursesJniToLocalRepoLifecycle.setGroup("Publishing");
+        publishNcursesJniToLocalRepoLifecycle.setDescription("Publishing only ncurses5/6 JNI publications to local repository");
+
         project.getExtensions().configure(
                 PublishingExtension.class,
                 extension -> extension.getPublications().withType(MavenPublication.class, publication -> {
@@ -109,12 +124,16 @@ public class ReleasePlugin implements Plugin<Project> {
                             ? PublishPlugin.uploadTaskName(publication)
                             : UploadPlugin.uploadTaskName(publication);
                     TaskProvider<Task> uploadTask = project.getTasks().named(uploadTaskName);
+                    String uploadToLocalRepositoryTaskName = PublishPlugin.uploadToLocalRepositoryTaskName(publication);
                     if (BasePublishPlugin.isMainPublication(publication)) {
                         uploadMainLifecycle.dependsOn(uploadTask);
+                        publishMainToLocalRepoLifecycle.dependsOn(uploadToLocalRepositoryTaskName);
                     } else {
                         uploadJniLifecycle.dependsOn(uploadTask);
+                        publishJniToLocalRepoLifecycle.dependsOn(uploadToLocalRepositoryTaskName);
                         if (uploadTaskName.contains("ncurses")) {
                             uploadNcursesJniLifecycle.dependsOn(uploadTask);
+                            publishNcursesJniToLocalRepoLifecycle.dependsOn(uploadToLocalRepositoryTaskName);
                         }
                     }
                 }));

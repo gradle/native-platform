@@ -6,6 +6,7 @@ import org.gradle.api.publish.PublishingExtension;
 
 public class PublishPlugin implements Plugin<Project> {
     private static final String SNAPSHOT_REPOSITORY_NAME = "Snapshot";
+    private static final String LOCAL_FILE_REPOSITORY_NAME = "LocalFile";
 
     @Override
     public void apply(Project project) {
@@ -25,7 +26,7 @@ public class PublishPlugin implements Plugin<Project> {
                         });
                     });
                     repositories.maven(repo -> {
-                        repo.setName("LocalFile");
+                        repo.setName(LOCAL_FILE_REPOSITORY_NAME);
                         repo.setUrl(project.getRootProject().file("build/repo"));
                     });
                 });
@@ -33,5 +34,9 @@ public class PublishPlugin implements Plugin<Project> {
 
     public static String uploadTaskName(Publication publication) {
         return BasePublishPlugin.publishTaskName(publication, SNAPSHOT_REPOSITORY_NAME);
+    }
+
+    public static String uploadToLocalRepositoryTaskName(Publication publication) {
+        return BasePublishPlugin.publishTaskName(publication, LOCAL_FILE_REPOSITORY_NAME);
     }
 }
