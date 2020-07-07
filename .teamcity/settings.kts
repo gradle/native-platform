@@ -1,4 +1,5 @@
 
+import jetbrains.buildServer.configs.kotlin.v2019_2.RelativeId
 import jetbrains.buildServer.configs.kotlin.v2019_2.project
 import jetbrains.buildServer.configs.kotlin.v2019_2.version
 
@@ -40,4 +41,9 @@ project {
     buildType(BuildTrigger(builds))
 
     subProject(Publishing(builds, buildReceiptSource))
+    subProject {
+        name = "Compatibility Tests"
+        id = RelativeId("CompatibilityTests")
+        buildType(NativePlatformCompatibilityTest(Agent.CentOsAmd64, builds))
+    }
 }
