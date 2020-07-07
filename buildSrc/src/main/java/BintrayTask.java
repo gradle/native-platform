@@ -75,7 +75,7 @@ public abstract class BintrayTask extends DefaultTask {
             basicAuth.initPreemptive(new UsernamePasswordCredentials(userName, apiKey.toCharArray()));
             HttpClientContext localContext = HttpClientContext.create();
             localContext.resetAuthExchange(new HttpHost("https", request.getUri().getHost(), 443), basicAuth);
-            request.setEntity(new InputStreamEntity(instr, length));
+            request.setEntity(new InputStreamEntity(instr, length, null));
             CloseableHttpResponse response = client.execute(request, localContext);
             try {
                 ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
