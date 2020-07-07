@@ -58,6 +58,7 @@ open class NativePlatformBuild(agent: Agent, init: BuildType.() -> Unit = {}) : 
     artifactRules = """
         hs_err*
         build/**/output.txt
+        build/repo => repo
     """.trimIndent() + "\n${archiveReports}"
 
     init(this)
