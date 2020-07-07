@@ -15,6 +15,7 @@ versions {
 }
 
 ext.isCiServer = System.getenv().get("CI") != null
+ext.testVersionFromLocalRepository = project.hasProperty('testVersionFromLocalRepository')
 
 tasks.withType(Test) {
     systemProperty "test.directory", layout.buildDirectory.dir("test files").map { it.asFile.absolutePath }.get()
@@ -23,6 +24,8 @@ tasks.withType(Test) {
         maxFailures = 10
         failOnPassedAfterRetry = true
     }
+    classpath = files(configurations.testRuntimeClasspath)
+    classpath.from(sourceSets.test.output)
 }
 
 def testJni = tasks.register("testJni", Test) {
@@ -86,7 +89,23 @@ allprojects {
 
 dependencies {
     compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+    testImplementation project(":")
     testImplementation 'org.spockframework:spock-core:1.3-groovy-2.5'
+}
+
+if (testVersionFromLocalRepository) {
+    group = "new-group-for-root-project"
+    configurations.all {
+        resolutionStrategy.dependencySubstitution {
+            substitute project(':') with module("net.rubygrapefruit:native-platform:${version}")
+        }
+    }
+    repositories {
+        maven {
+            name = "IncomingLocalRepository"
+            url = rootProject.file("incoming-repo")
+        }
+    }
 }
 
 // Only depend on variants which can be built on the current machine
@@ -443,8 +462,10 @@ afterEvaluate {
             binary.tasks.withType(LinkSharedLibrary) { builderTask ->
                 nativeJar.into("net/rubygrapefruit/platform/$variantName") { from builderTask.linkedFile }
             }
-            project.tasks.test {
-                classpath.from nativeJar
+            if (!testVersionFromLocalRepository) {
+                project.tasks.test {
+                    classpath.from nativeJar
+                }
             }
         }
     }

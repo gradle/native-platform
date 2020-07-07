@@ -2,12 +2,20 @@ import jetbrains.buildServer.configs.kotlin.v2019_2.BuildType
 import jetbrains.buildServer.configs.kotlin.v2019_2.DslContext
 import jetbrains.buildServer.configs.kotlin.v2019_2.FailureAction
 import jetbrains.buildServer.configs.kotlin.v2019_2.RelativeId
+import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.gradle
 
 class NativePlatformCompatibilityTest(agent: Agent, buildDependencies: List<BuildType>, init: BuildType.() -> Unit = {}) : BuildType({
     name = "Compatibility test on $agent"
     id = RelativeId("CompatibilityTest$agent")
 
     runOn(agent)
+
+    steps {
+        gradle {
+            tasks = "clean :test -PtestVersionFromLocalRepository"
+            buildFile = ""
+        }
+    }
 
     vcs {
         root(DslContext.settingsRoot)
