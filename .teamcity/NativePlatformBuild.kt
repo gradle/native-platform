@@ -31,9 +31,16 @@ open class NativePlatformBuild(agent: Agent, init: BuildType.() -> Unit = {}) : 
         root(DslContext.settingsRoot)
     }
 
+    val publishTask = when (agent) {
+        in agentsForAllJniPublications -> " publishJniToLocalRepo"
+        in agentsForNcursesOnlyPublications -> " publishNcursesJniToLocalRepo"
+        agentForJavaPublication -> " publishJniToLocalRepo publishMainToLocalRepo"
+        else -> ""
+    }
+
     steps {
         gradle {
-            tasks = "clean build"
+            tasks = "clean build${publishTask}"
             buildFile = ""
         }
     }
@@ -51,6 +58,7 @@ open class NativePlatformBuild(agent: Agent, init: BuildType.() -> Unit = {}) : 
     artifactRules = """
         hs_err*
         build/**/output.txt
+        build/repo => repo
     """.trimIndent() + "\n${archiveReports}"
 
     init(this)

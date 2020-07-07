@@ -54,6 +54,11 @@ fun BuildFeatures.publishCommitStatus() {
     }
 }
 
+val agentForJavaPublication = Agent.UbuntuAmd64
+
+val agentsForAllJniPublications = listOf(Agent.UbuntuAmd64, Agent.MacOsAmd64, Agent.WindowsAmd64, Agent.AmazonLinuxAarch64, Agent.FreeBsdAmd64)
+val agentsForNcursesOnlyPublications = listOf(Agent.UbuntuAarch64, Agent.AmazonLinuxAmd64)
+
 fun BuildFeatures.lowerRequiredFreeDiskSpace() {
     freeDiskSpace {
         // Configure less than the default 3GB, since the disk of the agents is only 5GB big.

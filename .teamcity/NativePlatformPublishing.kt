@@ -25,11 +25,8 @@ import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.gradle
 class Publishing(buildAndTest: List<BuildType>, buildReceiptSource: BuildType) : Project({
     name = "Publishing"
 
-    val agentsForAllJniPublications = listOf(Agent.UbuntuAmd64, Agent.MacOsAmd64, Agent.WindowsAmd64, Agent.AmazonLinuxAarch64, Agent.FreeBsdAmd64)
-    val agentsForNcursesOnlyPublications = listOf(Agent.UbuntuAarch64, Agent.AmazonLinuxAmd64)
-
     ReleaseType.values().forEach { releaseType ->
-        val publishProject = NativePlatformPublishProject(releaseType, agentsForAllJniPublications, agentsForNcursesOnlyPublications, buildAndTest, buildReceiptSource)
+        val publishProject = NativePlatformPublishProject(releaseType, buildAndTest, buildReceiptSource)
         buildType(publishProject.publishApi)
         subProject(publishProject)
     }
@@ -37,7 +34,7 @@ class Publishing(buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
 
 private const val versionPostfixParameterName = "versionPostfix"
 
-class NativePlatformPublishProject(releaseType: ReleaseType, agentsForAllJniPublications: List<Agent>, agentsForNcursesOnlyPublications: List<Agent>, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) : Project({
+class NativePlatformPublishProject(releaseType: ReleaseType, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) : Project({
     id = RelativeId("Publish${releaseType.name}")
     name = "Publish ${releaseType.name}"
 
@@ -51,10 +48,10 @@ class NativePlatformPublishProject(releaseType: ReleaseType, agentsForAllJniPubl
         }
     }
 }) {
-    val nativeLibraryAllJniBuilds = agentsForAllJniPublications.map { agent ->
+    private val nativeLibraryAllJniBuilds = agentsForAllJniPublications.map { agent ->
         NativeLibraryPublish(releaseType, agent, buildAndTest, buildReceiptSource).also(::buildType)
     }
-    val nativeLibraryNcursesJniBuilds = agentsForNcursesOnlyPublications.map { agent ->
+    private val nativeLibraryNcursesJniBuilds = agentsForNcursesOnlyPublications.map { agent ->
         NativeLibraryPublishNcurses(releaseType, agent, buildAndTest, buildReceiptSource).also(::buildType)
     }
     val publishApi = PublishJavaApi(releaseType, nativeLibraryAllJniBuilds + nativeLibraryNcursesJniBuilds, buildAndTest, buildReceiptSource)
