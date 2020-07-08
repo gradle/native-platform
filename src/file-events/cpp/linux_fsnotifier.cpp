@@ -278,6 +278,20 @@ static int addInotifyWatch(const u16string& path, shared_ptr<Inotify> inotify, J
     return fdWatch;
 }
 
+void Server::registerPathsInternal(const vector<u16string>& paths) {
+    for (auto& path : paths) {
+        registerPath(path);
+    }
+}
+
+bool Server::unregisterPathsInternal(const vector<u16string>& paths) {
+    bool success = true;
+    for (auto& path : paths) {
+        success &= unregisterPath(path);
+    }
+    return success;
+}
+
 void Server::registerPath(const u16string& path) {
     auto it = watchPoints.find(path);
     if (it != watchPoints.end()) {

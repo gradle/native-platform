@@ -364,42 +364,39 @@ void Server::queueOnRunLoop(Command* command) {
     }
 }
 
-void Server::registerPaths(const vector<u16string>& paths) {
+void Server::registerPathsInternal(const vector<u16string>& paths) {
     executeOnRunLoop(commandTimeoutInMillis, [this, paths]() {
-        AbstractServer::registerPaths(paths);
+        for (auto& path : paths) {
+            u16string longPath = path;
+            convertToLongPathIfNeeded(longPath);
+            auto it = watchPoints.find(longPath);
+            if (it != watchPoints.end()) {
+                if (it->second.status != WatchPointStatus::FINISHED) {
+                    throw FileWatcherException("Already watching path", path);
+                }
+                watchPoints.erase(it);
+            }
+            watchPoints.emplace(piecewise_construct,
+                forward_as_tuple(longPath),
+                forward_as_tuple(this, bufferSize, longPath));
+        }
         return true;
     });
 }
 
-bool Server::unregisterPaths(const vector<u16string>& paths) {
+bool Server::unregisterPathsInternal(const vector<u16string>& paths) {
     return executeOnRunLoop(commandTimeoutInMillis, [this, paths]() {
-        return AbstractServer::unregisterPaths(paths);
-    });
-}
-
-void Server::registerPath(const u16string& path) {
-    u16string longPath = path;
-    convertToLongPathIfNeeded(longPath);
-    auto it = watchPoints.find(longPath);
-    if (it != watchPoints.end()) {
-        if (it->second.status != WatchPointStatus::FINISHED) {
-            throw FileWatcherException("Already watching path", path);
+        bool success = true;
+        for (auto& path : paths) {
+            u16string longPath = path;
+            convertToLongPathIfNeeded(longPath);
+            if (watchPoints.erase(longPath) == 0) {
+                logToJava(LogLevel::INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
+                success = false;
+            }
         }
-        watchPoints.erase(it);
-    }
-    watchPoints.emplace(piecewise_construct,
-        forward_as_tuple(longPath),
-        forward_as_tuple(this, bufferSize, longPath));
-}
-
-bool Server::unregisterPath(const u16string& path) {
-    u16string longPath = path;
-    convertToLongPathIfNeeded(longPath);
-    if (watchPoints.erase(longPath) == 0) {
-        logToJava(LogLevel::INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
-        return false;
-    }
-    return true;
+        return success;
+    });
 }
 
 //

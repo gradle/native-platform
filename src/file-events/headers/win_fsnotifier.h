@@ -86,17 +86,14 @@ public:
 
     void handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& buffer, DWORD bytesTransferred);
 
-    virtual void registerPaths(const vector<u16string>& paths) override;
-    virtual bool unregisterPaths(const vector<u16string>& paths) override;
-
 protected:
     void initializeRunLoop() override;
     void runLoop() override;
     virtual void queueOnRunLoop(Command* command) override;
-
-    void registerPath(const u16string& path) override;
-    bool unregisterPath(const u16string& path) override;
     void shutdownRunLoop() override;
+
+    virtual void registerPathsInternal(const vector<u16string>& paths) override;
+    virtual bool unregisterPathsInternal(const vector<u16string>& paths) override;
 
 private:
     void handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMATION* info);

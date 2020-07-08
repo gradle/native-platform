@@ -94,8 +94,8 @@ protected:
     virtual void queueOnRunLoop(Command* command) = 0;
     static void executeCommand(Command* command);
 
-    virtual void registerPath(const u16string& path) = 0;
-    virtual bool unregisterPath(const u16string& path) = 0;
+    virtual void registerPathsInternal(const vector<u16string>& paths) = 0;
+    virtual bool unregisterPathsInternal(const vector<u16string>& paths) = 0;
 
     void reportChangeEvent(JNIEnv* env, ChangeType type, const u16string& path);
     void reportUnknownEvent(JNIEnv* env, const u16string& path);

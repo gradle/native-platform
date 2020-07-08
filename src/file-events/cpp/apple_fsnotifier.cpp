@@ -247,34 +247,31 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
     reportChangeEvent(env, type, pathStr);
 }
 
-void Server::registerPaths(const vector<u16string>& paths) {
+void Server::registerPathsInternal(const vector<u16string>& paths) {
     executeOnRunLoop(commandTimeoutInMillis, [this, paths]() {
-        AbstractServer::registerPaths(paths);
+        for (auto& path : paths) {
+            if (watchPoints.find(path) != watchPoints.end()) {
+                throw FileWatcherException("Already watching path", path);
+            }
+            watchPoints.emplace(path);
+        }
+        updateEventStream();
         return true;
     });
 }
 
-bool Server::unregisterPaths(const vector<u16string>& paths) {
+bool Server::unregisterPathsInternal(const vector<u16string>& paths) {
     return executeOnRunLoop(commandTimeoutInMillis, [this, paths]() {
-        return AbstractServer::unregisterPaths(paths);
+        bool success = true;
+        for (auto& path : paths) {
+            if (watchPoints.erase(path) == 0) {
+                logToJava(LogLevel::INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
+                success = false;
+            }
+        }
+        updateEventStream();
+        return success;
     });
-}
-
-void Server::registerPath(const u16string& path) {
-    if (watchPoints.find(path) != watchPoints.end()) {
-        throw FileWatcherException("Already watching path", path);
-    }
-    watchPoints.emplace(path);
-    updateEventStream();
-}
-
-bool Server::unregisterPath(const u16string& path) {
-    if (watchPoints.erase(path) == 0) {
-        logToJava(LogLevel::INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
-        return false;
-    }
-    updateEventStream();
-    return true;
 }
 
 void Server::updateEventStream() {

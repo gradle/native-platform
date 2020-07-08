@@ -30,11 +30,9 @@ protected:
     void runLoop() override;
     virtual void queueOnRunLoop(Command* command) override;
 
-    virtual void registerPaths(const vector<u16string>& paths) override;
-    virtual bool unregisterPaths(const vector<u16string>& paths) override;
+    virtual void registerPathsInternal(const vector<u16string>& paths) override;
+    virtual bool unregisterPathsInternal(const vector<u16string>& paths) override;
 
-    void registerPath(const u16string& path) override;
-    bool unregisterPath(const u16string& path) override;
     void shutdownRunLoop() override;
 
 private:
