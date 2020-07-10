@@ -125,6 +125,27 @@ class SymlinkFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         )
     }
 
+    def "can detect changes if parent of watched directory is a symlink"() {
+        given:
+        def canonicalFile = new File(rootDir, "watchedRoot/modified.txt")
+        canonicalFile.parentFile.mkdirs()
+        createNewFile(canonicalFile)
+        def linkedParent = new File(testDir, "parent")
+        def watchedDir = new File(linkedParent, "watchedRoot")
+        def watchedFile = new File(watchedDir, "modified.txt")
+        createSymlink(linkedParent, rootDir)
+        startWatcher(watchedDir)
+
+        when:
+        watchedFile << "change"
+
+        then:
+        expectEvents byPlatform(
+            (MAC_OS): [change(MODIFIED, canonicalFile)],
+            (OTHERWISE): [change(MODIFIED, watchedFile)]
+        )
+    }
+
     @Requires({ Platform.current().macOs || Platform.current().windows })
     def "can watch directory via symlink and directly at the same time"() {
         given:
