@@ -35,15 +35,10 @@ project {
     val buildReceiptSource = NativePlatformBuild(Agent.UbuntuAmd64) {
         artifactRules = listOf(artifactRules, buildReceipt).joinToString("\n")
     }
-    val builds = listOf(buildReceiptSource) +
-        Agent.values().filter { it !in listOf(Agent.UbuntuAmd64, Agent.CentOsAmd64) }.map { NativePlatformBuild(it) }
-    builds.forEach(::buildType)
-    buildType(BuildTrigger(builds))
+    val testBuilds = listOf(buildReceiptSource) +
+        Agent.values().filter { it !in listOf(Agent.UbuntuAmd64, Agent.CentOsAmd64) }.map { NativePlatformBuild(it).also(::buildType) }
+    val compatibilityTestBuilds = listOf(NativePlatformCompatibilityTest(Agent.CentOsAmd64, testBuilds).also(::buildType))
+    buildType(BuildTrigger(testBuilds + compatibilityTestBuilds))
 
-    subProject(Publishing(builds, buildReceiptSource))
-    subProject {
-        name = "Compatibility Tests"
-        id = RelativeId("CompatibilityTests")
-        buildType(NativePlatformCompatibilityTest(Agent.CentOsAmd64, builds))
-    }
+    subProject(Publishing(testBuilds, buildReceiptSource))
 }
