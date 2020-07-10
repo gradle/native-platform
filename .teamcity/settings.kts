@@ -36,7 +36,8 @@ project {
         artifactRules = listOf(artifactRules, buildReceipt).joinToString("\n")
     }
     val testBuilds = listOf(buildReceiptSource) +
-        Agent.values().filter { it !in listOf(Agent.UbuntuAmd64, Agent.CentOsAmd64) }.map { NativePlatformBuild(it).also(::buildType) }
+        Agent.values().filter { it !in listOf(Agent.UbuntuAmd64, Agent.CentOsAmd64) }.map { NativePlatformBuild(it) }
+    testBuilds.forEach(::buildType)
     val compatibilityTestBuilds = listOf(NativePlatformCompatibilityTest(Agent.CentOsAmd64, testBuilds).also(::buildType))
     buildType(BuildTrigger(testBuilds + compatibilityTestBuilds))
 
