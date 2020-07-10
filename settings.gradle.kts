@@ -1,6 +1,6 @@
 plugins {
     `gradle-enterprise`
-    id("com.gradle.enterprise.gradle-enterprise-conventions-plugin").version("0.3")
+    id("com.gradle.enterprise.gradle-enterprise-conventions-plugin").version("0.4")
 }
 
 rootProject.name = "native-platform"
