@@ -14,7 +14,12 @@ versions {
     nextSnapshot = '5'
 }
 
-ext.isCiServer = System.getenv().get("CI") != null
+ext.isCiServer = providers.environmentVariable("CI").forUseAtConfigurationTime().isPresent()
+
+// Enabling this property means that the tests will try to resolve an external dependency for native platform
+// and test that instead of building native platform for the current machine.
+// The external dependency can live in the file repository `incoming-repo`.
+ext.testVersionFromLocalRepository = providers.gradleProperty('testVersionFromLocalRepository').forUseAtConfigurationTime().isPresent()
 
 tasks.withType(Test) {
     systemProperty "test.directory", layout.buildDirectory.dir("test files").map { it.asFile.absolutePath }.get()
@@ -23,6 +28,10 @@ tasks.withType(Test) {
         maxFailures = 10
         failOnPassedAfterRetry = true
     }
+    // Reconfigure the classpath for the test task here, so we can use dependency substitution on `testRuntimeClasspath`
+    // to test an external dependency.
+    // We omit `sourceSets.main.output` here and replace it with a test dependency on `project(':')` further down.
+    classpath = files(configurations.testRuntimeClasspath, sourceSets.test.output)
 }
 
 def testJni = tasks.register("testJni", Test) {
@@ -86,7 +95,28 @@ allprojects {
 
 dependencies {
     compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+    // We need to add the root project to testImplementation manually, since we changed the wiring
+    // for the test task to not use sourceSets.main.output.
+    // This allows using dependency substitution for the root project.
+    testImplementation project(":")
     testImplementation 'org.spockframework:spock-core:1.3-groovy-2.5'
+}
+
+if (testVersionFromLocalRepository) {
+    // We need to change the group here, since dependency substitution will not replace
+    // a project artifact with an external artifact with the same GAV coordinates.
+    group = "new-group-for-root-project"
+    configurations.all {
+        resolutionStrategy.dependencySubstitution {
+            substitute project(':') with module("net.rubygrapefruit:native-platform:${version}")
+        }
+    }
+    repositories {
+        maven {
+            name = "IncomingLocalRepository"
+            url = rootProject.file("incoming-repo")
+        }
+    }
 }
 
 // Only depend on variants which can be built on the current machine
@@ -443,8 +473,10 @@ afterEvaluate {
             binary.tasks.withType(LinkSharedLibrary) { builderTask ->
                 nativeJar.into("net/rubygrapefruit/platform/$variantName") { from builderTask.linkedFile }
             }
-            project.tasks.test {
-                classpath.from nativeJar
+            if (!testVersionFromLocalRepository) {
+                project.tasks.named("test", Test).configure {
+                    classpath.from nativeJar
+                }
             }
         }
     }
