@@ -14,24 +14,19 @@ interface Os {
         override fun Requirements.additionalRequirements() {
             contains(osDistributionNameParameter, "amazon")
         }
-
     }
 
     object CentOs : Linux(Ncurses.Ncurses6) {
         override fun Requirements.additionalRequirements() {
             contains(osDistributionNameParameter, "centos")
         }
-
     }
 
-    object MacOs : OsWithNameRequirement("Mac OS X", "MacOs") {
-    }
+    object MacOs : OsWithNameRequirement("Mac OS X", "MacOs")
 
-    object Windows : OsWithNameRequirement("Windows", "Windows") {
-    }
+    object Windows : OsWithNameRequirement("Windows", "Windows")
 
-    object FreeBsd : OsWithNameRequirement("FreeBSD", "FreeBsd") {
-    }
+    object FreeBsd : OsWithNameRequirement("FreeBSD", "FreeBsd")
 }
 
 private const val osDistributionNameParameter = "system.agent.os.distribution.name"
@@ -45,7 +40,7 @@ abstract class OsWithNameRequirement(private val osName: String, override val os
     open fun Requirements.additionalRequirements() {}
 }
 
-abstract class Linux(val ncurses: Ncurses): OsWithNameRequirement("Linux", "Linux")
+abstract class Linux(val ncurses: Ncurses) : OsWithNameRequirement("Linux", "Linux")
 
 enum class Ncurses {
     Ncurses5,

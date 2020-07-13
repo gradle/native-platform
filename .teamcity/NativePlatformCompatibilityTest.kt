@@ -34,7 +34,7 @@ class NativePlatformCompatibilityTest(agent: Agent, buildDependencies: List<Buil
     artifactRules = """
         hs_err*
         build/**/output.txt
-    """.trimIndent() + "\n${archiveReports}"
+    """.trimIndent() + "\n$archiveReports"
 
     dependencies {
         buildDependencies.forEach {

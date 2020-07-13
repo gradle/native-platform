@@ -114,7 +114,7 @@ class NativeLibraryPublish(releaseType: ReleaseType = ReleaseType.Snapshot, agen
         artifactRules = """
             build/**/*.pdb
             build/libs/**
-        """.trimIndent() + "\n${archiveReports}"
+        """.trimIndent() + "\n$archiveReports"
     })
 
 class NativeLibraryPublishNcurses(releaseType: ReleaseType = ReleaseType.Snapshot, agent: Agent, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :

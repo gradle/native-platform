@@ -40,7 +40,7 @@ open class NativePlatformBuild(agent: Agent, init: BuildType.() -> Unit = {}) : 
 
     steps {
         gradle {
-            tasks = "clean build${publishTask}"
+            tasks = "clean build$publishTask"
             buildFile = ""
         }
     }
@@ -59,7 +59,7 @@ open class NativePlatformBuild(agent: Agent, init: BuildType.() -> Unit = {}) : 
         hs_err*
         build/**/output.txt
         build/repo => repo
-    """.trimIndent() + "\n${archiveReports}"
+    """.trimIndent() + "\n$archiveReports"
 
     init(this)
 })
