@@ -26,12 +26,9 @@ void Server::createEventStream() {
         // CFRelease(cfPath);
     }
 
-    // Make sure we don't miss any events, even if we restart watching
-    // before the first events are processed
-    if (lastSeenEventId == kFSEventStreamEventIdSinceNow) {
-        lastSeenEventId = FSEventsGetCurrentEventId();
-    }
-    finishedProcessingHistoricalEvents = false;
+    // We are not going to get a kFSEventStreamEventFlagHistoryDone event if we start from now
+    finishedProcessingHistoricalEvents = lastSeenEventId == kFSEventStreamEventIdSinceNow;
+
     FSEventStreamContext context = {
         0,               // version, must be 0
         (void*) this,    // info
@@ -64,7 +61,6 @@ void Server::closeEventStream() {
 
     FSEventStreamFlushSync(eventStream);
     FSEventStreamStop(eventStream);
-    lastSeenEventId = FSEventStreamGetLatestEventId(eventStream);
     logToJava(LogLevel::FINE, "Closed event stream with last seen ID: %d", lastSeenEventId);
     FSEventStreamInvalidate(eventStream);
     FSEventStreamRelease(eventStream);
@@ -198,6 +194,7 @@ void Server::handleEvents(
         for (size_t i = 0; i < numEvents; i++) {
             const FSEventStreamEventFlags flags = eventFlags[i];
             const FSEventStreamEventId eventId = eventIds[i];
+            lastSeenEventId = eventId;
             if (IS_SET(flags, kFSEventStreamEventFlagHistoryDone)) {
                 // Mark all new watch points as able to receive historical events from this point on
                 for (auto& it : watchPoints) {
@@ -286,7 +283,10 @@ void Server::registerPaths(const vector<u16string>& paths) {
             if (watchPoints.find(path) != watchPoints.end()) {
                 throw FileWatcherException("Already watching path", path);
             }
-            watchPoints.emplace(path, WatchPointState::NEW);
+            WatchPointState state = lastSeenEventId == kFSEventStreamEventIdSinceNow
+                ? WatchPointState::HISTORICAL
+                : WatchPointState::NEW;
+            watchPoints.emplace(path, state);
         }
         updateEventStream();
         return true;

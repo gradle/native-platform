@@ -192,7 +192,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         def onslaught = new OnslaughtExecuter(
             (otherDirs.collect { otherDir ->
                 { ->
-                    Thread.sleep((long) (Math.random() * 100))
+                    Thread.sleep((long) (Math.random() * 100) + 100)
                     watcher.startWatching(otherDir)
                 } as Runnable
             }) + (changedFiles.collect { changedFile ->
