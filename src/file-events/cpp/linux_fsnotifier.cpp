@@ -91,6 +91,11 @@ Server::Server(JNIEnv* env, jobject watcherCallback)
 void Server::initializeRunLoop() {
 }
 
+void Server::queueOnRunLoop(Command*) {
+    // We don't queue stuff on Linux
+    abort();
+}
+
 void Server::shutdownRunLoop() {
     shutdownEvent.trigger();
 }
@@ -138,6 +143,7 @@ void Server::handleEvents() {
     unsigned int available;
     ioctl(inotify->fd, FIONREAD, &available);
 
+    unique_lock<mutex> lock(mutationMutex);
     while (available > 0) {
         ssize_t bytesRead = read(inotify->fd, &buffer[0], buffer.capacity());
 
@@ -156,7 +162,6 @@ void Server::handleEvents() {
                 break;
             default:
                 // Handle events
-                unique_lock<mutex> lock(mutationMutex);
                 JNIEnv* env = getThreadEnv();
                 logToJava(LogLevel::FINE, "Processing %d bytes worth of events", bytesRead);
                 int index = 0;
@@ -271,6 +276,22 @@ static int addInotifyWatch(const u16string& path, shared_ptr<Inotify> inotify, J
         throw FileWatcherException("Couldn't add watch", path, errno);
     }
     return fdWatch;
+}
+
+void Server::registerPaths(const vector<u16string>& paths) {
+    unique_lock<mutex> lock(mutationMutex);
+    for (auto& path : paths) {
+        registerPath(path);
+    }
+}
+
+bool Server::unregisterPaths(const vector<u16string>& paths) {
+    unique_lock<mutex> lock(mutationMutex);
+    bool success = true;
+    for (auto& path : paths) {
+        success &= unregisterPath(path);
+    }
+    return success;
 }
 
 void Server::registerPath(const u16string& path) {

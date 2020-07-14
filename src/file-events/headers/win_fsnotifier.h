@@ -3,7 +3,6 @@
 #ifdef _WIN32
 
 #include <Shlwapi.h>
-#include <functional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -85,18 +84,15 @@ class Server : public AbstractServer {
 public:
     Server(JNIEnv* env, size_t bufferSize, long commandTimeoutInMillis, jobject watcherCallback);
 
-    void handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& buffer, DWORD bytesTransferred);
-    bool executeOnRunLoop(function<bool()> command);
-
     virtual void registerPaths(const vector<u16string>& paths) override;
     virtual bool unregisterPaths(const vector<u16string>& paths) override;
+
+    void handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& buffer, DWORD bytesTransferred);
 
 protected:
     void initializeRunLoop() override;
     void runLoop() override;
-
-    void registerPath(const u16string& path) override;
-    bool unregisterPath(const u16string& path) override;
+    virtual void queueOnRunLoop(Command* command) override;
     void shutdownRunLoop() override;
 
 private:

@@ -141,20 +141,29 @@ void AbstractServer::executeRunLoop(JNIEnv* env) {
     terminationVariable.notify_all();
 }
 
-void AbstractServer::registerPaths(const vector<u16string>& paths) {
-    unique_lock<mutex> lock(mutationMutex);
-    for (auto& path : paths) {
-        registerPath(path);
+void AbstractServer::executeCommand(Command* command) {
+    try {
+        command->result = command->action();
+    } catch (const exception&) {
+        command->failure = current_exception();
     }
+    unique_lock<mutex> lock(command->executionMutex);
+    command->executed.notify_all();
 }
 
-bool AbstractServer::unregisterPaths(const vector<u16string>& paths) {
-    bool success = true;
-    unique_lock<mutex> lock(mutationMutex);
-    for (auto& path : paths) {
-        success &= unregisterPath(path);
+bool AbstractServer::executeOnRunLoop(const long timeout, function<bool()> action) {
+    Command command;
+    command.action = action;
+    unique_lock<mutex> lock(command.executionMutex);
+    queueOnRunLoop(&command);
+    auto status = command.executed.wait_for(lock, chrono::milliseconds(timeout));
+    if (status == cv_status::timeout) {
+        throw FileWatcherException("Execution timed out");
+    } else if (command.failure) {
+        rethrow_exception(command.failure);
+    } else {
+        return command.result;
     }
-    return success;
 }
 
 bool AbstractServer::awaitTermination(long timeoutInMillis) {

@@ -140,7 +140,6 @@ void WatchPoint::handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred) {
 }
 
 void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& buffer, DWORD bytesTransferred) {
-    unique_lock<mutex> lock(mutationMutex);
     JNIEnv* env = getThreadEnv();
     const u16string& path = watchPoint->path;
 
@@ -307,7 +306,7 @@ void Server::initializeRunLoop() {
 }
 
 void Server::shutdownRunLoop() {
-    executeOnRunLoop([this]() {
+    executeOnRunLoop(commandTimeoutInMillis, [this]() {
         shouldTerminate = true;
         return true;
     });
@@ -319,7 +318,6 @@ void Server::runLoop() {
     }
 
     // We have received termination, cancel all watchers
-    unique_lock<mutex> lock(mutationMutex);
     logToJava(LogLevel::FINE, "Finished with run loop, now cancelling remaining watch points", NULL);
     for (auto& it : watchPoints) {
         auto& watchPoint = it.second;
@@ -352,79 +350,51 @@ void Server::runLoop() {
     CloseHandle(threadHandle);
 }
 
-struct Command {
-    function<bool()> function;
-    mutex executionMutex;
-    condition_variable executed;
-    bool result;
-    exception_ptr failure;
-};
-
 static void CALLBACK executeOnRunLoopCallback(_In_ ULONG_PTR info) {
     Command* command = (Command*) info;
-    try {
-        command->result = command->function();
-    } catch (const exception&) {
-        command->failure = current_exception();
-    }
-    unique_lock<mutex> lock(command->executionMutex);
-    command->executed.notify_all();
+    Server::executeCommand(command);
 }
 
-bool Server::executeOnRunLoop(function<bool()> function) {
-    Command command;
-    command.function = function;
-    unique_lock<mutex> lock(command.executionMutex);
-    DWORD ret = QueueUserAPC(executeOnRunLoopCallback, threadHandle, (ULONG_PTR) &command);
+void Server::queueOnRunLoop(Command* command) {
+    DWORD ret = QueueUserAPC(executeOnRunLoopCallback, threadHandle, (ULONG_PTR) command);
     if (ret == 0) {
         throw FileWatcherException("Received error while queuing APC", GetLastError());
-    }
-    auto status = command.executed.wait_for(lock, chrono::milliseconds(commandTimeoutInMillis));
-    if (status == cv_status::timeout) {
-        throw FileWatcherException("Execution timed out");
-    } else if (command.failure) {
-        rethrow_exception(command.failure);
-    } else {
-        return command.result;
     }
 }
 
 void Server::registerPaths(const vector<u16string>& paths) {
-    executeOnRunLoop([this, paths]() {
-        AbstractServer::registerPaths(paths);
+    executeOnRunLoop(commandTimeoutInMillis, [this, paths]() {
+        for (auto& path : paths) {
+            u16string longPath = path;
+            convertToLongPathIfNeeded(longPath);
+            auto it = watchPoints.find(longPath);
+            if (it != watchPoints.end()) {
+                if (it->second.status != WatchPointStatus::FINISHED) {
+                    throw FileWatcherException("Already watching path", path);
+                }
+                watchPoints.erase(it);
+            }
+            watchPoints.emplace(piecewise_construct,
+                forward_as_tuple(longPath),
+                forward_as_tuple(this, bufferSize, longPath));
+        }
         return true;
     });
 }
 
 bool Server::unregisterPaths(const vector<u16string>& paths) {
-    return executeOnRunLoop([this, paths]() {
-        return AbstractServer::unregisterPaths(paths);
-    });
-}
-
-void Server::registerPath(const u16string& path) {
-    u16string longPath = path;
-    convertToLongPathIfNeeded(longPath);
-    auto it = watchPoints.find(longPath);
-    if (it != watchPoints.end()) {
-        if (it->second.status != WatchPointStatus::FINISHED) {
-            throw FileWatcherException("Already watching path", path);
+    return executeOnRunLoop(commandTimeoutInMillis, [this, paths]() {
+        bool success = true;
+        for (auto& path : paths) {
+            u16string longPath = path;
+            convertToLongPathIfNeeded(longPath);
+            if (watchPoints.erase(longPath) == 0) {
+                logToJava(LogLevel::INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
+                success = false;
+            }
         }
-        watchPoints.erase(it);
-    }
-    watchPoints.emplace(piecewise_construct,
-        forward_as_tuple(longPath),
-        forward_as_tuple(this, bufferSize, longPath));
-}
-
-bool Server::unregisterPath(const u16string& path) {
-    u16string longPath = path;
-    convertToLongPathIfNeeded(longPath);
-    if (watchPoints.erase(longPath) == 0) {
-        logToJava(LogLevel::INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
-        return false;
-    }
-    return true;
+        return success;
+    });
 }
 
 //

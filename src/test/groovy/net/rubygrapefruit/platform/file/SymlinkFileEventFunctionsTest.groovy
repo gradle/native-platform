@@ -163,7 +163,7 @@ class SymlinkFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         then:
         expectEvents byPlatform(
-            (MAC_OS): [change(MODIFIED, canonicalFile), change(MODIFIED, canonicalFile)],
+            (MAC_OS): [change(MODIFIED, canonicalFile)],
             (OTHERWISE): [change(MODIFIED, linkedFile), change(MODIFIED, canonicalFile)]
         )
     }
