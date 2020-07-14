@@ -197,6 +197,7 @@ void Server::handleEvents(
     try {
         for (size_t i = 0; i < numEvents; i++) {
             const FSEventStreamEventFlags flags = eventFlags[i];
+            const FSEventStreamEventId eventId = eventIds[i];
             if (IS_SET(flags, kFSEventStreamEventFlagHistoryDone)) {
                 // Mark all new watch points as able to receive historical events from this point on
                 for (auto& it : watchPoints) {
@@ -205,12 +206,12 @@ void Server::handleEvents(
                     }
                 }
                 finishedProcessingHistoricalEvents = true;
+                logToJava(LogLevel::FINE, "Finished processing historical events (ID %d)", eventId);
                 continue;
             }
 
             FSEventStreamEventFlags normalizedFlags = flags & ~IGNORED_FLAGS;
             const char* path = eventPaths[i];
-            const FSEventStreamEventId eventId = eventIds[i];
             logToJava(LogLevel::FINE, "Event flags: 0x%x (normalized: 0x%x) with ID %d for '%s'",
                 flags, normalizedFlags, eventId, path);
 
