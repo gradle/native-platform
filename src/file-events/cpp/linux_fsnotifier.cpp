@@ -143,6 +143,7 @@ void Server::handleEvents() {
     unsigned int available;
     ioctl(inotify->fd, FIONREAD, &available);
 
+    unique_lock<mutex> lock(mutationMutex);
     while (available > 0) {
         ssize_t bytesRead = read(inotify->fd, &buffer[0], buffer.capacity());
 
@@ -161,7 +162,6 @@ void Server::handleEvents() {
                 break;
             default:
                 // Handle events
-                unique_lock<mutex> lock(mutationMutex);
                 JNIEnv* env = getThreadEnv();
                 logToJava(LogLevel::FINE, "Processing %d bytes worth of events", bytesRead);
                 int index = 0;
@@ -278,13 +278,15 @@ static int addInotifyWatch(const u16string& path, shared_ptr<Inotify> inotify, J
     return fdWatch;
 }
 
-void Server::registerPathsInternal(const vector<u16string>& paths) {
+void Server::registerPaths(const vector<u16string>& paths) {
+    unique_lock<mutex> lock(mutationMutex);
     for (auto& path : paths) {
         registerPath(path);
     }
 }
 
-bool Server::unregisterPathsInternal(const vector<u16string>& paths) {
+bool Server::unregisterPaths(const vector<u16string>& paths) {
+    unique_lock<mutex> lock(mutationMutex);
     bool success = true;
     for (auto& path : paths) {
         success &= unregisterPath(path);

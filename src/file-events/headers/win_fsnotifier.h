@@ -84,6 +84,9 @@ class Server : public AbstractServer {
 public:
     Server(JNIEnv* env, size_t bufferSize, long commandTimeoutInMillis, jobject watcherCallback);
 
+    virtual void registerPaths(const vector<u16string>& paths) override;
+    virtual bool unregisterPaths(const vector<u16string>& paths) override;
+
     void handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& buffer, DWORD bytesTransferred);
 
 protected:
@@ -91,9 +94,6 @@ protected:
     void runLoop() override;
     virtual void queueOnRunLoop(Command* command) override;
     void shutdownRunLoop() override;
-
-    virtual void registerPathsInternal(const vector<u16string>& paths) override;
-    virtual bool unregisterPathsInternal(const vector<u16string>& paths) override;
 
 private:
     void handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMATION* info);

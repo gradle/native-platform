@@ -166,16 +166,6 @@ bool AbstractServer::executeOnRunLoop(const long timeout, function<bool()> actio
     }
 }
 
-void AbstractServer::registerPaths(const vector<u16string>& paths) {
-    unique_lock<mutex> lock(mutationMutex);
-    registerPathsInternal(paths);
-}
-
-bool AbstractServer::unregisterPaths(const vector<u16string>& paths) {
-    unique_lock<mutex> lock(mutationMutex);
-    return unregisterPathsInternal(paths);
-}
-
 bool AbstractServer::awaitTermination(long timeoutInMillis) {
     unique_lock<mutex> terminationLock(terminationMutex);
     if (terminated) {

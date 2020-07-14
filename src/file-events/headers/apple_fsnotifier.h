@@ -37,13 +37,13 @@ class Server : public AbstractServer {
 public:
     Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis, long commandTimeoutInMillis);
 
+    virtual void registerPaths(const vector<u16string>& paths) override;
+    virtual bool unregisterPaths(const vector<u16string>& paths) override;
+
 protected:
     void initializeRunLoop() override;
     void runLoop() override;
     virtual void queueOnRunLoop(Command* command) override;
-
-    virtual void registerPathsInternal(const vector<u16string>& paths) override;
-    virtual bool unregisterPathsInternal(const vector<u16string>& paths) override;
 
     void shutdownRunLoop() override;
 

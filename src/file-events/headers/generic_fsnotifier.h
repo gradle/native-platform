@@ -71,12 +71,12 @@ public:
     /**
      * Registers new watch point with the server for the given paths.
      */
-    virtual void registerPaths(const vector<u16string>& paths);
+    virtual void registerPaths(const vector<u16string>& paths) = 0;
 
     /**
      * Unregisters watch points with the server for the given paths.
      */
-    virtual bool unregisterPaths(const vector<u16string>& paths);
+    virtual bool unregisterPaths(const vector<u16string>& paths) = 0;
 
     /**
      * Shuts the server down.
@@ -94,16 +94,11 @@ protected:
     virtual void queueOnRunLoop(Command* command) = 0;
     static void executeCommand(Command* command);
 
-    virtual void registerPathsInternal(const vector<u16string>& paths) = 0;
-    virtual bool unregisterPathsInternal(const vector<u16string>& paths) = 0;
-
     void reportChangeEvent(JNIEnv* env, ChangeType type, const u16string& path);
     void reportUnknownEvent(JNIEnv* env, const u16string& path);
     void reportOverflow(JNIEnv* env, const u16string& path);
     void reportFailure(JNIEnv* env, const exception& ex);
     void reportTermination(JNIEnv* env);
-
-    mutex mutationMutex;
 
 private:
     mutex terminationMutex;

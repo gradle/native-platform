@@ -127,7 +127,6 @@ void Server::initializeRunLoop() {
 void Server::runLoop() {
     CFRunLoopRun();
 
-    unique_lock<mutex> lock(mutationMutex);
     closeEventStream();
     CFRelease(messageSource);
 }
@@ -280,7 +279,7 @@ void Server::handleEvent(JNIEnv* env, const u16string& path, const FSEventStream
     reportChangeEvent(env, type, path);
 }
 
-void Server::registerPathsInternal(const vector<u16string>& paths) {
+void Server::registerPaths(const vector<u16string>& paths) {
     executeOnRunLoop(commandTimeoutInMillis, [this, paths]() {
         for (auto& path : paths) {
             if (watchPoints.find(path) != watchPoints.end()) {
@@ -293,7 +292,7 @@ void Server::registerPathsInternal(const vector<u16string>& paths) {
     });
 }
 
-bool Server::unregisterPathsInternal(const vector<u16string>& paths) {
+bool Server::unregisterPaths(const vector<u16string>& paths) {
     return executeOnRunLoop(commandTimeoutInMillis, [this, paths]() {
         bool success = true;
         for (auto& path : paths) {

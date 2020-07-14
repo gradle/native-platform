@@ -89,14 +89,14 @@ class Server : public AbstractServer {
 public:
     Server(JNIEnv* env, jobject watcherCallback);
 
+    virtual void registerPaths(const vector<u16string>& paths) override;
+    virtual bool unregisterPaths(const vector<u16string>& paths) override;
+
 protected:
     void initializeRunLoop() override;
     void runLoop() override;
     virtual void queueOnRunLoop(Command* command) override;
     void shutdownRunLoop() override;
-
-    virtual void registerPathsInternal(const vector<u16string>& paths) override;
-    virtual bool unregisterPathsInternal(const vector<u16string>& paths) override;
 
 private:
     void processQueues(int timeout);
@@ -106,6 +106,7 @@ private:
     void registerPath(const u16string& path);
     bool unregisterPath(const u16string& path);
 
+    mutex mutationMutex;
     unordered_map<u16string, WatchPoint> watchPoints;
     unordered_map<int, u16string> watchRoots;
     unordered_map<int, u16string> recentlyUnregisteredWatchRoots;
