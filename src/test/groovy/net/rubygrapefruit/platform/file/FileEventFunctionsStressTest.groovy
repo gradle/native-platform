@@ -17,7 +17,6 @@
 package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.internal.Platform
-import net.rubygrapefruit.platform.internal.jni.NativeLogger
 import spock.lang.Requires
 import spock.lang.Timeout
 import spock.lang.Unroll
@@ -28,8 +27,6 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.logging.Level
-import java.util.logging.Logger
 
 import static java.util.concurrent.TimeUnit.SECONDS
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.CREATED
@@ -181,7 +178,6 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
 
     def "can start and stop watching directories without losing events"() {
         given:
-        Logger.getLogger(NativeLogger.name).level = Level.FINE
         def watchedDir = new File(rootDir, "watchedDir")
         assert watchedDir.mkdir()
         def changedFiles = (1..200).collect { index ->

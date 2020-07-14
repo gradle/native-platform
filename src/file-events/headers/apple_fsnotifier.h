@@ -4,7 +4,7 @@
 
 #include <CoreServices/CoreServices.h>
 #include <queue>
-#include <unordered_set>
+#include <unordered_map>
 
 #include "generic_fsnotifier.h"
 #include "net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions.h"
@@ -12,6 +12,18 @@
 using namespace std;
 
 class Server;
+
+enum class WatchPointState {
+    /**
+     * The watchpoint has been created recently, so it shouldn't receive historical events.
+     */
+    NEW,
+
+    /**
+     * The watchpoint can receive historical events.
+     */
+    HISTORICAL
+};
 
 static void handleEventsCallback(
     ConstFSEventStreamRef streamRef,
@@ -43,7 +55,9 @@ private:
     void handleCommands();
     friend void acceptTrigger(void* info);
 
-    void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);
+    WatchPointState getWatchPointState(const u16string& path);
+
+    void handleEvent(JNIEnv* env, const u16string& path, const FSEventStreamEventFlags flags);
     void handleEvents(
         size_t numEvents,
         char** eventPaths,
@@ -60,8 +74,9 @@ private:
 
     const long latencyInMillis;
     FSEventStreamEventId lastSeenEventId = kFSEventStreamEventIdSinceNow;
-    unordered_set<u16string> watchPoints;
+    unordered_map<u16string, WatchPointState> watchPoints;
     FSEventStreamRef eventStream = nullptr;
+    bool finishedProcessingHistoricalEvents;
 
     mutex commandMutex;
     queue<Command*> commands;

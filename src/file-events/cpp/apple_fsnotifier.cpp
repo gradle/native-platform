@@ -15,7 +15,8 @@ void Server::createEventStream() {
         throw FileWatcherException("Could not allocate array to store roots to watch");
     }
 
-    for (auto& path : watchPoints) {
+    for (auto& it : watchPoints) {
+        const u16string& path = it.first;
         CFStringRef cfPath = CFStringCreateWithCharacters(NULL, (UniChar*) path.c_str(), path.length());
         if (cfPath == nullptr) {
             throw FileWatcherException("Could not allocate CFString for path", path);
@@ -25,6 +26,12 @@ void Server::createEventStream() {
         // CFRelease(cfPath);
     }
 
+    // Make sure we don't miss any events, even if we restart watching
+    // before the first events are processed
+    if (lastSeenEventId == kFSEventStreamEventIdSinceNow) {
+        lastSeenEventId = FSEventsGetCurrentEventId();
+    }
+    finishedProcessingHistoricalEvents = false;
     FSEventStreamContext context = {
         0,               // version, must be 0
         (void*) this,    // info
@@ -55,17 +62,10 @@ void Server::closeEventStream() {
         return;
     }
 
-    // Reading the Apple docs it seems we should call FSEventStreamFlushSync() here.
-    // But doing so produces this log:
-    //
-    //     2020-02-17 23:02 java[50430] (FSEvents.framework) FSEventStreamFlushSync(): failed assertion '(SInt64)last_id > 0LL'
-    //
-    // According to this comment we should not use flush at all, and it's probably broken:
-    // https://github.com/nodejs/node/issues/854#issuecomment-294892950
-    // As the comment mentions, even Watchman doesn't flush:
-    // https://github.com/facebook/watchman/blob/b397e00cf566f361282a456122eef4e909f26182/watcher/fsevents.cpp#L276-L285
-    // FSEventStreamFlushSync(watcherStream);
+    FSEventStreamFlushSync(eventStream);
     FSEventStreamStop(eventStream);
+    lastSeenEventId = FSEventStreamGetLatestEventId(eventStream);
+    logToJava(LogLevel::FINE, "Closed event stream with last seen ID: %d", lastSeenEventId);
     FSEventStreamInvalidate(eventStream);
     FSEventStreamRelease(eventStream);
     eventStream = nullptr;
@@ -76,7 +76,7 @@ void Server::closeEventStream() {
 //
 
 void acceptTrigger(void* info) {
-    Server *server = (Server*) info;
+    Server* server = (Server*) info;
     server->handleCommands();
 }
 
@@ -147,27 +147,6 @@ static void handleEventsCallback(
     server->handleEvents(numEvents, (char**) eventPaths, eventFlags, eventIds);
 }
 
-void Server::handleEvents(
-    size_t numEvents,
-    char** eventPaths,
-    const FSEventStreamEventFlags eventFlags[],
-    const FSEventStreamEventId eventIds[]) {
-    JNIEnv* env = getThreadEnv();
-
-    try {
-        FSEventStreamEventId currentEventId = lastSeenEventId;
-        for (size_t i = 0; i < numEvents; i++) {
-            handleEvent(env, eventPaths[i], eventFlags[i]);
-            currentEventId = eventIds[numEvents - 1];
-        }
-
-        unique_lock<mutex> lock(mutationMutex);
-        lastSeenEventId = currentEventId;
-    } catch (const exception& ex) {
-        reportFailure(env, ex);
-    }
-}
-
 /**
  * List of events ignored by our implementation.
  * Anything not ignored here should be handled.
@@ -198,53 +177,107 @@ static const FSEventStreamEventFlags IGNORED_FLAGS = kFSEventStreamCreateFlagNon
     | kFSEventStreamEventFlagItemIsLastHardlink
     | kFSEventStreamEventFlagItemCloned;
 
-void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags) {
-    FSEventStreamEventFlags normalizedFlags = flags & ~IGNORED_FLAGS;
-    logToJava(LogLevel::FINE, "Event flags: 0x%x (normalized: 0x%x) for '%s'", flags, normalizedFlags, path);
-
-    u16string pathStr = utf8ToUtf16String(path);
-
-    if (normalizedFlags == kFSEventStreamCreateFlagNone) {
-        logToJava(LogLevel::FINE, "Ignoring event 0x%x for %s", flags, path);
-        return;
+WatchPointState Server::getWatchPointState(const u16string& path) {
+    for (auto& it : watchPoints) {
+        const u16string& prefix = it.first;
+        if (path.compare(0, prefix.size(), prefix) == 0
+            && (prefix.size() == path.size() || path.at(prefix.size() == '/'))) {
+            return it.second;
+        }
     }
+    throw FileWatcherException("Couldn't find watch point for path", path);
+}
 
-    if (IS_SET(normalizedFlags, kFSEventStreamEventFlagMustScanSubDirs)) {
-        reportOverflow(env, pathStr);
+void Server::handleEvents(
+    size_t numEvents,
+    char** eventPaths,
+    const FSEventStreamEventFlags eventFlags[],
+    const FSEventStreamEventId eventIds[]) {
+    JNIEnv* env = getThreadEnv();
+
+    try {
+        for (size_t i = 0; i < numEvents; i++) {
+            const FSEventStreamEventFlags flags = eventFlags[i];
+            if (IS_SET(flags, kFSEventStreamEventFlagHistoryDone)) {
+                // Mark all new watch points as able to receive historical events from this point on
+                for (auto& it : watchPoints) {
+                    if (it.second == WatchPointState::NEW) {
+                        it.second = WatchPointState::HISTORICAL;
+                    }
+                }
+                finishedProcessingHistoricalEvents = true;
+                continue;
+            }
+
+            FSEventStreamEventFlags normalizedFlags = flags & ~IGNORED_FLAGS;
+            const char* path = eventPaths[i];
+            const FSEventStreamEventId eventId = eventIds[i];
+            logToJava(LogLevel::FINE, "Event flags: 0x%x (normalized: 0x%x) with ID %d for '%s'",
+                flags, normalizedFlags, eventId, path);
+
+            u16string pathStr = utf8ToUtf16String(path);
+
+            if (eventId == 0 && IS_SET(flags, kFSEventStreamEventFlagRootChanged)) {
+                reportChangeEvent(env, ChangeType::INVALIDATED, pathStr);
+                continue;
+            }
+
+            // Ignore historical events for freshly registered paths
+            if (!finishedProcessingHistoricalEvents) {
+                WatchPointState state = getWatchPointState(pathStr);
+                if (state == WatchPointState::NEW) {
+                    logToJava(LogLevel::FINE, "Ignoring historical event %d for '%s'", eventId, path);
+                    continue;
+                }
+            }
+
+            if (normalizedFlags == kFSEventStreamCreateFlagNone) {
+                logToJava(LogLevel::FINE, "Ignoring event %d", eventId);
+                continue;
+            }
+
+            handleEvent(env, pathStr, normalizedFlags);
+        }
+    } catch (const exception& ex) {
+        reportFailure(env, ex);
+    }
+}
+
+void Server::handleEvent(JNIEnv* env, const u16string& path, const FSEventStreamEventFlags flags) {
+    if (IS_SET(flags, kFSEventStreamEventFlagMustScanSubDirs)) {
+        reportOverflow(env, path);
         return;
     }
 
     ChangeType type;
-    if (IS_SET(normalizedFlags,
-            kFSEventStreamEventFlagRootChanged
-                | kFSEventStreamEventFlagMount
+    if (IS_SET(flags,
+            kFSEventStreamEventFlagMount
                 | kFSEventStreamEventFlagUnmount)) {
         type = ChangeType::INVALIDATED;
-    } else if (IS_SET(normalizedFlags, kFSEventStreamEventFlagItemRenamed)) {
-        if (IS_SET(normalizedFlags, kFSEventStreamEventFlagItemCreated)) {
+    } else if (IS_SET(flags, kFSEventStreamEventFlagItemRenamed)) {
+        if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
             type = ChangeType::REMOVED;
         } else {
             type = ChangeType::CREATED;
         }
-    } else if (IS_SET(normalizedFlags, kFSEventStreamEventFlagItemModified)) {
+    } else if (IS_SET(flags, kFSEventStreamEventFlagItemModified)) {
         type = ChangeType::MODIFIED;
-    } else if (IS_SET(normalizedFlags, kFSEventStreamEventFlagItemRemoved)) {
+    } else if (IS_SET(flags, kFSEventStreamEventFlagItemRemoved)) {
         type = ChangeType::REMOVED;
-    } else if (IS_SET(normalizedFlags,
+    } else if (IS_SET(flags,
                    kFSEventStreamEventFlagItemInodeMetaMod    // file locked
                        | kFSEventStreamEventFlagItemFinderInfoMod
                        | kFSEventStreamEventFlagItemChangeOwner
                        | kFSEventStreamEventFlagItemXattrMod)) {
         type = ChangeType::MODIFIED;
-    } else if (IS_SET(normalizedFlags, kFSEventStreamEventFlagItemCreated)) {
+    } else if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
         type = ChangeType::CREATED;
     } else {
-        logToJava(LogLevel::WARNING, "Unknown event 0x%x (normalized: 0x%x) for %s", flags, normalizedFlags, path);
-        reportUnknownEvent(env, pathStr);
+        reportUnknownEvent(env, path);
         return;
     }
 
-    reportChangeEvent(env, type, pathStr);
+    reportChangeEvent(env, type, path);
 }
 
 void Server::registerPathsInternal(const vector<u16string>& paths) {
@@ -253,7 +286,7 @@ void Server::registerPathsInternal(const vector<u16string>& paths) {
             if (watchPoints.find(path) != watchPoints.end()) {
                 throw FileWatcherException("Already watching path", path);
             }
-            watchPoints.emplace(path);
+            watchPoints.emplace(path, WatchPointState::NEW);
         }
         updateEventStream();
         return true;
