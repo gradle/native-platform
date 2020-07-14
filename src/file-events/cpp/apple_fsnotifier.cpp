@@ -207,12 +207,10 @@ void Server::handleEvents(
                 continue;
             }
 
-            FSEventStreamEventFlags normalizedFlags = flags & ~IGNORED_FLAGS;
             const char* path = eventPaths[i];
-            logToJava(LogLevel::FINE, "Event flags: 0x%x (normalized: 0x%x) with ID %d for '%s'",
-                flags, normalizedFlags, eventId, path);
+            logToJava(LogLevel::FINE, "Event 0x%x (ID %d) for '%s'", flags, eventId, path);
 
-            u16string pathStr = utf8ToUtf16String(path);
+            const u16string pathStr = utf8ToUtf16String(path);
 
             if (eventId == 0 && IS_SET(flags, kFSEventStreamEventFlagRootChanged)) {
                 reportChangeEvent(env, ChangeType::INVALIDATED, pathStr);
@@ -223,17 +221,17 @@ void Server::handleEvents(
             if (!finishedProcessingHistoricalEvents) {
                 WatchPointState state = getWatchPointState(pathStr);
                 if (state == WatchPointState::NEW) {
-                    logToJava(LogLevel::FINE, "Ignoring historical event %d for '%s'", eventId, path);
+                    logToJava(LogLevel::FINE, "Ignoring historical event (ID %d)", eventId);
                     continue;
                 }
             }
 
-            if (normalizedFlags == kFSEventStreamCreateFlagNone) {
-                logToJava(LogLevel::FINE, "Ignoring event %d", eventId);
+            if ((flags & ~IGNORED_FLAGS) == kFSEventStreamCreateFlagNone) {
+                logToJava(LogLevel::FINE, "Ignoring event (ID %d)", eventId);
                 continue;
             }
 
-            handleEvent(env, pathStr, normalizedFlags);
+            handleEvent(env, pathStr, flags);
         }
     } catch (const exception& ex) {
         reportFailure(env, ex);
