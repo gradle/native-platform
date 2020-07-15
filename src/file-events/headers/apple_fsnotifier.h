@@ -48,8 +48,14 @@ protected:
     void shutdownRunLoop() override;
 
 private:
-    void updateEventStream();
-    void createEventStream();
+    /**
+     * Opens the FSEventStream if there's anything to watch.
+     */
+    void openEventStream();
+
+    /**
+     * Closes the FSEventStream if one is open, and ensures that all pending events are processed.
+     */
     void closeEventStream();
 
     void handleCommands();

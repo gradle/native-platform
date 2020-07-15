@@ -4,9 +4,9 @@
 
 using namespace std;
 
-void Server::createEventStream() {
-    // Do not try to create an event stream if there's nothing to watch
+void Server::openEventStream() {
     if (watchPoints.empty()) {
+        logToJava(LogLevel::FINE, "Not starting event stream as there is nothing to watch", nullptr);
         return;
     }
 
@@ -56,15 +56,16 @@ void Server::createEventStream() {
 
 void Server::closeEventStream() {
     if (eventStream == nullptr) {
+        logToJava(LogLevel::FINE, "Event stream not open, not closing", nullptr);
         return;
     }
 
     FSEventStreamFlushSync(eventStream);
     FSEventStreamStop(eventStream);
-    logToJava(LogLevel::FINE, "Closed event stream with last seen ID: %d", lastSeenEventId);
     FSEventStreamInvalidate(eventStream);
     FSEventStreamRelease(eventStream);
     eventStream = nullptr;
+    logToJava(LogLevel::FINE, "Closed event stream with last seen ID: %d", lastSeenEventId);
 }
 
 //
@@ -277,6 +278,7 @@ void Server::handleEvent(JNIEnv* env, const u16string& path, const FSEventStream
 
 void Server::registerPaths(const vector<u16string>& paths) {
     executeOnRunLoop(commandTimeoutInMillis, [this, paths]() {
+        closeEventStream();
         for (auto& path : paths) {
             if (watchPoints.find(path) != watchPoints.end()) {
                 throw FileWatcherException("Already watching path", path);
@@ -284,32 +286,28 @@ void Server::registerPaths(const vector<u16string>& paths) {
             WatchPointState state = lastSeenEventId == kFSEventStreamEventIdSinceNow
                 ? WatchPointState::HISTORICAL
                 : WatchPointState::NEW;
+            logToJava(LogLevel::FINE, "Registering watch point '%s' with state %d", utf16ToUtf8String(path).c_str(), state);
             watchPoints.emplace(path, state);
         }
-        updateEventStream();
+        openEventStream();
         return true;
     });
 }
 
 bool Server::unregisterPaths(const vector<u16string>& paths) {
     return executeOnRunLoop(commandTimeoutInMillis, [this, paths]() {
+        closeEventStream();
         bool success = true;
         for (auto& path : paths) {
+            logToJava(LogLevel::FINE, "Unregistering watch point '%s'", utf16ToUtf8String(path).c_str());
             if (watchPoints.erase(path) == 0) {
                 logToJava(LogLevel::INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
                 success = false;
             }
         }
-        updateEventStream();
+        openEventStream();
         return success;
     });
-}
-
-void Server::updateEventStream() {
-    logToJava(LogLevel::FINE, "Updating watchers", NULL);
-    closeEventStream();
-    createEventStream();
-    logToJava(LogLevel::FINE, "Finished updating watchers", NULL);
 }
 
 JNIEXPORT jobject JNICALL
