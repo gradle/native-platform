@@ -22,7 +22,7 @@ public class UpdatePackageMetadataTask extends BintrayTask {
         System.out.println("Updating publication " + publication.getName() + " as " + publication.getGroupId() + ":" + publication.getArtifactId() + ":" + publication.getVersion());
 
         String packageName = publication.getGroupId() + ":" + publication.getArtifactId();
-        String content = "{ \"name\": \"" + packageName + "\", \"vcs_url\": \"https://github.com/adammurdoch/native-platform.git\", \"website_url\": \"https://github.com/adammurdoch/native-platform\", \"licenses\": [\"Apache-2.0\"] }";
+        String content = "{ \"name\": \"" + packageName + "\", \"vcs_url\": \"https://github.com/gradle/native-platform.git\", \"website_url\": \"https://github.com/gradle/native-platform\", \"licenses\": [\"Apache-2.0\"] }";
         byte[] bytes = content.getBytes();
 
         // Update the package details
