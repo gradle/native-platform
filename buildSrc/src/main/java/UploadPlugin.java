@@ -8,6 +8,7 @@ import org.gradle.api.publish.maven.tasks.PublishToMavenRepository;
 import org.gradle.api.tasks.TaskProvider;
 
 import java.io.File;
+import java.util.stream.Collectors;
 
 /**
  * Uploads each publication of the project to bintray. Uses the bintray API directly rather than the bintray plugin, as the plugin does not
@@ -18,7 +19,7 @@ public class UploadPlugin implements Plugin<Project> {
     @Override
     public void apply(final Project project) {
         project.getPlugins().apply(BasePublishPlugin.class);
-        final BintrayCredentials credentials = project.getExtensions().getByType(BintrayCredentials.class);
+        BintrayCredentials credentials = project.getExtensions().getByType(BintrayCredentials.class);
 
         project.getExtensions().configure(PublishingExtension.class, extension -> {
             extension.getPublications().withType(MavenPublication.class, publication -> {
@@ -36,6 +37,16 @@ public class UploadPlugin implements Plugin<Project> {
                     upload.dependsOn(updateProvider, publishToLocalRepositoryTask);
                 });
             });
+        });
+        VariantsExtension variants = project.getExtensions().getByType(VariantsExtension.class);
+        project.getTasks().register("publishToBintray", PublishToBintrayTask.class, publishToBintrayTask -> {
+            publishToBintrayTask.setGroup("Upload");
+            publishToBintrayTask.setDescription("Publishes the uploaded variants on Bintray");
+            publishToBintrayTask.getGroupId().set(variants.getGroupId());
+            publishToBintrayTask.getVersion().set(variants.getVersion());
+            publishToBintrayTask.getArtifactIds().add(variants.getArtifactId());
+            publishToBintrayTask.getArtifactIds().addAll(variants.getVariantNames()
+                .map(variantNames -> variantNames.stream().map(it -> variants.getArtifactId().get() + "-" + it).collect(Collectors.toList())));
         });
         project.getGradle().getTaskGraph().whenReady(graph -> {
             for (Task task : graph.getAllTasks()) {

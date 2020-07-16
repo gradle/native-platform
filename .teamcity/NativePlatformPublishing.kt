@@ -127,22 +127,27 @@ class NativeLibraryPublishNcurses(releaseType: ReleaseType = ReleaseType.Snapsho
     })
 
 class PublishJavaApi(releaseType: ReleaseType = ReleaseType.Snapshot, nativeLibraryPublishingBuilds: List<NativePlatformPublishSnapshot>, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
-    NativePlatformPublishSnapshot(releaseType, listOf(":uploadMain", ":testApp:uploadMain"), buildAndTest, buildReceiptSource, {
-        name = "Publish Native Platform ${releaseType.name}"
-        id = RelativeId("Publishing_PublishJavaApi${releaseType.name}")
-        runOn(Agent.UbuntuAmd64)
-        artifactRules = archiveReports
-        params {
-            if (releaseType.userProvidedVersion) {
-                param(versionPostfixParameterName, "%reverse.dep.*.$versionPostfixParameterName%")
-            }
-        }
-
-        dependencies {
-            nativeLibraryPublishingBuilds.forEach {
-                snapshot(it) {
-                    onDependencyFailure = FailureAction.FAIL_TO_START
+    NativePlatformPublishSnapshot(
+        releaseType,
+        listOf(":uploadMain", ":testApp:uploadMain") + if (releaseType in setOf(ReleaseType.Milestone, ReleaseType.Release)) listOf("publishToBintray") else listOf(),
+        buildAndTest,
+        buildReceiptSource,
+        {
+            name = "Publish Native Platform ${releaseType.name}"
+            id = RelativeId("Publishing_PublishJavaApi${releaseType.name}")
+            runOn(Agent.UbuntuAmd64)
+            artifactRules = archiveReports
+            params {
+                if (releaseType.userProvidedVersion) {
+                    param(versionPostfixParameterName, "%reverse.dep.*.$versionPostfixParameterName%")
                 }
             }
-        }
-    })
+
+            dependencies {
+                nativeLibraryPublishingBuilds.forEach {
+                    snapshot(it) {
+                        onDependencyFailure = FailureAction.FAIL_TO_START
+                    }
+                }
+            }
+        })

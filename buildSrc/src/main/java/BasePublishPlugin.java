@@ -1,5 +1,6 @@
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.plugins.BasePluginConvention;
 import org.gradle.api.publish.Publication;
 import org.gradle.api.publish.PublishingExtension;
 
@@ -12,7 +13,12 @@ public class BasePublishPlugin implements Plugin<Project> {
     @Override
     public void apply(Project project) {
         project.getPlugins().apply("maven-publish");
-        final BintrayCredentials credentials = project.getExtensions().create("bintray", BintrayCredentials.class);
+        BintrayCredentials credentials = project.getExtensions().create("bintray", BintrayCredentials.class);
+        VariantsExtension variants = project.getExtensions().create("variants", VariantsExtension.class);
+        variants.getGroupId().convention(project.provider(() -> project.getGroup().toString()));
+        variants.getArtifactId().convention(project.provider(() -> getArchivesBaseName(project)));
+        variants.getVersion().convention(project.provider(() -> project.getVersion().toString()));
+
         if (project.hasProperty("bintrayUserName")) {
             credentials.setUserName(project.property("bintrayUserName").toString());
         }
@@ -26,6 +32,11 @@ public class BasePublishPlugin implements Plugin<Project> {
                 repo.setUrl(localRepoDir);
             })
         );
+    }
+
+    private static String getArchivesBaseName(Project project) {
+        BasePluginConvention convention = project.getConvention().findPlugin(BasePluginConvention.class);
+        return convention != null ? convention.getArchivesBaseName() : project.getName();
     }
 
     public static File getLocalRepoDirectory(Project project) {
