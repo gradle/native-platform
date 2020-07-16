@@ -1,8 +1,14 @@
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.publish.Publication;
+import org.gradle.api.publish.PublishingExtension;
+
+import java.io.File;
+import java.util.concurrent.Callable;
 
 public class BasePublishPlugin implements Plugin<Project> {
+    public static final String LOCAL_FILE_REPOSITORY_NAME = "LocalFile";
+
     @Override
     public void apply(Project project) {
         project.getPlugins().apply("maven-publish");
@@ -13,6 +19,17 @@ public class BasePublishPlugin implements Plugin<Project> {
         if (project.hasProperty("bintrayApiKey")) {
             credentials.setApiKey(project.property("bintrayApiKey").toString());
         }
+        Callable<File> localRepoDir = () -> getLocalRepoDirectory(project);
+        project.getExtensions().configure(PublishingExtension.class,
+            extension -> extension.getRepositories().maven(repo -> {
+                repo.setName(LOCAL_FILE_REPOSITORY_NAME);
+                repo.setUrl(localRepoDir);
+            })
+        );
+    }
+
+    public static File getLocalRepoDirectory(Project project) {
+        return project.getRootProject().getLayout().getBuildDirectory().dir("repo").get().getAsFile();
     }
 
     public static String publishTaskName(Publication publication, String repository) {

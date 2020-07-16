@@ -32,9 +32,9 @@ open class NativePlatformBuild(agent: Agent, init: BuildType.() -> Unit = {}) : 
     }
 
     val publishTask = when (agent) {
-        agentForJavaPublication -> " publishJniToLocalRepo publishMainToLocalRepo"
-        in agentsForAllJniPublications -> " publishJniToLocalRepo"
-        in agentsForNcursesOnlyPublications -> " publishNcursesJniToLocalRepo"
+        agentForJavaPublication -> " :uploadJni :uploadMain"
+        in agentsForAllJniPublications -> " :uploadJni"
+        in agentsForNcursesOnlyPublications -> " :uploadNcurses"
         else -> ""
     }
 
