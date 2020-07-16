@@ -33,7 +33,7 @@ public abstract class PublishToBintrayTask extends BintrayTask {
         String version = getVersion().get();
         for (String artifactId : getArtifactIds().get()) {
             LOGGER.warn("Publishing package {}:{}:{}", groupId, artifactId, version);
-            String content = "{ \"publish_wait_for_secs\": -1 }";
+            String content = "{ \"discard\": true, \"publish_wait_for_secs\": -1 }";
             byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
             post(publishUrl(groupId, artifactId, version), bytes.length, new ByteArrayInputStream(bytes));
         }
