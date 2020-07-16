@@ -29,6 +29,8 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 import static java.util.concurrent.TimeUnit.SECONDS
+import static net.rubygrapefruit.platform.file.AbstractFileEventFunctionsTest.PlatformType.MAC_OS
+import static net.rubygrapefruit.platform.file.AbstractFileEventFunctionsTest.PlatformType.OTHERWISE
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.CREATED
 
 @Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
@@ -75,6 +77,38 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
 
         then:
         noExceptionThrown()
+    }
+
+    @Unroll
+    def "can watch #numberOfDirectories directories at the same time"() {
+        given:
+
+        def directories = (1..numberOfDirectories).collect { index ->
+            def dir = new File(rootDir, "dir-${index}")
+            dir.mkdirs()
+            return dir
+        }
+        startWatcher()
+        watcher.startWatching(directories)
+        def expectedEvents = []
+
+        when:
+        10.times {index ->
+            directories.each { dir ->
+                def file = new File(dir, "file-${index}.txt")
+                file.createNewFile()
+                expectedEvents << change(CREATED, file)
+            }
+        }
+
+        then:
+        expectEvents expectedEvents
+
+        where:
+        numberOfDirectories = byPlatform(
+            (MAC_OS): 500, // macOS seems to have a limit around 700 entries in an FSEventStream
+            (OTHERWISE): 10000
+        )
     }
 
     @Timeout(value = 20, unit = SECONDS)
