@@ -1,4 +1,3 @@
-import org.gradle.api.Task;
 import org.gradle.api.publish.maven.MavenArtifact;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.tasks.Internal;
@@ -13,15 +12,6 @@ import java.util.concurrent.Callable;
 public class UploadTask extends BintrayTask {
     private MavenPublication publication;
     private Callable<File> localRepoDir;
-
-    public UploadTask() {
-        dependsOn(new Callable<Task>() {
-            @Override
-            public Task call() {
-                return getProject().getTasks().getByName(BasePublishPlugin.publishTaskName(publication, "Maven"));
-            }
-        });
-    }
 
     @Internal
     public MavenPublication getPublication() {

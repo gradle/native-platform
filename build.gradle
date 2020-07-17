@@ -161,8 +161,6 @@ task emptyZip(type: Jar) {
     archiveClassifier = 'empty'
 }
 
-def variantNames = new LinkedHashSet()
-
 // Using internal classes here to make this simple
 def os = new DefaultNativePlatform("current").operatingSystem
 def arch = new DefaultNativePlatform("current").architecture
@@ -403,7 +401,7 @@ model {
                     return
                 }
                 def variantName = binaryToVariantName(binary)
-                variantNames << variantName
+                project.variants.variantNames.add(variantName)
             }
         }
     }
@@ -421,7 +419,7 @@ publishing {
             pom.withXml { provider ->
                 def node = provider.asNode()
                 def deps = node.appendNode('dependencies')
-                variantNames.each { p ->
+                variants.variantNames.get().each { p ->
                     def dep = deps.appendNode('dependency')
                     dep.appendNode('groupId', project.group)
                     dep.appendNode('artifactId', "native-platform-${p}")
@@ -441,7 +439,7 @@ afterEvaluate {
     modelRegistry.realize('components.nativePlatformCurses', NativeLibrarySpec)
     modelRegistry.realize('components.nativePlatformFileEvents', NativeLibrarySpec)
     modelRegistry.realize('components', ModelMap).each { ComponentSpec spec->
-        spec.binaries.findAll { variantNames.contains(binaryToVariantName(it)) && it.buildable } each { NativeBinarySpec binary ->
+        spec.binaries.findAll { variants.variantNames.get().contains(binaryToVariantName(it)) && it.buildable } each { NativeBinarySpec binary ->
             def variantName = binaryToVariantName(binary)
             def taskName = "jar-${variantName}"
             def nativeJar = project.tasks.findByName(taskName)

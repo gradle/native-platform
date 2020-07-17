@@ -30,18 +30,12 @@ import java.util.stream.Collectors;
 public class ReleasePlugin implements Plugin<Project> {
     private static final Logger LOGGER = LoggerFactory.getLogger(ReleasePlugin.class);
 
-    public static final String SNAPSHOT_REPOSITORY_URL = "https://repo.gradle.org/gradle/ext-snapshots-local";
-    private static final String RELEASES_REPOSITORY_URL = "https://dl.bintray.com/adammurdoch/maven";
-
     private static final DateTimeFormatter SNAPSHOT_TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmssZ", Locale.US).withZone(ZoneOffset.UTC);
     private static final String BUILD_RECEIPT_NAME = "build-receipt.properties";
     private static final String BUILD_TIMESTAMP_PROPERTY = "buildTimestamp";
     private static final String UPLOAD_MAIN_TASK_NAME = "uploadMain";
     private static final String UPLOAD_JNI_TASK_NAME = "uploadJni";
     private static final String UPLOAD_NCURSES_JNI_TASK_NAME = "uploadNcursesJni";
-    private static final String PUBLISH_MAIN_TO_LOCAL_REPO_TASK_NAME = "publishMainToLocalRepo";
-    private static final String PUBLISH_JNI_TO_LOCAL_REPO_TASK_NAME = "publishJniToLocalRepo";
-    private static final String PUBLISH_NCURSES_JNI_TO_LOCAL_REPO_TASK_NAME = "publishNcursesJniToLocalRepo";
     private static final String ALPHA_VERSION_PROPERTY_NAME = "alpha";
 
     @Override
@@ -75,18 +69,15 @@ public class ReleasePlugin implements Plugin<Project> {
             // Use authenticated snapshot/bintray repo while building a test distribution during snapshot/release
             final BintrayCredentials credentials = subproject.getExtensions().getByType(BintrayCredentials.class);
 
-            if (versions.isUseRepo()) {
+            buildType.getReleaseRepository().ifPresent(releaseRepository -> {
                 credentials.assertPresent();
-                String repositoryUrl = buildType.getReleaseRepository() == VersionDetails.ReleaseRepository.Snapshots
-                        ? SNAPSHOT_REPOSITORY_URL
-                        : RELEASES_REPOSITORY_URL;
                 subproject.getRepositories().maven(repo -> {
-                    repo.setUrl(repositoryUrl);
+                    repo.setUrl(releaseRepository.getUrl());
                     repo.getCredentials().setUsername(credentials.getUserName());
                     repo.getCredentials().setPassword(credentials.getApiKey());
                     repo.getAuthentication().create("basic", BasicAuthentication.class);
                 });
-            }
+            });
 
             addUploadLifecycleTasks(subproject, buildType);
         });
@@ -105,38 +96,24 @@ public class ReleasePlugin implements Plugin<Project> {
         uploadNcursesJniLifecycle.setGroup("Upload");
         uploadNcursesJniLifecycle.setDescription("Upload only ncurses5/6 JNI publications");
 
-        Task publishMainToLocalRepoLifecycle = project.getTasks().maybeCreate(PUBLISH_MAIN_TO_LOCAL_REPO_TASK_NAME);
-        publishMainToLocalRepoLifecycle.setGroup("Publishing");
-        publishMainToLocalRepoLifecycle.setDescription("Publishing Main publication to local repository");
-
-        Task publishJniToLocalRepoLifecycle = project.getTasks().maybeCreate(PUBLISH_JNI_TO_LOCAL_REPO_TASK_NAME);
-        publishJniToLocalRepoLifecycle.setGroup("Publishing");
-        publishJniToLocalRepoLifecycle.setDescription("Publishing all JNI publications to local repository");
-
-        Task publishNcursesJniToLocalRepoLifecycle = project.getTasks().maybeCreate(PUBLISH_NCURSES_JNI_TO_LOCAL_REPO_TASK_NAME);
-        publishNcursesJniToLocalRepoLifecycle.setGroup("Publishing");
-        publishNcursesJniToLocalRepoLifecycle.setDescription("Publishing only ncurses5/6 JNI publications to local repository");
-
         project.getExtensions().configure(
-                PublishingExtension.class,
-                extension -> extension.getPublications().withType(MavenPublication.class, publication -> {
-                    String uploadTaskName = buildType.getReleaseRepository() == VersionDetails.ReleaseRepository.Snapshots
-                            ? PublishPlugin.uploadTaskName(publication)
-                            : UploadPlugin.uploadTaskName(publication);
-                    TaskProvider<Task> uploadTask = project.getTasks().named(uploadTaskName);
-                    String uploadToLocalRepositoryTaskName = PublishPlugin.uploadToLocalRepositoryTaskName(publication);
-                    if (BasePublishPlugin.isMainPublication(publication)) {
-                        uploadMainLifecycle.dependsOn(uploadTask);
-                        publishMainToLocalRepoLifecycle.dependsOn(uploadToLocalRepositoryTaskName);
-                    } else {
-                        uploadJniLifecycle.dependsOn(uploadTask);
-                        publishJniToLocalRepoLifecycle.dependsOn(uploadToLocalRepositoryTaskName);
-                        if (uploadTaskName.contains("ncurses")) {
-                            uploadNcursesJniLifecycle.dependsOn(uploadTask);
-                            publishNcursesJniToLocalRepoLifecycle.dependsOn(uploadToLocalRepositoryTaskName);
-                        }
+            PublishingExtension.class,
+            extension -> extension.getPublications().withType(MavenPublication.class, publication -> {
+                String uploadTaskName = buildType.getReleaseRepository().map(releaseRepository ->
+                    releaseRepository.getType() == VersionDetails.RepositoryType.Maven
+                        ? BasePublishPlugin.publishTaskName(publication, releaseRepository.name())
+                        : UploadPlugin.uploadTaskName(publication))
+                    .orElse(BasePublishPlugin.publishTaskName(publication, BasePublishPlugin.LOCAL_FILE_REPOSITORY_NAME));
+                TaskProvider<Task> uploadTask = project.getTasks().named(uploadTaskName);
+                if (BasePublishPlugin.isMainPublication(publication)) {
+                    uploadMainLifecycle.dependsOn(uploadTask);
+                } else {
+                    uploadJniLifecycle.dependsOn(uploadTask);
+                    if (uploadTaskName.contains("ncurses")) {
+                        uploadNcursesJniLifecycle.dependsOn(uploadTask);
                     }
-                }));
+                }
+            }));
     }
 
     private void writeBuildTimestamp(String buildTimestamp, Project project) {
@@ -187,11 +164,11 @@ public class ReleasePlugin implements Plugin<Project> {
         }
         if (enabledBuildTypes.size() > 1) {
             throw new UnsupportedOperationException(
-                    "Cannot build " +
-                            enabledBuildTypes.stream()
-                                    .map(Object::toString)
-                                    .collect(Collectors.joining(" and ")) +
-                            " in same build.");
+                "Cannot build " +
+                    enabledBuildTypes.stream()
+                        .map(Object::toString)
+                        .collect(Collectors.joining(" and ")) +
+                    " in same build.");
         }
         return enabledBuildTypes.stream().findFirst().orElse(VersionDetails.BuildType.Dev);
     }
