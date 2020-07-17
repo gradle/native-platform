@@ -11,7 +11,7 @@ apply plugin: ReleasePlugin
 
 versions {
     nextVersion = '0.22'
-    nextSnapshot = '5'
+    nextSnapshot = '6'
 }
 
 ext.isCiServer = providers.environmentVariable("CI").forUseAtConfigurationTime().isPresent()
