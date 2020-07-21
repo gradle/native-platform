@@ -176,6 +176,49 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         noExceptionThrown()
     }
 
+    def "can start and stop watching directories without losing events"() {
+        given:
+        def watchedDir = new File(rootDir, "watchedDir")
+        assert watchedDir.mkdir()
+        def changedFiles = (1..200).collect { index ->
+            return new File(watchedDir, "file-${index}.txt")
+        }
+        def otherDirs = (1..5).collect { index ->
+            def dir = new File(rootDir, "dir-$index")
+            dir.mkdirs()
+            return dir
+        }
+        def watcher = startNewWatcher(watchedDir)
+        def onslaught = new OnslaughtExecutor(
+            (otherDirs.collect { otherDir ->
+                { ->
+                    Thread.sleep((long) (Math.random() * 100 + 100))
+                    watcher.startWatching(otherDir)
+                } as Runnable
+            }) + (changedFiles.collect { changedFile ->
+                { ->
+                    Thread.sleep((long) (Math.random() * 500))
+                    LOGGER.fine("> Creating ${changedFile.name}")
+                    changedFile.createNewFile()
+                } as Runnable
+            })
+        )
+
+        onslaught.awaitReady()
+
+        when:
+        onslaught.start()
+        onslaught.terminate(5, SECONDS)
+        def expectedEvents = changedFiles.collect { file -> change(CREATED, file) }
+
+        then:
+        expectEvents(eventQueue, 5, SECONDS, expectedEvents)
+
+        cleanup:
+        watcher.shutdown()
+        watcher.awaitTermination(5, SECONDS)
+    }
+
     def "can stop watching many directories while they are being deleted"() {
         given:
         def watchedDirectoryCount = 100
