@@ -94,7 +94,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         def inTheMiddleLatch = new CountDownLatch(numberOfThreads)
         def changeCount = new AtomicInteger()
         def watcher = startNewWatcher()
-        def onslaught = new OnslaughtExecuter(watchedDirectories.collectMany { watchedDirectory ->
+        def onslaught = new OnslaughtExecutor(watchedDirectories.collectMany { watchedDirectory ->
             (1..numberOfParallelWritersPerWatchedDirectory).collect { index ->
                 def fileToChange = new File(watchedDirectory, "file${index}.txt")
                 fileToChange.createNewFile()
@@ -151,7 +151,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
     }
 
     @Requires({ Platform.current().linux })
-    def "can stop watching directory hiearchy while it is being deleted"() {
+    def "can stop watching directory hierarchy while it is being deleted"() {
         given:
         def watchedDirectoryDepth = 8
         ignoreLogMessages()
@@ -160,7 +160,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         assert watchedDir.mkdir()
         List<File> watchedDirectories = createHierarchy(watchedDir, watchedDirectoryDepth)
         def watcher = startNewWatcher()
-        def onslaught = new OnslaughtExecuter(watchedDirectories.collect { watchedDirectory ->
+        def onslaught = new OnslaughtExecutor(watchedDirectories.collect { watchedDirectory ->
             return { -> watcher.stopWatching(watchedDirectory) } as Runnable
         })
 
@@ -202,7 +202,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
                 dir.delete()
             } as Runnable
         }
-        def onslaught = new OnslaughtExecuter(stopWatchingJobs + deleteDirectoriesJobs)
+        def onslaught = new OnslaughtExecutor(stopWatchingJobs + deleteDirectoriesJobs)
 
         onslaught.awaitReady()
         watcher.startWatching(watchedDirectories)
@@ -269,14 +269,14 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         }
     }
 
-    private static class OnslaughtExecuter {
+    private static class OnslaughtExecutor {
         private final ExecutorService executorService
         private final CountDownLatch readyLatch
         private final CountDownLatch startLatch
         private final AtomicInteger finishedCounter
         private final int numberOfThreads
 
-        OnslaughtExecuter(List<Runnable> jobs) {
+        OnslaughtExecutor(List<Runnable> jobs) {
             this.numberOfThreads = jobs.size()
             this.executorService = Executors.newFixedThreadPool(numberOfThreads)
             this.readyLatch = new CountDownLatch(numberOfThreads)
