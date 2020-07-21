@@ -3,7 +3,6 @@
 #if defined(__APPLE__)
 
 #include <CoreServices/CoreServices.h>
-#include <queue>
 #include <unordered_map>
 
 #include "generic_fsnotifier.h"
@@ -13,18 +12,6 @@ using namespace std;
 
 class Server;
 
-enum class WatchPointState {
-    /**
-     * The watchpoint has been created recently, so it shouldn't receive historical events.
-     */
-    NEW,
-
-    /**
-     * The watchpoint can receive historical events.
-     */
-    HISTORICAL
-};
-
 static void handleEventsCallback(
     ConstFSEventStreamRef streamRef,
     void* clientCallBackInfo,
@@ -33,42 +20,33 @@ static void handleEventsCallback(
     const FSEventStreamEventFlags eventFlags[],
     const FSEventStreamEventId*);
 
+class WatchPoint {
+public:
+    WatchPoint(Server* server, CFRunLoopRef runLoop, const u16string& path, long latencyInMillis);
+    ~WatchPoint();
+
+private:
+    FSEventStreamRef watcherStream;
+};
+
 class Server : public AbstractServer {
 public:
-    Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis, long commandTimeoutInMillis);
-
-    virtual void registerPaths(const vector<u16string>& paths) override;
-    virtual bool unregisterPaths(const vector<u16string>& paths) override;
+    Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis);
 
 protected:
     void initializeRunLoop() override;
     void runLoop() override;
-    virtual void queueOnRunLoop(Command* command) override;
 
+    void registerPath(const u16string& path) override;
+    bool unregisterPath(const u16string& path) override;
     void shutdownRunLoop() override;
 
 private:
-    /**
-     * Opens the FSEventStream if there's anything to watch.
-     */
-    void openEventStream();
-
-    /**
-     * Closes the FSEventStream if one is open, and ensures that all pending events are processed.
-     */
-    void closeEventStream();
-
-    void handleCommands();
-    friend void acceptTrigger(void* info);
-
-    WatchPointState getWatchPointState(const u16string& path);
-
-    void handleEvent(JNIEnv* env, const u16string& path, const FSEventStreamEventFlags flags);
+    void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);
     void handleEvents(
         size_t numEvents,
         char** eventPaths,
-        const FSEventStreamEventFlags eventFlags[],
-        const FSEventStreamEventId eventIds[]);
+        const FSEventStreamEventFlags eventFlags[]);
 
     friend void handleEventsCallback(
         ConstFSEventStreamRef stream,
@@ -79,14 +57,8 @@ private:
         const FSEventStreamEventId eventIds[]);
 
     const long latencyInMillis;
-    FSEventStreamEventId lastSeenEventId = kFSEventStreamEventIdSinceNow;
-    unordered_map<u16string, WatchPointState> watchPoints;
-    FSEventStreamRef eventStream = nullptr;
-    bool finishedProcessingHistoricalEvents;
+    unordered_map<u16string, WatchPoint> watchPoints;
 
-    mutex commandMutex;
-    queue<Command*> commands;
-    const long commandTimeoutInMillis;
     CFRunLoopRef threadLoop;
     CFRunLoopSourceRef messageSource;
 };

@@ -43,7 +43,6 @@ import java.util.concurrent.TimeUnit;
  */
 public class OsxFileEventFunctions extends AbstractFileEventFunctions {
     private static final long DEFAULT_LATENCY_IN_MS = 0;
-    public static final int DEFAULT_COMMAND_TIMEOUT_IN_SECONDS = 5;
 
     @Override
     public WatcherBuilder newWatcher(BlockingQueue<FileWatchEvent> eventQueue) {
@@ -52,7 +51,6 @@ public class OsxFileEventFunctions extends AbstractFileEventFunctions {
 
     public static class WatcherBuilder extends AbstractWatcherBuilder {
         private long latencyInMillis = DEFAULT_LATENCY_IN_MS;
-        private long commandTimeoutInMillis = TimeUnit.SECONDS.toMillis(DEFAULT_COMMAND_TIMEOUT_IN_SECONDS);
 
         WatcherBuilder(BlockingQueue<FileWatchEvent> eventQueue) {
             super(eventQueue);
@@ -70,26 +68,11 @@ public class OsxFileEventFunctions extends AbstractFileEventFunctions {
             return this;
         }
 
-        /**
-         * Sets the timeout for commands to get scheduled on the run loop.
-         *
-         * Commands are {@link FileWatcher#startWatching(Collection)} and
-         * {@link FileWatcher#stopWatching(Collection)},
-         * The maxOS file watcher relies on scheduling the execution of these commands
-         * on the background thread.
-         *
-         * Defaults to {@value DEFAULT_COMMAND_TIMEOUT_IN_SECONDS} seconds.
-         */
-        public WatcherBuilder withCommandTimeout(int timeoutValue, TimeUnit timeoutUnit) {
-            this.commandTimeoutInMillis = timeoutUnit.toMillis(timeoutValue);
-            return this;
-        }
-
         @Override
         protected Object startWatcher(NativeFileWatcherCallback callback) {
-            return startWatcher0(latencyInMillis, commandTimeoutInMillis, callback);
+            return startWatcher0(latencyInMillis, callback);
         }
     }
 
-    private static native Object startWatcher0(long latencyInMillis, long commandTimeoutInMillis, NativeFileWatcherCallback callback);
+    private static native Object startWatcher0(long latencyInMillis, NativeFileWatcherCallback callback);
 }

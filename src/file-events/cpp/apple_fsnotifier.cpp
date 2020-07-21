@@ -4,99 +4,70 @@
 
 using namespace std;
 
-void Server::openEventStream() {
-    if (watchPoints.empty()) {
-        logToJava(LogLevel::FINE, "Not starting event stream as there is nothing to watch", nullptr);
-        return;
+WatchPoint::WatchPoint(Server* server, CFRunLoopRef runLoop, const u16string& path, long latencyInMillis) {
+    CFStringRef cfPath = CFStringCreateWithCharacters(NULL, (UniChar*) path.c_str(), path.length());
+    if (cfPath == nullptr) {
+        throw FileWatcherException("Could not allocate CFString for path", path);
     }
-
-    CFMutableArrayRef pathArray = CFArrayCreateMutable(NULL, watchPoints.size(), NULL);
+    CFMutableArrayRef pathArray = CFArrayCreateMutable(NULL, 1, NULL);
     if (pathArray == NULL) {
-        throw FileWatcherException("Could not allocate array to store roots to watch");
+        throw FileWatcherException("Could not allocate array to store root to watch", path);
     }
-
-    for (auto& it : watchPoints) {
-        const u16string& path = it.first;
-        CFStringRef cfPath = CFStringCreateWithCharacters(NULL, (UniChar*) path.c_str(), path.length());
-        if (cfPath == nullptr) {
-            throw FileWatcherException("Could not allocate CFString for path", path);
-        }
-        CFArrayAppendValue(pathArray, cfPath);
-        // Do not release path separately as it causes a segmentation fault
-        // CFRelease(cfPath);
-    }
-
-    // We are not going to get a kFSEventStreamEventFlagHistoryDone event if we start from now
-    finishedProcessingHistoricalEvents = lastSeenEventId == kFSEventStreamEventIdSinceNow;
+    CFArrayAppendValue(pathArray, cfPath);
 
     FSEventStreamContext context = {
-        0,               // version, must be 0
-        (void*) this,    // info
-        NULL,            // retain
-        NULL,            // release
-        NULL             // copyDescription
+        0,                 // version, must be 0
+        (void*) server,    // info
+        NULL,              // retain
+        NULL,              // release
+        NULL               // copyDescription
     };
-    logToJava(LogLevel::FINE, "Starting stream from %d", lastSeenEventId);
-    FSEventStreamRef eventStream = FSEventStreamCreate(
+    FSEventStreamRef watcherStream = FSEventStreamCreate(
         NULL,
         &handleEventsCallback,
         &context,
         pathArray,
-        lastSeenEventId,
+        kFSEventStreamEventIdSinceNow,
         latencyInMillis / 1000.0,
         kFSEventStreamCreateFlagNoDefer | kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagWatchRoot);
     CFRelease(pathArray);
-    if (eventStream == NULL) {
-        throw FileWatcherException("Couldn't update event stream");
+    CFRelease(cfPath);
+    if (watcherStream == NULL) {
+        throw FileWatcherException("Couldn't add watch", path);
     }
-    FSEventStreamScheduleWithRunLoop(eventStream, threadLoop, kCFRunLoopDefaultMode);
-    FSEventStreamStart(eventStream);
-    this->eventStream = eventStream;
+    FSEventStreamScheduleWithRunLoop(watcherStream, runLoop, kCFRunLoopDefaultMode);
+    FSEventStreamStart(watcherStream);
+    this->watcherStream = watcherStream;
 }
 
-void Server::closeEventStream() {
-    if (eventStream == nullptr) {
-        logToJava(LogLevel::FINE, "Event stream not open, not closing", nullptr);
-        return;
-    }
-
-    FSEventStreamFlushSync(eventStream);
-    FSEventStreamStop(eventStream);
-    FSEventStreamInvalidate(eventStream);
-    FSEventStreamRelease(eventStream);
-    eventStream = nullptr;
-    logToJava(LogLevel::FINE, "Closed event stream with last seen ID: %d", lastSeenEventId);
+WatchPoint::~WatchPoint() {
+    // Reading the Apple docs it seems we should call FSEventStreamFlushSync() here.
+    // But doing so produces this log:
+    //
+    //     2020-02-17 23:02 java[50430] (FSEvents.framework) FSEventStreamFlushSync(): failed assertion '(SInt64)last_id > 0LL'
+    //
+    // According to this comment we should not use flush at all, and it's probably broken:
+    // https://github.com/nodejs/node/issues/854#issuecomment-294892950
+    // As the comment mentions, even Watchman doesn't flush:
+    // https://github.com/facebook/watchman/blob/b397e00cf566f361282a456122eef4e909f26182/watcher/fsevents.cpp#L276-L285
+    // FSEventStreamFlushSync(watcherStream);
+    FSEventStreamStop(watcherStream);
+    FSEventStreamInvalidate(watcherStream);
+    FSEventStreamRelease(watcherStream);
 }
 
 //
 // Server
 //
 
-void acceptTrigger(void* info) {
-    Server* server = (Server*) info;
-    server->handleCommands();
+void acceptTrigger(void*) {
+    // This does nothing, we just need a message source to keep the
+    // run loop alive when there are no watch points registered
 }
 
-void Server::handleCommands() {
-    unique_lock<mutex> lock(commandMutex);
-    while (!commands.empty()) {
-        auto command = commands.front();
-        commands.pop();
-        executeCommand(command);
-    }
-}
-
-void Server::queueOnRunLoop(Command* command) {
-    unique_lock<mutex> lock(commandMutex);
-    commands.push(command);
-    CFRunLoopSourceSignal(messageSource);
-    CFRunLoopWakeUp(threadLoop);
-}
-
-Server::Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis, long commandTimeoutInMillis)
+Server::Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis)
     : AbstractServer(env, watcherCallback)
-    , latencyInMillis(latencyInMillis)
-    , commandTimeoutInMillis(commandTimeoutInMillis) {
+    , latencyInMillis(latencyInMillis) {
     CFRunLoopSourceContext context = {
         0,               // version;
         (void*) this,    // info;
@@ -124,7 +95,8 @@ void Server::initializeRunLoop() {
 void Server::runLoop() {
     CFRunLoopRun();
 
-    closeEventStream();
+    unique_lock<mutex> lock(mutationMutex);
+    watchPoints.clear();
     CFRelease(messageSource);
 }
 
@@ -138,9 +110,24 @@ static void handleEventsCallback(
     size_t numEvents,
     void* eventPaths,
     const FSEventStreamEventFlags eventFlags[],
-    const FSEventStreamEventId eventIds[]) {
+    const FSEventStreamEventId*) {
     Server* server = (Server*) clientCallBackInfo;
-    server->handleEvents(numEvents, (char**) eventPaths, eventFlags, eventIds);
+    server->handleEvents(numEvents, (char**) eventPaths, eventFlags);
+}
+
+void Server::handleEvents(
+    size_t numEvents,
+    char** eventPaths,
+    const FSEventStreamEventFlags eventFlags[]) {
+    JNIEnv* env = getThreadEnv();
+
+    try {
+        for (size_t i = 0; i < numEvents; i++) {
+            handleEvent(env, eventPaths[i], eventFlags[i]);
+        }
+    } catch (const exception& ex) {
+        reportFailure(env, ex);
+    }
 }
 
 /**
@@ -173,146 +160,75 @@ static const FSEventStreamEventFlags IGNORED_FLAGS = kFSEventStreamCreateFlagNon
     | kFSEventStreamEventFlagItemIsLastHardlink
     | kFSEventStreamEventFlagItemCloned;
 
-WatchPointState Server::getWatchPointState(const u16string& path) {
-    for (auto& it : watchPoints) {
-        const u16string& prefix = it.first;
-        if (path.compare(0, prefix.size(), prefix) == 0
-            && (prefix.size() == path.size() || path.at(prefix.size() == '/'))) {
-            return it.second;
-        }
+void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags) {
+    FSEventStreamEventFlags normalizedFlags = flags & ~IGNORED_FLAGS;
+    logToJava(LogLevel::FINE, "Event flags: 0x%x (normalized: 0x%x) for '%s'", flags, normalizedFlags, path);
+
+    u16string pathStr = utf8ToUtf16String(path);
+
+    if (normalizedFlags == kFSEventStreamCreateFlagNone) {
+        logToJava(LogLevel::FINE, "Ignoring event 0x%x for %s", flags, path);
+        return;
     }
-    throw FileWatcherException("Couldn't find watch point for path", path);
-}
 
-void Server::handleEvents(
-    size_t numEvents,
-    char** eventPaths,
-    const FSEventStreamEventFlags eventFlags[],
-    const FSEventStreamEventId eventIds[]) {
-    JNIEnv* env = getThreadEnv();
-
-    try {
-        for (size_t i = 0; i < numEvents; i++) {
-            const FSEventStreamEventFlags flags = eventFlags[i];
-            const FSEventStreamEventId eventId = eventIds[i];
-            lastSeenEventId = eventId;
-            if (IS_SET(flags, kFSEventStreamEventFlagHistoryDone)) {
-                // Mark all new watch points as able to receive historical events from this point on
-                for (auto& it : watchPoints) {
-                    if (it.second == WatchPointState::NEW) {
-                        it.second = WatchPointState::HISTORICAL;
-                    }
-                }
-                finishedProcessingHistoricalEvents = true;
-                logToJava(LogLevel::FINE, "Finished processing historical events (ID %d)", eventId);
-                continue;
-            }
-
-            const char* path = eventPaths[i];
-            logToJava(LogLevel::FINE, "Event 0x%x (ID %d) for '%s'", flags, eventId, path);
-
-            const u16string pathStr = utf8ToUtf16String(path);
-
-            if (eventId == 0 && IS_SET(flags, kFSEventStreamEventFlagRootChanged)) {
-                reportChangeEvent(env, ChangeType::INVALIDATED, pathStr);
-                continue;
-            }
-
-            // Ignore historical events for freshly registered paths
-            if (!finishedProcessingHistoricalEvents) {
-                WatchPointState state = getWatchPointState(pathStr);
-                if (state == WatchPointState::NEW) {
-                    logToJava(LogLevel::FINE, "Ignoring historical event (ID %d)", eventId);
-                    continue;
-                }
-            }
-
-            if ((flags & ~IGNORED_FLAGS) == kFSEventStreamCreateFlagNone) {
-                logToJava(LogLevel::FINE, "Ignoring event (ID %d)", eventId);
-                continue;
-            }
-
-            handleEvent(env, pathStr, flags);
-        }
-    } catch (const exception& ex) {
-        reportFailure(env, ex);
-    }
-}
-
-void Server::handleEvent(JNIEnv* env, const u16string& path, const FSEventStreamEventFlags flags) {
-    if (IS_SET(flags, kFSEventStreamEventFlagMustScanSubDirs)) {
-        reportOverflow(env, path);
+    if (IS_SET(normalizedFlags, kFSEventStreamEventFlagMustScanSubDirs)) {
+        reportOverflow(env, pathStr);
         return;
     }
 
     ChangeType type;
-    if (IS_SET(flags,
-            kFSEventStreamEventFlagMount
+    if (IS_SET(normalizedFlags,
+            kFSEventStreamEventFlagRootChanged
+                | kFSEventStreamEventFlagMount
                 | kFSEventStreamEventFlagUnmount)) {
         type = ChangeType::INVALIDATED;
-    } else if (IS_SET(flags, kFSEventStreamEventFlagItemRenamed)) {
-        if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
+    } else if (IS_SET(normalizedFlags, kFSEventStreamEventFlagItemRenamed)) {
+        if (IS_SET(normalizedFlags, kFSEventStreamEventFlagItemCreated)) {
             type = ChangeType::REMOVED;
         } else {
             type = ChangeType::CREATED;
         }
-    } else if (IS_SET(flags, kFSEventStreamEventFlagItemModified)) {
+    } else if (IS_SET(normalizedFlags, kFSEventStreamEventFlagItemModified)) {
         type = ChangeType::MODIFIED;
-    } else if (IS_SET(flags, kFSEventStreamEventFlagItemRemoved)) {
+    } else if (IS_SET(normalizedFlags, kFSEventStreamEventFlagItemRemoved)) {
         type = ChangeType::REMOVED;
-    } else if (IS_SET(flags,
+    } else if (IS_SET(normalizedFlags,
                    kFSEventStreamEventFlagItemInodeMetaMod    // file locked
                        | kFSEventStreamEventFlagItemFinderInfoMod
                        | kFSEventStreamEventFlagItemChangeOwner
                        | kFSEventStreamEventFlagItemXattrMod)) {
         type = ChangeType::MODIFIED;
-    } else if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
+    } else if (IS_SET(normalizedFlags, kFSEventStreamEventFlagItemCreated)) {
         type = ChangeType::CREATED;
     } else {
-        reportUnknownEvent(env, path);
+        logToJava(LogLevel::WARNING, "Unknown event 0x%x (normalized: 0x%x) for %s", flags, normalizedFlags, path);
+        reportUnknownEvent(env, pathStr);
         return;
     }
 
-    reportChangeEvent(env, type, path);
+    reportChangeEvent(env, type, pathStr);
 }
 
-void Server::registerPaths(const vector<u16string>& paths) {
-    executeOnRunLoop(commandTimeoutInMillis, [this, paths]() {
-        closeEventStream();
-        for (auto& path : paths) {
-            if (watchPoints.find(path) != watchPoints.end()) {
-                throw FileWatcherException("Already watching path", path);
-            }
-            WatchPointState state = lastSeenEventId == kFSEventStreamEventIdSinceNow
-                ? WatchPointState::HISTORICAL
-                : WatchPointState::NEW;
-            logToJava(LogLevel::FINE, "Registering watch point '%s' with state %d", utf16ToUtf8String(path).c_str(), state);
-            watchPoints.emplace(path, state);
-        }
-        openEventStream();
-        return true;
-    });
+void Server::registerPath(const u16string& path) {
+    if (watchPoints.find(path) != watchPoints.end()) {
+        throw FileWatcherException("Already watching path", path);
+    }
+    watchPoints.emplace(piecewise_construct,
+        forward_as_tuple(path),
+        forward_as_tuple(this, threadLoop, path, latencyInMillis));
 }
 
-bool Server::unregisterPaths(const vector<u16string>& paths) {
-    return executeOnRunLoop(commandTimeoutInMillis, [this, paths]() {
-        closeEventStream();
-        bool success = true;
-        for (auto& path : paths) {
-            logToJava(LogLevel::FINE, "Unregistering watch point '%s'", utf16ToUtf8String(path).c_str());
-            if (watchPoints.erase(path) == 0) {
-                logToJava(LogLevel::INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
-                success = false;
-            }
-        }
-        openEventStream();
-        return success;
-    });
+bool Server::unregisterPath(const u16string& path) {
+    if (watchPoints.erase(path) == 0) {
+        logToJava(LogLevel::INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
+        return false;
+    }
+    return true;
 }
 
 JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatcher0(JNIEnv* env, jclass, long latencyInMillis, long commandTimeoutInMillis, jobject javaCallback) {
-    return wrapServer(env, new Server(env, javaCallback, latencyInMillis, commandTimeoutInMillis));
+Java_net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions_startWatcher0(JNIEnv* env, jclass, long latencyInMillis, jobject javaCallback) {
+    return wrapServer(env, new Server(env, javaCallback, latencyInMillis));
 }
 
 #endif
