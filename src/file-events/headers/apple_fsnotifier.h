@@ -33,20 +33,22 @@ class Server : public AbstractServer {
 public:
     Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis);
 
+    virtual void registerPaths(const vector<u16string>& paths) override;
+    virtual bool unregisterPaths(const vector<u16string>& paths) override;
+
 protected:
     void initializeRunLoop() override;
     void runLoop() override;
 
-    void registerPath(const u16string& path) override;
-    bool unregisterPath(const u16string& path) override;
     void shutdownRunLoop() override;
 
 private:
-    void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);
+    void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags, FSEventStreamEventId eventId);
     void handleEvents(
         size_t numEvents,
         char** eventPaths,
-        const FSEventStreamEventFlags eventFlags[]);
+        const FSEventStreamEventFlags eventFlags[],
+        const FSEventStreamEventId eventIds[]);
 
     friend void handleEventsCallback(
         ConstFSEventStreamRef stream,
@@ -57,6 +59,7 @@ private:
         const FSEventStreamEventId eventIds[]);
 
     const long latencyInMillis;
+    recursive_mutex mutationMutex;
     unordered_map<u16string, WatchPoint> watchPoints;
 
     CFRunLoopRef threadLoop;
