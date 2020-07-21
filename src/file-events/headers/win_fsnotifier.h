@@ -94,13 +94,13 @@ public:
 protected:
     void initializeRunLoop() override;
     void runLoop() override;
-
-    void registerPath(const u16string& path) override;
-    bool unregisterPath(const u16string& path) override;
     void shutdownRunLoop() override;
 
 private:
     void handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMATION* info);
+
+    void registerPath(const u16string& path);
+    bool unregisterPath(const u16string& path);
 
     HANDLE threadHandle;
     const size_t bufferSize;

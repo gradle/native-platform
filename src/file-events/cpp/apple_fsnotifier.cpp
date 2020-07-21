@@ -95,7 +95,7 @@ void Server::initializeRunLoop() {
 void Server::runLoop() {
     CFRunLoopRun();
 
-    unique_lock<mutex> lock(mutationMutex);
+    unique_lock<recursive_mutex> lock(mutationMutex);
     watchPoints.clear();
     CFRelease(messageSource);
 }
@@ -209,21 +209,28 @@ void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags)
     reportChangeEvent(env, type, pathStr);
 }
 
-void Server::registerPath(const u16string& path) {
-    if (watchPoints.find(path) != watchPoints.end()) {
-        throw FileWatcherException("Already watching path", path);
+void Server::registerPaths(const vector<u16string>& paths) {
+    unique_lock<recursive_mutex> lock(mutationMutex);
+    for (auto& path : paths) {
+        if (watchPoints.find(path) != watchPoints.end()) {
+            throw FileWatcherException("Already watching path", path);
+        }
+        watchPoints.emplace(piecewise_construct,
+            forward_as_tuple(path),
+            forward_as_tuple(this, threadLoop, path, latencyInMillis));
     }
-    watchPoints.emplace(piecewise_construct,
-        forward_as_tuple(path),
-        forward_as_tuple(this, threadLoop, path, latencyInMillis));
 }
 
-bool Server::unregisterPath(const u16string& path) {
-    if (watchPoints.erase(path) == 0) {
-        logToJava(LogLevel::INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
-        return false;
+bool Server::unregisterPaths(const vector<u16string>& paths) {
+    unique_lock<recursive_mutex> lock(mutationMutex);
+    bool success = true;
+    for (auto& path : paths) {
+        if (watchPoints.erase(path) == 0) {
+            logToJava(LogLevel::INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
+            success = false;
+        }
     }
-    return true;
+    return success;
 }
 
 JNIEXPORT jobject JNICALL

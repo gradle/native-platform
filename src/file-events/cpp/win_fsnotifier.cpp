@@ -140,7 +140,6 @@ void WatchPoint::handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred) {
 }
 
 void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& buffer, DWORD bytesTransferred) {
-    unique_lock<mutex> lock(mutationMutex);
     JNIEnv* env = getThreadEnv();
     const u16string& path = watchPoint->path;
 
@@ -319,7 +318,6 @@ void Server::runLoop() {
     }
 
     // We have received termination, cancel all watchers
-    unique_lock<mutex> lock(mutationMutex);
     logToJava(LogLevel::FINE, "Finished with run loop, now cancelling remaining watch points", NULL);
     for (auto& it : watchPoints) {
         auto& watchPoint = it.second;
@@ -391,14 +389,20 @@ bool Server::executeOnRunLoop(function<bool()> function) {
 
 void Server::registerPaths(const vector<u16string>& paths) {
     executeOnRunLoop([this, paths]() {
-        AbstractServer::registerPaths(paths);
+        for (auto& path: paths) {
+            registerPath(path);
+        }
         return true;
     });
 }
 
 bool Server::unregisterPaths(const vector<u16string>& paths) {
     return executeOnRunLoop([this, paths]() {
-        return AbstractServer::unregisterPaths(paths);
+        bool success = true;
+        for (auto& path: paths) {
+            success &= unregisterPath(path);
+        }
+        return success;
     });
 }
 

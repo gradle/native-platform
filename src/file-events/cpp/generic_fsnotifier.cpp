@@ -141,22 +141,6 @@ void AbstractServer::executeRunLoop(JNIEnv* env) {
     terminationVariable.notify_all();
 }
 
-void AbstractServer::registerPaths(const vector<u16string>& paths) {
-    unique_lock<mutex> lock(mutationMutex);
-    for (auto& path : paths) {
-        registerPath(path);
-    }
-}
-
-bool AbstractServer::unregisterPaths(const vector<u16string>& paths) {
-    bool success = true;
-    unique_lock<mutex> lock(mutationMutex);
-    for (auto& path : paths) {
-        success &= unregisterPath(path);
-    }
-    return success;
-}
-
 bool AbstractServer::awaitTermination(long timeoutInMillis) {
     unique_lock<mutex> terminationLock(terminationMutex);
     if (terminated) {
