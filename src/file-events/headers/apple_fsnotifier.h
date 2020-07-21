@@ -43,11 +43,12 @@ protected:
     void shutdownRunLoop() override;
 
 private:
-    void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags);
+    void handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags, FSEventStreamEventId eventId);
     void handleEvents(
         size_t numEvents,
         char** eventPaths,
-        const FSEventStreamEventFlags eventFlags[]);
+        const FSEventStreamEventFlags eventFlags[],
+        const FSEventStreamEventId eventIds[]);
 
     friend void handleEventsCallback(
         ConstFSEventStreamRef stream,

@@ -110,20 +110,21 @@ static void handleEventsCallback(
     size_t numEvents,
     void* eventPaths,
     const FSEventStreamEventFlags eventFlags[],
-    const FSEventStreamEventId*) {
+    const FSEventStreamEventId eventIds[]) {
     Server* server = (Server*) clientCallBackInfo;
-    server->handleEvents(numEvents, (char**) eventPaths, eventFlags);
+    server->handleEvents(numEvents, (char**) eventPaths, eventFlags, eventIds);
 }
 
 void Server::handleEvents(
     size_t numEvents,
     char** eventPaths,
-    const FSEventStreamEventFlags eventFlags[]) {
+    const FSEventStreamEventFlags eventFlags[],
+    const FSEventStreamEventId eventIds[]) {
     JNIEnv* env = getThreadEnv();
 
     try {
         for (size_t i = 0; i < numEvents; i++) {
-            handleEvent(env, eventPaths[i], eventFlags[i]);
+            handleEvent(env, eventPaths[i], eventFlags[i], eventIds[i]);
         }
     } catch (const exception& ex) {
         reportFailure(env, ex);
@@ -160,48 +161,47 @@ static const FSEventStreamEventFlags IGNORED_FLAGS = kFSEventStreamCreateFlagNon
     | kFSEventStreamEventFlagItemIsLastHardlink
     | kFSEventStreamEventFlagItemCloned;
 
-void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags) {
-    FSEventStreamEventFlags normalizedFlags = flags & ~IGNORED_FLAGS;
-    logToJava(LogLevel::FINE, "Event flags: 0x%x (normalized: 0x%x) for '%s'", flags, normalizedFlags, path);
+void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags, FSEventStreamEventId eventId) {
+    logToJava(LogLevel::FINE, "Event flags: 0x%x (ID %d) for '%s'", flags, eventId, path);
 
     u16string pathStr = utf8ToUtf16String(path);
 
-    if (normalizedFlags == kFSEventStreamCreateFlagNone) {
-        logToJava(LogLevel::FINE, "Ignoring event 0x%x for %s", flags, path);
+    if ((flags & ~IGNORED_FLAGS) == kFSEventStreamCreateFlagNone) {
+        logToJava(LogLevel::FINE, "Ignoring event 0x%x (ID %d) for '%s'", flags, eventId, path);
         return;
     }
 
-    if (IS_SET(normalizedFlags, kFSEventStreamEventFlagMustScanSubDirs)) {
+    if (IS_SET(flags, kFSEventStreamEventFlagMustScanSubDirs)) {
         reportOverflow(env, pathStr);
         return;
     }
 
     ChangeType type;
-    if (IS_SET(normalizedFlags,
+    if (IS_SET(flags,
             kFSEventStreamEventFlagRootChanged
                 | kFSEventStreamEventFlagMount
                 | kFSEventStreamEventFlagUnmount)) {
         type = ChangeType::INVALIDATED;
-    } else if (IS_SET(normalizedFlags, kFSEventStreamEventFlagItemRenamed)) {
-        if (IS_SET(normalizedFlags, kFSEventStreamEventFlagItemCreated)) {
+    } else if (IS_SET(flags, kFSEventStreamEventFlagItemRenamed)) {
+        if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
             type = ChangeType::REMOVED;
         } else {
             type = ChangeType::CREATED;
         }
-    } else if (IS_SET(normalizedFlags, kFSEventStreamEventFlagItemModified)) {
+    } else if (IS_SET(flags, kFSEventStreamEventFlagItemModified)) {
         type = ChangeType::MODIFIED;
-    } else if (IS_SET(normalizedFlags, kFSEventStreamEventFlagItemRemoved)) {
+    } else if (IS_SET(flags, kFSEventStreamEventFlagItemRemoved)) {
         type = ChangeType::REMOVED;
-    } else if (IS_SET(normalizedFlags,
+    } else if (IS_SET(flags,
                    kFSEventStreamEventFlagItemInodeMetaMod    // file locked
                        | kFSEventStreamEventFlagItemFinderInfoMod
                        | kFSEventStreamEventFlagItemChangeOwner
                        | kFSEventStreamEventFlagItemXattrMod)) {
         type = ChangeType::MODIFIED;
-    } else if (IS_SET(normalizedFlags, kFSEventStreamEventFlagItemCreated)) {
+    } else if (IS_SET(flags, kFSEventStreamEventFlagItemCreated)) {
         type = ChangeType::CREATED;
     } else {
-        logToJava(LogLevel::WARNING, "Unknown event 0x%x (normalized: 0x%x) for %s", flags, normalizedFlags, path);
+        logToJava(LogLevel::WARNING, "Unknown event 0x%x (ID %d) for '%s'", flags, eventId, path);
         reportUnknownEvent(env, pathStr);
         return;
     }
