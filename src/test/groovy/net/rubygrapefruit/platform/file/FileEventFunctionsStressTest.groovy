@@ -80,9 +80,8 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
     }
 
     @Unroll
-    def "can watch #numberOfDirectories directories at the same time"() {
+    def "can watch #numberOfDirectories directories at the same time with #numberOfChanges changes"() {
         given:
-
         def directories = (1..numberOfDirectories).collect { index ->
             def dir = new File(rootDir, "dir-${index}")
             dir.mkdirs()
@@ -93,12 +92,11 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         def expectedEvents = []
 
         when:
-        10.times {index ->
-            directories.each { dir ->
-                def file = new File(dir, "file-${index}.txt")
-                file.createNewFile()
-                expectedEvents << change(CREATED, file)
-            }
+        numberOfChanges.times {index ->
+            def dir = directories[index % directories.size()]
+            def file = new File(dir, "file-${index}.txt")
+            file.createNewFile()
+            expectedEvents << change(CREATED, file)
         }
 
         then:
@@ -106,9 +104,10 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
 
         where:
         numberOfDirectories = byPlatform(
-            (MAC_OS): 500, // macOS seems to have a limit around 700 entries in an FSEventStream
+            (MAC_OS): 200, // macOS has a limit around 1000 FSEventStream, so we test with fewer
             (OTHERWISE): 10000
         )
+        numberOfChanges = 1000
     }
 
     @Timeout(value = 20, unit = SECONDS)
