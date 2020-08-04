@@ -29,8 +29,9 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 import static java.util.concurrent.TimeUnit.SECONDS
+import static net.rubygrapefruit.platform.file.AbstractFileEventFunctionsTest.PlatformType.LINUX
 import static net.rubygrapefruit.platform.file.AbstractFileEventFunctionsTest.PlatformType.MAC_OS
-import static net.rubygrapefruit.platform.file.AbstractFileEventFunctionsTest.PlatformType.OTHERWISE
+import static net.rubygrapefruit.platform.file.AbstractFileEventFunctionsTest.PlatformType.WINDOWS
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.CREATED
 
 @Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
@@ -105,7 +106,8 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         where:
         numberOfDirectories = byPlatform(
             (MAC_OS): 200, // macOS has a limit around 1000 FSEventStream, so we test with fewer
-            (OTHERWISE): 10000
+            (LINUX): 10000,
+            (WINDOWS): 200 // Windows seems to fail weirdly after a few hundred hierarchies
         )
         numberOfChanges = 1000
     }
