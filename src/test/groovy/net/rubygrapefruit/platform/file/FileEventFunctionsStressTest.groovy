@@ -29,6 +29,9 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 import static java.util.concurrent.TimeUnit.SECONDS
+import static net.rubygrapefruit.platform.file.AbstractFileEventFunctionsTest.PlatformType.LINUX
+import static net.rubygrapefruit.platform.file.AbstractFileEventFunctionsTest.PlatformType.MAC_OS
+import static net.rubygrapefruit.platform.file.AbstractFileEventFunctionsTest.PlatformType.WINDOWS
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.CREATED
 
 @Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
@@ -75,6 +78,38 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
 
         then:
         noExceptionThrown()
+    }
+
+    @Unroll
+    def "can watch #numberOfDirectories directories at the same time with #numberOfChanges changes"() {
+        given:
+        def directories = (1..numberOfDirectories).collect { index ->
+            def dir = new File(rootDir, "dir-${index}")
+            dir.mkdirs()
+            return dir
+        }
+        startWatcher()
+        watcher.startWatching(directories)
+        def expectedEvents = []
+
+        when:
+        numberOfChanges.times {index ->
+            def dir = directories[index % directories.size()]
+            def file = new File(dir, "file-${index}.txt")
+            file.createNewFile()
+            expectedEvents << change(CREATED, file)
+        }
+
+        then:
+        expectEvents expectedEvents
+
+        where:
+        numberOfDirectories = byPlatform(
+            (MAC_OS): 200, // macOS has a limit around 1000 FSEventStream, so we test with fewer
+            (LINUX): 10000,
+            (WINDOWS): 200 // Windows seems to fail weirdly after a few hundred hierarchies
+        )
+        numberOfChanges = 1000
     }
 
     @Timeout(value = 20, unit = SECONDS)
