@@ -1,0 +1,495 @@
+import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
+
+plugins {
+    id 'groovy'
+    id 'cpp'
+    id 'org.gradle.test-retry' version '1.1.1'
+    id 'net.rubygrapefruit.build.jni-plugin'
+}
+
+// Enabling this property means that the tests will try to resolve an external dependency for native platform
+// and test that instead of building native platform for the current machine.
+// The external dependency can live in the file repository `incoming-repo`.
+ext.testVersionFromLocalRepository = providers.gradleProperty('testVersionFromLocalRepository').forUseAtConfigurationTime().isPresent()
+
+tasks.withType(Test) {
+    systemProperty "test.directory", layout.buildDirectory.dir("test files").map { it.asFile.absolutePath }.get()
+    retry {
+        maxRetries = isCiServer ? 1 : 0
+        maxFailures = 10
+        failOnPassedAfterRetry = true
+    }
+    // Reconfigure the classpath for the test task here, so we can use dependency substitution on `testRuntimeClasspath`
+    // to test an external dependency.
+    // We omit `sourceSets.main.output` here and replace it with a test dependency on `project(':')` further down.
+    classpath = files(configurations.testRuntimeClasspath, sourceSets.test.output)
+}
+
+def testJni = tasks.register("testJni", Test) {
+    // See https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/clopts002.html
+    it.jvmArgs "-Xcheck:jni"
+
+    // Only run tests that have the category
+    it.useJUnit {
+        includeCategories 'net.rubygrapefruit.platform.testfixture.JniChecksEnabled'
+    }
+
+    // Check standard output for JNI warnings and fail if we find anything
+    String currentTest = null
+    it.addTestListener(new TestListener() {
+        @Override
+        void beforeSuite(TestDescriptor testDescriptor) {}
+
+        @Override
+        void afterSuite(TestDescriptor testDescriptor, TestResult testResult) {}
+
+        @Override
+        void beforeTest(TestDescriptor testDescriptor) {
+            currentTest = "${testDescriptor.className}.${testDescriptor.displayName}"
+        }
+
+        @Override
+        void afterTest(TestDescriptor testDescriptor, TestResult testResult) {
+            currentTest = null
+        }
+    })
+    List<String> warningsDetected = []
+    it.logging.addStandardOutputListener({ String message ->
+        if (currentTest != null && message.startsWith("WARNING")) {
+            warningsDetected << "$message (test: $currentTest)"
+        }
+    } as StandardOutputListener)
+    it.doLast {
+        if (warningsDetected) {
+            throw new RuntimeException("Detected JNI check warnings on standard output while executing tests:\n - ${warningsDetected.join("\n - ")}")
+        }
+    }
+}
+
+check.dependsOn testJni
+
+allprojects {
+    apply plugin: 'java'
+
+    repositories {
+        jcenter()
+    }
+
+    group = 'net.rubygrapefruit'
+
+    // Java 9 and later don't support targetting Java 5
+    def compatibility = JavaVersion.current().isJava9Compatible() ? 1.6 : 1.5
+
+    sourceCompatibility = compatibility
+    targetCompatibility = compatibility
+}
+
+dependencies {
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+    // We need to add the root project to testImplementation manually, since we changed the wiring
+    // for the test task to not use sourceSets.main.output.
+    // This allows using dependency substitution for the root project.
+    testImplementation project(":")
+    testImplementation 'org.spockframework:spock-core:1.3-groovy-2.5'
+}
+
+if (testVersionFromLocalRepository) {
+    // We need to change the group here, since dependency substitution will not replace
+    // a project artifact with an external artifact with the same GAV coordinates.
+    group = "new-group-for-root-project"
+    configurations.all {
+        resolutionStrategy.dependencySubstitution {
+            substitute project(':') with module("net.rubygrapefruit:native-platform:${version}")
+        }
+    }
+    repositories {
+        maven {
+            name = "IncomingLocalRepository"
+            url = rootProject.file("incoming-repo")
+        }
+    }
+}
+
+// Only depend on variants which can be built on the current machine
+boolean onlyLocalVariants = project.hasProperty("onlyLocalVariants")
+
+def generatedFilesDir = file("$buildDir/generated")
+
+def writeNativeVersionSources = tasks.register("writeNativeVersionSources", WriteNativeVersionSources) {
+    ["main", "shared", "curses", "file-events"].each {
+        nativeSources.from("src/${it}/cpp")
+        nativeSources.from("src/${it}/headers")
+    }
+
+    generatedNativeHeaderDirectory = file("$generatedFilesDir/version/header")
+    generatedJavaSourcesDir = file("$generatedFilesDir/version/java")
+}
+
+
+tasks.withType(CppCompile).configureEach {
+    includes(writeNativeVersionSources.flatMap { it.generatedNativeHeaderDirectory })
+}
+
+sourceSets.main.java {
+    srcDir(writeNativeVersionSources.flatMap { it.generatedJavaSourcesDir })
+}
+
+javadoc {
+    exclude '**/internal/**'
+}
+
+task sourceZip(type: Jar) {
+    from sourceSets.main.allSource
+    archiveClassifier = 'sources'
+}
+
+task javadocZip(type: Jar) {
+    from javadoc
+    archiveClassifier = 'javadoc'
+}
+
+task emptyZip(type: Jar) {
+    archiveClassifier = 'empty'
+}
+
+// Using internal classes here to make this simple
+def os = new DefaultNativePlatform("current").operatingSystem
+def arch = new DefaultNativePlatform("current").architecture
+def ncursesVersion = inferNCursesVersion(os)
+
+model {
+    platforms {
+        osx_amd64 {
+            architecture "amd64"
+            operatingSystem "osx"
+        }
+        linux_amd64 {
+            architecture "amd64"
+            operatingSystem "linux"
+        }
+        linux_amd64_ncurses5 {
+            architecture "amd64"
+            operatingSystem "linux"
+        }
+        linux_amd64_ncurses6 {
+            architecture "amd64"
+            operatingSystem "linux"
+        }
+        linux_aarch64 {
+            architecture "aarch64"
+            operatingSystem "linux"
+        }
+        linux_aarch64_ncurses5 {
+            architecture "aarch64"
+            operatingSystem "linux"
+        }
+        linux_aarch64_ncurses6 {
+            architecture "aarch64"
+            operatingSystem "linux"
+        }
+        windows_i386 {
+            architecture "i386"
+            operatingSystem "windows"
+        }
+        windows_amd64 {
+            architecture "amd64"
+            operatingSystem "windows"
+        }
+        windows_i386_min {
+            architecture "i386"
+            operatingSystem "windows"
+        }
+        windows_amd64_min {
+            architecture "amd64"
+            operatingSystem "windows"
+        }
+        freebsd_amd64_libcpp {
+            architecture "amd64"
+            operatingSystem "freebsd"
+        }
+    }
+
+    toolChains {
+        gcc(Gcc) {
+            // The core Gradle toolchain for gcc only targets x86 and x86_64 out of the box.
+            // https://github.com/gradle/gradle/blob/36614ee523e5906ddfa1fed9a5dc00a5addac1b0/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/gcc/AbstractGccCompatibleToolChain.java
+            target("linux_aarch64")
+            target("linux_aarch64_ncurses5")
+            target("linux_aarch64_ncurses6")
+
+            eachPlatform {
+                // Use GCC to build for libstdc++ on FreeBSD
+                if (platform.operatingSystem.freeBSD) {
+                    if (platform.name.contains('libstdcpp')) {
+                        cCompiler.executable = 'cc'
+                        cppCompiler.executable = 'c++'
+                        linker.executable = 'c++'
+                    } else {
+                        // Use a dummy so that GCC is not selected
+                        cCompiler.executable = 'dummy'
+                        cppCompiler.executable = 'dummy'
+                        objcCompiler.executable = 'dummy'
+                        objcppCompiler.executable = 'dummy'
+                        assembler.executable = 'dummy'
+                        linker.executable = 'dummy'
+                        staticLibArchiver.executable = 'dummy'
+                    }
+                }
+            }
+        }
+        clang(Clang) {
+            eachPlatform {
+                // Use Clang to build for libc++ on FreeBSD
+                if (platform.operatingSystem.freeBSD) {
+                    if (platform.name.contains('libcpp')) {
+                        cCompiler.executable = 'cc'
+                        cppCompiler.executable = 'c++'
+                        linker.executable = 'c++'
+                    } else {
+                        // Use a dummy so that Clang is not selected
+                        cCompiler.executable = 'dummy'
+                        cppCompiler.executable = 'dummy'
+                        objcCompiler.executable = 'dummy'
+                        objcppCompiler.executable = 'dummy'
+                        assembler.executable = 'dummy'
+                        linker.executable = 'dummy'
+                        staticLibArchiver.executable = 'dummy'
+                    }
+                }
+            }
+        }
+        visualCpp(VisualCpp)
+    }
+
+    components {
+        nativePlatform(NativeLibrarySpec) {
+            baseName 'native-platform'
+            // TODO - this should be the default. Figure out why this is not working
+            $.platforms.each { p ->
+                if (p.name.contains("ncurses")) {
+                    return
+                }
+                targetPlatform p.name
+            }
+            sources {
+                cpp {
+                    source.srcDirs = ['src/shared/cpp', 'src/main/cpp']
+                    exportedHeaders.srcDirs = ['src/shared/headers']
+                }
+            }
+        }
+
+        nativePlatformCurses(NativeLibrarySpec) {
+            baseName 'native-platform-curses'
+            $.platforms.each { p ->
+                if (p.operatingSystem.windows) {
+                    return
+                }
+                if (p.operatingSystem.linux && !p.name.contains("ncurses")) {
+                    return
+                }
+                targetPlatform p.name
+            }
+            sources {
+                cpp {
+                    source.srcDirs = ['src/shared/cpp', 'src/curses/cpp']
+                    exportedHeaders.srcDirs = ['src/shared/headers']
+                }
+            }
+            binaries.all {
+                if (targetPlatform.operatingSystem.linux && !targetPlatform.name.contains("curses${ncursesVersion}")) {
+                    buildable = false
+                }
+                if (targetPlatform.operatingSystem.linux && ncursesVersion != "5") {
+                    linker.args "-lncursesw"
+                } else {
+                    linker.args "-lcurses"
+                }
+            }
+        }
+
+        nativePlatformFileEvents(NativeLibrarySpec) {
+            baseName 'native-platform-file-events'
+            $.platforms.each { p ->
+                if (p.operatingSystem.freeBSD) {
+                    return
+                }
+                if (p.name.contains("ncurses")) {
+                    return
+                }
+                targetPlatform p.name
+            }
+            binaries.all {
+                if (targetPlatform.operatingSystem.macOsX
+                    || targetPlatform.operatingSystem.linux) {
+                    cppCompiler.args "-g"                       // Produce debug output
+                    cppCompiler.args "-pthread"                 // Force nicer threading
+                    cppCompiler.args "-pedantic"                // Disable non-standard things
+                    cppCompiler.args "--std=c++11"              // Enable C++11
+                    cppCompiler.args "-Wall"                    // All warnings
+                    cppCompiler.args "-Wextra"                  // Plus extra
+                    cppCompiler.args "-Wformat=2"               // Check printf format strings
+                    cppCompiler.args "-Werror"                  // Warnings are errors
+                    cppCompiler.args "-Wno-format-nonliteral"   // Allow printf to have dynamic format string
+                    cppCompiler.args "-Wno-unguarded-availability-new" // Newly introduced flags are not available on older macOS versions
+                    linker.args "-pthread"
+                } else if (targetPlatform.operatingSystem.windows) {
+                    cppCompiler.args "/DEBUG"                   // Produce debug output
+                    cppCompiler.args "/std:c++17"               // Won't hurt
+                    cppCompiler.args "/permissive-"             // Make compiler more standards compatible
+                    cppCompiler.args "/EHsc"                    // Force exception handling mode
+                    cppCompiler.args "/Zi"                      // Force PDB debugging
+                    cppCompiler.args "/FS"                      // Force synchronous PDB writes
+                    cppCompiler.args "/Zc:inline"               // Hack
+                    cppCompiler.args "/Zc:throwingNew"          // Assume new throws on error
+                    cppCompiler.args "/W3"                      // Enable lots of warnings, disbale individual warnings with /WD<NUM>
+                    cppCompiler.args "/WX"                      // Warnings are errors
+                    cppCompiler.args "/D_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING"
+                                                                // Don't issue warnings for wstring_convert in generic_fsnotifier.cpp
+                    linker.args "/DEBUG:FULL"                   // Generate all PDBs
+                }
+            }
+            sources {
+                cpp {
+                    source.srcDirs = ['src/file-events/cpp']
+                    exportedHeaders.srcDirs = ['src/file-events/headers']
+                }
+            }
+        }
+
+        all {
+            binaries.all {
+                if (targetPlatform.operatingSystem.name in ['linux', 'freebsd'] && targetPlatform.architecture != arch) {
+                    // Native plugins don't detect whether multilib support is available or not. Assume not for now
+                    buildable = false
+                }
+
+                if (targetPlatform.operatingSystem.macOsX) {
+                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
+                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/darwin"
+                    cppCompiler.args '-mmacosx-version-min=10.9'
+                    linker.args '-mmacosx-version-min=10.9'
+                    linker.args '-framework', 'CoreServices'
+                } else if (targetPlatform.operatingSystem.linux) {
+                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
+                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/linux"
+                    cppCompiler.args '-D_FILE_OFFSET_BITS=64'
+                } else if (targetPlatform.operatingSystem.windows) {
+                    if (name.contains("_min")) {
+                        cppCompiler.define "WINDOWS_MIN"
+                    }
+                    cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
+                    cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"
+                    linker.args "Shlwapi.lib", "Advapi32.lib"
+                } else if (targetPlatform.operatingSystem.freeBSD) {
+                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
+                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/freebsd"
+                }
+            }
+
+            binaries.withType(SharedLibraryBinarySpec) { binary ->
+                if (onlyLocalVariants && !buildable) {
+                    return
+                }
+                def variantName = binaryToVariantName(binary)
+                project.variants.variantNames.add(variantName)
+            }
+        }
+    }
+}
+
+publishing {
+    publications {
+        main(MavenPublication) {
+            groupId = project.group
+            artifactId = jar.archiveBaseName.get()
+            version = project.version
+            artifact jar
+            artifact sourceZip
+            artifact javadocZip
+            pom.withXml { provider ->
+                def node = provider.asNode()
+                def deps = node.appendNode('dependencies')
+                variants.variantNames.get().each { p ->
+                    def dep = deps.appendNode('dependency')
+                    dep.appendNode('groupId', project.group)
+                    dep.appendNode('artifactId', "native-platform-${p}")
+                    dep.appendNode('version', project.version)
+                    dep.appendNode('scope', 'runtime')
+                }
+            }
+        }
+    }
+}
+
+// We register the publications here, so they are available when the project is used as a composite build.
+// When we don't use the software model plugins anymore, then this can move out of the afterEvaluate block.
+afterEvaluate {
+    // Realize the software model components, so we can create the corresponding publications.
+    modelRegistry.realize('components.nativePlatform', NativeLibrarySpec)
+    modelRegistry.realize('components.nativePlatformCurses', NativeLibrarySpec)
+    modelRegistry.realize('components.nativePlatformFileEvents', NativeLibrarySpec)
+    modelRegistry.realize('components', ModelMap).each { ComponentSpec spec->
+        spec.binaries.findAll { variants.variantNames.get().contains(binaryToVariantName(it)) && it.buildable } each { NativeBinarySpec binary ->
+            def variantName = binaryToVariantName(binary)
+            def taskName = "jar-${variantName}"
+            def nativeJar = project.tasks.findByName(taskName)
+            if (nativeJar == null) {
+                nativeJar = project.tasks.create(taskName, Jar) {
+                    archiveBaseName = "native-platform-$variantName"
+                }
+                artifacts {
+                    runtimeElements nativeJar
+                }
+                publishing {
+                    publications {
+                        "$variantName"(MavenPublication) {
+                            artifact(nativeJar)
+                            artifact(emptyZip) {
+                                classifier = "sources"
+                            }
+                            artifact(emptyZip) {
+                                classifier = "javadoc"
+                            }
+                            groupId = project.group
+                            artifactId = nativeJar.archiveBaseName.get()
+                            version = project.version
+                        }
+                    }
+                }
+            }
+
+            binary.tasks.withType(LinkSharedLibrary) { builderTask ->
+                nativeJar.into("net/rubygrapefruit/platform/$variantName") { from builderTask.linkedFile }
+            }
+            if (!testVersionFromLocalRepository) {
+                project.tasks.named("test", Test).configure {
+                    classpath.from nativeJar
+                }
+            }
+        }
+    }
+}
+
+String inferNCursesVersion(def os) {
+    if (!os.linux) {
+        return "5"
+    }
+    for (def d : ["/lib", "/lib64", "/lib/x86_64-linux-gnu", "/lib/aarch64-linux-gnu"]) {
+        if (new File("$d/libncurses.so.6").file) {
+            return "6"
+        }
+        if (new File("$d/libncurses.so.5").file) {
+            return "5"
+        }
+    }
+    throw new IllegalArgumentException("Could not determine ncurses version installed on this machine.")
+}
+
+String binaryToVariantName(NativeBinarySpec binary) {
+    binary.targetPlatform.name.replace('_', '-')
+}
+
+tasks.withType(GroovyCompile).configureEach {
+    options.incremental = true
+}

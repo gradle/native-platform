@@ -16,10 +16,10 @@
 
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.memory.Memory;
-import net.rubygrapefruit.platform.memory.MemoryInfo;
 import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.internal.jni.MemoryFunctions;
+import net.rubygrapefruit.platform.memory.Memory;
+import net.rubygrapefruit.platform.memory.MemoryInfo;
 
 public class DefaultMemory implements Memory {
     public MemoryInfo getMemoryInfo() {
