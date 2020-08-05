@@ -9,7 +9,7 @@ archivesBaseName = 'native-platform-test'
 if (versions.useRepo) {
     configurations.all {
         resolutionStrategy.dependencySubstitution {
-            substitute project(':') with module("net.rubygrapefruit:native-platform:${version}")
+            substitute project(':native-platform') with module("net.rubygrapefruit:native-platform:${version}")
         }
     }
     configurations {
@@ -21,7 +21,7 @@ if (versions.useRepo) {
 }
 
 dependencies {
-    implementation project(':')
+    implementation project(':native-platform')
     implementation 'net.sf.jopt-simple:jopt-simple:4.2'
 }
 
