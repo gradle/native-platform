@@ -22,7 +22,8 @@ public class ReleasePlugin implements Plugin<Project> {
         rootProject.getPlugins().apply(VersioningPlugin.class);
         VersionDetails versions = rootProject.getExtensions().getByType(VersionDetails.class);
         project.getGradle().getTaskGraph().whenReady(graph -> {
-            if (graph.hasTask(":" + UPLOAD_MAIN_TASK_NAME) || graph.hasTask(":" + UPLOAD_JNI_TASK_NAME) || graph.hasTask(":" + UPLOAD_NCURSES_JNI_TASK_NAME)) {
+            String projectPath = project.getPath();
+            if (graph.hasTask(projectPath + ":" + UPLOAD_MAIN_TASK_NAME) || graph.hasTask(projectPath + ":" + UPLOAD_JNI_TASK_NAME) || graph.hasTask(projectPath + ":" + UPLOAD_NCURSES_JNI_TASK_NAME)) {
                 project.getLogger().lifecycle("##teamcity[buildStatus text='{build.status.text}, Published version {}']", versions.getVersion());
             }
         });
