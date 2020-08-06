@@ -1,9 +1,11 @@
 import org.gradle.api.JavaVersion;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.provider.ProviderFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.inject.Inject;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,29 +21,55 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class VersioningPlugin implements Plugin<Project> {
+public abstract class VersioningPlugin implements Plugin<Project> {
     private static final Logger LOGGER = LoggerFactory.getLogger(VersioningPlugin.class);
 
     private static final DateTimeFormatter SNAPSHOT_TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmssZ", Locale.US).withZone(ZoneOffset.UTC);
     private static final String BUILD_RECEIPT_NAME = "build-receipt.properties";
     private static final String BUILD_TIMESTAMP_PROPERTY = "buildTimestamp";
+    public static final String NEXT_VERSION_PROPERTY_NAME = "nextVersion";
+    public static final String NEXT_MILESTONE_PROPERTY_NAME = "nextMilestone";
     private static final String ALPHA_VERSION_PROPERTY_NAME = "alpha";
 
     @Override
     public void apply(Project project) {
         VersionDetails.BuildType buildType = determineBuildType(project);
-        VersionDetails versions = project.getExtensions().create("versions", VersionDetails.class, buildType);
-        if (project.hasProperty(ALPHA_VERSION_PROPERTY_NAME)) {
-            versions.setNextAlphaPostfix(project.property(ALPHA_VERSION_PROPERTY_NAME).toString());
-        }
-
         if (buildType != VersionDetails.BuildType.Dev && JavaVersion.current() != JavaVersion.VERSION_1_8) {
             throw new RuntimeException("Java 8 is required to build a release of native-platform. Later versions are not supported.");
         }
-
         String buildTimestamp = determineBuildTimestamp(project);
         writeBuildTimestamp(buildTimestamp, project);
-        versions.setBuildTimestamp(buildTimestamp);
+        String version = determineVersion(buildType, buildTimestamp);
+        project.getExtensions().create("versions", VersionDetails.class, buildType, version);
+    }
+
+    @Inject
+    protected abstract ProviderFactory getProviderFactory();
+
+    private String determineVersion(VersionDetails.BuildType buildType, String buildTimestamp) {
+        String nextVersion = getGradleProperty(NEXT_VERSION_PROPERTY_NAME);
+        switch (buildType) {
+            case Release:
+                return nextVersion;
+            case Milestone:
+                return nextVersion + "-milestone-" + getGradleProperty(NEXT_MILESTONE_PROPERTY_NAME);
+            case Alpha:
+                return nextVersion + "-" + getGradleProperty(ALPHA_VERSION_PROPERTY_NAME);
+            case Snapshot:
+                return nextVersion + "-snapshot-" + buildTimestamp;
+            case Dev:
+                return nextVersion + "-dev";
+            default:
+                throw new AssertionError("Unknown build type " + buildType);
+        }
+    }
+
+    private String getGradleProperty(String propertyName) {
+        String value = getProviderFactory().gradleProperty(propertyName).forUseAtConfigurationTime().getOrNull();
+        if (value == null || value.isEmpty()) {
+            throw new UnsupportedOperationException("No value for Gradle property '" + propertyName + "' specified");
+        }
+        return value;
     }
 
     private void writeBuildTimestamp(String buildTimestamp, Project project) {
@@ -56,8 +84,8 @@ public class VersioningPlugin implements Plugin<Project> {
     }
 
     private String determineBuildTimestamp(Project project) {
-        File buildReceipt = new File(project.getRootProject().file("incoming-distributions"), BUILD_RECEIPT_NAME);
-        if (project.hasProperty("ignoreIncomingBuildReceipt") || !buildReceipt.isFile()) {
+        File buildReceipt = new File(project.file("incoming-distributions"), BUILD_RECEIPT_NAME);
+        if (getProviderFactory().gradleProperty("ignoreIncomingBuildReceipt").forUseAtConfigurationTime().isPresent() || !buildReceipt.isFile()) {
             return ZonedDateTime.now().format(SNAPSHOT_TIMESTAMP_FORMATTER);
         }
         Properties properties = new Properties();
