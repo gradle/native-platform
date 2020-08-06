@@ -7,6 +7,8 @@ plugins {
     id 'net.rubygrapefruit.build.jni-plugin'
 }
 
+apply plugin: ReleasePlugin
+
 // Enabling this property means that the tests will try to resolve an external dependency for native platform
 // and test that instead of building native platform for the current machine.
 // The external dependency can live in the file repository `incoming-repo`.

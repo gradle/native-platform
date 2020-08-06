@@ -2,6 +2,8 @@ plugins {
     id('application')
 }
 
+apply plugin: ReleasePlugin
+
 mainClassName = 'net.rubygrapefruit.platform.test.Main'
 applicationName = 'native-platform-test'
 archivesBaseName = 'native-platform-test'

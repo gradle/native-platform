@@ -1,4 +1,4 @@
-apply plugin: ReleasePlugin
+apply plugin: VersioningPlugin
 
 versions {
     nextVersion = '0.22'

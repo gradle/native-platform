@@ -51,6 +51,8 @@ public class VersionDetails {
     private String nextVersion;
     private String nextSnapshot;
     private String nextAlphaPostfix;
+    private String buildTimestamp;
+    private String version;
     private final BuildType buildType;
 
     @Inject
@@ -60,6 +62,10 @@ public class VersionDetails {
 
     public boolean isUseRepo() {
         return buildType.getReleaseRepository().isPresent();
+    }
+
+    public Optional<ReleaseRepository> getReleaseRepository() {
+        return buildType.getReleaseRepository();
     }
 
     public String getNextVersion() {
@@ -84,5 +90,40 @@ public class VersionDetails {
 
     public void setNextAlphaPostfix(String nextAlphaPostfix) {
         this.nextAlphaPostfix = nextAlphaPostfix;
+    }
+
+    public String getBuildTimestamp() {
+        return buildTimestamp;
+    }
+
+    public void setBuildTimestamp(String buildTimestamp) {
+        this.buildTimestamp = buildTimestamp;
+    }
+
+    public String getVersion() {
+        if (version == null) {
+            String nextVersion = getNextVersion();
+            if (nextVersion == null) {
+                throw new UnsupportedOperationException("Next version not specified.");
+            }
+            if (buildType == VersionDetails.BuildType.Release) {
+                version = nextVersion;
+            } else if (buildType == VersionDetails.BuildType.Milestone) {
+                if (getNextSnapshot() == null) {
+                    throw new UnsupportedOperationException("Next milestone not specified.");
+                }
+                version = nextVersion + "-milestone-" + getNextSnapshot();
+            } else if (buildType == VersionDetails.BuildType.Alpha) {
+                if (getNextAlphaPostfix() == null || getNextAlphaPostfix().isEmpty()) {
+                    throw new UnsupportedOperationException("Next alpha version postfix not specified.");
+                }
+                version = nextVersion + "-" + getNextAlphaPostfix();
+            } else if (buildType == VersionDetails.BuildType.Snapshot) {
+                version = nextVersion + "-snapshot-" + buildTimestamp;
+            } else {
+                version = nextVersion + "-dev";
+            }
+        }
+        return version;
     }
 }
