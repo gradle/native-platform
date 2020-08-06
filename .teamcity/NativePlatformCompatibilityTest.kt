@@ -12,7 +12,7 @@ class NativePlatformCompatibilityTest(agent: Agent, buildDependencies: List<Buil
 
     steps {
         gradle {
-            tasks = "clean :test -PtestVersionFromLocalRepository"
+            tasks = "clean :native-platform:test -PtestVersionFromLocalRepository"
             buildFile = ""
         }
     }

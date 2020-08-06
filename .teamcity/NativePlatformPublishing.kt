@@ -104,7 +104,7 @@ open class NativePlatformPublishSnapshot(releaseType: ReleaseType, uploadTasks: 
 })
 
 class NativeLibraryPublish(releaseType: ReleaseType = ReleaseType.Snapshot, agent: Agent, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
-    NativePlatformPublishSnapshot(releaseType, listOf(":uploadJni"), buildAndTest, buildReceiptSource, {
+    NativePlatformPublishSnapshot(releaseType, listOf(":native-platform:uploadJni"), buildAndTest, buildReceiptSource, {
         val extraQualification = if (agent.os is Linux)
             "general and ${agent.os.ncurses.toString().toLowerCase()} "
         else ""
@@ -118,7 +118,7 @@ class NativeLibraryPublish(releaseType: ReleaseType = ReleaseType.Snapshot, agen
     })
 
 class NativeLibraryPublishNcurses(releaseType: ReleaseType = ReleaseType.Snapshot, agent: Agent, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
-    NativePlatformPublishSnapshot(releaseType, listOf(":uploadNcursesJni"), buildAndTest, buildReceiptSource, {
+    NativePlatformPublishSnapshot(releaseType, listOf(":native-platform:uploadNcursesJni"), buildAndTest, buildReceiptSource, {
         val linuxOs: Linux = agent.os as Linux
         name = "Publish ${linuxOs.osType} ${agent.architecture} ${linuxOs.ncurses.toString().toLowerCase()} only ${releaseType.name}"
         id = RelativeId("Publishing_Publish${linuxOs.osType}${agent.architecture}${linuxOs.ncurses}${releaseType.name}")
@@ -129,7 +129,7 @@ class NativeLibraryPublishNcurses(releaseType: ReleaseType = ReleaseType.Snapsho
 class PublishJavaApi(releaseType: ReleaseType = ReleaseType.Snapshot, nativeLibraryPublishingBuilds: List<NativePlatformPublishSnapshot>, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
     NativePlatformPublishSnapshot(
         releaseType,
-        listOf(":uploadMain", ":testApp:uploadMain") + if (releaseType in setOf(ReleaseType.Milestone, ReleaseType.Release)) listOf("publishToBintray") else listOf(),
+        listOf(":native-platform:uploadMain", ":testApp:uploadMain") + if (releaseType in setOf(ReleaseType.Milestone, ReleaseType.Release)) listOf("publishToBintray") else listOf(),
         buildAndTest,
         buildReceiptSource,
         {
