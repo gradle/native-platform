@@ -40,7 +40,7 @@ const val buildReceipt = "build-receipt.properties"
 
 const val archiveReports = """native-platform/build/reports/** => reports
 buildSrc/build/reports/** => buildSrc/reports
-testApp/build/reports/** => testApp/reports"""
+test-app/build/reports/** => test-app/reports"""
 
 fun BuildFeatures.publishCommitStatus() {
     commitStatusPublisher {
