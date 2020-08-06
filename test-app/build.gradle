@@ -1,8 +1,7 @@
 plugins {
     id('application')
+    id('net.rubygrapefruit.build.native-platform-component')
 }
-
-apply plugin: ReleasePlugin
 
 mainClassName = 'net.rubygrapefruit.platform.test.Main'
 applicationName = 'native-platform-test'

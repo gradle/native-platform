@@ -4,10 +4,11 @@ plugins {
     id 'groovy'
     id 'cpp'
     id 'org.gradle.test-retry' version '1.1.1'
-    id 'net.rubygrapefruit.build.jni-plugin'
+    id 'net.rubygrapefruit.build.jni'
+    id 'net.rubygrapefruit.build.native-platform-component'
 }
 
-apply plugin: ReleasePlugin
+ext.isCiServer = providers.environmentVariable("CI").forUseAtConfigurationTime().isPresent()
 
 // Enabling this property means that the tests will try to resolve an external dependency for native platform
 // and test that instead of building native platform for the current machine.
