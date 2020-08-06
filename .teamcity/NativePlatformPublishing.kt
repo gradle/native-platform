@@ -112,8 +112,8 @@ class NativeLibraryPublish(releaseType: ReleaseType = ReleaseType.Snapshot, agen
         id = RelativeId("Publishing_Publish${agent.os.osType}${agent.architecture}${releaseType.name}")
         runOn(agent)
         artifactRules = """
-            build/**/*.pdb
-            build/libs/**
+            **/build/**/*.pdb
+            **/build/libs/**
         """.trimIndent() + "\n$archiveReports"
     })
 

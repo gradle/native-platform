@@ -38,7 +38,7 @@ fun BuildType.runOn(agent: Agent) {
 
 const val buildReceipt = "build-receipt.properties"
 
-const val archiveReports = """build/reports/** => reports
+const val archiveReports = """native-platform/build/reports/** => reports
 buildSrc/build/reports/** => buildSrc/reports
 testApp/build/reports/** => testApp/reports"""
 
