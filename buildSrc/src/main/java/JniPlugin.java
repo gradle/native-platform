@@ -160,7 +160,12 @@ public abstract class JniPlugin implements Plugin<Project> {
                                 })));
                             }
                             binary.getTasks().withType(LinkSharedLibrary.class, builderTask ->
-                                nativeJar.into(project.getGroup().toString().replace(".", "/") + "/" + variantName, it -> it.from(builderTask.getLinkedFile()))
+                                nativeJar.into(String.join(
+                                    "/",
+                                    project.getGroup().toString().replace(".", "/"),
+                                    "platform",
+                                    variantName
+                                ), it -> it.from(builderTask.getLinkedFile()))
                             );
                             if (!testVersionFromLocalRepository) {
                                 project.getTasks().withType(Test.class).configureEach(it -> ((ConfigurableFileCollection) it.getClasspath()).from(nativeJar));
