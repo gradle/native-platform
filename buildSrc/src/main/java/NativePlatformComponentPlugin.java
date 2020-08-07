@@ -6,6 +6,7 @@ import org.gradle.api.plugins.BasePlugin;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.plugins.JavaPluginExtension;
+import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetOutput;
 import org.gradle.api.tasks.compile.GroovyCompile;
 import org.gradle.api.tasks.testing.Test;
@@ -53,7 +54,7 @@ public abstract class NativePlatformComponentPlugin implements Plugin<Project> {
             // to test an external dependency.
             // We omit `sourceSets.main.output` here and replace it with a test dependency on `project(':')` further down.
             Configuration testRuntimeClasspath = project.getConfigurations().getByName("testRuntimeClasspath");
-            SourceSetOutput testOutput = javaPluginConvention.getSourceSets().getByName("test").getOutput();
+            SourceSetOutput testOutput = javaPluginConvention.getSourceSets().getByName(SourceSet.TEST_SOURCE_SET_NAME).getOutput();
             test.setClasspath(project.files(testRuntimeClasspath, testOutput));
         });
     }

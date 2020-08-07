@@ -5,9 +5,11 @@ import org.gradle.api.Project;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.internal.project.ProjectInternal;
 import org.gradle.api.plugins.ExtensionContainer;
+import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.provider.ProviderFactory;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
+import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskContainer;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.bundling.Jar;
@@ -57,6 +59,8 @@ public abstract class JniPlugin implements Plugin<Project> {
         project.getPluginManager().apply(JniRules.class);
 
         configureCppTasks(project);
+        configureNativeVersionGeneration(project);
+
         configurePomOfMainJar(project, variants);
 
         // Enabling this property means that the tests will try to resolve an external dependency for native platform
@@ -68,6 +72,25 @@ public abstract class JniPlugin implements Plugin<Project> {
         }
 
         configureNativeJars(project, variants, testVersionFromLocalRepository);
+    }
+
+    private void configureNativeVersionGeneration(Project project) {
+        File generatedFilesDir = new File(project.getBuildDir(), "generated");
+
+        TaskProvider<WriteNativeVersionSources> writeNativeVersionSources = project.getTasks().register("writeNativeVersionSources", WriteNativeVersionSources.class, task -> {
+
+            task.getGeneratedNativeHeaderDirectory().set(new File(generatedFilesDir, "version/header"));
+            task.getGeneratedJavaSourcesDir().set(new File(generatedFilesDir, "version/java"));
+        });
+
+
+        project.getTasks().withType(CppCompile.class).configureEach(task ->
+            task.includes(writeNativeVersionSources.flatMap(WriteNativeVersionSources::getGeneratedNativeHeaderDirectory)
+        ));
+        JavaPluginConvention javaPluginConvention = project.getConvention().getPlugin(JavaPluginConvention.class);
+        javaPluginConvention.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME).java(javaSources ->
+            javaSources.srcDir(writeNativeVersionSources.flatMap(WriteNativeVersionSources::getGeneratedJavaSourcesDir))
+        );
     }
 
     private void configureNativeJars(Project project, VariantsExtension variants, boolean testVersionFromLocalRepository) {
