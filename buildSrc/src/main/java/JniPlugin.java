@@ -1,8 +1,11 @@
 import com.google.common.collect.ImmutableList;
+import groovy.util.Node;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.plugins.ExtensionContainer;
 import org.gradle.api.provider.ProviderFactory;
+import org.gradle.api.publish.PublishingExtension;
+import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.tasks.TaskContainer;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.compile.JavaCompile;
@@ -28,7 +31,6 @@ import org.gradle.nativeplatform.toolchain.NativeToolChainRegistry;
 import org.gradle.nativeplatform.toolchain.VisualCpp;
 import org.gradle.platform.base.PlatformContainer;
 
-import javax.inject.Inject;
 import java.io.File;
 import java.util.List;
 
@@ -36,7 +38,8 @@ public abstract class JniPlugin implements Plugin<Project> {
 
     @Override
     public void apply(Project project) {
-        project.getPluginManager().apply("java");
+        project.getPluginManager().apply(NativePlatformComponentPlugin.class);
+        VariantsExtension variants = project.getExtensions().getByType(VariantsExtension.class);
         TaskContainer tasks = project.getTasks();
         TaskProvider<JavaCompile> compileJavaProvider = tasks.named("compileJava", JavaCompile.class);
 
@@ -45,6 +48,22 @@ public abstract class JniPlugin implements Plugin<Project> {
                 compileJavaProvider.flatMap(it -> it.getOptions().getHeaderOutputDirectory())
             ));
         project.getPluginManager().apply(JniRules.class);
+
+        project.getExtensions().configure(
+            PublishingExtension.class,
+            extension -> extension.getPublications().named("main", MavenPublication.class, main -> {
+                main.getPom().withXml(xmlProvider -> {
+                    Node node = xmlProvider.asNode();
+                    Node deps = node.appendNode("dependencies");
+                    variants.getVariantNames().get().forEach(variantName -> {
+                        Node dep = deps.appendNode("dependency");
+                        dep.appendNode("groupId", project.getGroup());
+                        dep.appendNode("artifactId", main.getArtifactId() + "-" + variantName);
+                        dep.appendNode("version", project.getVersion());
+                        dep.appendNode("scope", "runtime");
+                    });
+                });
+            }));
     }
 
     public static class JniRules extends RuleSource {

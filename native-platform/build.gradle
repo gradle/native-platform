@@ -106,20 +106,6 @@ javadoc {
     exclude '**/internal/**'
 }
 
-task sourceZip(type: Jar) {
-    from sourceSets.main.allSource
-    archiveClassifier = 'sources'
-}
-
-task javadocZip(type: Jar) {
-    from javadoc
-    archiveClassifier = 'javadoc'
-}
-
-task emptyZip(type: Jar) {
-    archiveClassifier = 'empty'
-}
-
 // Using internal classes here to make this simple
 def os = new DefaultNativePlatform("current").operatingSystem
 def ncursesVersion = inferNCursesVersion(os)
@@ -217,30 +203,6 @@ model {
                 cpp {
                     source.srcDirs = ['src/file-events/cpp']
                     exportedHeaders.srcDirs = ['src/file-events/headers']
-                }
-            }
-        }
-    }
-}
-
-publishing {
-    publications {
-        main(MavenPublication) {
-            groupId = project.group
-            artifactId = jar.archiveBaseName.get()
-            version = project.version
-            artifact jar
-            artifact sourceZip
-            artifact javadocZip
-            pom.withXml { provider ->
-                def node = provider.asNode()
-                def deps = node.appendNode('dependencies')
-                variants.variantNames.get().each { p ->
-                    def dep = deps.appendNode('dependency')
-                    dep.appendNode('groupId', project.group)
-                    dep.appendNode('artifactId', "native-platform-${p}")
-                    dep.appendNode('version', project.version)
-                    dep.appendNode('scope', 'runtime')
                 }
             }
         }

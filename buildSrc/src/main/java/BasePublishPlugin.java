@@ -3,6 +3,10 @@ import org.gradle.api.Project;
 import org.gradle.api.plugins.BasePluginConvention;
 import org.gradle.api.publish.Publication;
 import org.gradle.api.publish.PublishingExtension;
+import org.gradle.api.publish.maven.MavenPublication;
+import org.gradle.api.tasks.TaskContainer;
+import org.gradle.api.tasks.TaskProvider;
+import org.gradle.api.tasks.bundling.Jar;
 
 import java.io.File;
 import java.util.concurrent.Callable;
@@ -32,6 +36,28 @@ public class BasePublishPlugin implements Plugin<Project> {
                 repo.setUrl(localRepoDir);
             })
         );
+
+        TaskContainer tasks = project.getTasks();
+        TaskProvider<Jar> jarTask = project.getTasks().named("jar", Jar.class);
+        TaskProvider<Jar> sourceZipTask = tasks.register("sourceZip", Jar.class, jar -> jar.getArchiveClassifier().set("sources"));
+        TaskProvider<Jar> javadocZipTask = tasks.register("javadocZip", Jar.class, jar -> jar.getArchiveClassifier().set("javadoc"));
+        tasks.register("emptyZip", Jar.class, jar -> jar.getArchiveClassifier().set("empty"));
+        project.getExtensions().configure(
+            PublishingExtension.class,
+            extension -> extension.getPublications().create("main", MavenPublication.class, main -> {
+                main.artifact(jarTask);
+                main.artifact(sourceZipTask);
+                main.artifact(javadocZipTask);
+            }));
+        project.afterEvaluate(ignored -> {
+            project.getExtensions().configure(
+                PublishingExtension.class,
+                extension -> extension.getPublications().named("main", MavenPublication.class, main -> {
+                    main.setGroupId(project.getGroup().toString());
+                    main.setArtifactId(jarTask.get().getArchiveBaseName().get());
+                    main.setVersion(project.getVersion().toString());
+                }));
+        });
     }
 
     private static String getArchivesBaseName(Project project) {
