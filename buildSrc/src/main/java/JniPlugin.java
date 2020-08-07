@@ -28,6 +28,7 @@ import org.gradle.nativeplatform.toolchain.NativeToolChainRegistry;
 import org.gradle.nativeplatform.toolchain.VisualCpp;
 import org.gradle.platform.base.PlatformContainer;
 
+import javax.inject.Inject;
 import java.io.File;
 import java.util.List;
 
@@ -35,19 +36,18 @@ public abstract class JniPlugin implements Plugin<Project> {
 
     @Override
     public void apply(Project project) {
-        project.getPluginManager().withPlugin("java", plugin -> {
-            TaskContainer tasks = project.getTasks();
-            TaskProvider<JavaCompile> compileJavaProvider = tasks.named("compileJava", JavaCompile.class);
+        project.getPluginManager().apply("java");
+        TaskContainer tasks = project.getTasks();
+        TaskProvider<JavaCompile> compileJavaProvider = tasks.named("compileJava", JavaCompile.class);
 
-            tasks.withType(CppCompile.class)
-                .configureEach(task -> task.includes(
-                    compileJavaProvider.flatMap(it -> it.getOptions().getHeaderOutputDirectory())
-                ));
-        });
+        tasks.withType(CppCompile.class)
+            .configureEach(task -> task.includes(
+                compileJavaProvider.flatMap(it -> it.getOptions().getHeaderOutputDirectory())
+            ));
         project.getPluginManager().apply(JniRules.class);
     }
 
-    public static abstract class JniRules extends RuleSource {
+    public static class JniRules extends RuleSource {
         @Mutate
         void createPlatforms(PlatformContainer platformContainer) {
             addPlatform(platformContainer, "osx_amd64", "osx", "amd64");
@@ -182,5 +182,4 @@ public abstract class JniPlugin implements Plugin<Project> {
     private static String binaryToVariantName(NativeBinarySpec binary) {
         return binary.getTargetPlatform().getName().replace('_', '-');
     }
-
 }

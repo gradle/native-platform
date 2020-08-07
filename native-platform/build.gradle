@@ -3,30 +3,14 @@ import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
 plugins {
     id 'groovy'
     id 'cpp'
-    id 'org.gradle.test-retry' version '1.1.1'
     id 'net.rubygrapefruit.build.jni'
     id 'net.rubygrapefruit.build.native-platform-component'
 }
-
-ext.isCiServer = providers.environmentVariable("CI").forUseAtConfigurationTime().isPresent()
 
 // Enabling this property means that the tests will try to resolve an external dependency for native platform
 // and test that instead of building native platform for the current machine.
 // The external dependency can live in the file repository `incoming-repo`.
 ext.testVersionFromLocalRepository = providers.gradleProperty('testVersionFromLocalRepository').forUseAtConfigurationTime().isPresent()
-
-tasks.withType(Test) {
-    systemProperty "test.directory", layout.buildDirectory.dir("test files").map { it.asFile.absolutePath }.get()
-    retry {
-        maxRetries = isCiServer ? 1 : 0
-        maxFailures = 10
-        failOnPassedAfterRetry = true
-    }
-    // Reconfigure the classpath for the test task here, so we can use dependency substitution on `testRuntimeClasspath`
-    // to test an external dependency.
-    // We omit `sourceSets.main.output` here and replace it with a test dependency on `project(':')` further down.
-    classpath = files(configurations.testRuntimeClasspath, sourceSets.test.output)
-}
 
 def testJni = tasks.register("testJni", Test) {
     // See https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/clopts002.html
@@ -138,7 +122,6 @@ task emptyZip(type: Jar) {
 
 // Using internal classes here to make this simple
 def os = new DefaultNativePlatform("current").operatingSystem
-def arch = new DefaultNativePlatform("current").architecture
 def ncursesVersion = inferNCursesVersion(os)
 
 model {

@@ -1,15 +1,41 @@
 import org.gradle.api.JavaVersion;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.plugins.BasePlugin;
 import org.gradle.api.plugins.JavaPlugin;
+import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.plugins.JavaPluginExtension;
+import org.gradle.api.provider.ProviderFactory;
+import org.gradle.api.tasks.SourceSetOutput;
+import org.gradle.api.tasks.testing.Test;
+import org.gradle.testretry.TestRetryPlugin;
+import org.gradle.testretry.TestRetryTaskExtension;
 
-public class NativePlatformComponentPlugin implements Plugin<Project> {
+import javax.inject.Inject;
+
+public abstract class NativePlatformComponentPlugin implements Plugin<Project> {
     @Override
     public void apply(Project project) {
         project.getRootProject().getPlugins().apply(BasePlugin.class);
         project.getPlugins().apply(JavaPlugin.class);
+        project.getPluginManager().apply(TestRetryPlugin.class);
+        boolean isCiServer = getProviders().environmentVariable("CI").forUseAtConfigurationTime().isPresent();
+        JavaPluginConvention javaPluginConvention = project.getConvention().getPlugin(JavaPluginConvention.class);
+        project.getTasks().withType(Test.class).configureEach(test -> {
+            test.systemProperty("test.directory", project.getLayout().getBuildDirectory().dir("test files").map(dir -> dir.getAsFile().getAbsoluteFile()).get());
+            TestRetryTaskExtension retry = test.getExtensions().getByType(TestRetryTaskExtension.class);
+            retry.getMaxRetries().set(isCiServer ? 1 : 0);
+            retry.getMaxFailures().set(10);
+            retry.getFailOnPassedAfterRetry().set(true);
+
+            // Reconfigure the classpath for the test task here, so we can use dependency substitution on `testRuntimeClasspath`
+            // to test an external dependency.
+            // We omit `sourceSets.main.output` here and replace it with a test dependency on `project(':')` further down.
+            Configuration testRuntimeClasspath = project.getConfigurations().getByName("testRuntimeClasspath");
+            SourceSetOutput testOutput = javaPluginConvention.getSourceSets().getByName("test").getOutput();
+            test.setClasspath(project.files(testRuntimeClasspath, testOutput));
+        });
         project.getRepositories().jcenter();
         project.setGroup("net.rubygrapefruit");
 
@@ -22,4 +48,7 @@ public class NativePlatformComponentPlugin implements Plugin<Project> {
 
         project.getPlugins().apply(ReleasePlugin.class);
     }
+
+    @Inject
+    protected abstract ProviderFactory getProviders();
 }
