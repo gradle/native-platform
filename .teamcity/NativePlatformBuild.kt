@@ -32,9 +32,9 @@ open class NativePlatformBuild(agent: Agent, init: BuildType.() -> Unit = {}) : 
     }
 
     val publishTask = when (agent) {
-        agentForJavaPublication -> " :uploadJni :uploadMain"
-        in agentsForAllJniPublications -> " :uploadJni"
-        in agentsForNcursesOnlyPublications -> " :uploadNcurses"
+        agentForJavaPublication -> " :native-platform:uploadJni :native-platform:uploadMain"
+        in agentsForAllJniPublications -> " :native-platform:uploadJni"
+        in agentsForNcursesOnlyPublications -> " :native-platform:uploadNcurses"
         else -> ""
     }
 
@@ -57,7 +57,7 @@ open class NativePlatformBuild(agent: Agent, init: BuildType.() -> Unit = {}) : 
 
     artifactRules = """
         hs_err*
-        build/**/output.txt
+        **/build/**/output.txt
         build/repo => repo
     """.trimIndent() + "\n$archiveReports"
 

@@ -1,7 +1,5 @@
 package net.rubygrapefruit.platform.internal.jni;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
-
 import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.NativeIntegration;
 import net.rubygrapefruit.platform.file.FileWatchEvent;
@@ -14,6 +12,8 @@ import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public abstract class AbstractFileEventFunctions implements NativeIntegration {
     public static String getVersion() {

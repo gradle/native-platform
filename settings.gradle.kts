@@ -5,8 +5,7 @@ plugins {
 
 rootProject.name = "native-platform"
 
-include("testApp")
-
-project(":testApp").projectDir = File(rootDir, "test-app")
+include("test-app")
+include("native-platform")
 
 enableFeaturePreview("GROOVY_COMPILATION_AVOIDANCE")
