@@ -6,49 +6,6 @@ plugins {
     id 'net.rubygrapefruit.build.jni'
 }
 
-def testJni = tasks.register("testJni", Test) {
-    // See https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/clopts002.html
-    it.jvmArgs "-Xcheck:jni"
-
-    // Only run tests that have the category
-    it.useJUnit {
-        includeCategories 'net.rubygrapefruit.platform.testfixture.JniChecksEnabled'
-    }
-
-    // Check standard output for JNI warnings and fail if we find anything
-    String currentTest = null
-    it.addTestListener(new TestListener() {
-        @Override
-        void beforeSuite(TestDescriptor testDescriptor) {}
-
-        @Override
-        void afterSuite(TestDescriptor testDescriptor, TestResult testResult) {}
-
-        @Override
-        void beforeTest(TestDescriptor testDescriptor) {
-            currentTest = "${testDescriptor.className}.${testDescriptor.displayName}"
-        }
-
-        @Override
-        void afterTest(TestDescriptor testDescriptor, TestResult testResult) {
-            currentTest = null
-        }
-    })
-    List<String> warningsDetected = []
-    it.logging.addStandardOutputListener({ String message ->
-        if (currentTest != null && message.startsWith("WARNING")) {
-            warningsDetected << "$message (test: $currentTest)"
-        }
-    } as StandardOutputListener)
-    it.doLast {
-        if (warningsDetected) {
-            throw new RuntimeException("Detected JNI check warnings on standard output while executing tests:\n - ${warningsDetected.join("\n - ")}")
-        }
-    }
-}
-
-check.dependsOn testJni
-
 dependencies {
     compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
     // We need to add the root project to testImplementation manually, since we changed the wiring

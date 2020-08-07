@@ -1,10 +1,12 @@
 import com.google.common.collect.ImmutableList;
 import groovy.util.Node;
+import org.gradle.api.Action;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.internal.project.ProjectInternal;
+import org.gradle.api.logging.StandardOutputListener;
 import org.gradle.api.plugins.ExtensionContainer;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.provider.ProviderFactory;
@@ -16,6 +18,9 @@ import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.bundling.Jar;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.api.tasks.testing.Test;
+import org.gradle.api.tasks.testing.TestDescriptor;
+import org.gradle.api.tasks.testing.TestListener;
+import org.gradle.api.tasks.testing.TestResult;
 import org.gradle.internal.jvm.Jvm;
 import org.gradle.internal.service.ServiceRegistry;
 import org.gradle.language.cpp.CppSourceSet;
@@ -46,6 +51,7 @@ import org.gradle.platform.base.SourceComponentSpec;
 
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.List;
 
 @SuppressWarnings("UnstableApiUsage")
@@ -63,6 +69,7 @@ public abstract class JniPlugin implements Plugin<Project> {
 
         configureCppTasks(project);
         configureNativeVersionGeneration(project);
+        configureJniTest(project);
 
         configurePomOfMainJar(project, variants);
 
@@ -75,6 +82,35 @@ public abstract class JniPlugin implements Plugin<Project> {
         }
 
         configureNativeJars(project, variants, testVersionFromLocalRepository);
+    }
+
+    private void configureJniTest(Project project) {
+        TaskProvider<Test> testJni = project.getTasks().register("testJni", Test.class, task -> {
+            // See https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/clopts002.html
+            task.jvmArgs("-Xcheck:jni");
+
+            // Only run tests that have the category
+            task.useJUnit(jUnitOptions ->
+                jUnitOptions.includeCategories("net.rubygrapefruit.platform.testfixture.JniChecksEnabled")
+            );
+            // Check standard output for JNI warnings and fail if we find anything
+            DetectJniWarnings detectJniWarnings = new DetectJniWarnings();
+            task.addTestListener(detectJniWarnings);
+            task.getLogging().addStandardOutputListener(detectJniWarnings);
+            task.doLast(new Action<Task>() {
+                @Override
+                public void execute(Task task) {
+                    List<String> detectedWarnings = detectJniWarnings.getDetectedWarnings();
+                    if (!detectedWarnings.isEmpty()) {
+                        throw new RuntimeException(String.format(
+                            "Detected JNI check warnings on standard output while executing tests:\n - %s",
+                            String.join("\n - ", detectedWarnings)
+                        ));
+                    }
+                }
+            });
+        });
+        project.getTasks().named("check", check -> check.dependsOn(testJni));
     }
 
     private void configureNativeVersionGeneration(Project project) {
@@ -330,4 +366,35 @@ public abstract class JniPlugin implements Plugin<Project> {
         }
     }
 
+    private static class DetectJniWarnings implements TestListener, StandardOutputListener {
+        private String currentTest;
+        private List<String> detectedWarnings = new ArrayList<>();
+
+        @Override
+        public void beforeSuite(TestDescriptor testDescriptor) {}
+
+        @Override
+        public void afterSuite(TestDescriptor testDescriptor, TestResult testResult) {}
+
+        @Override
+        public void beforeTest(TestDescriptor testDescriptor) {
+            currentTest = testDescriptor.getClassName() + "." + testDescriptor.getDisplayName();
+        }
+
+        @Override
+        public void afterTest(TestDescriptor testDescriptor, TestResult testResult) {
+            currentTest = null;
+        }
+
+        @Override
+        public void onOutput(CharSequence message) {
+            if (currentTest != null && message.toString().startsWith("WARNING")) {
+                detectedWarnings.add(String.format("%s (test: %s)", message, currentTest));
+            }
+        }
+
+        public List<String> getDetectedWarnings() {
+            return detectedWarnings;
+        }
+    }
 }
