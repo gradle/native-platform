@@ -6,21 +6,41 @@ import org.gradle.api.plugins.BasePlugin;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.plugins.JavaPluginExtension;
-import org.gradle.api.provider.ProviderFactory;
 import org.gradle.api.tasks.SourceSetOutput;
+import org.gradle.api.tasks.compile.GroovyCompile;
 import org.gradle.api.tasks.testing.Test;
 import org.gradle.testretry.TestRetryPlugin;
 import org.gradle.testretry.TestRetryTaskExtension;
-
-import javax.inject.Inject;
 
 public abstract class NativePlatformComponentPlugin implements Plugin<Project> {
     @Override
     public void apply(Project project) {
         project.getRootProject().getPlugins().apply(BasePlugin.class);
+        project.setGroup("net.rubygrapefruit");
+
         project.getPlugins().apply(JavaPlugin.class);
+        project.getRepositories().jcenter();
+
+        project.getPlugins().apply(ReleasePlugin.class);
+
+        configureTestTasks(project);
+        configureJavaCompatibility(project);
+
+        project.getTasks().withType(GroovyCompile.class).configureEach(task -> task.getOptions().setIncremental(true));
+    }
+
+    private void configureJavaCompatibility(Project project) {
+        // Java 9 and later don't support targetting Java 5
+        JavaVersion compatibility = JavaVersion.current().isJava9Compatible() ? JavaVersion.VERSION_1_6 : JavaVersion.VERSION_1_5;
+
+        JavaPluginExtension java = project.getExtensions().getByType(JavaPluginExtension.class);
+        java.setSourceCompatibility(compatibility);
+        java.setTargetCompatibility(compatibility);
+    }
+
+    private void configureTestTasks(Project project) {
         project.getPluginManager().apply(TestRetryPlugin.class);
-        boolean isCiServer = getProviders().environmentVariable("CI").forUseAtConfigurationTime().isPresent();
+        boolean isCiServer = project.getProviders().environmentVariable("CI").forUseAtConfigurationTime().isPresent();
         JavaPluginConvention javaPluginConvention = project.getConvention().getPlugin(JavaPluginConvention.class);
         project.getTasks().withType(Test.class).configureEach(test -> {
             test.systemProperty("test.directory", project.getLayout().getBuildDirectory().dir("test files").map(dir -> dir.getAsFile().getAbsoluteFile()).get());
@@ -36,19 +56,5 @@ public abstract class NativePlatformComponentPlugin implements Plugin<Project> {
             SourceSetOutput testOutput = javaPluginConvention.getSourceSets().getByName("test").getOutput();
             test.setClasspath(project.files(testRuntimeClasspath, testOutput));
         });
-        project.getRepositories().jcenter();
-        project.setGroup("net.rubygrapefruit");
-
-        // Java 9 and later don't support targetting Java 5
-        JavaVersion compatibility = JavaVersion.current().isJava9Compatible() ? JavaVersion.VERSION_1_6 : JavaVersion.VERSION_1_5;
-
-        JavaPluginExtension java = project.getExtensions().getByType(JavaPluginExtension.class);
-        java.setSourceCompatibility(compatibility);
-        java.setTargetCompatibility(compatibility);
-
-        project.getPlugins().apply(ReleasePlugin.class);
     }
-
-    @Inject
-    protected abstract ProviderFactory getProviders();
 }

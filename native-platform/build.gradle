@@ -4,7 +4,6 @@ plugins {
     id 'groovy'
     id 'cpp'
     id 'net.rubygrapefruit.build.jni'
-    id 'net.rubygrapefruit.build.native-platform-component'
 }
 
 def testJni = tasks.register("testJni", Test) {
@@ -200,8 +199,4 @@ String inferNCursesVersion(def os) {
         }
     }
     throw new IllegalArgumentException("Could not determine ncurses version installed on this machine.")
-}
-
-tasks.withType(GroovyCompile).configureEach {
-    options.incremental = true
 }
