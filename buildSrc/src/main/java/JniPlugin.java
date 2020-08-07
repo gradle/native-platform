@@ -292,7 +292,7 @@ public abstract class JniPlugin implements Plugin<Project> {
                 if (binarySpec.getName().contains("_min")) {
                     cppCompiler.define("WINDOWS_MIN");
                 }
-                cppCompiler.getArgs().addAll(determineJniIncludes("win32"));
+                cppCompiler.getArgs().addAll(determineWindowsJniIncludes());
                 linker.args("Shlwapi.lib", "Advapi32.lib");
             } else if (targetOs.isFreeBSD()) {
                 cppCompiler.getArgs().addAll(determineJniIncludes("freebsd"));
@@ -315,6 +315,15 @@ public abstract class JniPlugin implements Plugin<Project> {
             return ImmutableList.of(
                 "-I", jvmIncludePath.getAbsolutePath(),
                 "-I", new File(jvmIncludePath, osSpecificInclude).getAbsolutePath()
+            );
+        }
+
+        private List<String> determineWindowsJniIncludes() {
+            Jvm currentJvm = Jvm.current();
+            File jvmIncludePath = new File(currentJvm.getJavaHome(), "include");
+            return ImmutableList.of(
+                "-I" + jvmIncludePath.getAbsolutePath(),
+                "-I" + new File(jvmIncludePath, "win32").getAbsolutePath()
             );
         }
     }
