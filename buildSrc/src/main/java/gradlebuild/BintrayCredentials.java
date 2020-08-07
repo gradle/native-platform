@@ -1,3 +1,5 @@
+package gradlebuild;
+
 /**
  * Credentials for accessing bintray. Only required when releasing.
  */

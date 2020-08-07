@@ -3,7 +3,7 @@ import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
 plugins {
     id 'groovy'
     id 'cpp'
-    id 'net.rubygrapefruit.build.jni'
+    id 'gradlebuild.jni'
 }
 
 dependencies {

@@ -1,3 +1,5 @@
+package gradlebuild;
+
 import com.google.common.collect.ImmutableMap;
 import org.gradle.api.JavaVersion;
 import org.gradle.api.Plugin;

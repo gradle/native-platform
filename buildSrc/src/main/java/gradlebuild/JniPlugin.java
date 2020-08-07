@@ -1,3 +1,5 @@
+package gradlebuild;
+
 import com.google.common.collect.ImmutableList;
 import groovy.util.Node;
 import org.gradle.api.Action;

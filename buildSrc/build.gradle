@@ -27,12 +27,12 @@ if (JavaVersion.current() < JavaVersion.VERSION_1_8) {
 gradlePlugin {
     plugins {
         jni {
-            id = "net.rubygrapefruit.build.jni"
-            implementationClass = "JniPlugin"
+            id = "gradlebuild.jni"
+            implementationClass = "gradlebuild.JniPlugin"
         }
         nativeComponent {
-            id = "net.rubygrapefruit.build.native-platform-component"
-            implementationClass = "NativePlatformComponentPlugin"
+            id = "gradlebuild.native-platform-component"
+            implementationClass = "gradlebuild.NativePlatformComponentPlugin"
         }
     }
 }
