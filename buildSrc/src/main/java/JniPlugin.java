@@ -22,7 +22,6 @@ import org.gradle.model.Mutate;
 import org.gradle.model.RuleSource;
 import org.gradle.model.internal.registry.ModelRegistry;
 import org.gradle.nativeplatform.NativeBinarySpec;
-import org.gradle.nativeplatform.NativeLibrarySpec;
 import org.gradle.nativeplatform.PreprocessingTool;
 import org.gradle.nativeplatform.SharedLibraryBinarySpec;
 import org.gradle.nativeplatform.Tool;
@@ -44,27 +43,94 @@ import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
+@SuppressWarnings("UnstableApiUsage")
 public abstract class JniPlugin implements Plugin<Project> {
 
     private static String binaryToVariantName(NativeBinarySpec binary) {
         return binary.getTargetPlatform().getName().replace('_', '-');
     }
+    @SuppressWarnings("unchecked")
     @Override
     public void apply(Project project) {
         project.getPluginManager().apply(NativePlatformComponentPlugin.class);
         VariantsExtension variants = project.getExtensions().getByType(VariantsExtension.class);
-        TaskContainer tasks = project.getTasks();
-        TaskProvider<JavaCompile> compileJavaProvider = tasks.named("compileJava", JavaCompile.class);
-
-        tasks.withType(CppCompile.class)
-            .configureEach(task -> task.includes(
-                compileJavaProvider.flatMap(it -> it.getOptions().getHeaderOutputDirectory())
-            ));
         project.getPluginManager().apply(JniRules.class);
 
+        configureCppTasks(project);
+        configurePomOfMainJar(project, variants);
+
+        // Enabling this property means that the tests will try to resolve an external dependency for native platform
+        // and test that instead of building native platform for the current machine.
+        // The external dependency can live in the file repository `incoming-repo`.
+        boolean testVersionFromLocalRepository = project.getProviders().gradleProperty("testVersionFromLocalRepository").forUseAtConfigurationTime().isPresent();
+        if (testVersionFromLocalRepository) {
+            setupDependencySubstitutionForTestTask(project);
+        }
+
+        configureNativeJars(project, variants, testVersionFromLocalRepository);
+    }
+
+    private void configureNativeJars(Project project, VariantsExtension variants, boolean testVersionFromLocalRepository) {
+        TaskProvider<Jar> emptyZip = project.getTasks().register("emptyZip", Jar.class, jar -> jar.getArchiveClassifier().set("empty"));
+        // We register the publications here, so they are available when the project is used as a composite build.
+// When we don't use the software model plugins anymore, then this can move out of the afterEvaluate block.
+        project.afterEvaluate(ignored -> {
+            ModelRegistry modelRegistry = ((ProjectInternal) project).getModelRegistry();
+            // Realize the software model components, so we can create the corresponding publications.
+            modelRegistry.realize("components", ModelMap.class)
+                .forEach(spec -> getBinaries(spec).withType(NativeBinarySpec.class)
+                    .forEach(binary -> {
+                        if (variants.getVariantNames().get().contains(binaryToVariantName(binary)) && binary.isBuildable()) {
+                            String variantName = binaryToVariantName(binary);
+                            String taskName = "jar-" + variantName;
+                            Jar foundNativeJar = (Jar) project.getTasks().findByName(taskName);
+                            Jar nativeJar = foundNativeJar == null
+                                ? project.getTasks().create(taskName, Jar.class, jar -> jar.getArchiveBaseName().set("native-platform-" + variantName))
+                                : foundNativeJar;
+                            if (foundNativeJar == null) {
+                                project.getArtifacts().add("runtimeElements", nativeJar);
+                                project.getExtensions().configure(PublishingExtension.class, publishingExtension -> publishingExtension.publications(publications -> publications.create(variantName, MavenPublication.class, publication -> {
+                                    publication.artifact(nativeJar);
+                                    publication.artifact(emptyZip.get(), it -> it.setClassifier("sources"));
+                                    publication.artifact(emptyZip.get(), it -> it.setClassifier("javadoc"));
+                                    publication.setArtifactId(nativeJar.getArchiveBaseName().get());
+                                })));
+                            }
+                            binary.getTasks().withType(LinkSharedLibrary.class, builderTask ->
+                                nativeJar.into(project.getGroup().toString().replace(".", "/") + "/" + variantName, it -> it.from(builderTask.getLinkedFile()))
+                            );
+                            if (!testVersionFromLocalRepository) {
+                                project.getTasks().withType(Test.class).configureEach(it -> ((ConfigurableFileCollection) it.getClasspath()).from(nativeJar));
+                            }
+                        }
+                    }));
+        });
+    }
+
+    private void setupDependencySubstitutionForTestTask(Project project) {
+        // We need to change the group here, since dependency substitution will not replace
+        // a project artifact with an external artifact with the same GAV coordinates.
+        String groupId = project.getGroup().toString();
+        project.setGroup("new-group-for-root-project");
+
+        project.getConfigurations().all(configuration ->
+            configuration.getResolutionStrategy().dependencySubstitution(spec ->
+                spec
+                    .substitute(spec.project(project.getPath()))
+                    .with(spec.module(
+                        String.join(":", groupId, BasePublishPlugin.getArchivesBaseName(project), project.getVersion().toString())
+                    )
+        )));
+        project.getRepositories().maven(maven -> {
+            maven.setName("IncomingLocalRepository");
+            maven.setUrl(project.getRootProject().file("incoming-repo"));
+        });
+    }
+
+    private void configurePomOfMainJar(Project project, VariantsExtension variants) {
         project.getExtensions().configure(
             PublishingExtension.class,
-            extension -> extension.getPublications().named("main", MavenPublication.class, main -> {
+            extension -> extension.getPublications().named("main", MavenPublication.class, main ->
                 main.getPom().withXml(xmlProvider -> {
                     Node node = xmlProvider.asNode();
                     Node deps = node.appendNode("dependencies");
@@ -75,72 +141,20 @@ public abstract class JniPlugin implements Plugin<Project> {
                         dep.appendNode("version", project.getVersion());
                         dep.appendNode("scope", "runtime");
                     });
-                });
-            }));
-
-        // Enabling this property means that the tests will try to resolve an external dependency for native platform
-        // and test that instead of building native platform for the current machine.
-        // The external dependency can live in the file repository `incoming-repo`.
-        boolean testVersionFromLocalRepository = project.getProviders().gradleProperty("testVersionFromLocalRepository").forUseAtConfigurationTime().isPresent();
-        if (testVersionFromLocalRepository) {
-            // We need to change the group here, since dependency substitution will not replace
-            // a project artifact with an external artifact with the same GAV coordinates.
-            project.setGroup("new-group-for-root-project");
-
-            project.getConfigurations().all(configuration ->
-                configuration.getResolutionStrategy().dependencySubstitution(spec ->
-                    spec
-                        .substitute(spec.project(project.getPath()))
-                        .with(spec.module("net.rubygrapefruit:native-platform:" + project.getVersion()))
-            ));
-            project.getRepositories().maven(maven -> {
-                maven.setName("IncomingLocalRepository");
-                maven.setUrl(project.getRootProject().file("incoming-repo"));
-            });
-        }
-
-        TaskProvider<Jar> emptyZip = tasks.register("emptyZip", Jar.class, jar -> jar.getArchiveClassifier().set("empty"));
-        // We register the publications here, so they are available when the project is used as a composite build.
-// When we don't use the software model plugins anymore, then this can move out of the afterEvaluate block.
-        project.afterEvaluate(ignored -> {
-            ModelRegistry modelRegistry = ((ProjectInternal) project).getModelRegistry();
-            // Realize the software model components, so we can create the corresponding publications.
-            modelRegistry.realize("components.nativePlatform", NativeLibrarySpec.class);
-            modelRegistry.realize("components.nativePlatformCurses", NativeLibrarySpec.class);
-            modelRegistry.realize("components.nativePlatformFileEvents", NativeLibrarySpec.class);
-            modelRegistry.realize("components", ModelMap.class).forEach(spec -> {
-                getBinaries(spec).withType(NativeBinarySpec.class).forEach(binary -> {
-                    if (variants.getVariantNames().get().contains(binaryToVariantName(binary)) && binary.isBuildable()) {
-                        String variantName = binaryToVariantName(binary);
-                        String taskName = "jar-" + variantName;
-                        Jar foundNativeJar = (Jar) project.getTasks().findByName(taskName);
-                        Jar nativeJar = foundNativeJar == null
-                            ? project.getTasks().create(taskName, Jar.class, jar -> jar.getArchiveBaseName().set("native-platform-" + variantName))
-                            : foundNativeJar;
-                        if (foundNativeJar == null) {
-                            System.out.println("adding native jar " + variantName);
-                            project.getArtifacts().add("runtimeElements", nativeJar);
-                            project.getExtensions().configure(PublishingExtension.class, publishingExtension -> publishingExtension.publications(publications -> {
-                                publications.create(variantName, MavenPublication.class, publication -> {
-                                    publication.artifact(nativeJar);
-                                    publication.artifact(emptyZip.get(), it -> it.setClassifier("sources"));
-                                    publication.artifact(emptyZip.get(), it -> it.setClassifier("javadoc"));
-                                    publication.setArtifactId(nativeJar.getArchiveBaseName().get());
-                                });
-                            }));
-                        }
-                        binary.getTasks().withType(LinkSharedLibrary.class, builderTask ->
-                            nativeJar.into(project.getGroup().toString().replace(".", "/") + "/" + variantName, it -> it.from(builderTask.getLinkedFile()))
-                        );
-                        if (!testVersionFromLocalRepository) {
-                            project.getTasks().withType(Test.class).configureEach(it -> ((ConfigurableFileCollection) it.getClasspath()).from(nativeJar));
-                        }
-                    }
-                });
-            });
-        });
+                })));
     }
 
+    private TaskContainer configureCppTasks(Project project) {
+        TaskContainer tasks = project.getTasks();
+        TaskProvider<JavaCompile> compileJavaProvider = tasks.named("compileJava", JavaCompile.class);
+        tasks.withType(CppCompile.class)
+            .configureEach(task -> task.includes(
+                compileJavaProvider.flatMap(it -> it.getOptions().getHeaderOutputDirectory())
+            ));
+        return tasks;
+    }
+
+    @SuppressWarnings("unchecked")
     private static ModelMap<BinarySpec> getBinaries(Object modelSpec) {
         try {
             return (ModelMap<BinarySpec>) modelSpec.getClass().getMethod("getBinaries").invoke(modelSpec);

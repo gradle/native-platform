@@ -59,7 +59,7 @@ public class BasePublishPlugin implements Plugin<Project> {
         });
     }
 
-    private static String getArchivesBaseName(Project project) {
+    public static String getArchivesBaseName(Project project) {
         BasePluginConvention convention = project.getConvention().findPlugin(BasePluginConvention.class);
         return convention != null ? convention.getArchivesBaseName() : project.getName();
     }
