@@ -1,5 +1,3 @@
-import static com.google.common.io.Files.asByteSource;
-
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
@@ -23,6 +21,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.TreeMap;
+
+import static com.google.common.io.Files.asByteSource;
 
 @CacheableTask
 public abstract class WriteNativeVersionSources extends DefaultTask {

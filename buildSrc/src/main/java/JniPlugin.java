@@ -2,6 +2,7 @@ import com.google.common.collect.ImmutableList;
 import groovy.util.Node;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.Task;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.internal.project.ProjectInternal;
 import org.gradle.api.plugins.ExtensionContainer;
@@ -17,6 +18,7 @@ import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.api.tasks.testing.Test;
 import org.gradle.internal.jvm.Jvm;
 import org.gradle.internal.service.ServiceRegistry;
+import org.gradle.language.cpp.CppSourceSet;
 import org.gradle.language.cpp.tasks.CppCompile;
 import org.gradle.model.Each;
 import org.gradle.model.ModelMap;
@@ -40,6 +42,7 @@ import org.gradle.nativeplatform.toolchain.NativeToolChainRegistry;
 import org.gradle.nativeplatform.toolchain.VisualCpp;
 import org.gradle.platform.base.BinarySpec;
 import org.gradle.platform.base.PlatformContainer;
+import org.gradle.platform.base.SourceComponentSpec;
 
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
@@ -51,7 +54,7 @@ public abstract class JniPlugin implements Plugin<Project> {
     private static String binaryToVariantName(NativeBinarySpec binary) {
         return binary.getTargetPlatform().getName().replace('_', '-');
     }
-    @SuppressWarnings("unchecked")
+
     @Override
     public void apply(Project project) {
         project.getPluginManager().apply(NativePlatformComponentPlugin.class);
@@ -93,6 +96,7 @@ public abstract class JniPlugin implements Plugin<Project> {
         );
     }
 
+    @SuppressWarnings("unchecked")
     private void configureNativeJars(Project project, VariantsExtension variants, boolean testVersionFromLocalRepository) {
         TaskProvider<Jar> emptyZip = project.getTasks().register("emptyZip", Jar.class, jar -> jar.getArchiveClassifier().set("empty"));
         // We register the publications here, so they are available when the project is used as a composite build.
@@ -167,14 +171,13 @@ public abstract class JniPlugin implements Plugin<Project> {
                 })));
     }
 
-    private TaskContainer configureCppTasks(Project project) {
+    private void configureCppTasks(Project project) {
         TaskContainer tasks = project.getTasks();
         TaskProvider<JavaCompile> compileJavaProvider = tasks.named("compileJava", JavaCompile.class);
         tasks.withType(CppCompile.class)
             .configureEach(task -> task.includes(
                 compileJavaProvider.flatMap(it -> it.getOptions().getHeaderOutputDirectory())
             ));
-        return tasks;
     }
 
     @SuppressWarnings("unchecked")
@@ -264,6 +267,15 @@ public abstract class JniPlugin implements Plugin<Project> {
             platformToolChain.getcCompiler().setExecutable("cc");
             platformToolChain.getCppCompiler().setExecutable("c++");
             platformToolChain.getLinker().setExecutable("c++");
+        }
+
+        @Mutate
+        void addComponentSourcesSetsToProjectSourceSet(ModelMap<Task> tasks, ModelMap<SourceComponentSpec> sourceContainer) {
+            sourceContainer.forEach(sources -> sources.getSources().withType(CppSourceSet.class).forEach(sourceSet ->
+                tasks.withType(WriteNativeVersionSources.class, task -> {
+                    task.getNativeSources().from(sourceSet.getSource().getSourceDirectories());
+                    task.getNativeSources().from(sourceSet.getExportedHeaders().getSourceDirectories());
+                })));
         }
 
         @Mutate void configureBinaries(@Each NativeBinarySpecInternal binarySpec) {

@@ -58,20 +58,12 @@ dependencies {
     testImplementation 'org.spockframework:spock-core:1.3-groovy-2.5'
 }
 
-tasks.withType(WriteNativeVersionSources).configureEach {
-    ["main", "shared", "curses", "file-events"].each {
-        nativeSources.from("src/${it}/cpp")
-        nativeSources.from("src/${it}/headers")
-    }
-}
-
 javadoc {
     exclude '**/internal/**'
 }
 
 // Using internal classes here to make this simple
-def os = new DefaultNativePlatform("current").operatingSystem
-def ncursesVersion = inferNCursesVersion(os)
+def ncursesVersion = inferNCursesVersion(new DefaultNativePlatform("current").operatingSystem)
 
 model {
     components {
