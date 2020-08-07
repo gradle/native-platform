@@ -41,13 +41,12 @@ public class BasePublishPlugin implements Plugin<Project> {
         TaskProvider<Jar> jarTask = project.getTasks().named("jar", Jar.class);
         TaskProvider<Jar> sourceZipTask = tasks.register("sourceZip", Jar.class, jar -> jar.getArchiveClassifier().set("sources"));
         TaskProvider<Jar> javadocZipTask = tasks.register("javadocZip", Jar.class, jar -> jar.getArchiveClassifier().set("javadoc"));
-        tasks.register("emptyZip", Jar.class, jar -> jar.getArchiveClassifier().set("empty"));
         project.getExtensions().configure(
             PublishingExtension.class,
             extension -> extension.getPublications().create("main", MavenPublication.class, main -> {
-                main.artifact(jarTask);
-                main.artifact(sourceZipTask);
-                main.artifact(javadocZipTask);
+                main.artifact(jarTask.get());
+                main.artifact(sourceZipTask.get());
+                main.artifact(javadocZipTask.get());
             }));
         project.afterEvaluate(ignored -> {
             project.getExtensions().configure(
