@@ -4,6 +4,7 @@ plugins {
     id 'groovy'
     id 'cpp'
     id 'gradlebuild.jni'
+    id 'gradlebuild.freebsd'
 }
 
 dependencies {
@@ -35,10 +36,6 @@ model {
             architecture "aarch64"
             operatingSystem "linux"
         }
-        freebsd_amd64_libcpp {
-            architecture "amd64"
-            operatingSystem "freebsd"
-        }
     }
     toolChains {
         gcc(Gcc) {
@@ -46,29 +43,6 @@ model {
             // https://github.com/gradle/gradle/blob/36614ee523e5906ddfa1fed9a5dc00a5addac1b0/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/gcc/AbstractGccCompatibleToolChain.java
             target("linux_aarch64_ncurses5")
             target("linux_aarch64_ncurses6")
-
-            eachPlatform {
-                // Use GCC to build for libstdc++ on FreeBSD
-                if (platform.operatingSystem.freeBSD) {
-                    if (platform.name.contains('libstdcpp')) {
-                        enableToolChain(delegate)
-                    } else {
-                        disableToolChain(delegate)
-                    }
-                }
-            }
-        }
-        clang(Clang) {
-            eachPlatform {
-                // Use Clang to build for libc++ on FreeBSD
-                if (platform.operatingSystem.freeBSD) {
-                    if (platform.name.contains('libcpp')) {
-                        enableToolChain(delegate)
-                    } else {
-                        disableToolChain(delegate)
-                    }
-                }
-            }
         }
     }
     components {
@@ -182,21 +156,4 @@ String inferNCursesVersion(def os) {
         }
     }
     throw new IllegalArgumentException("Could not determine ncurses version installed on this machine.")
-}
-
-private void disableToolChain(GccPlatformToolChain platformToolChain) {
-    // Use a dummy so that GCC is not selected
-    platformToolChain.getcCompiler().setExecutable("dummy");
-    platformToolChain.getCppCompiler().setExecutable("dummy");
-    platformToolChain.getObjcCompiler().setExecutable("dummy");
-    platformToolChain.getObjcppCompiler().setExecutable("dummy");
-    platformToolChain.getAssembler().setExecutable("dummy");
-    platformToolChain.getLinker().setExecutable("dummy");
-    platformToolChain.getStaticLibArchiver().setExecutable("dummy");
-}
-
-private void enableToolChain(GccPlatformToolChain platformToolChain) {
-    platformToolChain.getcCompiler().setExecutable("cc");
-    platformToolChain.getCppCompiler().setExecutable("c++");
-    platformToolChain.getLinker().setExecutable("c++");
 }

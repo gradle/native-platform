@@ -55,6 +55,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static gradlebuild.NativeRulesUtils.addPlatform;
+
 @SuppressWarnings("UnstableApiUsage")
 public abstract class JniPlugin implements Plugin<Project> {
 
@@ -241,13 +243,6 @@ public abstract class JniPlugin implements Plugin<Project> {
             addPlatform(platformContainer, "windows_amd64", "windows", "amd64");
             addPlatform(platformContainer, "windows_i386_min", "windows", "i386");
             addPlatform(platformContainer, "windows_amd64_min", "windows", "amd64");
-        }
-
-        private void addPlatform(PlatformContainer platformContainer, String name, String os, String architecture) {
-            platformContainer.create(name, NativePlatform.class, platform -> {
-                platform.operatingSystem(os);
-                platform.architecture(architecture);
-            });
         }
 
         @Mutate void createToolChains(NativeToolChainRegistry toolChainRegistry) {

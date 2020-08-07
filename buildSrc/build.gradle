@@ -34,5 +34,9 @@ gradlePlugin {
             id = "gradlebuild.native-platform-component"
             implementationClass = "gradlebuild.NativePlatformComponentPlugin"
         }
+        freebsd {
+            id = "gradlebuild.freebsd"
+            implementationClass = "gradlebuild.FreeBsdPlugin"
+        }
     }
 }
