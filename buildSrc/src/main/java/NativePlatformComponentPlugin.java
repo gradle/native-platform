@@ -1,7 +1,9 @@
+import com.google.common.collect.ImmutableMap;
 import org.gradle.api.JavaVersion;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
+import org.gradle.api.artifacts.dsl.DependencyHandler;
 import org.gradle.api.plugins.BasePlugin;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
@@ -57,5 +59,11 @@ public abstract class NativePlatformComponentPlugin implements Plugin<Project> {
             SourceSetOutput testOutput = javaPluginConvention.getSourceSets().getByName(SourceSet.TEST_SOURCE_SET_NAME).getOutput();
             test.setClasspath(project.files(testRuntimeClasspath, testOutput));
         });
+        // We need to add the root project to testImplementation manually, since we changed the wiring
+        // for the test task to not use sourceSets.main.output.
+        // This allows using dependency substitution for the root project.
+        DependencyHandler dependencies = project.getDependencies();
+        project.getDependencies().add("testImplementation", project.getDependencies().project(ImmutableMap.of("path", project.getPath())));
+        dependencies.add("testImplementation", "org.spockframework:spock-core:1.3-groovy-2.5");
     }
 }
