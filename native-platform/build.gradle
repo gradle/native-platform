@@ -76,7 +76,7 @@ dependencies {
     // We need to add the root project to testImplementation manually, since we changed the wiring
     // for the test task to not use sourceSets.main.output.
     // This allows using dependency substitution for the root project.
-    testImplementation project(":native-platform")
+    testImplementation project(project.path)
     testImplementation 'org.spockframework:spock-core:1.3-groovy-2.5'
 }
 
@@ -96,9 +96,6 @@ if (testVersionFromLocalRepository) {
         }
     }
 }
-
-// Only depend on variants which can be built on the current machine
-boolean onlyLocalVariants = project.hasProperty("onlyLocalVariants")
 
 def generatedFilesDir = file("$buildDir/generated")
 
@@ -145,109 +142,6 @@ def arch = new DefaultNativePlatform("current").architecture
 def ncursesVersion = inferNCursesVersion(os)
 
 model {
-    platforms {
-        osx_amd64 {
-            architecture "amd64"
-            operatingSystem "osx"
-        }
-        linux_amd64 {
-            architecture "amd64"
-            operatingSystem "linux"
-        }
-        linux_amd64_ncurses5 {
-            architecture "amd64"
-            operatingSystem "linux"
-        }
-        linux_amd64_ncurses6 {
-            architecture "amd64"
-            operatingSystem "linux"
-        }
-        linux_aarch64 {
-            architecture "aarch64"
-            operatingSystem "linux"
-        }
-        linux_aarch64_ncurses5 {
-            architecture "aarch64"
-            operatingSystem "linux"
-        }
-        linux_aarch64_ncurses6 {
-            architecture "aarch64"
-            operatingSystem "linux"
-        }
-        windows_i386 {
-            architecture "i386"
-            operatingSystem "windows"
-        }
-        windows_amd64 {
-            architecture "amd64"
-            operatingSystem "windows"
-        }
-        windows_i386_min {
-            architecture "i386"
-            operatingSystem "windows"
-        }
-        windows_amd64_min {
-            architecture "amd64"
-            operatingSystem "windows"
-        }
-        freebsd_amd64_libcpp {
-            architecture "amd64"
-            operatingSystem "freebsd"
-        }
-    }
-
-    toolChains {
-        gcc(Gcc) {
-            // The core Gradle toolchain for gcc only targets x86 and x86_64 out of the box.
-            // https://github.com/gradle/gradle/blob/36614ee523e5906ddfa1fed9a5dc00a5addac1b0/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/gcc/AbstractGccCompatibleToolChain.java
-            target("linux_aarch64")
-            target("linux_aarch64_ncurses5")
-            target("linux_aarch64_ncurses6")
-
-            eachPlatform {
-                // Use GCC to build for libstdc++ on FreeBSD
-                if (platform.operatingSystem.freeBSD) {
-                    if (platform.name.contains('libstdcpp')) {
-                        cCompiler.executable = 'cc'
-                        cppCompiler.executable = 'c++'
-                        linker.executable = 'c++'
-                    } else {
-                        // Use a dummy so that GCC is not selected
-                        cCompiler.executable = 'dummy'
-                        cppCompiler.executable = 'dummy'
-                        objcCompiler.executable = 'dummy'
-                        objcppCompiler.executable = 'dummy'
-                        assembler.executable = 'dummy'
-                        linker.executable = 'dummy'
-                        staticLibArchiver.executable = 'dummy'
-                    }
-                }
-            }
-        }
-        clang(Clang) {
-            eachPlatform {
-                // Use Clang to build for libc++ on FreeBSD
-                if (platform.operatingSystem.freeBSD) {
-                    if (platform.name.contains('libcpp')) {
-                        cCompiler.executable = 'cc'
-                        cppCompiler.executable = 'c++'
-                        linker.executable = 'c++'
-                    } else {
-                        // Use a dummy so that Clang is not selected
-                        cCompiler.executable = 'dummy'
-                        cppCompiler.executable = 'dummy'
-                        objcCompiler.executable = 'dummy'
-                        objcppCompiler.executable = 'dummy'
-                        assembler.executable = 'dummy'
-                        linker.executable = 'dummy'
-                        staticLibArchiver.executable = 'dummy'
-                    }
-                }
-            }
-        }
-        visualCpp(VisualCpp)
-    }
-
     components {
         nativePlatform(NativeLibrarySpec) {
             baseName 'native-platform'
@@ -341,45 +235,6 @@ model {
                     source.srcDirs = ['src/file-events/cpp']
                     exportedHeaders.srcDirs = ['src/file-events/headers']
                 }
-            }
-        }
-
-        all {
-            binaries.all {
-                if (targetPlatform.operatingSystem.name in ['linux', 'freebsd'] && targetPlatform.architecture != arch) {
-                    // Native plugins don't detect whether multilib support is available or not. Assume not for now
-                    buildable = false
-                }
-
-                if (targetPlatform.operatingSystem.macOsX) {
-                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
-                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/darwin"
-                    cppCompiler.args '-mmacosx-version-min=10.9'
-                    linker.args '-mmacosx-version-min=10.9'
-                    linker.args '-framework', 'CoreServices'
-                } else if (targetPlatform.operatingSystem.linux) {
-                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
-                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/linux"
-                    cppCompiler.args '-D_FILE_OFFSET_BITS=64'
-                } else if (targetPlatform.operatingSystem.windows) {
-                    if (name.contains("_min")) {
-                        cppCompiler.define "WINDOWS_MIN"
-                    }
-                    cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
-                    cppCompiler.args "-I${org.gradle.internal.jvm.Jvm.current().javaHome}/include/win32"
-                    linker.args "Shlwapi.lib", "Advapi32.lib"
-                } else if (targetPlatform.operatingSystem.freeBSD) {
-                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
-                    cppCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/freebsd"
-                }
-            }
-
-            binaries.withType(SharedLibraryBinarySpec) { binary ->
-                if (onlyLocalVariants && !buildable) {
-                    return
-                }
-                def variantName = binaryToVariantName(binary)
-                project.variants.variantNames.add(variantName)
             }
         }
     }
