@@ -1,10 +1,9 @@
-import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
-
 plugins {
     id 'groovy'
     id 'cpp'
     id 'gradlebuild.jni'
     id 'gradlebuild.freebsd'
+    id 'gradlebuild.ncurses'
 }
 
 dependencies {
@@ -15,40 +14,10 @@ javadoc {
     exclude '**/internal/**'
 }
 
-// Using internal classes here to make this simple
-def ncursesVersion = inferNCursesVersion(new DefaultNativePlatform("current").operatingSystem)
-
 model {
-    platforms {
-        linux_amd64_ncurses5 {
-            architecture "amd64"
-            operatingSystem "linux"
-        }
-        linux_amd64_ncurses6 {
-            architecture "amd64"
-            operatingSystem "linux"
-        }
-        linux_aarch64_ncurses5 {
-            architecture "aarch64"
-            operatingSystem "linux"
-        }
-        linux_aarch64_ncurses6 {
-            architecture "aarch64"
-            operatingSystem "linux"
-        }
-    }
-    toolChains {
-        gcc(Gcc) {
-            // The core Gradle toolchain for gcc only targets x86 and x86_64 out of the box.
-            // https://github.com/gradle/gradle/blob/36614ee523e5906ddfa1fed9a5dc00a5addac1b0/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/gcc/AbstractGccCompatibleToolChain.java
-            target("linux_aarch64_ncurses5")
-            target("linux_aarch64_ncurses6")
-        }
-    }
     components {
         nativePlatform(NativeLibrarySpec) {
             baseName 'native-platform'
-            // TODO - this should be the default. Figure out why this is not working
             $.platforms.each { p ->
                 if (p.name.contains("ncurses")) {
                     return
@@ -78,16 +47,6 @@ model {
                 cpp {
                     source.srcDirs = ['src/shared/cpp', 'src/curses/cpp']
                     exportedHeaders.srcDirs = ['src/shared/headers']
-                }
-            }
-            binaries.all {
-                if (targetPlatform.operatingSystem.linux && !targetPlatform.name.contains("curses${ncursesVersion}")) {
-                    buildable = false
-                }
-                if (targetPlatform.operatingSystem.linux && ncursesVersion != "5") {
-                    linker.args "-lncursesw"
-                } else {
-                    linker.args "-lcurses"
                 }
             }
         }
@@ -141,19 +100,4 @@ model {
             }
         }
     }
-}
-
-String inferNCursesVersion(def os) {
-    if (!os.linux) {
-        return "5"
-    }
-    for (def d : ["/lib", "/lib64", "/lib/x86_64-linux-gnu", "/lib/aarch64-linux-gnu"]) {
-        if (new File("$d/libncurses.so.6").file) {
-            return "6"
-        }
-        if (new File("$d/libncurses.so.5").file) {
-            return "5"
-        }
-    }
-    throw new IllegalArgumentException("Could not determine ncurses version installed on this machine.")
 }
