@@ -11,6 +11,7 @@ if (versions.useRepo) {
     configurations.all {
         resolutionStrategy.dependencySubstitution {
             substitute project(':native-platform') with module("net.rubygrapefruit:native-platform:${version}")
+            substitute project(':file-events') with module("net.rubygrapefruit:file-events:${version}")
         }
     }
     configurations {
@@ -23,6 +24,7 @@ if (versions.useRepo) {
 
 dependencies {
     implementation project(':native-platform')
+    implementation project(':file-events')
     implementation 'net.sf.jopt-simple:jopt-simple:4.2'
 }
 

@@ -1,0 +1,67 @@
+plugins {
+    id 'groovy'
+    id 'cpp'
+    id 'gradlebuild.jni'
+}
+
+nativeVersion {
+    versionClassPackageName = "net.rubygrapefruit.platform.internal.jni"
+    versionClassName = "FileEventsVersion"
+}
+
+dependencies {
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+    implementation project(':native-platform')
+    testImplementation testFixtures(project(":native-platform"))
+}
+
+javadoc {
+    exclude '**/internal/**'
+}
+
+model {
+    components {
+        nativePlatformFileEvents(NativeLibrarySpec) {
+            baseName 'native-platform-file-events'
+            $.platforms.each { p ->
+                targetPlatform p.name
+            }
+            binaries.all {
+                if (targetPlatform.operatingSystem.macOsX
+                    || targetPlatform.operatingSystem.linux) {
+                    cppCompiler.args "-g"                       // Produce debug output
+                    cppCompiler.args "-pthread"                 // Force nicer threading
+                    cppCompiler.args "-pedantic"                // Disable non-standard things
+                    cppCompiler.args "--std=c++11"              // Enable C++11
+                    cppCompiler.args "-Wall"                    // All warnings
+                    cppCompiler.args "-Wextra"                  // Plus extra
+                    cppCompiler.args "-Wformat=2"               // Check printf format strings
+                    cppCompiler.args "-Werror"                  // Warnings are errors
+                    cppCompiler.args "-Wno-format-nonliteral"   // Allow printf to have dynamic format string
+                    cppCompiler.args "-Wno-unguarded-availability-new" // Newly introduced flags are not available on older macOS versions
+                    linker.args "-pthread"
+                } else if (targetPlatform.operatingSystem.windows) {
+                    cppCompiler.args "/DEBUG"                   // Produce debug output
+                    cppCompiler.args "/std:c++17"               // Won't hurt
+                    cppCompiler.args "/permissive-"             // Make compiler more standards compatible
+                    cppCompiler.args "/EHsc"                    // Force exception handling mode
+                    cppCompiler.args "/Zi"                      // Force PDB debugging
+                    cppCompiler.args "/FS"                      // Force synchronous PDB writes
+                    cppCompiler.args "/Zc:inline"               // Hack
+                    cppCompiler.args "/Zc:throwingNew"          // Assume new throws on error
+                    cppCompiler.args "/W3"                      // Enable lots of warnings, disbale individual warnings with /WD<NUM>
+                    cppCompiler.args "/WX"                      // Warnings are errors
+                    cppCompiler.args "/D_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING"
+                                                                // Don't issue warnings for wstring_convert in generic_fsnotifier.cpp
+                    linker.args "/DEBUG:FULL"                   // Generate all PDBs
+                }
+            }
+            sources {
+                cpp {
+                    source.srcDirs = ['src/file-events/cpp']
+                    exportedHeaders.srcDirs = ['src/file-events/headers']
+                }
+            }
+        }
+    }
+}

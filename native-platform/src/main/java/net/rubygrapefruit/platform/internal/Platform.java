@@ -27,13 +27,9 @@ import net.rubygrapefruit.platform.file.FileSystems;
 import net.rubygrapefruit.platform.file.Files;
 import net.rubygrapefruit.platform.file.PosixFiles;
 import net.rubygrapefruit.platform.file.WindowsFiles;
-import net.rubygrapefruit.platform.internal.jni.AbstractFileEventFunctions;
-import net.rubygrapefruit.platform.internal.jni.LinuxFileEventFunctions;
 import net.rubygrapefruit.platform.internal.jni.NativeVersion;
-import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions;
 import net.rubygrapefruit.platform.internal.jni.PosixTypeFunctions;
 import net.rubygrapefruit.platform.internal.jni.TerminfoFunctions;
-import net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions;
 import net.rubygrapefruit.platform.memory.Memory;
 import net.rubygrapefruit.platform.memory.OsxMemory;
 import net.rubygrapefruit.platform.terminal.Terminals;
@@ -120,11 +116,6 @@ public abstract class Platform {
                 toString()));
     }
 
-    public String getFileEventsLibraryName() {
-        throw new NativeIntegrationUnavailableException(String.format("Native file events integration is not available for %s.",
-                toString()));
-    }
-
     public List<String> getLibraryVariants() {
         return Collections.singletonList(getId());
     }
@@ -139,18 +130,6 @@ public abstract class Platform {
         return System.getProperty("os.arch");
     }
 
-    protected void initFileEventFunctions(NativeLibraryLoader nativeLibraryLoader) {
-        nativeLibraryLoader.load(getFileEventsLibraryName(), getLibraryVariants());
-        String nativeVersion = AbstractFileEventFunctions.getVersion();
-        if (!nativeVersion.equals(NativeVersion.VERSION)) {
-            throw new NativeException(String.format(
-                "Unexpected native file events library version loaded. Expected %s, was %s.",
-                nativeVersion,
-                NativeVersion.VERSION
-            ));
-        }
-    }
-
     private abstract static class Windows extends Platform {
         @Override
         public boolean isWindows() {
@@ -160,11 +139,6 @@ public abstract class Platform {
         @Override
         public String getLibraryName() {
             return "native-platform.dll";
-        }
-
-        @Override
-        public String getFileEventsLibraryName() {
-            return "native-platform-file-events.dll";
         }
 
         @Override
@@ -202,10 +176,6 @@ public abstract class Platform {
             }
             if (type.equals(WindowsRegistry.class)) {
                 return type.cast(new DefaultWindowsRegistry());
-            }
-            if (type.equals(WindowsFileEventFunctions.class)) {
-                initFileEventFunctions(nativeLibraryLoader);
-                return type.cast(new WindowsFileEventFunctions());
             }
             return super.get(type, nativeLibraryLoader);
         }
@@ -290,15 +260,6 @@ public abstract class Platform {
 
     private abstract static class Linux extends Unix {
         @Override
-        public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
-            if (type.equals(LinuxFileEventFunctions.class)) {
-                initFileEventFunctions(nativeLibraryLoader);
-                return type.cast(new LinuxFileEventFunctions());
-            }
-            return super.get(type, nativeLibraryLoader);
-        }
-
-        @Override
         List<String> getCursesVariants() {
             return Arrays.asList(getId() + "-ncurses5", getId() + "-ncurses6");
         }
@@ -306,11 +267,6 @@ public abstract class Platform {
         @Override
         public boolean isLinux() {
             return true;
-        }
-
-        @Override
-        public String getFileEventsLibraryName() {
-            return "libnative-platform-file-events.so";
         }
     }
 
@@ -373,11 +329,6 @@ public abstract class Platform {
         }
 
         @Override
-        public String getFileEventsLibraryName() {
-            return "libnative-platform-file-events.dylib";
-        }
-
-        @Override
         String getCursesLibraryName() {
             return "libnative-platform-curses.dylib";
         }
@@ -389,10 +340,6 @@ public abstract class Platform {
             }
             if (type.equals(Memory.class)) {
                 return type.cast(new DefaultMemory());
-            }
-            if (type.equals(OsxFileEventFunctions.class)) {
-                initFileEventFunctions(nativeLibraryLoader);
-                return type.cast(new OsxFileEventFunctions());
             }
             return super.get(type, nativeLibraryLoader);
         }
