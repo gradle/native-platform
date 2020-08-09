@@ -6,6 +6,11 @@ plugins {
     id 'gradlebuild.ncurses'
 }
 
+nativeVersion {
+    versionClassPackageName = "net.rubygrapefruit.platform.internal.jni"
+    versionClassName = "NativeVersion"
+}
+
 dependencies {
     compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
 }

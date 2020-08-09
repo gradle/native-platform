@@ -117,12 +117,15 @@ public abstract class JniPlugin implements Plugin<Project> {
     }
 
     private void configureNativeVersionGeneration(Project project) {
+        NativePlatformVersionExtension nativeVersion = project.getExtensions().create("nativeVersion", NativePlatformVersionExtension.class);
+
         File generatedFilesDir = new File(project.getBuildDir(), "generated");
 
         TaskProvider<WriteNativeVersionSources> writeNativeVersionSources = project.getTasks().register("writeNativeVersionSources", WriteNativeVersionSources.class, task -> {
-
             task.getGeneratedNativeHeaderDirectory().set(new File(generatedFilesDir, "version/header"));
             task.getGeneratedJavaSourcesDir().set(new File(generatedFilesDir, "version/java"));
+            task.getVersionClassPackageName().set(nativeVersion.getVersionClassPackageName());
+            task.getVersionClassName().set(nativeVersion.getVersionClassName());
         });
 
 
