@@ -144,6 +144,7 @@ public abstract class JniPlugin implements Plugin<Project> {
         // We register the publications here, so they are available when the project is used as a composite build.
 // When we don't use the software model plugins anymore, then this can move out of the afterEvaluate block.
         project.afterEvaluate(ignored -> {
+            String artifactId = project.getTasks().named("jar", Jar.class).get().getArchiveBaseName().get();
             ModelRegistry modelRegistry = ((ProjectInternal) project).getModelRegistry();
             // Realize the software model components, so we can create the corresponding publications.
             modelRegistry.realize("components", ModelMap.class)
@@ -154,7 +155,7 @@ public abstract class JniPlugin implements Plugin<Project> {
                             String taskName = "jar-" + variantName;
                             Jar foundNativeJar = (Jar) project.getTasks().findByName(taskName);
                             Jar nativeJar = foundNativeJar == null
-                                ? project.getTasks().create(taskName, Jar.class, jar -> jar.getArchiveBaseName().set("native-platform-" + variantName))
+                                ? project.getTasks().create(taskName, Jar.class, jar -> jar.getArchiveBaseName().set(artifactId + "-" + variantName))
                                 : foundNativeJar;
                             if (foundNativeJar == null) {
                                 project.getArtifacts().add("runtimeElements", nativeJar);
