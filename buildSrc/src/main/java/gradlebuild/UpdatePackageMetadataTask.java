@@ -1,3 +1,5 @@
+package gradlebuild;
+
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.TaskAction;

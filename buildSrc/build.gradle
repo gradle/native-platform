@@ -4,12 +4,14 @@ plugins {
 
 repositories {
     jcenter()
+    gradlePluginPortal()
 }
 
 dependencies {
     implementation gradleApi()
     implementation 'org.apache.httpcomponents.client5:httpclient5:5.0.1'
     implementation 'com.google.guava:guava:28.2-jre'
+    implementation 'org.gradle:test-retry-gradle-plugin:1.1.8'
 }
 
 java {
@@ -25,12 +27,20 @@ if (JavaVersion.current() < JavaVersion.VERSION_1_8) {
 gradlePlugin {
     plugins {
         jni {
-            id = "net.rubygrapefruit.build.jni"
-            implementationClass = "JniPlugin"
+            id = "gradlebuild.jni"
+            implementationClass = "gradlebuild.JniPlugin"
         }
         nativeComponent {
-            id = "net.rubygrapefruit.build.native-platform-component"
-            implementationClass = "NativePlatformComponentPlugin"
+            id = "gradlebuild.native-platform-component"
+            implementationClass = "gradlebuild.NativePlatformComponentPlugin"
+        }
+        freebsd {
+            id = "gradlebuild.freebsd"
+            implementationClass = "gradlebuild.FreeBsdPlugin"
+        }
+        ncurses {
+            id = "gradlebuild.ncurses"
+            implementationClass = "gradlebuild.NcursesPlugin"
         }
     }
 }

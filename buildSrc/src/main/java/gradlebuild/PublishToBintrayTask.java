@@ -1,3 +1,5 @@
+package gradlebuild;
+
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;

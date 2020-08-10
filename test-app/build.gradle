@@ -1,6 +1,6 @@
 plugins {
     id('application')
-    id('net.rubygrapefruit.build.native-platform-component')
+    id('gradlebuild.native-platform-component')
 }
 
 mainClassName = 'net.rubygrapefruit.platform.test.Main'
@@ -26,20 +26,10 @@ dependencies {
     implementation 'net.sf.jopt-simple:jopt-simple:4.2'
 }
 
-task sourceZip(type: Zip) {
-    from sourceSets.main.allSource
-    archiveClassifier = 'sources'
-    archiveExtension = 'jar'
-}
-
 publishing {
     publications {
         main(MavenPublication) {
-            groupId = project.group
-            artifactId = project.archivesBaseName
-            version = project.version
             artifact(distZip)
-            artifact(sourceZip)
         }
     }
 }
