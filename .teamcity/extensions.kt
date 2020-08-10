@@ -38,9 +38,9 @@ fun BuildType.runOn(agent: Agent) {
 
 const val buildReceipt = "build-receipt.properties"
 
-const val archiveReports = """native-platform/build/reports/** => reports
-buildSrc/build/reports/** => buildSrc/reports
-test-app/build/reports/** => test-app/reports"""
+val archiveReports = listOf("native-platform", "file-events", "buildSrc", "test-app")
+    .map { "$it/build/reports/** => $it/reports" }
+    .joinToString("\n")
 
 fun BuildFeatures.publishCommitStatus() {
     commitStatusPublisher {
@@ -56,8 +56,30 @@ fun BuildFeatures.publishCommitStatus() {
 
 val agentForJavaPublication = Agent.UbuntuAmd64
 
-val agentsForAllJniPublications = listOf(Agent.UbuntuAmd64, Agent.MacOsAmd64, Agent.WindowsAmd64, Agent.AmazonLinuxAarch64, Agent.FreeBsdAmd64)
+val agentsForAllNativePlatformJniPublications = listOf(Agent.UbuntuAmd64, Agent.MacOsAmd64, Agent.WindowsAmd64, Agent.AmazonLinuxAarch64, Agent.FreeBsdAmd64)
+val agentsForAllFileEventsJniPublications = listOf(Agent.UbuntuAmd64, Agent.MacOsAmd64, Agent.WindowsAmd64, Agent.AmazonLinuxAarch64)
 val agentsForNcursesOnlyPublications = listOf(Agent.UbuntuAarch64, Agent.AmazonLinuxAmd64)
+
+val Agent.nativePlatformPublishJniTask
+    get() = when (this) {
+        in agentsForAllNativePlatformJniPublications -> " :native-platform:uploadJni"
+        in agentsForNcursesOnlyPublications -> " :native-platform:uploadNcurses"
+        else -> ""
+    }
+val Agent.fileEventsPublishJniTask
+    get() = when (this) {
+        in agentsForAllFileEventsJniPublications -> " :file-events:uploadJni"
+        else -> ""
+    }
+
+val Agent.publishJniTasks
+    get() = nativePlatformPublishJniTask + fileEventsPublishJniTask
+
+val Agent.allPublishTasks
+    get() = when (this) {
+        agentForJavaPublication -> "$publishJniTasks :native-platform:uploadMain :file-events:uploadMain"
+        else -> publishJniTasks
+    }
 
 fun BuildFeatures.lowerRequiredFreeDiskSpace() {
     freeDiskSpace {
