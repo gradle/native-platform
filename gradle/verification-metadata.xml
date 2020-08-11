@@ -8,6 +8,7 @@
          <trust file=".*-sources[.]jar" regex="true"/>
          <trust file=".*-src[.]zip" regex="true"/>
          <trust group="net[.]rubygrapefruit" name="native-platform.*" regex="true"/>
+         <trust group="net[.]rubygrapefruit" name="file-events.*" regex="true"/>
       </trusted-artifacts>
       <trusted-keys>
          <trusted-key id="0785b3eff60b1b1bea94e0bb7c25280eae63ebe5" group="^org[.]apache[.]httpcomponents($|([.].*))" regex="true"/>
