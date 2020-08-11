@@ -18,10 +18,12 @@ import org.gradle.testretry.TestRetryPlugin;
 import org.gradle.testretry.TestRetryTaskExtension;
 
 public abstract class NativePlatformComponentPlugin implements Plugin<Project> {
+    public static final String GROUP_ID = "net.rubygrapefruit";
+
     @Override
     public void apply(Project project) {
         project.getRootProject().getPlugins().apply(BasePlugin.class);
-        project.setGroup("net.rubygrapefruit");
+        project.setGroup(GROUP_ID);
 
         project.getPlugins().apply(JavaPlugin.class);
         project.getRepositories().jcenter();
