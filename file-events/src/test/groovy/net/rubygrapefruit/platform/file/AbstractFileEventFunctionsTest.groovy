@@ -17,7 +17,6 @@
 package net.rubygrapefruit.platform.file
 
 import groovy.transform.Memoized
-import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType
 import net.rubygrapefruit.platform.file.FileWatchEvent.OverflowType
 import net.rubygrapefruit.platform.internal.Platform
@@ -150,7 +149,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             @Memoized
             @Override
             OsxFileEventFunctions getService() {
-                Native.get(OsxFileEventFunctions)
+                FileEvents.get(OsxFileEventFunctions)
             }
 
             @Override
@@ -171,7 +170,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             @Memoized
             @Override
             LinuxFileEventFunctions getService() {
-                Native.get(LinuxFileEventFunctions)
+                FileEvents.get(LinuxFileEventFunctions)
             }
 
             @Override
@@ -191,7 +190,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
             @Memoized
             @Override
             WindowsFileEventFunctions getService() {
-                Native.get(WindowsFileEventFunctions)
+                FileEvents.get(WindowsFileEventFunctions)
             }
 
             @Override

@@ -6,6 +6,9 @@ import org.gradle.api.Action;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
+import org.gradle.api.artifacts.DependencySubstitutions;
+import org.gradle.api.artifacts.component.ComponentSelector;
+import org.gradle.api.artifacts.component.ProjectComponentSelector;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.internal.project.ProjectInternal;
 import org.gradle.api.logging.StandardOutputListener;
@@ -185,17 +188,22 @@ public abstract class JniPlugin implements Plugin<Project> {
     private void setupDependencySubstitutionForTestTask(Project project) {
         // We need to change the group here, since dependency substitution will not replace
         // a project artifact with an external artifact with the same GAV coordinates.
-        String groupId = project.getGroup().toString();
         project.setGroup("new-group-for-root-project");
 
         project.getConfigurations().all(configuration ->
-            configuration.getResolutionStrategy().dependencySubstitution(spec ->
-                spec
-                    .substitute(spec.project(project.getPath()))
-                    .with(spec.module(
-                        String.join(":", groupId, BasePublishPlugin.getArchivesBaseName(project), project.getVersion().toString())
-                    )
-        )));
+        {
+            DependencySubstitutions dependencySubstitution = configuration.getResolutionStrategy().getDependencySubstitution();
+            dependencySubstitution.all(spec -> {
+                ComponentSelector requested = spec.getRequested();
+                if (requested instanceof ProjectComponentSelector) {
+                    Project projectDependency = project.project(((ProjectComponentSelector) requested).getProjectPath());
+                    // Exclude test fixtures by excluding requested dependencies with capabilities.
+                    if (requested.getRequestedCapabilities().isEmpty()) {
+                        spec.useTarget(dependencySubstitution.module(String.join(":", NativePlatformComponentPlugin.GROUP_ID, projectDependency.getName(), projectDependency.getVersion().toString())));
+                    }
+                }
+            });
+        });
         project.getRepositories().maven(maven -> {
             maven.setName("IncomingLocalRepository");
             maven.setUrl(project.getRootProject().file("incoming-repo"));

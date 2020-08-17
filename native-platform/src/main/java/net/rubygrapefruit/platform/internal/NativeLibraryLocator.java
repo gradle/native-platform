@@ -17,7 +17,6 @@
 package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
-import net.rubygrapefruit.platform.internal.jni.NativeVersion;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -30,15 +29,17 @@ import java.nio.channels.FileLock;
 
 public class NativeLibraryLocator {
     private final File extractDir;
+    private final String version;
 
-    public NativeLibraryLocator(File extractDir) {
+    public NativeLibraryLocator(File extractDir, String version) {
         this.extractDir = extractDir;
+        this.version = version;
     }
 
     public File find(LibraryDef libraryDef) throws IOException {
         String resourceName = String.format("net/rubygrapefruit/platform/%s/%s", libraryDef.platform, libraryDef.name);
         if (extractDir != null) {
-            File libFile = new File(extractDir, String.format("%s/%s/%s", NativeVersion.VERSION, libraryDef.platform, libraryDef.name));
+            File libFile = new File(extractDir, String.format("%s/%s/%s", version, libraryDef.platform, libraryDef.name));
             File lockFile = new File(libFile.getParentFile(), libFile.getName() + ".lock");
             lockFile.getParentFile().mkdirs();
             lockFile.createNewFile();

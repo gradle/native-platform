@@ -48,7 +48,7 @@ class NativePlatformPublishProject(releaseType: ReleaseType, buildAndTest: List<
         }
     }
 }) {
-    private val nativeLibraryAllJniBuilds = agentsForAllJniPublications.map { agent ->
+    private val nativeLibraryAllJniBuilds = agentsForAllNativePlatformJniPublications.map { agent ->
         NativeLibraryPublish(releaseType, agent, buildAndTest, buildReceiptSource).also(::buildType)
     }
     private val nativeLibraryNcursesJniBuilds = agentsForNcursesOnlyPublications.map { agent ->
@@ -104,7 +104,7 @@ open class NativePlatformPublishSnapshot(releaseType: ReleaseType, uploadTasks: 
 })
 
 class NativeLibraryPublish(releaseType: ReleaseType = ReleaseType.Snapshot, agent: Agent, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
-    NativePlatformPublishSnapshot(releaseType, listOf(":native-platform:uploadJni"), buildAndTest, buildReceiptSource, {
+    NativePlatformPublishSnapshot(releaseType, listOf(agent.publishJniTasks.trim()), buildAndTest, buildReceiptSource, {
         val extraQualification = if (agent.os is Linux)
             "general and ${agent.os.ncurses.toString().toLowerCase()} "
         else ""
@@ -129,7 +129,7 @@ class NativeLibraryPublishNcurses(releaseType: ReleaseType = ReleaseType.Snapsho
 class PublishJavaApi(releaseType: ReleaseType = ReleaseType.Snapshot, nativeLibraryPublishingBuilds: List<NativePlatformPublishSnapshot>, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
     NativePlatformPublishSnapshot(
         releaseType,
-        listOf(":native-platform:uploadMain", ":test-app:uploadMain") + if (releaseType in setOf(ReleaseType.Milestone, ReleaseType.Release)) listOf("publishToBintray") else listOf(),
+        listOf(":native-platform:uploadMain :file-events:uploadMain", ":test-app:uploadMain") + if (releaseType in setOf(ReleaseType.Milestone, ReleaseType.Release)) listOf("publishToBintray") else listOf(),
         buildAndTest,
         buildReceiptSource,
         {

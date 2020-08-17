@@ -31,16 +31,9 @@ open class NativePlatformBuild(agent: Agent, init: BuildType.() -> Unit = {}) : 
         root(DslContext.settingsRoot)
     }
 
-    val publishTask = when (agent) {
-        agentForJavaPublication -> " :native-platform:uploadJni :native-platform:uploadMain"
-        in agentsForAllJniPublications -> " :native-platform:uploadJni"
-        in agentsForNcursesOnlyPublications -> " :native-platform:uploadNcurses"
-        else -> ""
-    }
-
     steps {
         gradle {
-            tasks = "clean build$publishTask"
+            tasks = "clean build${agent.allPublishTasks}"
             buildFile = ""
         }
     }

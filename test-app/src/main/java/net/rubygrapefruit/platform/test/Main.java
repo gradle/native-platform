@@ -24,6 +24,7 @@ import net.rubygrapefruit.platform.NativeIntegrationUnavailableException;
 import net.rubygrapefruit.platform.Process;
 import net.rubygrapefruit.platform.SystemInfo;
 import net.rubygrapefruit.platform.file.DirEntry;
+import net.rubygrapefruit.platform.file.FileEvents;
 import net.rubygrapefruit.platform.file.FileInfo;
 import net.rubygrapefruit.platform.file.FileSystemInfo;
 import net.rubygrapefruit.platform.file.FileSystems;
@@ -441,15 +442,15 @@ public class Main {
     private static FileWatcher createWatcher(String path, BlockingQueue<FileWatchEvent> eventQueue) throws InterruptedException {
         FileWatcher watcher;
         if (Platform.current().isMacOs()) {
-            watcher = Native.get(OsxFileEventFunctions.class)
+            watcher = FileEvents.get(OsxFileEventFunctions.class)
                 .newWatcher(eventQueue)
                 .start();
         } else if (Platform.current().isLinux()) {
-            watcher = Native.get(LinuxFileEventFunctions.class)
+            watcher = FileEvents.get(LinuxFileEventFunctions.class)
                 .newWatcher(eventQueue)
                 .start();
         } else if (Platform.current().isWindows()) {
-            watcher = Native.get(WindowsFileEventFunctions.class)
+            watcher = FileEvents.get(WindowsFileEventFunctions.class)
                 .newWatcher(eventQueue)
                 .start();
         } else {

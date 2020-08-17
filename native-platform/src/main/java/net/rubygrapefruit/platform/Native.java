@@ -52,7 +52,7 @@ public class Native {
             if (loader == null) {
                 Platform platform = Platform.current();
                 try {
-                    loader = new NativeLibraryLoader(platform, new NativeLibraryLocator(extractDir));
+                    loader = new NativeLibraryLoader(platform, new NativeLibraryLocator(extractDir, NativeVersion.VERSION));
                     loader.load(platform.getLibraryName(), platform.getLibraryVariants());
                     String nativeVersion = NativeLibraryFunctions.getVersion();
                     if (!nativeVersion.equals(NativeVersion.VERSION)) {
