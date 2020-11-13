@@ -224,7 +224,9 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
             if (successful) {
                 long endTime = System.currentTimeMillis();
                 long remainingTimeout = timeoutInMillis - (endTime - startTime);
-                processorThread.join(remainingTimeout);
+                if (remainingTimeout > 0) {
+                    processorThread.join(remainingTimeout);
+                }
                 return !processorThread.isAlive();
             } else {
                 return false;
