@@ -64,8 +64,9 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
          * @see FileWatcher#startWatching(Collection)
          */
         public FileWatcher start(long startTimeout, TimeUnit startTimeoutUnit) throws InterruptedException, InsufficientResourcesForWatchingException {
-            Object server = startWatcher(new NativeFileWatcherCallback(eventQueue));
-            return new NativeFileWatcher(server, startTimeout, startTimeoutUnit);
+            NativeFileWatcherCallback callback = new NativeFileWatcherCallback(eventQueue);
+            Object server = startWatcher(callback);
+            return new NativeFileWatcher(server, startTimeout, startTimeoutUnit, callback);
         }
 
         protected abstract Object startWatcher(NativeFileWatcherCallback callback);
@@ -158,7 +159,7 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
         private final Thread processorThread;
         private boolean shutdown;
 
-        public NativeFileWatcher(final Object server, long startTimeout, TimeUnit startTimeoutUnit) throws InterruptedException {
+        public NativeFileWatcher(final Object server, long startTimeout, TimeUnit startTimeoutUnit, final NativeFileWatcherCallback callback) throws InterruptedException {
             this.server = server;
             final CountDownLatch runLoopInitialized = new CountDownLatch(1);
             this.processorThread = new Thread("File watcher server") {
@@ -166,7 +167,14 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
                 public void run() {
                     initializeRunLoop0(server);
                     runLoopInitialized.countDown();
-                    executeRunLoop0(server);
+                    try {
+                        executeRunLoop0(server);
+                        if (!shutdown) {
+                            callback.reportFailure(new FileWatcherException("File watcher server did exit without being shutdown"));
+                        }
+                    } catch (Throwable e) {
+                        callback.reportFailure(e);
+                    }
                 }
             };
             this.processorThread.setDaemon(true);
