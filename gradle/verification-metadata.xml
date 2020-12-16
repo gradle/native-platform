@@ -55,11 +55,6 @@
             <pgp value="19beab2d799c020f17c69126b16698a4adf4d638"/>
          </artifact>
       </component>
-      <component group="org.gradle" name="test-retry-gradle-plugin" version="1.1.8">
-         <artifact name="test-retry-gradle-plugin-1.1.8.jar">
-            <pgp value="314fe82e5a4c5377bca2edec5208812e1e4a6db0"/>
-         </artifact>
-      </component>
       <component group="org.slf4j" name="slf4j-api" version="1.7.25">
          <artifact name="slf4j-api-1.7.25.jar">
             <pgp value="475f3b8e59e6e63aa78067482c7b12f2a511e325"/>
