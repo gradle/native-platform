@@ -266,7 +266,10 @@ public abstract class JniPlugin implements Plugin<Project> {
             });
             toolChainRegistry.create("clang", Clang.class, toolChain -> {
                 // The core Gradle toolchain for Clang only targets x86 and x86_64 out of the box.
-                toolChain.target("osx_aarch64");
+                OperatingSystem os = new DefaultNativePlatform("current").getOperatingSystem();
+                if (os.isMacOsX()) {
+                    toolChain.target("osx_aarch64");
+                }
             });
             toolChainRegistry.create("visualCpp", VisualCpp.class);
         }
