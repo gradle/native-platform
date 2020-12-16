@@ -249,6 +249,7 @@ public abstract class JniPlugin implements Plugin<Project> {
         @Mutate
         void createPlatforms(PlatformContainer platformContainer) {
             addPlatform(platformContainer, "osx_amd64", "osx", "amd64");
+            addPlatform(platformContainer, "osx_aarch64", "osx", "aarch64");
             addPlatform(platformContainer, "linux_amd64", "linux", "amd64");
             addPlatform(platformContainer, "linux_aarch64", "linux", "aarch64");
             addPlatform(platformContainer, "windows_i386", "windows", "i386");
@@ -263,7 +264,10 @@ public abstract class JniPlugin implements Plugin<Project> {
                 // https://github.com/gradle/gradle/blob/36614ee523e5906ddfa1fed9a5dc00a5addac1b0/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/gcc/AbstractGccCompatibleToolChain.java
                 toolChain.target("linux_aarch64");
             });
-            toolChainRegistry.create("clang", Clang.class);
+            toolChainRegistry.create("clang", Clang.class, toolChain -> {
+                // The core Gradle toolchain for Clang only targets x86 and x86_64 out of the box.
+                toolChain.target("osx_aarch64");
+            });
             toolChainRegistry.create("visualCpp", VisualCpp.class);
         }
 

@@ -65,6 +65,8 @@ public abstract class Platform {
                         platform = new MacOs32Bit();
                     } else if (arch.equals("x86_64") || arch.equals("amd64") || arch.equals("universal")) {
                         platform = new MacOs64Bit();
+                    } else if (arch.equals("aarch64")) {
+                        platform = new MacOsAarch64();
                     }
                 } else if (osName.contains("freebsd")) {
                     if (arch.equals("amd64")) {
@@ -356,6 +358,13 @@ public abstract class Platform {
         @Override
         public String getId() {
             return "osx-amd64";
+        }
+    }
+
+    private static class MacOsAarch64 extends MacOs {
+        @Override
+        public String getId() {
+            return "osx-aarch64";
         }
     }
 
