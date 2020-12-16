@@ -56,9 +56,25 @@ fun BuildFeatures.publishCommitStatus() {
 
 val agentForJavaPublication = Agent.UbuntuAmd64
 
-val agentsForAllNativePlatformJniPublications = listOf(Agent.UbuntuAmd64, Agent.MacOsAmd64, Agent.WindowsAmd64, Agent.AmazonLinuxAarch64, Agent.FreeBsdAmd64)
-val agentsForAllFileEventsJniPublications = listOf(Agent.UbuntuAmd64, Agent.MacOsAmd64, Agent.WindowsAmd64, Agent.AmazonLinuxAarch64)
-val agentsForNcursesOnlyPublications = listOf(Agent.UbuntuAarch64, Agent.AmazonLinuxAmd64)
+val agentsForAllNativePlatformJniPublications = listOf(
+    Agent.UbuntuAmd64,
+    Agent.MacOsAmd64,
+    Agent.MacOsAarch64,
+    Agent.WindowsAmd64,
+    Agent.AmazonLinuxAarch64,
+    Agent.FreeBsdAmd64
+)
+val agentsForAllFileEventsJniPublications = listOf(
+    Agent.UbuntuAmd64,
+    Agent.MacOsAmd64,
+    Agent.MacOsAarch64,
+    Agent.WindowsAmd64,
+    Agent.AmazonLinuxAarch64
+)
+val agentsForNcursesOnlyPublications = listOf(
+    Agent.UbuntuAarch64,
+    Agent.AmazonLinuxAmd64
+)
 
 val Agent.nativePlatformPublishJniTask
     get() = when (this) {
