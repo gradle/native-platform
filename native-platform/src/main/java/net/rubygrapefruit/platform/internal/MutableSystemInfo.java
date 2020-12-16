@@ -49,7 +49,7 @@ public class MutableSystemInfo implements SystemInfo {
         if (machineArchitecture.equals("i386") || machineArchitecture.equals("x86") || machineArchitecture.equals("i686")) {
             return Architecture.i386;
         }
-        if (machineArchitecture.equals("aarch64")) {
+        if (machineArchitecture.equals("aarch64") || machineArchitecture.equals("arm64")) {
             return Architecture.aarch64;
         }
         throw new NativeException(String.format("Cannot determine architecture from kernel architecture name '%s'.",
