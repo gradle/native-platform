@@ -23,4 +23,5 @@ enum class Agent(val os: Os, val architecture: Architecture) {
     FreeBsdAmd64(os = Os.FreeBsd, architecture = Architecture.Amd64),
     WindowsAmd64(os = Os.Windows, architecture = Architecture.Amd64),
     MacOsAmd64(os = Os.MacOs, architecture = Architecture.Amd64),
+    MacOsAarch64(os = Os.MacOs, architecture = Architecture.Aarch64),
 }
