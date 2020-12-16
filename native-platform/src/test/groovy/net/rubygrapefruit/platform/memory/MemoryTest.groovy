@@ -18,12 +18,15 @@ package net.rubygrapefruit.platform.memory
 
 import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.internal.Platform
-import spock.lang.IgnoreIf
+import spock.lang.Ignore
+import spock.lang.Issue
 import spock.lang.Specification
 
 import java.lang.management.ManagementFactory
 
-@IgnoreIf({ !Platform.current().macOs })
+@Ignore
+@Issue("https://github.com/gradle/native-platform/issues/262")
+// @IgnoreIf({ !Platform.current().macOs })
 class MemoryTest extends Specification {
     def "caches memory instance"() {
         expect:
