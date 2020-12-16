@@ -289,7 +289,7 @@ public abstract class JniPlugin implements Plugin<Project> {
             NativePlatform targetPlatform = binarySpec.getTargetPlatform();
             Architecture targetArch = targetPlatform.getArchitecture();
             OperatingSystem targetOs = targetPlatform.getOperatingSystem();
-            if (ImmutableList.of("linux", "freebsd").contains(targetOs.getName()) && !targetArch.equals(currentArch)) {
+            if (ImmutableList.of("linux", "freebsd", "osx").contains(targetOs.getName()) && !targetArch.equals(currentArch)) {
                 // Native plugins don't detect whether multilib support is available or not. Assume not for now
                 binarySpec.setBuildable(false);
             }
