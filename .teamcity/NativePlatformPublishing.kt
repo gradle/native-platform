@@ -64,6 +64,8 @@ open class NativePlatformPublishSnapshot(releaseType: ReleaseType, uploadTasks: 
         if (releaseType.userProvidedVersion) {
             text("reverse.dep.*.$versionPostfixParameterName", "${releaseType.gradleProperty}-1", display = ParameterDisplay.PROMPT, allowEmpty = false)
         }
+        param("env.ORG_GRADLE_PROJECT_bintrayUserName", "%ARTIFACTORY_USERNAME%")
+        param("env.ORG_GRADLE_PROJECT_bintrayApiKey", "%ARTIFACTORY_PASSWORD%")
     }
 
     vcs {
@@ -75,7 +77,7 @@ open class NativePlatformPublishSnapshot(releaseType: ReleaseType, uploadTasks: 
         uploadTasks.forEach { task ->
             gradle {
                 name = "Gradle $task"
-                tasks = "clean $task -P${releaseType.gradleProperty}${if (releaseType.userProvidedVersion) "=%versionPostfix%" else ""} -PbintrayUserName=%ARTIFACTORY_USERNAME% -PbintrayApiKey=%ARTIFACTORY_PASSWORD%"
+                tasks = "clean $task -P${releaseType.gradleProperty}${if (releaseType.userProvidedVersion) "=%versionPostfix%" else ""}"
                 buildFile = ""
             }
         }
