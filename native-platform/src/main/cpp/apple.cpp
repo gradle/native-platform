@@ -131,7 +131,7 @@ Java_net_rubygrapefruit_platform_internal_jni_MemoryFunctions_getMemoryInfo(JNIE
         mark_failed_with_errno(env, "could not query page size", result);
         return;
     }
-    if (KERN_SUCCESS != host_statistics64(mach_port, HOST_VM_INFO, (host_info64_t) &vm_stats, &count)) {
+    if (KERN_SUCCESS != host_statistics64(mach_port, HOST_VM_INFO64, (host_info64_t) &vm_stats, &count)) {
         mark_failed_with_errno(env, "could not query host statistics", result);
         return;
     }
@@ -141,7 +141,6 @@ Java_net_rubygrapefruit_platform_internal_jni_MemoryFunctions_getMemoryInfo(JNIE
                                      + (int64_t) vm_stats.inactive_count
                                      - (int64_t) vm_stats.speculative_count)
         * (int64_t) page_size;
-
     // Feed Java with details
     env->CallVoidMethod(dest, mid, (jlong) total_memory, (jlong) available_memory);
 }
@@ -170,7 +169,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxMemoryFunctions_getOsxMemoryInf
     vm_size_t page_size;
     mach_port_t mach_port;
     vm_statistics64_data_t vm_stats;
-    unsigned int count;
+    mach_msg_type_number_t count;
 
     mach_port = mach_host_self();
     count = HOST_VM_INFO64_COUNT;
@@ -178,7 +177,7 @@ Java_net_rubygrapefruit_platform_internal_jni_OsxMemoryFunctions_getOsxMemoryInf
         mark_failed_with_errno(env, "could not query page size", result);
         return;
     }
-    if (KERN_SUCCESS != host_statistics64(mach_port, HOST_VM_INFO, (host_info64_t) &vm_stats, &count)) {
+    if (KERN_SUCCESS != host_statistics64(mach_port, HOST_VM_INFO64, (host_info64_t) &vm_stats, &count)) {
         mark_failed_with_errno(env, "could not query host statistics", result);
         return;
     }
