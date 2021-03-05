@@ -1,0 +1,9 @@
+
+# This is used to configure the LGTM.com website's build of gradle/native-platform
+# This happens passively without any explict configuration against our repository.
+# See: https://lgtm.com/projects/g/gradle/native-platform
+
+extraction:
+  cpp:
+    index:
+      build_command: "./gradlew assemble"
