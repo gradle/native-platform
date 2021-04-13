@@ -1,6 +1,7 @@
 package gradlebuild;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSortedSet;
 import org.gradle.model.Each;
 import org.gradle.model.Model;
 import org.gradle.model.Mutate;
@@ -14,13 +15,18 @@ import org.gradle.nativeplatform.toolchain.NativeToolChainRegistry;
 import org.gradle.platform.base.PlatformContainer;
 
 import java.io.File;
+import java.util.List;
+import java.util.SortedSet;
+import java.util.stream.Collectors;
 
 import static gradlebuild.NativeRulesUtils.addPlatform;
 
 public class NcursesPlugin extends RuleSource {
 
-    @Model NcursesVersion ncursesVersion() {
-        return new NcursesVersion(inferNCursesVersion());
+    @Model List<NcursesVersion> ncursesVersions() {
+        return inferNCursesVersions().stream()
+            .map(NcursesVersion::new)
+            .collect(Collectors.toList());
     }
 
     @Mutate void createPlatforms(PlatformContainer platformContainer) {
@@ -30,21 +36,26 @@ public class NcursesPlugin extends RuleSource {
         addPlatform(platformContainer, "linux_aarch64_ncurses6", "linux", "aarch64");
     }
 
-    @Mutate void configureBinaries(@Each NativeBinarySpecInternal binarySpec, NcursesVersion ncursesVersion) {
+    @Mutate void configureBinaries(@Each NativeBinarySpecInternal binarySpec, List<NcursesVersion> ncursesVersions) {
         NativePlatform targetPlatform = binarySpec.getTargetPlatform();
         if (targetPlatform.getOperatingSystem().isLinux() && targetPlatform.getName().contains("ncurses")) {
-            if (!targetPlatform.getName().contains("ncurses" + ncursesVersion.getNcursesVersion())) {
+            if (!ncursesVersions.stream().anyMatch(ncursesVersion -> isNcursesVersion(targetPlatform, ncursesVersion.getNcursesVersion()))) {
                 binarySpec.setBuildable(false);
             }
         }
         if (binarySpec.getComponent().getName().contains("Curses")) {
-            if (targetPlatform.getOperatingSystem().isLinux() && !ncursesVersion.getNcursesVersion().equals("5")) {
+            if (targetPlatform.getOperatingSystem().isLinux() && !isNcursesVersion(targetPlatform, "5")) {
                 binarySpec.getLinker().args("-lncursesw");
             } else {
                 binarySpec.getLinker().args("-lcurses");
             }
         }
     }
+
+    private boolean isNcursesVersion(NativePlatform targetPlatform, String ncursesVersion) {
+        return targetPlatform.getName().contains("ncurses" + ncursesVersion);
+    }
+
     @Mutate void configureToolChains(NativeToolChainRegistry toolChainRegistry) {
         toolChainRegistry.named("gcc", Gcc.class, toolChain -> {
             // The core Gradle toolchain for gcc only targets x86 and x86_64 out of the box.
@@ -54,21 +65,26 @@ public class NcursesPlugin extends RuleSource {
         });
     }
 
-    private static String inferNCursesVersion() {
+    private static SortedSet<String> inferNCursesVersions() {
         OperatingSystem os = new DefaultNativePlatform("current").getOperatingSystem();
         if (!os.isLinux()) {
-            return "5";
+            return ImmutableSortedSet.of("5");
         }
+        ImmutableSortedSet.Builder<String> builder = ImmutableSortedSet.naturalOrder();
         for (String d : ImmutableList.of("/lib", "/lib64", "/lib/x86_64-linux-gnu", "/lib/aarch64-linux-gnu")) {
             File libDir = new File(d);
             if (new File(libDir, "libncurses.so.6").isFile()) {
-                return "6";
+                builder.add("6");
             }
             if (new File(libDir, "libncurses.so.5").isFile()) {
-                return "5";
+                builder.add("5");
             }
         }
-        throw new IllegalArgumentException("Could not determine ncurses version installed on this machine.");
+        ImmutableSortedSet<String> versions = builder.build();
+        if (versions.isEmpty()) {
+            throw new IllegalArgumentException("Could not determine ncurses version installed on this machine.");
+        }
+        return versions;
     }
 
     public static class NcursesVersion {
