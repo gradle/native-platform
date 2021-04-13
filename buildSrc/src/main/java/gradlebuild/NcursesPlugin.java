@@ -71,9 +71,9 @@ public class NcursesPlugin extends RuleSource {
             return ImmutableSortedSet.of("5");
         }
         ImmutableSortedSet.Builder<String> builder = ImmutableSortedSet.naturalOrder();
-        for (String d : ImmutableList.of("/lib", "/lib64", "/lib/x86_64-linux-gnu", "/lib/aarch64-linux-gnu")) {
+        for (String d : ImmutableList.of("/lib", "/lib64", "/lib/x86_64-linux-gnu", "/lib/aarch64-linux-gnu", "/usr/lib")) {
             File libDir = new File(d);
-            if (new File(libDir, "libncurses.so.6").isFile()) {
+            if (new File(libDir, "libncurses.so.6").isFile() || new File(libDir, "libncursesw.so.6").isFile()) {
                 builder.add("6");
             }
             if (new File(libDir, "libncurses.so.5").isFile()) {
