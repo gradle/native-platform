@@ -4,9 +4,10 @@ interface Os {
     fun addAgentRequirements(requirements: Requirements)
     val osType: String
 
-    object Ubuntu : Linux(Ncurses.Ncurses5) {
+    object Ubuntu16 : Linux(Ncurses.Ncurses5) {
         override fun Requirements.additionalRequirements() {
             contains(osDistributionNameParameter, "ubuntu")
+            contains(osDistributionVersionParameter, "16")
         }
     }
 
@@ -30,6 +31,7 @@ interface Os {
 }
 
 private const val osDistributionNameParameter = "system.agent.os.distribution.name"
+private const val osDistributionVersionParameter = "system.agent.os.distribution.version"
 
 abstract class OsWithNameRequirement(private val osName: String, override val osType: String) : Os {
     override fun addAgentRequirements(requirements: Requirements) {
