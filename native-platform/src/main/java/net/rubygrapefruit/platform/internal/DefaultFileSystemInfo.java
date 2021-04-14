@@ -50,6 +50,11 @@ public class DefaultFileSystemInfo implements FileSystemInfo {
         return fileSystemType;
     }
 
+    @Override
+    public boolean isDetailsKnown() {
+        return true;
+    }
+
     public boolean isRemote() {
         return remote;
     }

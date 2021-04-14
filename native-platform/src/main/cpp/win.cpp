@@ -299,6 +299,7 @@ JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileSystems(JNIEnv* env, jclass target, jobject info, jobject result) {
     jclass info_class = env->GetObjectClass(info);
     jmethodID method = env->GetMethodID(info_class, "add", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZZ)V");
+    jmethodID unknownFsMethod = env->GetMethodID(info_class, "addUnknown", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V");
 
     DWORD required = GetLogicalDriveStringsW(0, NULL);
     if (required == 0) {
@@ -353,12 +354,20 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
                 }
             }
 
+            jstring mount_point = wchar_to_java(env, cur, wcslen(cur), result);
+            jstring file_system_type = wchar_to_java(env, fileSystemName, wcslen(fileSystemName), result);
+            jstring device_name = wchar_to_java(env, deviceName, wcslen(deviceName), result);
+
             jboolean casePreserving = JNI_TRUE;
             if (available) {
                 DWORD flags;
                 if (GetVolumeInformationW(cur, NULL, 0, NULL, NULL, &flags, fileSystemName, MAX_PATH + 1) == 0) {
-                    mark_failed_with_errno(env, "could not get volume information", result);
-                    break;
+                    env->CallVoidMethod(info, unknownFsMethod,
+                        mount_point,
+                        file_system_type,
+                        device_name,
+                        remote);
+                    continue;
                 }
                 casePreserving = (flags & FILE_CASE_PRESERVED_NAMES) != 0;
             } else {
@@ -370,9 +379,9 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
             }
 
             env->CallVoidMethod(info, method,
-                wchar_to_java(env, cur, wcslen(cur), result),
-                wchar_to_java(env, fileSystemName, wcslen(fileSystemName), result),
-                wchar_to_java(env, deviceName, wcslen(deviceName), result),
+                mount_point,
+                file_system_type,
+                device_name,
                 remote, JNI_FALSE, casePreserving);
         }
     }

@@ -38,6 +38,20 @@ public interface FileSystemInfo {
     String getFileSystemType();
 
     /**
+     * Returns true if additional details are known for the file system.
+     * <p>
+     * You must not query additional details if they are unknown.
+     * <p>
+     * Additional details are:
+     * <ul>
+     *     <li>{@link #isCasePreserving()}</li>
+     *     <li>{@link #isCaseSensitive()}</li>
+     * </ul>
+     */
+    @ThreadSafe
+    boolean isDetailsKnown();
+
+    /**
      * Returns true if this file system is a remote file system, or false if local.
      */
     @ThreadSafe

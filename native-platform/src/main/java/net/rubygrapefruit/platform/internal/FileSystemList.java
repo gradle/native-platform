@@ -28,4 +28,8 @@ public class FileSystemList {
     public void add(String mountPoint, String fileSystemName, String deviceName, boolean remote, boolean caseSensitive, boolean casePreserving) {
         fileSystems.add(new DefaultFileSystemInfo(new File(mountPoint), fileSystemName, deviceName, remote, caseSensitive, casePreserving));
     }
+
+    public void addUnknown(String mountPoint, String fileSystemName, String deviceName, boolean remote) {
+        fileSystems.add(new UnknownFileSystemInfo(new File(mountPoint), fileSystemName, deviceName, remote));
+    }
 }
