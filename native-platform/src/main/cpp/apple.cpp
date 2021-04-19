@@ -63,9 +63,6 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
     jmethodID unknownFsMethod = env->GetMethodID(info_class, "addForUnknownCaseSensitivity", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V");
 
     for (int i = 0; i < fs_count; i++) {
-        jboolean caseSensitive = JNI_TRUE;
-        jboolean casePreserving = JNI_TRUE;
-
         struct attrlist alist;
         memset(&alist, 0, sizeof(alist));
         alist.bitmapcount = ATTR_BIT_MAP_COUNT;
@@ -82,6 +79,9 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
         if (err != 0) {
             env->CallVoidMethod(info, unknownFsMethod, mount_point, file_system_type, device_name, remote);
         } else {
+            jboolean caseSensitive = JNI_TRUE;
+            jboolean casePreserving = JNI_TRUE;
+
             if (alist.volattr & ATTR_VOL_CAPABILITIES) {
                 if ((buffer.caps.valid[VOL_CAPABILITIES_FORMAT] & VOL_CAP_FMT_CASE_SENSITIVE)) {
                     caseSensitive = (buffer.caps.capabilities[VOL_CAPABILITIES_FORMAT] & VOL_CAP_FMT_CASE_SENSITIVE) != 0;
