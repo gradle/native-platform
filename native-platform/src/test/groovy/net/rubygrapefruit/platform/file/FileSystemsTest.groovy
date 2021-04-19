@@ -35,6 +35,6 @@ class FileSystemsTest extends Specification {
         def mountedFileSystems = fileSystems.fileSystems
         then:
         mountedFileSystems.collect() { it.mountPoint }.containsAll(File.listRoots())
-        mountedFileSystems.every { it.detailsKnown }
+        mountedFileSystems.every { it.caseSensitivity != null }
     }
 }

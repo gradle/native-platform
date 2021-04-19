@@ -18,6 +18,7 @@ package net.rubygrapefruit.platform.file;
 
 import net.rubygrapefruit.platform.ThreadSafe;
 
+import javax.annotation.Nullable;
 import java.io.File;
 
 /**
@@ -38,40 +39,39 @@ public interface FileSystemInfo {
     String getFileSystemType();
 
     /**
-     * Returns true if additional details are known for the file system.
-     * <p>
-     * You must not query additional details if they are unknown.
-     * <p>
-     * Additional details are:
-     * <ul>
-     *     <li>{@link #isCasePreserving()}</li>
-     *     <li>{@link #isCaseSensitive()}</li>
-     * </ul>
-     */
-    @ThreadSafe
-    boolean isDetailsKnown();
-
-    /**
      * Returns true if this file system is a remote file system, or false if local.
      */
     @ThreadSafe
     boolean isRemote();
 
     /**
-     * Returns true if this file system is performance case sensitive searches.
+     * Returns the operating system specific name for this file system.
      */
+    @ThreadSafe
+    String getDeviceName();
+
+    /**
+     * Returns case sensitivity information for the file system if known or {@code null}.
+     */
+    @ThreadSafe
+    @Nullable
+    CaseSensitivity getCaseSensitivity();
+
+    /**
+     * Returns true if this file system is performance case sensitive searches.
+     *
+     * @deprecated Use {@link #getCaseSensitivity()} instead.
+     */
+    @Deprecated
     @ThreadSafe
     boolean isCaseSensitive();
 
     /**
      * Returns true if this file system preserves file name case.
+     *
+     * @deprecated Use {@link #getCaseSensitivity()} instead.
      */
+    @Deprecated
     @ThreadSafe
     boolean isCasePreserving();
-
-    /**
-     * Returns the operating system specific name for this file system.
-     */
-    @ThreadSafe
-    String getDeviceName();
 }

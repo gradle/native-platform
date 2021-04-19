@@ -299,7 +299,7 @@ JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileSystems(JNIEnv* env, jclass target, jobject info, jobject result) {
     jclass info_class = env->GetObjectClass(info);
     jmethodID method = env->GetMethodID(info_class, "add", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZZ)V");
-    jmethodID unknownFsMethod = env->GetMethodID(info_class, "addUnknown", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V");
+    jmethodID unknownFsMethod = env->GetMethodID(info_class, "addForUnknownCaseSensitivity", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V");
 
     DWORD required = GetLogicalDriveStringsW(0, NULL);
     if (required == 0) {

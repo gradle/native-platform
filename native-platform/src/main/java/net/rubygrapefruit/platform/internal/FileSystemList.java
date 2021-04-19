@@ -16,6 +16,7 @@
 
 package net.rubygrapefruit.platform.internal;
 
+import net.rubygrapefruit.platform.file.CaseSensitivity;
 import net.rubygrapefruit.platform.file.FileSystemInfo;
 
 import java.io.File;
@@ -26,10 +27,30 @@ public class FileSystemList {
     public final List<FileSystemInfo> fileSystems = new ArrayList<FileSystemInfo>();
 
     public void add(String mountPoint, String fileSystemName, String deviceName, boolean remote, boolean caseSensitive, boolean casePreserving) {
-        fileSystems.add(new DefaultFileSystemInfo(new File(mountPoint), fileSystemName, deviceName, remote, caseSensitive, casePreserving));
+        fileSystems.add(new DefaultFileSystemInfo(new File(mountPoint), fileSystemName, deviceName, remote, new DefaultCaseSensitivity(caseSensitive, casePreserving)));
     }
 
-    public void addUnknown(String mountPoint, String fileSystemName, String deviceName, boolean remote) {
-        fileSystems.add(new UnknownFileSystemInfo(new File(mountPoint), fileSystemName, deviceName, remote));
+    public void addForUnknownCaseSensitivity(String mountPoint, String fileSystemName, String deviceName, boolean remote) {
+        fileSystems.add(new DefaultFileSystemInfo(new File(mountPoint), fileSystemName, deviceName, remote, null));
+    }
+
+    private static class DefaultCaseSensitivity implements CaseSensitivity {
+        private final boolean caseSensitive;
+        private final boolean casePreserving;
+
+        public DefaultCaseSensitivity(boolean caseSensitive, boolean casePreserving) {
+            this.caseSensitive = caseSensitive;
+            this.casePreserving = casePreserving;
+        }
+
+        @Override
+        public boolean isCaseSensitive() {
+            return caseSensitive;
+        }
+
+        @Override
+        public boolean isCasePreserving() {
+            return casePreserving;
+        }
     }
 }

@@ -60,7 +60,7 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
 
     jclass info_class = env->GetObjectClass(info);
     jmethodID method = env->GetMethodID(info_class, "add", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZZ)V");
-    jmethodID unknownFsMethod = env->GetMethodID(info_class, "addUnknown", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V");
+    jmethodID unknownFsMethod = env->GetMethodID(info_class, "addForUnknownCaseSensitivity", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V");
 
     for (int i = 0; i < fs_count; i++) {
         jboolean caseSensitive = JNI_TRUE;
