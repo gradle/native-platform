@@ -31,6 +31,8 @@ class FileSystemsTest extends Specification {
         'ext4',
         'btrfs',
         'xfs',
+        // FreeBSD
+        'ufs',
         // NTFS on Windows
         'NTFS'
     ]
