@@ -30,6 +30,7 @@ class FileSystemsTest extends Specification {
         'ext3',
         'ext4',
         'btrfs',
+        'xfs',
         // NTFS on Windows
         'NTFS'
     ]
