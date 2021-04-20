@@ -52,5 +52,13 @@ public class FileSystemList {
         public boolean isCasePreserving() {
             return casePreserving;
         }
+
+        @Override
+        public String toString() {
+            return "CaseSensitivity{" +
+                "caseSensitive=" + caseSensitive +
+                ", casePreserving=" + casePreserving +
+                '}';
+        }
     }
 }
