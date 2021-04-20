@@ -30,7 +30,7 @@ public class DefaultFileSystemInfo implements FileSystemInfo {
     private final boolean remote;
     private final CaseSensitivity caseSensitivity;
 
-    public DefaultFileSystemInfo(File mountPoint, String fileSystemType, String deviceName, boolean remote, @Nullable CaseSensitivity caseSensitivity) {
+    public DefaultFileSystemInfo(File mountPoint, @Nullable String fileSystemType, String deviceName, boolean remote, @Nullable CaseSensitivity caseSensitivity) {
         this.mountPoint = mountPoint;
         this.fileSystemType = fileSystemType;
         this.deviceName = deviceName;
@@ -46,6 +46,7 @@ public class DefaultFileSystemInfo implements FileSystemInfo {
         return mountPoint;
     }
 
+    @Nullable
     public String getFileSystemType() {
         return fileSystemType;
     }

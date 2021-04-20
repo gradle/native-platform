@@ -355,7 +355,6 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
             }
 
             jstring mount_point = wchar_to_java(env, cur, wcslen(cur), result);
-            jstring file_system_type = wchar_to_java(env, fileSystemName, wcslen(fileSystemName), result);
             jstring device_name = wchar_to_java(env, deviceName, wcslen(deviceName), result);
 
             jboolean casePreserving = JNI_TRUE;
@@ -364,7 +363,7 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
                 if (GetVolumeInformationW(cur, NULL, 0, NULL, NULL, &flags, fileSystemName, MAX_PATH + 1) == 0) {
                     env->CallVoidMethod(info, unknownFsMethod,
                         mount_point,
-                        file_system_type,
+                        NULL,
                         device_name,
                         remote);
                     continue;
@@ -378,6 +377,7 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
                 }
             }
 
+            jstring file_system_type = wchar_to_java(env, fileSystemName, wcslen(fileSystemName), result);
             env->CallVoidMethod(info, method,
                 mount_point,
                 file_system_type,

@@ -19,6 +19,7 @@ package net.rubygrapefruit.platform.internal;
 import net.rubygrapefruit.platform.file.CaseSensitivity;
 import net.rubygrapefruit.platform.file.FileSystemInfo;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,12 +27,12 @@ import java.util.List;
 public class FileSystemList {
     public final List<FileSystemInfo> fileSystems = new ArrayList<FileSystemInfo>();
 
-    public void add(String mountPoint, String fileSystemName, String deviceName, boolean remote, boolean caseSensitive, boolean casePreserving) {
-        fileSystems.add(new DefaultFileSystemInfo(new File(mountPoint), fileSystemName, deviceName, remote, new DefaultCaseSensitivity(caseSensitive, casePreserving)));
+    public void add(String mountPoint, String fileSystemType, String deviceName, boolean remote, boolean caseSensitive, boolean casePreserving) {
+        fileSystems.add(new DefaultFileSystemInfo(new File(mountPoint), fileSystemType, deviceName, remote, new DefaultCaseSensitivity(caseSensitive, casePreserving)));
     }
 
-    public void addForUnknownCaseSensitivity(String mountPoint, String fileSystemName, String deviceName, boolean remote) {
-        fileSystems.add(new DefaultFileSystemInfo(new File(mountPoint), fileSystemName, deviceName, remote, null));
+    public void addForUnknownCaseSensitivity(String mountPoint, @Nullable String fileSystemType, String deviceName, boolean remote) {
+        fileSystems.add(new DefaultFileSystemInfo(new File(mountPoint), fileSystemType, deviceName, remote, null));
     }
 
     private static class DefaultCaseSensitivity implements CaseSensitivity {
