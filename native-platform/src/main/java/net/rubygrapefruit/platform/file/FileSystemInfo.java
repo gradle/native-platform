@@ -18,6 +18,7 @@ package net.rubygrapefruit.platform.file;
 
 import net.rubygrapefruit.platform.ThreadSafe;
 
+import javax.annotation.Nullable;
 import java.io.File;
 
 /**
@@ -44,20 +45,33 @@ public interface FileSystemInfo {
     boolean isRemote();
 
     /**
-     * Returns true if this file system is performance case sensitive searches.
+     * Returns the operating system specific name for this file system.
      */
+    @ThreadSafe
+    String getDeviceName();
+
+    /**
+     * Returns case sensitivity information for the file system if known or {@code null}.
+     */
+    @ThreadSafe
+    @Nullable
+    CaseSensitivity getCaseSensitivity();
+
+    /**
+     * Returns true if this file system is performance case sensitive searches.
+     *
+     * @deprecated Use {@link #getCaseSensitivity()} instead.
+     */
+    @Deprecated
     @ThreadSafe
     boolean isCaseSensitive();
 
     /**
      * Returns true if this file system preserves file name case.
+     *
+     * @deprecated Use {@link #getCaseSensitivity()} instead.
      */
+    @Deprecated
     @ThreadSafe
     boolean isCasePreserving();
-
-    /**
-     * Returns the operating system specific name for this file system.
-     */
-    @ThreadSafe
-    String getDeviceName();
 }

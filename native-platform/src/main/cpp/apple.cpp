@@ -60,38 +60,39 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
 
     jclass info_class = env->GetObjectClass(info);
     jmethodID method = env->GetMethodID(info_class, "add", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZZ)V");
+    jmethodID unknownFsMethod = env->GetMethodID(info_class, "addForUnknownCaseSensitivity", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V");
 
     for (int i = 0; i < fs_count; i++) {
-        jboolean caseSensitive = JNI_TRUE;
-        jboolean casePreserving = JNI_TRUE;
-
         struct attrlist alist;
         memset(&alist, 0, sizeof(alist));
         alist.bitmapcount = ATTR_BIT_MAP_COUNT;
         alist.volattr = ATTR_VOL_CAPABILITIES | ATTR_VOL_INFO;
         vol_caps_buf_t buffer;
 
-        // getattrlist requires the path to the actual mount point.
-        int err = getattrlist(buf[i].f_mntonname, &alist, &buffer, sizeof(buffer), 0);
-        if (err != 0) {
-            mark_failed_with_errno(env, "could not determine file system attributes", result);
-            break;
-        }
-
-        if (alist.volattr & ATTR_VOL_CAPABILITIES) {
-            if ((buffer.caps.valid[VOL_CAPABILITIES_FORMAT] & VOL_CAP_FMT_CASE_SENSITIVE)) {
-                caseSensitive = (buffer.caps.capabilities[VOL_CAPABILITIES_FORMAT] & VOL_CAP_FMT_CASE_SENSITIVE) != 0;
-            }
-            if ((buffer.caps.valid[VOL_CAPABILITIES_FORMAT] & VOL_CAP_FMT_CASE_PRESERVING)) {
-                casePreserving = (buffer.caps.capabilities[VOL_CAPABILITIES_FORMAT] & VOL_CAP_FMT_CASE_PRESERVING) != 0;
-            }
-        }
-
         jstring mount_point = char_to_java(env, buf[i].f_mntonname, result);
         jstring file_system_type = char_to_java(env, buf[i].f_fstypename, result);
         jstring device_name = char_to_java(env, buf[i].f_mntfromname, result);
         jboolean remote = (buf[i].f_flags & MNT_LOCAL) == 0;
-        env->CallVoidMethod(info, method, mount_point, file_system_type, device_name, remote, caseSensitive, casePreserving);
+
+        // getattrlist requires the path to the actual mount point.
+        int err = getattrlist(buf[i].f_mntonname, &alist, &buffer, sizeof(buffer), 0);
+        if (err != 0) {
+            env->CallVoidMethod(info, unknownFsMethod, mount_point, file_system_type, device_name, remote);
+        } else {
+            jboolean caseSensitive = JNI_TRUE;
+            jboolean casePreserving = JNI_TRUE;
+
+            if (alist.volattr & ATTR_VOL_CAPABILITIES) {
+                if ((buffer.caps.valid[VOL_CAPABILITIES_FORMAT] & VOL_CAP_FMT_CASE_SENSITIVE)) {
+                    caseSensitive = (buffer.caps.capabilities[VOL_CAPABILITIES_FORMAT] & VOL_CAP_FMT_CASE_SENSITIVE) != 0;
+                }
+                if ((buffer.caps.valid[VOL_CAPABILITIES_FORMAT] & VOL_CAP_FMT_CASE_PRESERVING)) {
+                    casePreserving = (buffer.caps.capabilities[VOL_CAPABILITIES_FORMAT] & VOL_CAP_FMT_CASE_PRESERVING) != 0;
+                }
+            }
+
+            env->CallVoidMethod(info, method, mount_point, file_system_type, device_name, remote, caseSensitive, casePreserving);
+        }
     }
     free(buf);
 }

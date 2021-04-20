@@ -31,7 +31,10 @@ class FileSystemsTest extends Specification {
     }
 
     def "can query filesystem details"() {
-        expect:
-        fileSystems.fileSystems.collect() { it.mountPoint }.containsAll(File.listRoots())
+        when:
+        def mountedFileSystems = fileSystems.fileSystems
+        then:
+        mountedFileSystems.collect() { it.mountPoint }.containsAll(File.listRoots())
+        mountedFileSystems.every { it.caseSensitivity != null }
     }
 }

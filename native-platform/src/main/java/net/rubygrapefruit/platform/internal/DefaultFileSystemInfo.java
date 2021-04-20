@@ -16,8 +16,11 @@
 
 package net.rubygrapefruit.platform.internal;
 
+import net.rubygrapefruit.platform.NativeException;
+import net.rubygrapefruit.platform.file.CaseSensitivity;
 import net.rubygrapefruit.platform.file.FileSystemInfo;
 
+import javax.annotation.Nullable;
 import java.io.File;
 
 public class DefaultFileSystemInfo implements FileSystemInfo {
@@ -25,17 +28,14 @@ public class DefaultFileSystemInfo implements FileSystemInfo {
     private final String fileSystemType;
     private final String deviceName;
     private final boolean remote;
-    private final boolean caseSensitive;
-    private final boolean casePreserving;
+    private final CaseSensitivity caseSensitivity;
 
-    public DefaultFileSystemInfo(File mountPoint, String fileSystemType, String deviceName, boolean remote,
-                                 boolean caseSensitive, boolean casePreserving) {
+    public DefaultFileSystemInfo(File mountPoint, String fileSystemType, String deviceName, boolean remote, @Nullable CaseSensitivity caseSensitivity) {
         this.mountPoint = mountPoint;
         this.fileSystemType = fileSystemType;
         this.deviceName = deviceName;
         this.remote = remote;
-        this.caseSensitive = caseSensitive;
-        this.casePreserving = casePreserving;
+        this.caseSensitivity = caseSensitivity;
     }
 
     public String getDeviceName() {
@@ -50,15 +50,28 @@ public class DefaultFileSystemInfo implements FileSystemInfo {
         return fileSystemType;
     }
 
+    @Nullable
+    @Override
+    public CaseSensitivity getCaseSensitivity() {
+        return caseSensitivity;
+    }
+
     public boolean isRemote() {
         return remote;
     }
 
     public boolean isCaseSensitive() {
-        return caseSensitive;
+        return getCaseSensitivityOrThrow().isCaseSensitive();
     }
 
     public boolean isCasePreserving() {
-        return casePreserving;
+        return getCaseSensitivityOrThrow().isCasePreserving();
+    }
+
+    private CaseSensitivity getCaseSensitivityOrThrow() {
+        if (caseSensitivity == null) {
+            throw new NativeException("Could get file system attributes for file system at " + mountPoint);
+        }
+        return caseSensitivity;
     }
 }
