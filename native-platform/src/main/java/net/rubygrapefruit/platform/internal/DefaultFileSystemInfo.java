@@ -74,4 +74,15 @@ public class DefaultFileSystemInfo implements FileSystemInfo {
         }
         return caseSensitivity;
     }
+
+    @Override
+    public String toString() {
+        return "FileSystemInfo{" +
+            "mountPoint=" + mountPoint +
+            ", fileSystemType='" + fileSystemType + '\'' +
+            ", deviceName='" + deviceName + '\'' +
+            ", remote=" + remote +
+            ", caseSensitivity=" + caseSensitivity +
+            '}';
+    }
 }

@@ -33,7 +33,8 @@ public interface FileSystemInfo {
     File getMountPoint();
 
     /**
-     * Returns the operating system specific name for the type of this file system.
+     * Returns the operating system specific name for the type of this file system
+     * or {@code "unknown"} if the type could not be determined.
      */
     @ThreadSafe
     String getFileSystemType();

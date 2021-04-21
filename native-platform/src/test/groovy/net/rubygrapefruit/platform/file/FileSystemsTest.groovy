@@ -22,7 +22,23 @@ import org.junit.rules.TemporaryFolder
 import spock.lang.Specification
 
 class FileSystemsTest extends Specification {
+    private static final List<String> EXPECTED_FILE_SYSTEM_TYPES = [
+        // APFS on macOS
+        'apfs',
+        // HFS and HFS+ on macOS
+        'hfs',
+        'ext3',
+        'ext4',
+        'btrfs',
+        'xfs',
+        // FreeBSD
+        'ufs',
+        // NTFS on Windows
+        'NTFS'
+    ]
+
     @Rule TemporaryFolder tmpDir
+
     final FileSystems fileSystems = Native.get(FileSystems.class)
 
     def "caches file systems instance"() {
@@ -36,5 +52,6 @@ class FileSystemsTest extends Specification {
         then:
         mountedFileSystems.collect() { it.mountPoint }.containsAll(File.listRoots())
         mountedFileSystems.every { it.caseSensitivity != null }
+        mountedFileSystems.any { EXPECTED_FILE_SYSTEM_TYPES.contains(it.fileSystemType) }
     }
 }
