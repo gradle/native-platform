@@ -32,7 +32,7 @@ public class FileSystemList {
     }
 
     public void addForUnknownCaseSensitivity(String mountPoint, @Nullable String fileSystemType, String deviceName, boolean remote) {
-        fileSystems.add(new DefaultFileSystemInfo(new File(mountPoint), fileSystemType, deviceName, remote, null));
+        fileSystems.add(new DefaultFileSystemInfo(new File(mountPoint), fileSystemType == null ? "unknown" : fileSystemType, deviceName, remote, null));
     }
 
     private static class DefaultCaseSensitivity implements CaseSensitivity {
