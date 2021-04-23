@@ -1,6 +1,7 @@
 #ifdef _WIN32
 
 #include "win_fsnotifier.h"
+#include "command.h"
 
 using namespace std;
 
@@ -350,46 +351,24 @@ void Server::runLoop() {
     CloseHandle(threadHandle);
 }
 
-struct Command {
-    function<bool()> function;
-    mutex executionMutex;
-    condition_variable executed;
-    bool result;
-    exception_ptr failure;
-};
-
 static void CALLBACK executeOnRunLoopCallback(_In_ ULONG_PTR info) {
     Command* command = (Command*) info;
-    try {
-        command->result = command->function();
-    } catch (const exception&) {
-        command->failure = current_exception();
-    }
-    unique_lock<mutex> lock(command->executionMutex);
-    command->executed.notify_all();
+    command->executeInsideRunLoop();
 }
 
 bool Server::executeOnRunLoop(function<bool()> function) {
-    Command command;
-    command.function = function;
-    unique_lock<mutex> lock(command.executionMutex);
-    DWORD ret = QueueUserAPC(executeOnRunLoopCallback, threadHandle, (ULONG_PTR) &command);
-    if (ret == 0) {
-        throw FileWatcherException("Received error while queuing APC", GetLastError());
-    }
-    auto status = command.executed.wait_for(lock, chrono::milliseconds(commandTimeoutInMillis));
-    if (status == cv_status::timeout) {
-        throw FileWatcherException("Execution timed out");
-    } else if (command.failure) {
-        rethrow_exception(command.failure);
-    } else {
-        return command.result;
-    }
+    Command command(function);
+    return command.execute(commandTimeoutInMillis, [this](Command* command) {
+        DWORD ret = QueueUserAPC(executeOnRunLoopCallback, threadHandle, (ULONG_PTR) command);
+        if (ret == 0) {
+            throw FileWatcherException("Received error while queuing APC", GetLastError());
+        }
+    });
 }
 
 void Server::registerPaths(const vector<u16string>& paths) {
     executeOnRunLoop([this, paths]() {
-        for (auto& path: paths) {
+        for (auto& path : paths) {
             registerPath(path);
         }
         return true;
@@ -399,7 +378,7 @@ void Server::registerPaths(const vector<u16string>& paths) {
 bool Server::unregisterPaths(const vector<u16string>& paths) {
     return executeOnRunLoop([this, paths]() {
         bool success = true;
-        for (auto& path: paths) {
+        for (auto& path : paths) {
             success &= unregisterPath(path);
         }
         return success;
