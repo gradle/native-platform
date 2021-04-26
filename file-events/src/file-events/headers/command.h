@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <condition_variable>
 #include <functional>
 #include <mutex>
 
@@ -10,8 +11,8 @@ using namespace std;
 
 class Command {
 public:
-    Command(function<bool()> function)
-        : function(function) {
+    Command(function<bool()> work)
+        : work(work) {
     }
 
     bool execute(long timeout, function<void(Command*)> scheduleWithRunLoop) {
@@ -29,7 +30,7 @@ public:
 
     void executeInsideRunLoop() {
         try {
-            result = function();
+            result = work();
         } catch (const exception&) {
             failure = current_exception();
         }
@@ -38,7 +39,7 @@ public:
     }
 
 private:
-    function<bool()> function;
+    function<bool()> work;
     mutex executionMutex;
     condition_variable executed;
     bool result;
