@@ -11,6 +11,7 @@
 #include <thread>
 #include <vector>
 
+#include "exception.h"
 #include "jni_support.h"
 #include "logging.h"
 #include "net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions.h"
@@ -27,14 +28,6 @@ enum class ChangeType {
 };
 
 #define IS_SET(flags, mask) (((flags) & (mask)) != 0)
-
-struct FileWatcherException : public runtime_error {
-public:
-    FileWatcherException(const string& message, const u16string& path, int errorCode);
-    FileWatcherException(const string& message, const u16string& path);
-    FileWatcherException(const string& message, int errorCode);
-    FileWatcherException(const string& message);
-};
 
 // Throwing a Java exception from native code does not change the program flow.
 // So it may be necessary to throw a native exception as well which then can be catched in the outmost level just before returning to Java.

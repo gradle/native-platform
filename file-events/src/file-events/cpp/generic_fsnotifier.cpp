@@ -2,48 +2,6 @@
 
 #include "generic_fsnotifier.h"
 
-inline string createMessage(const string& message, const u16string& path) {
-    stringstream ss;
-    ss << message;
-    ss << ": ";
-    ss << utf16ToUtf8String(path);
-    return ss.str();
-}
-
-inline string createMessage(const string& message, int errorCode) {
-    stringstream ss;
-    ss << message;
-    ss << ", error = ";
-    ss << errorCode;
-    return ss.str();
-}
-
-inline string createMessage(const string& message, const u16string& path, int errorCode) {
-    stringstream ss;
-    ss << message;
-    ss << ", error = ";
-    ss << errorCode;
-    ss << ": ";
-    ss << utf16ToUtf8String(path);
-    return ss.str();
-}
-
-FileWatcherException::FileWatcherException(const string& message, const u16string& path, int errorCode)
-    : runtime_error(createMessage(message, path, errorCode)) {
-}
-
-FileWatcherException::FileWatcherException(const string& message, const u16string& path)
-    : runtime_error(createMessage(message, path)) {
-}
-
-FileWatcherException::FileWatcherException(const string& message, int errorCode)
-    : runtime_error(createMessage(message, errorCode)) {
-}
-
-FileWatcherException::FileWatcherException(const string& message)
-    : runtime_error(message) {
-}
-
 JavaExceptionThrownException::JavaExceptionThrownException()
     : runtime_error("Java exception thrown from native code") {
 }
