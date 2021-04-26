@@ -5,8 +5,11 @@
 #include <poll.h>
 #include <sys/eventfd.h>
 #include <sys/inotify.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
 #include <unordered_map>
 
+#include "command.h"
 #include "generic_fsnotifier.h"
 #include "net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions.h"
 
@@ -31,14 +34,38 @@ struct Inotify {
     const int fd;
 };
 
-struct ShutdownEvent {
-    ShutdownEvent();
-    ~ShutdownEvent();
+class CommandEvent {
+public:
+    CommandEvent()
+        : fd(eventfd(0, 0)) {
+        if (fd == -1) {
+            throw FileWatcherException("Couldn't register event source", errno);
+        }
+    }
+    ~CommandEvent() {
+        close(fd);
+    }
 
-    void trigger() const;
-    void consume() const;
+    void trigger(Command* command) {
+        this->commandToExecute = command;
+        const uint64_t increment = 1;
+        write(fd, &increment, sizeof(increment));
+    }
+
+    void process() {
+        uint64_t counter;
+        ssize_t bytesRead = read(fd, &counter, sizeof(counter));
+        if (bytesRead == -1) {
+            throw FileWatcherException("Couldn't read from command event notifier", errno);
+        }
+        this->commandToExecute->executeInsideRunLoop();
+        this->commandToExecute = nullptr;
+    }
 
     const int fd;
+
+private:
+    Command* commandToExecute;
 };
 
 enum class WatchPointStatus {
@@ -98,6 +125,7 @@ protected:
     void shutdownRunLoop() override;
 
 private:
+    bool executeOnRunLoop(function<bool()> command);
     void processQueues(int timeout);
     void handleEvents();
     void handleEvent(JNIEnv* env, const inotify_event* event);
@@ -110,7 +138,7 @@ private:
     unordered_map<int, u16string> watchRoots;
     unordered_map<int, u16string> recentlyUnregisteredWatchRoots;
     const shared_ptr<Inotify> inotify;
-    const ShutdownEvent shutdownEvent;
+    CommandEvent commandEvent;
     bool shouldTerminate = false;
     vector<uint8_t> buffer;
 };

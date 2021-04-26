@@ -3,8 +3,6 @@
 #include <codecvt>
 #include <locale>
 #include <string>
-#include <sys/ioctl.h>
-#include <unistd.h>
 
 #include "linux_fsnotifier.h"
 
@@ -59,29 +57,6 @@ Inotify::~Inotify() {
     close(fd);
 }
 
-ShutdownEvent::ShutdownEvent()
-    : fd(eventfd(0, 0)) {
-    if (fd == -1) {
-        throw FileWatcherException("Couldn't register event source", errno);
-    }
-}
-ShutdownEvent::~ShutdownEvent() {
-    close(fd);
-}
-
-void ShutdownEvent::trigger() const {
-    const uint64_t increment = 1;
-    write(fd, &increment, sizeof(increment));
-}
-
-void ShutdownEvent::consume() const {
-    uint64_t counter;
-    ssize_t bytesRead = read(fd, &counter, sizeof(counter));
-    if (bytesRead == -1) {
-        throw FileWatcherException("Couldn't read from termination event notifier", errno);
-    }
-}
-
 Server::Server(JNIEnv* env, jobject watcherCallback)
     : AbstractServer(env, watcherCallback)
     , inotify(new Inotify()) {
@@ -92,7 +67,18 @@ void Server::initializeRunLoop() {
 }
 
 void Server::shutdownRunLoop() {
-    shutdownEvent.trigger();
+    executeOnRunLoop([this]() {
+        shouldTerminate = true;
+        return true;
+    });
+}
+
+bool Server::executeOnRunLoop(function<bool()> function) {
+    Command command(function);
+    // TOOD Make command timeout configurable
+    return command.execute(5000L, [this](Command* command) {
+        this->commandEvent.trigger(command);
+    });
 }
 
 void Server::runLoop() {
@@ -108,7 +94,7 @@ void Server::runLoop() {
 
 void Server::processQueues(int timeout) {
     struct pollfd fds[2];
-    fds[0].fd = shutdownEvent.fd;
+    fds[0].fd = commandEvent.fd;
     fds[1].fd = inotify->fd;
     fds[0].events = POLLIN;
     fds[1].events = POLLIN;
@@ -119,9 +105,7 @@ void Server::processQueues(int timeout) {
     }
 
     if (IS_SET(fds[0].revents, POLLIN)) {
-        shutdownEvent.consume();
-        // Ignore counter, we only care about the notification itself
-        shouldTerminate = true;
+        commandEvent.process();
         return;
     }
 
