@@ -114,7 +114,7 @@ private:
 
 class Server : public AbstractServer {
 public:
-    Server(JNIEnv* env, jobject watcherCallback);
+    Server(JNIEnv* env, long commandTimeoutInMillis, jobject watcherCallback);
 
     virtual void registerPaths(const vector<u16string>& paths) override;
     virtual bool unregisterPaths(const vector<u16string>& paths) override;
@@ -139,6 +139,7 @@ private:
     unordered_map<int, u16string> recentlyUnregisteredWatchRoots;
     const shared_ptr<Inotify> inotify;
     CommandEvent commandEvent;
+    const long commandTimeoutInMillis;
     bool shouldTerminate = false;
     vector<uint8_t> buffer;
 };

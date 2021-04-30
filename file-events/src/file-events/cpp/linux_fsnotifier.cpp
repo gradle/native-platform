@@ -57,9 +57,10 @@ Inotify::~Inotify() {
     close(fd);
 }
 
-Server::Server(JNIEnv* env, jobject watcherCallback)
+Server::Server(JNIEnv* env, long commandTimeoutInMillis, jobject watcherCallback)
     : AbstractServer(env, watcherCallback)
-    , inotify(new Inotify()) {
+    , inotify(new Inotify())
+    , commandTimeoutInMillis(commandTimeoutInMillis) {
     buffer.reserve(EVENT_BUFFER_SIZE);
 }
 
@@ -76,7 +77,7 @@ void Server::shutdownRunLoop() {
 bool Server::executeOnRunLoop(function<bool()> function) {
     Command command(function);
     // TOOD Make command timeout configurable
-    return command.execute(5000L, [this](Command* command) {
+    return command.execute(commandTimeoutInMillis, [this](Command* command) {
         this->commandEvent.trigger(command);
     });
 }
@@ -307,9 +308,9 @@ bool Server::unregisterPath(const u16string& path) {
 }
 
 JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_startWatcher0(JNIEnv* env, jclass, jobject javaCallback) {
+Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_startWatcher0(JNIEnv* env, jclass, jlong commandTimeoutInMillis, jobject javaCallback) {
     try {
-        return wrapServer(env, new Server(env, javaCallback));
+        return wrapServer(env, new Server(env, (long) commandTimeoutInMillis, javaCallback));
     } catch (const InotifyInstanceLimitTooLowException& e) {
         rethrowAsJavaException(env, e, linuxJniConstants->inotifyInstanceLimitTooLowExceptionClass.get());
         return NULL;

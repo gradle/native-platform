@@ -20,6 +20,7 @@ import net.rubygrapefruit.platform.file.FileWatchEvent;
 import net.rubygrapefruit.platform.file.FileWatcher;
 
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * File watcher for Linux. Reports changes to the watched paths and their immediate children.
@@ -35,21 +36,40 @@ import java.util.concurrent.BlockingQueue;
  */
 public class LinuxFileEventFunctions extends AbstractFileEventFunctions {
 
+    public static final int DEFAULT_COMMAND_TIMEOUT_IN_SECONDS = 5;
+
     @Override
     public WatcherBuilder newWatcher(BlockingQueue<FileWatchEvent> eventQueue) {
         return new WatcherBuilder(eventQueue);
     }
 
     public static class WatcherBuilder extends AbstractWatcherBuilder {
+        private long commandTimeoutInMillis = TimeUnit.SECONDS.toMillis(DEFAULT_COMMAND_TIMEOUT_IN_SECONDS);
+
         WatcherBuilder(BlockingQueue<FileWatchEvent> eventQueue) {
             super(eventQueue);
         }
 
+        /**
+         * Sets the timeout for commands to get scheduled on the run loop.
+         *
+         * Commands are {@link FileWatcher#startWatching(Collection)},
+         * {@link FileWatcher#stopWatching(Collection)} and {@link FileWatcher#shutdown()},
+         * The Linux file watcher relies on scheduling the execution of these commands
+         * on the background thread.
+         *
+         * Defaults to {@value DEFAULT_COMMAND_TIMEOUT_IN_SECONDS} seconds.
+         */
+        public WatcherBuilder withCommandTimeout(int timeoutValue, TimeUnit timeoutUnit) {
+            this.commandTimeoutInMillis = timeoutUnit.toMillis(timeoutValue);
+            return this;
+        }
+
         @Override
         protected Object startWatcher(NativeFileWatcherCallback callback) throws InotifyInstanceLimitTooLowException {
-            return startWatcher0(callback);
+            return startWatcher0(commandTimeoutInMillis, callback);
         }
     }
 
-    private static native Object startWatcher0(NativeFileWatcherCallback callback);
+    private static native Object startWatcher0(long commandTimeoutInMillis, NativeFileWatcherCallback callback);
 }
