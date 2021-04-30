@@ -298,11 +298,10 @@ void Server::registerPath(const u16string& path) {
     if (watchRoots.find(watchDescriptor) != watchRoots.end()) {
         throw FileWatcherException("Already watching path", path);
     }
-    auto result = watchPoints.emplace(piecewise_construct,
+    watchPoints.emplace(piecewise_construct,
         forward_as_tuple(path),
         forward_as_tuple(path, inotify, watchDescriptor));
-    auto& watchPoint = result.first->second;
-    watchRoots[watchPoint.watchDescriptor] = path;
+    watchRoots[watchDescriptor] = path;
 }
 
 bool Server::unregisterPath(const u16string& path) {
@@ -312,13 +311,14 @@ bool Server::unregisterPath(const u16string& path) {
         return false;
     }
     auto& watchPoint = it->second;
+    int wd = watchPoint.watchDescriptor;
     CancelResult ret = watchPoint.cancel();
     if (ret == CancelResult::ALREADY_CANCELLED) {
         return false;
     }
-    recentlyUnregisteredWatchRoots.emplace(watchPoint.watchDescriptor, path);
-    watchRoots.erase(watchPoint.watchDescriptor);
-    watchPoints.erase(it);
+    recentlyUnregisteredWatchRoots.emplace(wd, path);
+    watchRoots.erase(wd);
+    watchPoints.erase(path);
     return ret == CancelResult::CANCELLED;
 }
 
