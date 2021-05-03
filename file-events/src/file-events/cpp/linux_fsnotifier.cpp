@@ -318,6 +318,9 @@ bool Server::unregisterPath(const u16string& path) {
     }
     recentlyUnregisteredWatchRoots.emplace(wd, path);
     watchRoots.erase(wd);
+    // We use the path instead erase(it) here because on Alpine Linux we've seen crashes happen here
+    // when inside a Docker container a host-mapped directory is watched. There is no good theory as
+    // of this writing why the problem occurs, but not using the iterator here fixes it.
     watchPoints.erase(path);
     return ret == CancelResult::CANCELLED;
 }
