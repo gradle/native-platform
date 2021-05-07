@@ -16,6 +16,7 @@
 
 package net.rubygrapefruit.platform.internal.jni;
 
+import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.file.FileWatchEvent;
 import net.rubygrapefruit.platform.file.FileWatcher;
 
@@ -34,6 +35,14 @@ import java.util.concurrent.BlockingQueue;
  * </ul>
  */
 public class LinuxFileEventFunctions extends AbstractFileEventFunctions {
+
+    public LinuxFileEventFunctions() {
+        if (!isGlibc0()) {
+            throw new NativeException("File events on Linux are only supported with glibc");
+        }
+    }
+
+    private static native boolean isGlibc0();
 
     @Override
     public WatcherBuilder newWatcher(BlockingQueue<FileWatchEvent> eventQueue) {
