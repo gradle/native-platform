@@ -1,6 +1,7 @@
 #ifdef __linux__
 
 #include <codecvt>
+#include <dlfcn.h>
 #include <locale>
 #include <string>
 #include <sys/ioctl.h>
@@ -333,6 +334,18 @@ Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_startWatch
         rethrowAsJavaException(env, e, linuxJniConstants->inotifyInstanceLimitTooLowExceptionClass.get());
         return NULL;
     }
+}
+
+JNIEXPORT jboolean JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_isGlibc0(JNIEnv*, jclass) {
+    void* libcLibrary = dlopen("libc.so.6", RTLD_LAZY);
+    if (!libcLibrary) {
+        return false;
+    }
+    void* libcVerCheck = dlsym(libcLibrary, "gnu_get_libc_version");
+    jboolean isValid = libcVerCheck != NULL;
+    dlclose(libcLibrary);
+    return isValid;
 }
 
 LinuxJniConstants::LinuxJniConstants(JavaVM* jvm)

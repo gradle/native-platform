@@ -16,6 +16,7 @@
 
 package net.rubygrapefruit.platform.internal.jni;
 
+import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.file.FileWatchEvent;
 import net.rubygrapefruit.platform.file.FileWatcher;
 
@@ -34,6 +35,17 @@ import java.util.concurrent.BlockingQueue;
  * </ul>
  */
 public class LinuxFileEventFunctions extends AbstractFileEventFunctions {
+
+    public LinuxFileEventFunctions() {
+        // We have seen some weird behavior on Alpine Linux that uses musl with Gradle that lead to crashes
+        // As a band-aid we currently don't support file events on Linux with a non-glibc libc.
+        // See also https://github.com/gradle/gradle/issues/17099
+        if (!isGlibc0()) {
+            throw new NativeException("File events on Linux are only supported with glibc");
+        }
+    }
+
+    private static native boolean isGlibc0();
 
     @Override
     public WatcherBuilder newWatcher(BlockingQueue<FileWatchEvent> eventQueue) {
