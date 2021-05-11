@@ -16,7 +16,7 @@
 
 package net.rubygrapefruit.platform.internal.jni;
 
-import net.rubygrapefruit.platform.NativeException;
+import net.rubygrapefruit.platform.NativeIntegrationUnavailableException;
 import net.rubygrapefruit.platform.file.FileWatchEvent;
 import net.rubygrapefruit.platform.file.FileWatcher;
 
@@ -41,7 +41,7 @@ public class LinuxFileEventFunctions extends AbstractFileEventFunctions {
         // As a band-aid we currently don't support file events on Linux with a non-glibc libc.
         // See also https://github.com/gradle/gradle/issues/17099
         if (!isGlibc0()) {
-            throw new NativeException("File events on Linux are only supported with glibc");
+            throw new NativeIntegrationUnavailableException("File events on Linux are only supported with glibc");
         }
     }
 
