@@ -15,21 +15,23 @@ import java.util.concurrent.Callable;
 
 public class BasePublishPlugin implements Plugin<Project> {
     public static final String LOCAL_FILE_REPOSITORY_NAME = "LocalFile";
+    private static final String PUBLISH_USER_NAME_PROPERTY = "publishUserName";
+    private static final String PUBLISH_API_KEY_PROPERTY = "publishApiKey";
 
     @Override
     public void apply(Project project) {
         project.getPlugins().apply("maven-publish");
-        BintrayCredentials credentials = project.getExtensions().create("bintray", BintrayCredentials.class);
+        PublishRepositoryCredentials credentials = project.getExtensions().create("publishRepository", PublishRepositoryCredentials.class);
         VariantsExtension variants = project.getExtensions().create("variants", VariantsExtension.class);
         variants.getGroupId().convention(project.provider(() -> project.getGroup().toString()));
         variants.getArtifactId().convention(project.provider(() -> getArchivesBaseName(project)));
         variants.getVersion().convention(project.provider(() -> project.getVersion().toString()));
 
-        if (project.hasProperty("bintrayUserName")) {
-            credentials.setUserName(project.property("bintrayUserName").toString());
+        if (project.hasProperty(PUBLISH_USER_NAME_PROPERTY)) {
+            credentials.setUserName(project.property(PUBLISH_USER_NAME_PROPERTY).toString());
         }
-        if (project.hasProperty("bintrayApiKey")) {
-            credentials.setApiKey(project.property("bintrayApiKey").toString());
+        if (project.hasProperty(PUBLISH_API_KEY_PROPERTY)) {
+            credentials.setApiKey(project.property(PUBLISH_API_KEY_PROPERTY).toString());
         }
         Callable<File> localRepoDir = () -> getLocalRepoDirectory(project);
         project.getExtensions().configure(PublishingExtension.class,

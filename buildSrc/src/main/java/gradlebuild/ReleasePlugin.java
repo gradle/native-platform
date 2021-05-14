@@ -33,8 +33,8 @@ public class ReleasePlugin implements Plugin<Project> {
         project.getPlugins().apply(PublishPlugin.class);
         project.setVersion(versions.getVersion());
 
-        // Use authenticated snapshot/bintray repo while building a test distribution during snapshot/release
-        final BintrayCredentials credentials = project.getExtensions().getByType(BintrayCredentials.class);
+        // Use authenticated snapshot/release repo while building a test distribution during snapshot/release
+        final PublishRepositoryCredentials credentials = project.getExtensions().getByType(PublishRepositoryCredentials.class);
 
         versions.getReleaseRepository().ifPresent(releaseRepository -> {
             credentials.assertPresent();

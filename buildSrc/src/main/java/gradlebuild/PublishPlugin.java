@@ -12,7 +12,7 @@ public class PublishPlugin implements Plugin<Project> {
     @Override
     public void apply(Project project) {
         project.getPlugins().apply(BasePublishPlugin.class);
-        BintrayCredentials credentials = project.getExtensions().getByType(BintrayCredentials.class);
+        PublishRepositoryCredentials credentials = project.getExtensions().getByType(PublishRepositoryCredentials.class);
 
         project.getExtensions().configure(
             PublishingExtension.class,

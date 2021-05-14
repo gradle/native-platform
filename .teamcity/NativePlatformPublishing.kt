@@ -64,8 +64,8 @@ open class NativePlatformPublishSnapshot(releaseType: ReleaseType, uploadTasks: 
         if (releaseType.userProvidedVersion) {
             text("reverse.dep.*.$versionPostfixParameterName", "${releaseType.gradleProperty}-1", display = ParameterDisplay.PROMPT, allowEmpty = false)
         }
-        param("env.ORG_GRADLE_PROJECT_bintrayUserName", "%ARTIFACTORY_USERNAME%")
-        param("env.ORG_GRADLE_PROJECT_bintrayApiKey", "%ARTIFACTORY_PASSWORD%")
+        param("env.ORG_GRADLE_PROJECT_publishUserName", "%ARTIFACTORY_USERNAME%")
+        param("env.ORG_GRADLE_PROJECT_publishApiKey", "%ARTIFACTORY_PASSWORD%")
     }
 
     vcs {
