@@ -7,6 +7,8 @@ import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.authentication.http.BasicAuthentication;
+import org.gradle.plugins.signing.Sign;
+import org.gradle.plugins.signing.SigningExtension;
 
 import java.util.Optional;
 
@@ -47,6 +49,20 @@ public class ReleasePlugin implements Plugin<Project> {
         });
 
         addUploadLifecycleTasks(project, versions.getReleaseRepository());
+
+        project.getPlugins().apply("signing");
+        boolean signArtifacts = versions.isUseRepo();
+        project.getTasks().withType(Sign.class).configureEach(sign -> {
+            sign.setEnabled(signArtifacts);
+        });
+        project.getExtensions().configure(SigningExtension.class, signing -> {
+            signing.useInMemoryPgpKeys(System.getenv("PGP_SIGNING_KEY"), System.getenv("PGP_SIGNING_KEY_PASSPHRASE"));
+            project.getExtensions().getByType(PublishingExtension.class).getPublications().configureEach(publication -> {
+                if (signArtifacts) {
+                    signing.sign(publication);
+                }
+            });
+        });
     }
 
     private void addUploadLifecycleTasks(Project project, Optional<VersionDetails.ReleaseRepository> releaseRepository) {
