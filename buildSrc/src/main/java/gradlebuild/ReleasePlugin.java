@@ -66,10 +66,10 @@ public class ReleasePlugin implements Plugin<Project> {
             PublishingExtension.class,
             extension -> extension.getPublications().withType(MavenPublication.class, publication -> {
                 String uploadTaskName = releaseRepository
-                    .map(repository -> BasePublishPlugin.publishTaskName(publication, repository.name()))
-                    .orElse(BasePublishPlugin.publishTaskName(publication, BasePublishPlugin.LOCAL_FILE_REPOSITORY_NAME));
+                    .map(repository -> PublishPlugin.publishTaskName(publication, repository.name()))
+                    .orElse(PublishPlugin.publishTaskName(publication, PublishPlugin.LOCAL_FILE_REPOSITORY_NAME));
                 TaskProvider<Task> uploadTask = project.getTasks().named(uploadTaskName);
-                if (BasePublishPlugin.isMainPublication(publication)) {
+                if (PublishPlugin.isMainPublication(publication)) {
                     uploadMainLifecycle.dependsOn(uploadTask);
                 } else {
                     uploadJniLifecycle.dependsOn(uploadTask);
