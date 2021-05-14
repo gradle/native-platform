@@ -30,7 +30,6 @@ public class ReleasePlugin implements Plugin<Project> {
             }
         });
 
-        project.getPlugins().apply(UploadPlugin.class);
         project.getPlugins().apply(PublishPlugin.class);
         project.setVersion(versions.getVersion());
 
@@ -66,10 +65,8 @@ public class ReleasePlugin implements Plugin<Project> {
         project.getExtensions().configure(
             PublishingExtension.class,
             extension -> extension.getPublications().withType(MavenPublication.class, publication -> {
-                String uploadTaskName = releaseRepository.map(repository ->
-                    repository.getType() == VersionDetails.RepositoryType.Maven
-                        ? BasePublishPlugin.publishTaskName(publication, repository.name())
-                        : UploadPlugin.uploadTaskName(publication))
+                String uploadTaskName = releaseRepository
+                    .map(repository -> BasePublishPlugin.publishTaskName(publication, repository.name()))
                     .orElse(BasePublishPlugin.publishTaskName(publication, BasePublishPlugin.LOCAL_FILE_REPOSITORY_NAME));
                 TaskProvider<Task> uploadTask = project.getTasks().named(uploadTaskName);
                 if (BasePublishPlugin.isMainPublication(publication)) {

@@ -19,7 +19,6 @@ public class PublishPlugin implements Plugin<Project> {
             extension -> {
                 RepositoryHandler repositories = extension.getRepositories();
                 Stream.of(VersionDetails.ReleaseRepository.values())
-                    .filter(it -> it.getType() == VersionDetails.RepositoryType.Maven)
                     .forEach(repository -> repositories.maven(repo -> {
                         repo.setUrl(repository.getUrl());
                         repo.setName(repository.name());
