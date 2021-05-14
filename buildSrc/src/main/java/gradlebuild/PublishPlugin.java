@@ -23,26 +23,20 @@ public class PublishPlugin implements Plugin<Project> {
     @Override
     public void apply(Project project) {
         project.getPlugins().apply("maven-publish");
-        PublishRepositoryCredentials credentials = project.getExtensions().create("publishRepository", PublishRepositoryCredentials.class);
+
+        configureVariants(project);
+        configureMainPublication(project);
+        configureRepositories(project);
+    }
+
+    private void configureVariants(Project project) {
         VariantsExtension variants = project.getExtensions().create("variants", VariantsExtension.class);
         variants.getGroupId().convention(project.provider(() -> project.getGroup().toString()));
         variants.getArtifactId().convention(project.provider(() -> getArchivesBaseName(project)));
         variants.getVersion().convention(project.provider(() -> project.getVersion().toString()));
+    }
 
-        if (project.hasProperty(PUBLISH_USER_NAME_PROPERTY)) {
-            credentials.setUserName(project.property(PUBLISH_USER_NAME_PROPERTY).toString());
-        }
-        if (project.hasProperty(PUBLISH_API_KEY_PROPERTY)) {
-            credentials.setApiKey(project.property(PUBLISH_API_KEY_PROPERTY).toString());
-        }
-        Callable<File> localRepoDir = () -> getLocalRepoDirectory(project);
-        project.getExtensions().configure(PublishingExtension.class,
-            extension -> extension.getRepositories().maven(repo -> {
-                repo.setName(LOCAL_FILE_REPOSITORY_NAME);
-                repo.setUrl(localRepoDir);
-            })
-        );
-
+    private void configureMainPublication(Project project) {
         TaskContainer tasks = project.getTasks();
         TaskProvider<Jar> jarTask = project.getTasks().named("jar", Jar.class);
         TaskProvider<Jar> sourceZipTask = tasks.register("sourceZip", Jar.class, jar -> jar.getArchiveClassifier().set("sources"));
@@ -54,30 +48,55 @@ public class PublishPlugin implements Plugin<Project> {
                 main.artifact(sourceZipTask.get());
                 main.artifact(javadocZipTask.get());
             }));
-        project.afterEvaluate(ignored -> {
-            project.getExtensions().configure(
-                PublishingExtension.class,
-                extension -> extension.getPublications().named("main", MavenPublication.class, main -> {
-                    main.setGroupId(project.getGroup().toString());
-                    main.setArtifactId(jarTask.get().getArchiveBaseName().get());
-                    main.setVersion(project.getVersion().toString());
-                }));
-        });
+        project.afterEvaluate(ignored -> project.getExtensions().configure(
+            PublishingExtension.class,
+            extension -> extension.getPublications().named("main", MavenPublication.class, main -> {
+                main.setGroupId(project.getGroup().toString());
+                main.setArtifactId(jarTask.get().getArchiveBaseName().get());
+                main.setVersion(project.getVersion().toString());
+            })));
+    }
 
+    private void configureRepositories(Project project) {
+        PublishRepositoryCredentials credentials = configureCredentials(project);
         project.getExtensions().configure(
             PublishingExtension.class,
             extension -> {
                 RepositoryHandler repositories = extension.getRepositories();
-                Stream.of(VersionDetails.ReleaseRepository.values())
-                    .forEach(repository -> repositories.maven(repo -> {
-                        repo.setUrl(repository.getUrl());
-                        repo.setName(repository.name());
-                        repo.credentials(passwordCredentials -> {
-                            passwordCredentials.setUsername(credentials.getUserName());
-                            passwordCredentials.setPassword(credentials.getApiKey());
-                        });
-                    }));
-            });
+                configureLocalPublishRepository(() -> getLocalRepoDirectory(project), repositories);
+                configureRemotePublishRepositories(credentials, repositories);
+            }
+        );
+    }
+
+    private void configureLocalPublishRepository(Callable<File> localRepoDir, RepositoryHandler repositories) {
+        repositories.maven(repo -> {
+            repo.setName(LOCAL_FILE_REPOSITORY_NAME);
+            repo.setUrl(localRepoDir);
+        });
+    }
+
+    private void configureRemotePublishRepositories(PublishRepositoryCredentials credentials, RepositoryHandler repositories) {
+        Stream.of(VersionDetails.ReleaseRepository.values())
+            .forEach(repository -> repositories.maven(repo -> {
+                repo.setUrl(repository.getUrl());
+                repo.setName(repository.name());
+                repo.credentials(passwordCredentials -> {
+                    passwordCredentials.setUsername(credentials.getUserName());
+                    passwordCredentials.setPassword(credentials.getApiKey());
+                });
+            }));
+    }
+
+    private PublishRepositoryCredentials configureCredentials(Project project) {
+        PublishRepositoryCredentials credentials = project.getExtensions().create("publishRepository", PublishRepositoryCredentials.class);
+        if (project.hasProperty(PUBLISH_USER_NAME_PROPERTY)) {
+            credentials.setUserName(project.property(PUBLISH_USER_NAME_PROPERTY).toString());
+        }
+        if (project.hasProperty(PUBLISH_API_KEY_PROPERTY)) {
+            credentials.setApiKey(project.property(PUBLISH_API_KEY_PROPERTY).toString());
+        }
+        return credentials;
     }
 
     public static String getArchivesBaseName(Project project) {
