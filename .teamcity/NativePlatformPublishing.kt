@@ -61,11 +61,15 @@ open class NativePlatformPublishSnapshot(releaseType: ReleaseType, uploadTasks: 
     params {
         param("ARTIFACTORY_USERNAME", releaseType.username)
         password("ARTIFACTORY_PASSWORD", releaseType.password, display = ParameterDisplay.HIDDEN)
+        password("pgpSigningKey", "credentialsJSON:ae6de222-f77d-4c71-b94e-fac6da485143", display = ParameterDisplay.HIDDEN)
+        password("pgpSigningPassphrase", "credentialsJSON:f75db3bd-4f5b-4591-b5cb-2e76d91f57f5", display = ParameterDisplay.HIDDEN)
         if (releaseType.userProvidedVersion) {
             text("reverse.dep.*.$versionPostfixParameterName", "${releaseType.gradleProperty}-1", display = ParameterDisplay.PROMPT, allowEmpty = false)
         }
-        param("env.ORG_GRADLE_PROJECT_bintrayUserName", "%ARTIFACTORY_USERNAME%")
-        param("env.ORG_GRADLE_PROJECT_bintrayApiKey", "%ARTIFACTORY_PASSWORD%")
+        param("env.ORG_GRADLE_PROJECT_publishUserName", "%ARTIFACTORY_USERNAME%")
+        param("env.ORG_GRADLE_PROJECT_publishApiKey", "%ARTIFACTORY_PASSWORD%")
+        param("env.PGP_SIGNING_KEY", "%pgpSigningKey%")
+        param("env.PGP_SIGNING_KEY_PASSPHRASE", "%pgpSigningPassphrase%")
     }
 
     vcs {
@@ -131,7 +135,7 @@ class NativeLibraryPublishNcurses(releaseType: ReleaseType = ReleaseType.Snapsho
 class PublishJavaApi(releaseType: ReleaseType = ReleaseType.Snapshot, nativeLibraryPublishingBuilds: List<NativePlatformPublishSnapshot>, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
     NativePlatformPublishSnapshot(
         releaseType,
-        listOf(":native-platform:uploadMain :file-events:uploadMain", ":test-app:uploadMain") + if (releaseType in setOf(ReleaseType.Milestone, ReleaseType.Release)) listOf("publishToBintray") else listOf(),
+        listOf(":native-platform:uploadMain :file-events:uploadMain", ":test-app:uploadMain"),
         buildAndTest,
         buildReceiptSource,
         {

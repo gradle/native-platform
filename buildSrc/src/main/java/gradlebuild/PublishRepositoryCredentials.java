@@ -1,9 +1,9 @@
 package gradlebuild;
 
 /**
- * Credentials for accessing bintray. Only required when releasing.
+ * Credentials for accessing the repository for publishing. Only required when releasing.
  */
-public class BintrayCredentials {
+public class PublishRepositoryCredentials {
     private String userName;
     private String apiKey;
 
@@ -25,10 +25,10 @@ public class BintrayCredentials {
 
     void assertPresent() {
         if (userName == null) {
-            throw new IllegalStateException("No bintray user name specified. You can set project property 'bintrayUserName' to provide this.");
+            throw new IllegalStateException("No publish repository user name specified. You can set project property 'publishUserName' to provide this.");
         }
         if (apiKey == null) {
-            throw new IllegalStateException("No bintray API key specified. You can set project property 'bintrayApiKey' to provide this.");
+            throw new IllegalStateException("No publish repository API key specified. You can set project property 'publishApiKey' to provide this.");
         }
     }
 }

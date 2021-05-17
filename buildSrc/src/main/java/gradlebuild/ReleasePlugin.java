@@ -7,6 +7,8 @@ import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.authentication.http.BasicAuthentication;
+import org.gradle.plugins.signing.Sign;
+import org.gradle.plugins.signing.SigningExtension;
 
 import java.util.Optional;
 
@@ -30,12 +32,11 @@ public class ReleasePlugin implements Plugin<Project> {
             }
         });
 
-        project.getPlugins().apply(UploadPlugin.class);
         project.getPlugins().apply(PublishPlugin.class);
         project.setVersion(versions.getVersion());
 
-        // Use authenticated snapshot/bintray repo while building a test distribution during snapshot/release
-        final BintrayCredentials credentials = project.getExtensions().getByType(BintrayCredentials.class);
+        // Use authenticated snapshot/release repo while building a test distribution during snapshot/release
+        final PublishRepositoryCredentials credentials = project.getExtensions().getByType(PublishRepositoryCredentials.class);
 
         versions.getReleaseRepository().ifPresent(releaseRepository -> {
             credentials.assertPresent();
@@ -48,6 +49,20 @@ public class ReleasePlugin implements Plugin<Project> {
         });
 
         addUploadLifecycleTasks(project, versions.getReleaseRepository());
+
+        project.getPlugins().apply("signing");
+        boolean signArtifacts = versions.isUseRepo();
+        project.getTasks().withType(Sign.class).configureEach(sign -> {
+            sign.setEnabled(signArtifacts);
+        });
+        project.getExtensions().configure(SigningExtension.class, signing -> {
+            signing.useInMemoryPgpKeys(System.getenv("PGP_SIGNING_KEY"), System.getenv("PGP_SIGNING_KEY_PASSPHRASE"));
+            project.getExtensions().getByType(PublishingExtension.class).getPublications().configureEach(publication -> {
+                if (signArtifacts) {
+                    signing.sign(publication);
+                }
+            });
+        });
     }
 
     private void addUploadLifecycleTasks(Project project, Optional<VersionDetails.ReleaseRepository> releaseRepository) {
@@ -66,13 +81,11 @@ public class ReleasePlugin implements Plugin<Project> {
         project.getExtensions().configure(
             PublishingExtension.class,
             extension -> extension.getPublications().withType(MavenPublication.class, publication -> {
-                String uploadTaskName = releaseRepository.map(repository ->
-                    repository.getType() == VersionDetails.RepositoryType.Maven
-                        ? BasePublishPlugin.publishTaskName(publication, repository.name())
-                        : UploadPlugin.uploadTaskName(publication))
-                    .orElse(BasePublishPlugin.publishTaskName(publication, BasePublishPlugin.LOCAL_FILE_REPOSITORY_NAME));
+                String uploadTaskName = releaseRepository
+                    .map(repository -> PublishPlugin.publishTaskName(publication, repository.name()))
+                    .orElse(PublishPlugin.publishTaskName(publication, PublishPlugin.LOCAL_FILE_REPOSITORY_NAME));
                 TaskProvider<Task> uploadTask = project.getTasks().named(uploadTaskName);
-                if (BasePublishPlugin.isMainPublication(publication)) {
+                if (PublishPlugin.isMainPublication(publication)) {
                     uploadMainLifecycle.dependsOn(uploadTask);
                 } else {
                     uploadJniLifecycle.dependsOn(uploadTask);

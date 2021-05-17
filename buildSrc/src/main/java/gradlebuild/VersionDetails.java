@@ -6,29 +6,18 @@ import java.util.Optional;
 
 public class VersionDetails {
 
-    public enum RepositoryType {
-        Maven, Bintray
-    }
-
     public enum ReleaseRepository {
-        GradleRepoSnapshots("https://repo.gradle.org/gradle/ext-snapshots-local", RepositoryType.Maven),
-        GradleRepoReleases("https://repo.gradle.org/gradle/ext-releases-local", RepositoryType.Maven),
-        BintrayReleases("https://dl.bintray.com/adammurdoch/maven", RepositoryType.Bintray);
+        GradleRepoSnapshots("https://repo.gradle.org/gradle/ext-snapshots-local"),
+        GradleRepoReleases("https://repo.gradle.org/gradle/ext-releases-local");
 
         private final String url;
-        private final RepositoryType type;
 
-        ReleaseRepository(String url, RepositoryType type) {
+        ReleaseRepository(String url) {
             this.url = url;
-            this.type = type;
         }
 
         public String getUrl() {
             return url;
-        }
-
-        public RepositoryType getType() {
-            return type;
         }
     }
 
@@ -36,8 +25,8 @@ public class VersionDetails {
         Dev(null),
         Snapshot(ReleaseRepository.GradleRepoSnapshots),
         Alpha(ReleaseRepository.GradleRepoReleases),
-        Milestone(ReleaseRepository.BintrayReleases),
-        Release(ReleaseRepository.BintrayReleases);
+        Milestone(ReleaseRepository.GradleRepoReleases),
+        Release(ReleaseRepository.GradleRepoReleases);
 
         private final ReleaseRepository releaseRepository;
 

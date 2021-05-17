@@ -339,13 +339,13 @@ Finally, add the linked `native-platform` project [as a participant to the Gradl
 2. Create a tag
 3. Build each variant.
     1. Checkout tag.
-    2. `./gradlew clean :native-platform:test :native-platform:uploadJni -Prelease -PbintrayUserName=<> -PbintrayApiKey=<>`.
+    2. `./gradlew clean :native-platform:test :native-platform:uploadJni -Prelease -PpublishUserName=<> -PpublishApiKey=<>`.
 4. Build Java library:
     1. Checkout tag.
-    2. `./gradlew clean :native-platform:test :native-platform:uploadMain -Prelease -PbintrayUserName=<> -PbintrayApiKey=<>`
+    2. `./gradlew clean :native-platform:test :native-platform:uploadMain -Prelease -PpublishUserName=<> -PpublishApiKey=<>`
 5. Build the test app:
     1. Checkout tag.
-    2. `./gradlew clean :test-app:uploadMain -Prelease -PbintrayUserName=<> -PbintrayApiKey=<>`
+    2. `./gradlew clean :test-app:uploadMain -Prelease -PpublishUserName=<> -PpublishApiKey=<>`
 6. Publish on bintray
 7. Checkout master
 8. Increment version number in `gradle.properties` and this readme.
