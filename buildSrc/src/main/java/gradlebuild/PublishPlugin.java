@@ -44,10 +44,11 @@ public class PublishPlugin implements Plugin<Project> {
         project.getExtensions().configure(
             PublishingExtension.class,
             extension -> extension.getPublications().create("main", MavenPublication.class, main -> {
-                main.artifact(jarTask.get());
-                main.artifact(sourceZipTask.get());
-                main.artifact(javadocZipTask.get());
+                main.artifact(jarTask);
+                main.artifact(sourceZipTask);
+                main.artifact(javadocZipTask);
             }));
+        // We need to configure the version in an afterEvaluate, since there is no lazy API, yet.
         project.afterEvaluate(ignored -> project.getExtensions().configure(
             PublishingExtension.class,
             extension -> extension.getPublications().named("main", MavenPublication.class, main -> {
