@@ -102,7 +102,7 @@ public class PublishPlugin implements Plugin<Project> {
 
     public static String getArchivesBaseName(Project project) {
         BasePluginConvention convention = project.getConvention().findPlugin(BasePluginConvention.class);
-        return convention != null ? convention.getArchivesBaseName() : project.getName();
+        return convention.getArchivesBaseName();
     }
 
     public static File getLocalRepoDirectory(Project project) {
