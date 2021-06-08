@@ -274,6 +274,11 @@ void Server::handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_EXTENDE
     } else if (info->Action == FILE_ACTION_REMOVED || info->Action == FILE_ACTION_RENAMED_OLD_NAME) {
         type = ChangeType::REMOVED;
     } else if (info->Action == FILE_ACTION_MODIFIED) {
+        if (info->FileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            // Ignore MODIFIED events on directories
+            logToJava(LogLevel::FINE, "Ignored MODIFIED event on directory", nullptr);
+            return;
+        }
         type = ChangeType::MODIFIED;
     } else {
         logToJava(LogLevel::WARNING, "Unknown event 0x%x for %s", info->Action, utf16ToUtf8String(changedPath).c_str());

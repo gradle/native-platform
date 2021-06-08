@@ -314,10 +314,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         sourceFile.renameTo(targetFile)
 
         then:
-        expectEvents byPlatform(
-            (WINDOWS):   [change(REMOVED, sourceFile), change(CREATED, targetFile), change(MODIFIED, subDir)],
-            (OTHERWISE): [change(REMOVED, sourceFile), change(CREATED, targetFile)]
-        )
+        expectEvents change(REMOVED, sourceFile), change(CREATED, targetFile)
     }
 
     def "can detect file moved out"() {
