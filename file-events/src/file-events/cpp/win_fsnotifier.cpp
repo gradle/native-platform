@@ -84,7 +84,7 @@ bool WatchPoint::isValidDirectory() {
 }
 
 ListenResult WatchPoint::listen() {
-    BOOL success = ReadDirectoryChangesW(
+    BOOL success = ReadDirectoryChangesExW(
         directoryHandle,              // handle to directory
         &buffer[0],                   // read results buffer
         (DWORD) buffer.capacity(),    // length of buffer
@@ -92,7 +92,8 @@ ListenResult WatchPoint::listen() {
         EVENT_MASK,                   // filter conditions
         NULL,                         // bytes returned
         &overlapped,                  // overlapped buffer
-        &handleEventCallback          // completion routine
+        &handleEventCallback,         // completion routine
+        ReadDirectoryNotifyExtendedInformation
     );
     if (success) {
         status = WatchPointStatus::LISTENING;
@@ -176,7 +177,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
         } else {
             int index = 0;
             for (;;) {
-                FILE_NOTIFY_INFORMATION* current = (FILE_NOTIFY_INFORMATION*) &buffer[index];
+                FILE_NOTIFY_EXTENDED_INFORMATION* current = (FILE_NOTIFY_EXTENDED_INFORMATION*) &buffer[index];
                 handleEvent(env, path, current);
                 if (current->NextEntryOffset == 0) {
                     break;
@@ -249,7 +250,7 @@ void convertToLongPathIfNeeded(u16string& path) {
     }
 }
 
-void Server::handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMATION* info) {
+void Server::handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_EXTENDED_INFORMATION* info) {
     wstring changedPathW = wstring(info->FileName, 0, info->FileNameLength / sizeof(wchar_t));
     u16string changedPath(changedPathW.begin(), changedPathW.end());
     if (!changedPath.empty()) {
@@ -273,6 +274,11 @@ void Server::handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMA
     } else if (info->Action == FILE_ACTION_REMOVED || info->Action == FILE_ACTION_RENAMED_OLD_NAME) {
         type = ChangeType::REMOVED;
     } else if (info->Action == FILE_ACTION_MODIFIED) {
+        if (info->FileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            // Ignore MODIFIED events on directories
+            logToJava(LogLevel::FINE, "Ignored MODIFIED event on directory", nullptr);
+            return;
+        }
         type = ChangeType::MODIFIED;
     } else {
         logToJava(LogLevel::WARNING, "Unknown event 0x%x for %s", info->Action, utf16ToUtf8String(changedPath).c_str());

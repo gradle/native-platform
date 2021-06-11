@@ -297,10 +297,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         sourceFile.renameTo(targetFile)
 
         then:
-        expectEvents byPlatform(
-            (WINDOWS):   [change(REMOVED, sourceFile), change(CREATED, targetFile), optionalChange(MODIFIED, targetFile)],
-            (OTHERWISE): [change(REMOVED, sourceFile), change(CREATED, targetFile)]
-        )
+        expectEvents change(REMOVED, sourceFile), change(CREATED, targetFile)
     }
 
     @IgnoreIf({ Platform.current().linux })
@@ -317,10 +314,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         sourceFile.renameTo(targetFile)
 
         then:
-        expectEvents byPlatform(
-            (WINDOWS):   [change(REMOVED, sourceFile), change(CREATED, targetFile), change(MODIFIED, subDir), optionalChange(MODIFIED, targetFile)],
-            (OTHERWISE): [change(REMOVED, sourceFile), change(CREATED, targetFile)]
-        )
+        expectEvents change(REMOVED, sourceFile), change(CREATED, targetFile)
     }
 
     def "can detect file moved out"() {
@@ -349,14 +343,10 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(rootDir)
 
         when:
-        // On Windows we sometimes get a MODIFIED event after CREATED for some reason
         sourceFileOutside.renameTo(targetFileInside)
 
         then:
-        expectEvents byPlatform(
-            (WINDOWS):   [change(CREATED, targetFileInside), optionalChange(MODIFIED, targetFileInside)],
-            (OTHERWISE): [change(CREATED, targetFileInside)]
-        )
+        expectEvents change(CREATED, targetFileInside)
     }
 
     @Issue("https://github.com/gradle/native-platform/issues/193")
@@ -724,7 +714,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         } else if (Platform.current().linux) {
             expectedEvents << change(REMOVED, removedFile) << change(REMOVED, watchedDir)
         } else if (Platform.current().windows) {
-            expectedEvents << change(MODIFIED, removedFile) << optionalChange(REMOVED, removedFile) << change(REMOVED, watchedDir)
+            expectedEvents << change(MODIFIED, removedFile) << change(REMOVED, removedFile) << change(REMOVED, watchedDir)
         }
 
         then:

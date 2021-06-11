@@ -97,7 +97,7 @@ protected:
     void shutdownRunLoop() override;
 
 private:
-    void handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_INFORMATION* info);
+    void handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_EXTENDED_INFORMATION* info);
 
     void registerPath(const u16string& path);
     bool unregisterPath(const u16string& path);
