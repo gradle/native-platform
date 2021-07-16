@@ -65,6 +65,19 @@ jlong lastModifiedNanos(LARGE_INTEGER* time) {
     return ((jlong) time->HighPart << 32) | time->LowPart;
 }
 
+void fillFileStat(file_stat_t* pFileStat, bool symlink, DWORD attributes, BY_HANDLE_FILE_INFORMATION fileInfo) {
+    pFileStat->lastModified = lastModifiedNanos(&fileInfo.ftLastWriteTime);
+    pFileStat->size = 0;
+    if (symlink) {
+        pFileStat->fileType = FILE_TYPE_SYMLINK;
+    } else if (attributes & FILE_ATTRIBUTE_DIRECTORY) {
+        pFileStat->fileType = FILE_TYPE_DIRECTORY;
+    } else {
+        pFileStat->size = ((jlong) fileInfo.nFileSizeHigh << 32) | fileInfo.nFileSizeLow;
+        pFileStat->fileType = FILE_TYPE_FILE;
+    }
+}
+
 //
 // Retrieves the file attributes for the file specified by |pathStr|.
 // If |followLink| is true, symbolic link targets are resolved.
@@ -135,24 +148,27 @@ DWORD get_file_stat(wchar_t* pathStr, jboolean followLink, file_stat_t* pFileSta
     // This call allows retrieving the reparse tag
     FILE_ATTRIBUTE_TAG_INFO fileTagInfo;
     ok = GetFileInformationByHandleEx(fileHandle, FileAttributeTagInfo, &fileTagInfo, sizeof(fileTagInfo));
-    if (!ok) {
-        DWORD error = GetLastError();
-        CloseHandle(fileHandle);
-        return error;
-    }
-
     CloseHandle(fileHandle);
 
-    pFileStat->lastModified = lastModifiedNanos(&fileInfo.ftLastWriteTime);
-    pFileStat->size = 0;
-    if (is_file_symlink(fileTagInfo.FileAttributes, fileTagInfo.ReparseTag)) {
-        pFileStat->fileType = FILE_TYPE_SYMLINK;
-    } else if (fileTagInfo.FileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-        pFileStat->fileType = FILE_TYPE_DIRECTORY;
-    } else {
-        pFileStat->size = ((jlong) fileInfo.nFileSizeHigh << 32) | fileInfo.nFileSizeLow;
-        pFileStat->fileType = FILE_TYPE_FILE;
+    if (!ok) {
+        DWORD error = GetLastError();
+        if (error == ERROR_INVALID_PARAMETER) {
+            // It appears calling GetFileInformationByHandleEx with FILE_ATTRIBUTE_TAG_INFO
+            // fails on FAT file system with ERROR_INVALID_PARAMETER.
+            // Use the attributes from fileInfo instead to fill pFileStat.
+            fillFileStat(pFileStat, false, fileInfo.dwFileAttributes, fileInfo);
+            return ERROR_SUCCESS;
+        } else {
+            return error;
+        }
     }
+
+    fillFileStat(
+        pFileStat,
+        is_file_symlink(fileTagInfo.FileAttributes, fileTagInfo.ReparseTag),
+        fileTagInfo.FileAttributes,
+        fileInfo
+    );
     return ERROR_SUCCESS;
 #endif
 }
