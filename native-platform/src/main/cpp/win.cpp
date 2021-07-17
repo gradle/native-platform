@@ -155,28 +155,29 @@ DWORD get_file_stat(wchar_t* pathStr, jboolean followLink, file_stat_t* pFileSta
         return error;
     }
 
+    if ((fileInfo.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != FILE_ATTRIBUTE_REPARSE_POINT) {
+        fillFileStat(
+            pFileStat,
+            false,
+            fileInfo.dwFileAttributes,
+            &fileInfo.ftLastWriteTime,
+            fileInfo.nFileSizeHigh,
+            fileInfo.nFileSizeLow);
+        CloseHandle(fileHandle);
+        return ERROR_SUCCESS;
+    }
+
     // This call allows retrieving the reparse tag
+    // It appears calling GetFileInformationByHandleEx with FILE_ATTRIBUTE_TAG_INFO
+    // fails on FAT file system with ERROR_INVALID_PARAMETER.
+    // Since here we already know that we have a reparse point, we are not on FAT.
     FILE_ATTRIBUTE_TAG_INFO fileTagInfo;
     ok = GetFileInformationByHandleEx(fileHandle, FileAttributeTagInfo, &fileTagInfo, sizeof(fileTagInfo));
     CloseHandle(fileHandle);
 
     if (!ok) {
         DWORD error = GetLastError();
-        if (error == ERROR_INVALID_PARAMETER) {
-            // It appears calling GetFileInformationByHandleEx with FILE_ATTRIBUTE_TAG_INFO
-            // fails on FAT file system with ERROR_INVALID_PARAMETER.
-            // Use the attributes from fileInfo instead to fill pFileStat.
-            fillFileStat(
-                pFileStat,
-                false,
-                fileInfo.dwFileAttributes,
-                &fileInfo.ftLastWriteTime,
-                fileInfo.nFileSizeHigh,
-                fileInfo.nFileSizeLow);
-            return ERROR_SUCCESS;
-        } else {
-            return error;
-        }
+        return error;
     }
 
     fillFileStat(
