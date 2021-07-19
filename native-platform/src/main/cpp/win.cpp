@@ -61,8 +61,18 @@ jlong lastModifiedNanos(FILETIME* time) {
     return ((jlong) time->dwHighDateTime << 32) | time->dwLowDateTime;
 }
 
-jlong lastModifiedNanos(LARGE_INTEGER* time) {
-    return ((jlong) time->HighPart << 32) | time->LowPart;
+void fillFileStat(file_stat_t* pFileStat, bool symlink, DWORD attributes, FILETIME* ftLastWriteTime, DWORD nFileSizeHigh, DWORD nFileSizeLow) {
+    pFileStat->lastModified = lastModifiedNanos(ftLastWriteTime);
+    if (symlink) {
+        pFileStat->fileType = FILE_TYPE_SYMLINK;
+        pFileStat->size = 0;
+    } else if (attributes & FILE_ATTRIBUTE_DIRECTORY) {
+        pFileStat->fileType = FILE_TYPE_DIRECTORY;
+        pFileStat->size = 0;
+    } else {
+        pFileStat->size = ((jlong) nFileSizeHigh << 32) | nFileSizeLow;
+        pFileStat->fileType = FILE_TYPE_FILE;
+    }
 }
 
 //
@@ -74,7 +84,6 @@ jlong lastModifiedNanos(LARGE_INTEGER* time) {
 // * Returns a Win32 error code in all other cases.
 //
 DWORD get_file_stat(wchar_t* pathStr, jboolean followLink, file_stat_t* pFileStat) {
-#ifdef WINDOWS_MIN
     WIN32_FILE_ATTRIBUTE_DATA attr;
     BOOL ok = GetFileAttributesExW(pathStr, GetFileExInfoStandard, &attr);
     if (!ok) {
@@ -88,16 +97,30 @@ DWORD get_file_stat(wchar_t* pathStr, jboolean followLink, file_stat_t* pFileSta
         }
         return error;
     }
-    pFileStat->lastModified = lastModifiedNanos(&attr.ftLastWriteTime);
-    if (attr.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-        pFileStat->size = 0;
-        pFileStat->fileType = FILE_TYPE_DIRECTORY;
-    } else {
-        pFileStat->size = ((LONG64) attr.nFileSizeHigh << 32) | attr.nFileSizeLow;
-        pFileStat->fileType = FILE_TYPE_FILE;
-    }
+#ifdef WINDOWS_MIN
+    // Done, no Symlinks
+    fillFileStat(
+        pFileStat,
+        false,
+        attr.dwFileAttributes,
+        &attr.ftLastWriteTime,
+        attr.nFileSizeHigh,
+        attr.nFileSizeLow);
     return ERROR_SUCCESS;
-#else    //WINDOWS_MIN: Windows Vista+ support for symlinks
+#else //WINDOWS_MIN: Windows Vista+ support for symlinks
+    if ((attr.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != FILE_ATTRIBUTE_REPARSE_POINT) {
+        // Done, not a symlink
+        fillFileStat(
+            pFileStat,
+            false,
+            attr.dwFileAttributes,
+            &attr.ftLastWriteTime,
+            attr.nFileSizeHigh,
+            attr.nFileSizeLow);
+        return ERROR_SUCCESS;
+    }
+
+    // Now let's try to follow the symlink or find out if the current reparse point is a symlink
     DWORD dwFlagsAndAttributes = FILE_FLAG_BACKUP_SEMANTICS;
     if (!followLink) {
         dwFlagsAndAttributes |= FILE_FLAG_OPEN_REPARSE_POINT;
@@ -125,16 +148,32 @@ DWORD get_file_stat(wchar_t* pathStr, jboolean followLink, file_stat_t* pFileSta
 
     // This call allows retrieving almost everything except for the reparseTag
     BY_HANDLE_FILE_INFORMATION fileInfo;
-    BOOL ok = GetFileInformationByHandle(fileHandle, &fileInfo);
+    ok = GetFileInformationByHandle(fileHandle, &fileInfo);
     if (!ok) {
         DWORD error = GetLastError();
         CloseHandle(fileHandle);
         return error;
     }
 
+    if ((fileInfo.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != FILE_ATTRIBUTE_REPARSE_POINT) {
+        fillFileStat(
+            pFileStat,
+            false,
+            fileInfo.dwFileAttributes,
+            &fileInfo.ftLastWriteTime,
+            fileInfo.nFileSizeHigh,
+            fileInfo.nFileSizeLow);
+        CloseHandle(fileHandle);
+        return ERROR_SUCCESS;
+    }
+
     // This call allows retrieving the reparse tag
+    // It appears calling GetFileInformationByHandleEx with FILE_ATTRIBUTE_TAG_INFO
+    // fails on FAT file system with ERROR_INVALID_PARAMETER.
+    // Since here we already know that we have a reparse point, we are not on FAT.
     FILE_ATTRIBUTE_TAG_INFO fileTagInfo;
     ok = GetFileInformationByHandleEx(fileHandle, FileAttributeTagInfo, &fileTagInfo, sizeof(fileTagInfo));
+
     if (!ok) {
         DWORD error = GetLastError();
         CloseHandle(fileHandle);
@@ -143,16 +182,13 @@ DWORD get_file_stat(wchar_t* pathStr, jboolean followLink, file_stat_t* pFileSta
 
     CloseHandle(fileHandle);
 
-    pFileStat->lastModified = lastModifiedNanos(&fileInfo.ftLastWriteTime);
-    pFileStat->size = 0;
-    if (is_file_symlink(fileTagInfo.FileAttributes, fileTagInfo.ReparseTag)) {
-        pFileStat->fileType = FILE_TYPE_SYMLINK;
-    } else if (fileTagInfo.FileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-        pFileStat->fileType = FILE_TYPE_DIRECTORY;
-    } else {
-        pFileStat->size = ((jlong) fileInfo.nFileSizeHigh << 32) | fileInfo.nFileSizeLow;
-        pFileStat->fileType = FILE_TYPE_FILE;
-    }
+    fillFileStat(
+        pFileStat,
+        is_file_symlink(fileTagInfo.FileAttributes, fileTagInfo.ReparseTag),
+        fileTagInfo.FileAttributes,
+        &fileInfo.ftLastWriteTime,
+        fileInfo.nFileSizeHigh,
+        fileInfo.nFileSizeLow);
     return ERROR_SUCCESS;
 #endif
 }
