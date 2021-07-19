@@ -173,12 +173,14 @@ DWORD get_file_stat(wchar_t* pathStr, jboolean followLink, file_stat_t* pFileSta
     // Since here we already know that we have a reparse point, we are not on FAT.
     FILE_ATTRIBUTE_TAG_INFO fileTagInfo;
     ok = GetFileInformationByHandleEx(fileHandle, FileAttributeTagInfo, &fileTagInfo, sizeof(fileTagInfo));
-    CloseHandle(fileHandle);
 
     if (!ok) {
         DWORD error = GetLastError();
+        CloseHandle(fileHandle);
         return error;
     }
+
+    CloseHandle(fileHandle);
 
     fillFileStat(
         pFileStat,
