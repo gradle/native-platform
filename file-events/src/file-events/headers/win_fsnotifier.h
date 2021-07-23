@@ -107,6 +107,7 @@ private:
     const size_t eventBufferSize;
     const long commandTimeoutInMillis;
     unordered_map<wstring, WatchPoint> watchPoints;
+    vector<wchar_t> longPathBuffer;
     bool shouldTerminate = false;
     friend void CALLBACK executeOnRunLoopCallback(_In_ ULONG_PTR info);
 };

@@ -84,16 +84,15 @@ bool WatchPoint::isValidDirectory() {
 
 ListenResult WatchPoint::listen() {
     BOOL success = ReadDirectoryChangesExW(
-        directoryHandle,              // handle to directory
+        directoryHandle,                   // handle to directory
         &eventBuffer[0],                   // read results buffer
         (DWORD) eventBuffer.capacity(),    // length of buffer
-        TRUE,                         // include children
-        EVENT_MASK,                   // filter conditions
-        NULL,                         // bytes returned
-        &overlapped,                  // overlapped buffer
-        &handleEventCallback,         // completion routine
-        ReadDirectoryNotifyExtendedInformation
-    );
+        TRUE,                              // include children
+        EVENT_MASK,                        // filter conditions
+        NULL,                              // bytes returned
+        &overlapped,                       // overlapped buffer
+        &handleEventCallback,              // completion routine
+        ReadDirectoryNotifyExtendedInformation);
     if (success) {
         status = WatchPointStatus::LISTENING;
         return ListenResult::SUCCESS;
@@ -256,15 +255,27 @@ void Server::handleEvent(JNIEnv* env, const wstring& watchedPathW, FILE_NOTIFY_E
         changedPathW.insert(0, 1, L'\\');
     }
     changedPathW.insert(0, watchedPathW);
-    // TODO Remove long prefix for path once?
-    if (isLongPath(changedPathW)) {
-        if (isUncLongPath(changedPathW)) {
-            changedPathW.erase(0, 8).insert(0, L"\\\\");
+
+    // Convert to long path format in case the path is in short-path format (i.e. `SOME-F~1.TXT` instead of `some-file.txt`)
+    DWORD longPathLength = GetLongPathNameW(
+        changedPathW.c_str(),                // lpszShortPath
+        &longPathBuffer[0],                  // lpszLongPath
+        (DWORD) longPathBuffer.capacity()    // cchBuffer
+    );
+    if (longPathLength == 0) {
+        throw FileWatcherException("Cannot convert changed path to long path", u16string(changedPathW.begin(), changedPathW.end()), GetLastError());
+    }
+    wstring longChangedPathW(&longPathBuffer[0], 0, longPathLength);
+
+    // Remove long path prefix (\\?\)
+    if (isLongPath(longChangedPathW)) {
+        if (isUncLongPath(longChangedPathW)) {
+            longChangedPathW.erase(0, 8).insert(0, L"\\\\");
         } else {
-            changedPathW.erase(0, 4);
+            longChangedPathW.erase(0, 4);
         }
     }
-    u16string changedPath(changedPathW.begin(), changedPathW.end());
+    u16string changedPath(longChangedPathW.begin(), longChangedPathW.end());
 
     logToJava(LogLevel::FINE, "Change detected: 0x%x '%s'", info->Action, utf16ToUtf8String(changedPath).c_str());
 
@@ -297,6 +308,7 @@ Server::Server(JNIEnv* env, size_t eventBufferSize, long commandTimeoutInMillis,
     : AbstractServer(env, watcherCallback)
     , eventBufferSize(eventBufferSize)
     , commandTimeoutInMillis(commandTimeoutInMillis) {
+    this->longPathBuffer.reserve(32768);
 }
 
 void Server::initializeRunLoop() {
