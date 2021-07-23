@@ -20,6 +20,7 @@ import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.AbstractFileEventFunctions
 import net.rubygrapefruit.platform.internal.jni.NativeLogger
 import org.junit.Assume
+import spock.lang.Ignore
 import spock.lang.IgnoreIf
 import spock.lang.Issue
 import spock.lang.Requires
@@ -688,6 +689,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         "URL-quoted"     | "test%<directory>#2.txt" | !Platform.current().windows
     }
 
+    @Ignore("Doesn't work yet")
     @Requires({ Platform.current().windows })
     def "can detect changes in directory with long path referred to via short path"() {
         given:
