@@ -59,7 +59,7 @@ enum class WatchPointStatus {
 
 class WatchPoint {
 public:
-    WatchPoint(Server* server, size_t bufferSize, const wstring& path);
+    WatchPoint(Server* server, size_t eventBufferSize, const wstring& path);
     ~WatchPoint();
 
     ListenResult listen();
@@ -75,7 +75,7 @@ private:
     friend class Server;
     HANDLE directoryHandle;
     OVERLAPPED overlapped;
-    vector<BYTE> buffer;
+    vector<BYTE> eventBuffer;
     WatchPointStatus status;
 
     void handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred);
@@ -84,9 +84,9 @@ private:
 
 class Server : public AbstractServer {
 public:
-    Server(JNIEnv* env, size_t bufferSize, long commandTimeoutInMillis, jobject watcherCallback);
+    Server(JNIEnv* env, size_t eventBufferSize, long commandTimeoutInMillis, jobject watcherCallback);
 
-    void handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& buffer, DWORD bytesTransferred);
+    void handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& eventBuffer, DWORD bytesTransferred);
     bool executeOnRunLoop(function<bool()> command);
 
     virtual void registerPaths(const vector<u16string>& paths) override;
@@ -104,7 +104,7 @@ private:
     bool unregisterPath(const u16string& path);
 
     HANDLE threadHandle;
-    const size_t bufferSize;
+    const size_t eventBufferSize;
     const long commandTimeoutInMillis;
     unordered_map<wstring, WatchPoint> watchPoints;
     bool shouldTerminate = false;

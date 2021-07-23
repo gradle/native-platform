@@ -9,7 +9,7 @@ using namespace std;
 // WatchPoint
 //
 
-WatchPoint::WatchPoint(Server* server, size_t bufferSize, const wstring& path)
+WatchPoint::WatchPoint(Server* server, size_t eventBufferSize, const wstring& path)
     : pathW(path)
     , path(u16string(path.begin(), path.end()))
     , status(WatchPointStatus::NOT_LISTENING) {
@@ -28,7 +28,7 @@ WatchPoint::WatchPoint(Server* server, size_t bufferSize, const wstring& path)
     this->directoryHandle = directoryHandle;
 
     this->server = server;
-    this->buffer.reserve(bufferSize);
+    this->eventBuffer.reserve(eventBufferSize);
     ZeroMemory(&this->overlapped, sizeof(OVERLAPPED));
     this->overlapped.hEvent = this;
     switch (listen()) {
@@ -85,8 +85,8 @@ bool WatchPoint::isValidDirectory() {
 ListenResult WatchPoint::listen() {
     BOOL success = ReadDirectoryChangesExW(
         directoryHandle,              // handle to directory
-        &buffer[0],                   // read results buffer
-        (DWORD) buffer.capacity(),    // length of buffer
+        &eventBuffer[0],                   // read results buffer
+        (DWORD) eventBuffer.capacity(),    // length of buffer
         TRUE,                         // include children
         EVENT_MASK,                   // filter conditions
         NULL,                         // bytes returned
@@ -137,10 +137,10 @@ void WatchPoint::handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred) {
         return;
     }
     status = WatchPointStatus::NOT_LISTENING;
-    server->handleEvents(this, errorCode, buffer, bytesTransferred);
+    server->handleEvents(this, errorCode, eventBuffer, bytesTransferred);
 }
 
-void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& buffer, DWORD bytesTransferred) {
+void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& eventBuffer, DWORD bytesTransferred) {
     JNIEnv* env = getThreadEnv();
     const u16string& path = watchPoint->path;
     const wstring& pathW = watchPoint->pathW;
@@ -165,7 +165,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
         if (bytesTransferred == 0) {
             // This is what the documentation has to say about a zero-length dataset:
             //
-            //     If the number of bytes transferred is zero, the buffer was either too large
+            //     If the number of bytes transferred is zero, the eventBuffer was either too large
             //     for the system to allocate or too small to provide detailed information on
             //     all the changes that occurred in the directory or subtree. In this case,
             //     you should compute the changes by enumerating the directory or subtree.
@@ -177,7 +177,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
         } else {
             int index = 0;
             for (;;) {
-                FILE_NOTIFY_EXTENDED_INFORMATION* current = (FILE_NOTIFY_EXTENDED_INFORMATION*) &buffer[index];
+                FILE_NOTIFY_EXTENDED_INFORMATION* current = (FILE_NOTIFY_EXTENDED_INFORMATION*) &eventBuffer[index];
                 handleEvent(env, pathW, current);
                 if (current->NextEntryOffset == 0) {
                     break;
@@ -293,9 +293,9 @@ void Server::handleEvent(JNIEnv* env, const wstring& watchedPathW, FILE_NOTIFY_E
 // Server
 //
 
-Server::Server(JNIEnv* env, size_t bufferSize, long commandTimeoutInMillis, jobject watcherCallback)
+Server::Server(JNIEnv* env, size_t eventBufferSize, long commandTimeoutInMillis, jobject watcherCallback)
     : AbstractServer(env, watcherCallback)
-    , bufferSize(bufferSize)
+    , eventBufferSize(eventBufferSize)
     , commandTimeoutInMillis(commandTimeoutInMillis) {
 }
 
@@ -403,7 +403,7 @@ void Server::registerPath(const u16string& path) {
     }
     watchPoints.emplace(piecewise_construct,
         forward_as_tuple(longPathW),
-        forward_as_tuple(this, bufferSize, longPathW));
+        forward_as_tuple(this, eventBufferSize, longPathW));
 }
 
 bool Server::unregisterPath(const u16string& path) {
@@ -421,8 +421,8 @@ bool Server::unregisterPath(const u16string& path) {
 //
 
 JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatcher0(JNIEnv* env, jclass target, jint bufferSize, jlong commandTimeoutInMillis, jobject javaCallback) {
-    return wrapServer(env, new Server(env, bufferSize, (long) commandTimeoutInMillis, javaCallback));
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatcher0(JNIEnv* env, jclass target, jint eventBufferSize, jlong commandTimeoutInMillis, jobject javaCallback) {
+    return wrapServer(env, new Server(env, eventBufferSize, (long) commandTimeoutInMillis, javaCallback));
 }
 
 #endif
