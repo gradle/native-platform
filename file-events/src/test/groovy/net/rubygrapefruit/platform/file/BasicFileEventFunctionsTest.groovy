@@ -688,6 +688,42 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         "URL-quoted"     | "test%<directory>#2.txt" | !Platform.current().windows
     }
 
+    @Requires({ Platform.current().windows })
+    def "can detect changes in directory with long path referred to via short path"() {
+        given:
+        def subDir = new File(rootDir, "directory-with-long-path")
+        subDir.mkdirs()
+        def subDirShortPath = getShortPath(subDir)
+        def fileInSubDir = new File(subDir, "watched-descendant-with-long-path.txt")
+        LOGGER.info("Long path: $fileInSubDir.absolutePath")
+        def fileInSubDirShortPath = getShortPath(fileInSubDir)
+        LOGGER.info("Short path: $fileInSubDirShortPath")
+
+        startWatcher(rootDir)
+
+        when:
+        LOGGER.info(["cmd", "/c", "type NUL > $fileInSubDirShortPath"].execute().text)
+
+        then:
+        expectEvents change(CREATED, fileInSubDir)
+
+        when:
+        LOGGER.info(["cmd", "/c", "echo alma >> $fileInSubDirShortPath"].execute().text)
+
+        then:
+        expectEvents change(MODIFIED, fileInSubDir)
+
+        when:
+        ["cmd", "/c", "del", fileInSubDirShortPath].execute().waitFor()
+
+        then:
+        expectEvents change(REMOVED, fileInSubDir)
+    }
+
+    private static getShortPath(File file) {
+        ["cmd", "/c", "for %I in (\"" + file.absolutePath + "\") do @echo %~fsI"].execute().text.trim()
+    }
+
     def "can detect #ancestry removed"() {
         given:
         def parentDir = new File(rootDir, "parent")
