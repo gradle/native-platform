@@ -9,10 +9,10 @@ using namespace std;
 // WatchPoint
 //
 
-WatchPoint::WatchPoint(Server* server, size_t bufferSize, const u16string& path)
-    : path(path)
+WatchPoint::WatchPoint(Server* server, size_t bufferSize, const wstring& path)
+    : pathW(path)
+    , path(u16string(path.begin(), path.end()))
     , status(WatchPointStatus::NOT_LISTENING) {
-    wstring pathW(path.begin(), path.end());
     HANDLE directoryHandle = CreateFileW(
         pathW.c_str(),          // pointer to the file name
         FILE_LIST_DIRECTORY,    // access (read/write) mode
@@ -23,7 +23,7 @@ WatchPoint::WatchPoint(Server* server, size_t bufferSize, const u16string& path)
         NULL                    // file with attributes to copy
     );
     if (directoryHandle == INVALID_HANDLE_VALUE) {
-        throw FileWatcherException("Couldn't add watch", path, GetLastError());
+        throw FileWatcherException("Couldn't add watch", this->path, GetLastError());
     }
     this->directoryHandle = directoryHandle;
 
@@ -35,7 +35,7 @@ WatchPoint::WatchPoint(Server* server, size_t bufferSize, const u16string& path)
         case ListenResult::SUCCESS:
             break;
         case ListenResult::DELETED:
-            throw FileWatcherException("Couldn't start watching because path is not a directory", path);
+            throw FileWatcherException("Couldn't start watching because path is not a directory", this->path);
     }
 }
 
@@ -76,7 +76,6 @@ static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred
 }
 
 bool WatchPoint::isValidDirectory() {
-    wstring pathW(path.begin(), path.end());
     DWORD attrib = GetFileAttributesW(pathW.c_str());
 
     return (attrib != INVALID_FILE_ATTRIBUTES)
@@ -144,6 +143,7 @@ void WatchPoint::handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred) {
 void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& buffer, DWORD bytesTransferred) {
     JNIEnv* env = getThreadEnv();
     const u16string& path = watchPoint->path;
+    const wstring& pathW = watchPoint->pathW;
 
     try {
         if (errorCode != ERROR_SUCCESS) {
@@ -178,7 +178,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
             int index = 0;
             for (;;) {
                 FILE_NOTIFY_EXTENDED_INFORMATION* current = (FILE_NOTIFY_EXTENDED_INFORMATION*) &buffer[index];
-                handleEvent(env, path, current);
+                handleEvent(env, pathW, current);
                 if (current->NextEntryOffset == 0) {
                     break;
                 }
@@ -199,32 +199,32 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
     }
 }
 
-bool isAbsoluteLocalPath(const u16string& path) {
+bool isAbsoluteLocalPath(const wstring& path) {
     if (path.length() < 3) {
         return false;
     }
-    return ((u'a' <= path[0] && path[0] <= u'z') || (u'A' <= path[0] && path[0] <= u'Z'))
-        && path[1] == u':'
-        && path[2] == u'\\';
+    return ((L'a' <= path[0] && path[0] <= L'z') || (L'A' <= path[0] && path[0] <= L'Z'))
+        && path[1] == L':'
+        && path[2] == L'\\';
 }
 
-bool isAbsoluteUncPath(const u16string& path) {
+bool isAbsoluteUncPath(const wstring& path) {
     if (path.length() < 3) {
         return false;
     }
-    return path[0] == u'\\' && path[1] == u'\\';
+    return path[0] == L'\\' && path[1] == L'\\';
 }
 
-bool isLongPath(const u16string& path) {
-    return path.length() >= 4 && path.substr(0, 4) == u"\\\\?\\";
+bool isLongPath(const wstring& path) {
+    return path.length() >= 4 && path.substr(0, 4) == L"\\\\?\\";
 }
 
-bool isUncLongPath(const u16string& path) {
-    return path.length() >= 8 && path.substr(0, 8) == u"\\\\?\\UNC\\";
+bool isUncLongPath(const wstring& path) {
+    return path.length() >= 8 && path.substr(0, 8) == L"\\\\?\\UNC\\";
 }
 
 // TODO How can this be done nicer, wihtout both unnecessary copy and in-place mutation?
-void convertToLongPathIfNeeded(u16string& path) {
+void convertToLongPathIfNeeded(wstring& path) {
     // Technically, this should be MAX_PATH (i.e. 260), except some Win32 API related
     // to working with directory paths are actually limited to 240. It is just
     // safer/simpler to cover both cases in one code path.
@@ -239,32 +239,32 @@ void convertToLongPathIfNeeded(u16string& path) {
 
     if (isAbsoluteLocalPath(path)) {
         // Format: C:\... -> \\?\C:\...
-        path.insert(0, u"\\\\?\\");
+        path.insert(0, L"\\\\?\\");
     } else if (isAbsoluteUncPath(path)) {
         // In this case, we need to skip the first 2 characters:
         // Format: \\server\share\... -> \\?\UNC\server\share\...
         path.erase(0, 2);
-        path.insert(0, u"\\\\?\\UNC\\");
+        path.insert(0, L"\\\\?\\UNC\\");
     } else {
         // It is some sort of unknown format, don't mess with it
     }
 }
 
-void Server::handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_EXTENDED_INFORMATION* info) {
+void Server::handleEvent(JNIEnv* env, const wstring& watchedPathW, FILE_NOTIFY_EXTENDED_INFORMATION* info) {
     wstring changedPathW = wstring(info->FileName, 0, info->FileNameLength / sizeof(wchar_t));
-    u16string changedPath(changedPathW.begin(), changedPathW.end());
-    if (!changedPath.empty()) {
-        changedPath.insert(0, 1, u'\\');
+    if (!changedPathW.empty()) {
+        changedPathW.insert(0, 1, L'\\');
     }
-    changedPath.insert(0, path);
+    changedPathW.insert(0, watchedPathW);
     // TODO Remove long prefix for path once?
-    if (isLongPath(changedPath)) {
-        if (isUncLongPath(changedPath)) {
-            changedPath.erase(0, 8).insert(0, u"\\\\");
+    if (isLongPath(changedPathW)) {
+        if (isUncLongPath(changedPathW)) {
+            changedPathW.erase(0, 8).insert(0, L"\\\\");
         } else {
-            changedPath.erase(0, 4);
+            changedPathW.erase(0, 4);
         }
     }
+    u16string changedPath(changedPathW.begin(), changedPathW.end());
 
     logToJava(LogLevel::FINE, "Change detected: 0x%x '%s'", info->Action, utf16ToUtf8String(changedPath).c_str());
 
@@ -392,9 +392,9 @@ bool Server::unregisterPaths(const vector<u16string>& paths) {
 }
 
 void Server::registerPath(const u16string& path) {
-    u16string longPath = path;
-    convertToLongPathIfNeeded(longPath);
-    auto it = watchPoints.find(longPath);
+    wstring longPathW(path.begin(), path.end());
+    convertToLongPathIfNeeded(longPathW);
+    auto it = watchPoints.find(longPathW);
     if (it != watchPoints.end()) {
         if (it->second.status != WatchPointStatus::FINISHED) {
             throw FileWatcherException("Already watching path", path);
@@ -402,14 +402,14 @@ void Server::registerPath(const u16string& path) {
         watchPoints.erase(it);
     }
     watchPoints.emplace(piecewise_construct,
-        forward_as_tuple(longPath),
-        forward_as_tuple(this, bufferSize, longPath));
+        forward_as_tuple(longPathW),
+        forward_as_tuple(this, bufferSize, longPathW));
 }
 
 bool Server::unregisterPath(const u16string& path) {
-    u16string longPath = path;
-    convertToLongPathIfNeeded(longPath);
-    if (watchPoints.erase(longPath) == 0) {
+    wstring longPathW(path.begin(), path.end());
+    convertToLongPathIfNeeded(longPathW);
+    if (watchPoints.erase(longPathW) == 0) {
         logToJava(LogLevel::INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
         return false;
     }

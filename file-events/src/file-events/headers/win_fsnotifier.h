@@ -59,7 +59,7 @@ enum class WatchPointStatus {
 
 class WatchPoint {
 public:
-    WatchPoint(Server* server, size_t bufferSize, const u16string& path);
+    WatchPoint(Server* server, size_t bufferSize, const wstring& path);
     ~WatchPoint();
 
     ListenResult listen();
@@ -70,6 +70,7 @@ private:
     void close();
 
     Server* server;
+    const wstring pathW;
     const u16string path;
     friend class Server;
     HANDLE directoryHandle;
@@ -97,7 +98,7 @@ protected:
     void shutdownRunLoop() override;
 
 private:
-    void handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_EXTENDED_INFORMATION* info);
+    void handleEvent(JNIEnv* env, const wstring& watchedPath, FILE_NOTIFY_EXTENDED_INFORMATION* info);
 
     void registerPath(const u16string& path);
     bool unregisterPath(const u16string& path);
@@ -105,7 +106,7 @@ private:
     HANDLE threadHandle;
     const size_t bufferSize;
     const long commandTimeoutInMillis;
-    unordered_map<u16string, WatchPoint> watchPoints;
+    unordered_map<wstring, WatchPoint> watchPoints;
     bool shouldTerminate = false;
     friend void CALLBACK executeOnRunLoopCallback(_In_ ULONG_PTR info);
 };
