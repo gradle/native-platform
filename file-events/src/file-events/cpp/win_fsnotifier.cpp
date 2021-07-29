@@ -12,7 +12,8 @@ using namespace std;
 WatchPoint::WatchPoint(Server* server, size_t eventBufferSize, const wstring& path)
     : pathW(path)
     , path(u16string(path.begin(), path.end()))
-    , status(WatchPointStatus::NOT_LISTENING) {
+    , status(WatchPointStatus::NOT_LISTENING)
+    , server(server) {
     HANDLE directoryHandle = CreateFileW(
         pathW.c_str(),          // pointer to the file name
         FILE_LIST_DIRECTORY,    // access (read/write) mode
@@ -26,8 +27,6 @@ WatchPoint::WatchPoint(Server* server, size_t eventBufferSize, const wstring& pa
         throw FileWatcherException("Couldn't add watch", this->path, GetLastError());
     }
     this->directoryHandle = directoryHandle;
-
-    this->server = server;
     this->eventBuffer.reserve(eventBufferSize);
     ZeroMemory(&this->overlapped, sizeof(OVERLAPPED));
     this->overlapped.hEvent = this;
