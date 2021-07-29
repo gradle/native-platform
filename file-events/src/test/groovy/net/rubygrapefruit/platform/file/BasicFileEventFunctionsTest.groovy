@@ -193,6 +193,29 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         expectEvents change(REMOVED, removedDir)
     }
 
+    @IgnoreIf({ Platform.current().linux })
+    def "can detect hierarchy removed"() {
+        given:
+        def removedDir = new File(rootDir, "removed")
+        assert removedDir.mkdirs()
+        def removedSubDir = new File(removedDir, "sub-dir")
+        assert removedSubDir.mkdirs()
+        def removedSubSubDir = new File(removedSubDir, "sub-sub-dir")
+        assert removedSubSubDir.mkdirs()
+        def removedFile = new File(removedSubSubDir, "file.txt")
+        createNewFile(removedFile)
+        startWatcher(rootDir)
+
+        when:
+        removedDir.deleteDir()
+
+        then:
+        expectEvents byPlatform(
+            (WINDOWS):   [change(MODIFIED, removedFile), change(REMOVED, removedFile), change(REMOVED, removedSubSubDir), change(REMOVED, removedSubDir), change(REMOVED, removedDir)],
+            (OTHERWISE): [change(REMOVED, removedFile), change(REMOVED, removedSubSubDir), change(REMOVED, removedSubDir), change(REMOVED, removedDir)]
+        )
+    }
+
     def "can detect file modified"() {
         given:
         def modifiedFile = new File(rootDir, "modified.txt")

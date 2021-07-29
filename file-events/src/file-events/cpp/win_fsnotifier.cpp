@@ -3,7 +3,15 @@
 #include "win_fsnotifier.h"
 #include "command.h"
 
+#include <codecvt>
+#include <locale>
+
 using namespace std;
+
+string wideToUtf8String(const wstring& string) {
+    wstring_convert<deletable_facet<codecvt<wchar_t, char, mbstate_t>>, wchar_t> conv;
+    return conv.to_bytes(string);
+}
 
 //
 // WatchPoint
@@ -24,7 +32,7 @@ WatchPoint::WatchPoint(Server* server, size_t eventBufferSize, const wstring& pa
         NULL                    // file with attributes to copy
     );
     if (directoryHandle == INVALID_HANDLE_VALUE) {
-        throw FileWatcherException("Couldn't add watch", this->path, GetLastError());
+        throw FileWatcherException("Couldn't add watch", u16string(path.begin(), path.end()), GetLastError());
     }
     this->directoryHandle = directoryHandle;
     this->eventBuffer.reserve(eventBufferSize);
@@ -34,13 +42,13 @@ WatchPoint::WatchPoint(Server* server, size_t eventBufferSize, const wstring& pa
         case ListenResult::SUCCESS:
             break;
         case ListenResult::DELETED:
-            throw FileWatcherException("Couldn't start watching because path is not a directory", this->path);
+            throw FileWatcherException("Couldn't start watching because path is not a directory", u16string(path.begin(), path.end()));
     }
 }
 
 bool WatchPoint::cancel() {
     if (status == WatchPointStatus::LISTENING) {
-        logToJava(LogLevel::FINE, "Cancelling %s", utf16ToUtf8String(path).c_str());
+        logToJava(LogLevel::FINE, "Cancelling %s", wideToUtf8String(pathW).c_str());
         bool cancelled = (bool) CancelIoEx(directoryHandle, &overlapped);
         if (cancelled) {
             status = WatchPointStatus::CANCELLED;
@@ -49,7 +57,7 @@ bool WatchPoint::cancel() {
             close();
             if (cancelError == ERROR_NOT_FOUND) {
                 // Do nothing, looks like this is a typical scenario
-                logToJava(LogLevel::FINE, "Watch point already finished %s", utf16ToUtf8String(path).c_str());
+                logToJava(LogLevel::FINE, "Watch point already finished %s", wideToUtf8String(pathW).c_str());
             } else {
                 throw FileWatcherException("Couldn't cancel watch point", path, cancelError);
             }
@@ -65,7 +73,7 @@ WatchPoint::~WatchPoint() {
         SleepEx(0, true);
         close();
     } catch (const exception& ex) {
-        logToJava(LogLevel::WARNING, "Couldn't cancel watch point %s: %s", utf16ToUtf8String(path).c_str(), ex.what());
+        logToJava(LogLevel::WARNING, "Couldn't cancel watch point %s: %s", wideToUtf8String(pathW).c_str(), ex.what());
     }
 }
 
@@ -112,12 +120,12 @@ void WatchPoint::close() {
         try {
             BOOL ret = CloseHandle(directoryHandle);
             if (!ret) {
-                logToJava(LogLevel::SEVERE, "Couldn't close handle %p for '%ls': %d", directoryHandle, utf16ToUtf8String(path).c_str(), GetLastError());
+                logToJava(LogLevel::SEVERE, "Couldn't close handle %p for '%ls': %d", directoryHandle, wideToUtf8String(pathW).c_str(), GetLastError());
             }
         } catch (const exception& ex) {
             // Apparently with debugging enabled CloseHandle() can also throw, see:
             // https://docs.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-closehandle#return-value
-            logToJava(LogLevel::SEVERE, "Couldn't close handle %p for '%ls': %s", directoryHandle, utf16ToUtf8String(path).c_str(), ex.what());
+            logToJava(LogLevel::SEVERE, "Couldn't close handle %p for '%ls': %s", directoryHandle, wideToUtf8String(pathW).c_str(), ex.what());
         }
         status = WatchPointStatus::FINISHED;
     }
@@ -125,14 +133,14 @@ void WatchPoint::close() {
 
 void WatchPoint::handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred) {
     if (errorCode == ERROR_OPERATION_ABORTED) {
-        logToJava(LogLevel::FINE, "Finished watching '%s', status = %d", utf16ToUtf8String(path).c_str(), status);
+        logToJava(LogLevel::FINE, "Finished watching '%s', status = %d", wideToUtf8String(pathW).c_str(), status);
         close();
         return;
     }
 
     if (status != WatchPointStatus::LISTENING) {
         logToJava(LogLevel::FINE, "Ignoring incoming events for %s as watch-point is not listening (%d bytes, errorCode = %d, status = %d)",
-            utf16ToUtf8String(path).c_str(), bytesTransferred, errorCode, status);
+            wideToUtf8String(pathW).c_str(), bytesTransferred, errorCode, status);
         return;
     }
     status = WatchPointStatus::NOT_LISTENING;
@@ -157,7 +165,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
 
         if (shouldTerminate) {
             logToJava(LogLevel::FINE, "Ignoring incoming events for %s because server is terminating (%d bytes, status = %d)",
-                utf16ToUtf8String(path).c_str(), bytesTransferred, watchPoint->status);
+                wideToUtf8String(pathW).c_str(), bytesTransferred, watchPoint->status);
             return;
         }
 
@@ -189,7 +197,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
             case ListenResult::SUCCESS:
                 break;
             case ListenResult::DELETED:
-                logToJava(LogLevel::FINE, "Watched directory removed for %s", utf16ToUtf8String(path).c_str());
+                logToJava(LogLevel::FINE, "Watched directory removed for %s", wideToUtf8String(pathW).c_str());
                 reportChangeEvent(env, ChangeType::REMOVED, path);
                 break;
         }
@@ -263,9 +271,8 @@ void Server::handleEvent(JNIEnv* env, const wstring& watchedPathW, FILE_NOTIFY_E
             changedPathW.erase(0, 4);
         }
     }
-    u16string changedPath(changedPathW.begin(), changedPathW.end());
 
-    logToJava(LogLevel::FINE, "Change detected: 0x%x '%s'", info->Action, utf16ToUtf8String(changedPath).c_str());
+    logToJava(LogLevel::FINE, "Change detected: 0x%x '%s'", info->Action, wideToUtf8String(changedPathW).c_str());
 
     ChangeType type;
     if (info->Action == FILE_ACTION_ADDED || info->Action == FILE_ACTION_RENAMED_NEW_NAME) {
@@ -280,12 +287,12 @@ void Server::handleEvent(JNIEnv* env, const wstring& watchedPathW, FILE_NOTIFY_E
         }
         type = ChangeType::MODIFIED;
     } else {
-        logToJava(LogLevel::WARNING, "Unknown event 0x%x for %s", info->Action, utf16ToUtf8String(changedPath).c_str());
-        reportUnknownEvent(env, changedPath);
+        logToJava(LogLevel::WARNING, "Unknown event 0x%x for %s", info->Action, wideToUtf8String(changedPathW).c_str());
+        reportUnknownEvent(env, u16string(changedPathW.begin(), changedPathW.end()));
         return;
     }
 
-    reportChangeEvent(env, type, changedPath);
+    reportChangeEvent(env, type, u16string(changedPathW.begin(), changedPathW.end()));
 }
 
 //
@@ -348,7 +355,7 @@ void Server::runLoop() {
                 break;
             default:
                 logToJava(LogLevel::WARNING, "Watch point %s did not finish before termination timeout (status = %d)",
-                    utf16ToUtf8String(watchPoint.path).c_str(), watchPoint.status);
+                    wideToUtf8String(watchPoint.pathW).c_str(), watchPoint.status);
                 break;
         }
     }
@@ -395,10 +402,11 @@ void Server::registerPath(const u16string& path) {
     convertToLongPathIfNeeded(longPathW);
     auto it = watchPoints.find(longPathW);
     if (it != watchPoints.end()) {
-        if (it->second.status != WatchPointStatus::FINISHED) {
+        if (it->second.status == WatchPointStatus::FINISHED) {
+            watchPoints.erase(it);
+        } else {
             throw FileWatcherException("Already watching path", path);
         }
-        watchPoints.erase(it);
     }
     watchPoints.emplace(piecewise_construct,
         forward_as_tuple(longPathW),
@@ -409,7 +417,7 @@ bool Server::unregisterPath(const u16string& path) {
     wstring longPathW(path.begin(), path.end());
     convertToLongPathIfNeeded(longPathW);
     if (watchPoints.erase(longPathW) == 0) {
-        logToJava(LogLevel::INFO, "Path is not watched: %s", utf16ToUtf8String(path).c_str());
+        logToJava(LogLevel::INFO, "Path is not watched: %s", wideToUtf8String(longPathW).c_str());
         return false;
     }
     return true;

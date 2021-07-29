@@ -110,19 +110,6 @@ void javaToUtf16StringArray(JNIEnv* env, jobjectArray javaStrings, vector<u16str
     }
 }
 
-// Utility wrapper to adapt locale-bound facets for wstring convert
-// Exposes the protected destructor as public
-// See https://en.cppreference.com/w/cpp/locale/codecvt
-template <class Facet>
-struct deletable_facet : Facet {
-    template <class... Args>
-    deletable_facet(Args&&... args)
-        : Facet(forward<Args>(args)...) {
-    }
-    ~deletable_facet() {
-    }
-};
-
 u16string utf8ToUtf16String(const char* string) {
     wstring_convert<deletable_facet<codecvt<char16_t, char, mbstate_t>>, char16_t> conv16;
     return conv16.from_bytes(string);
