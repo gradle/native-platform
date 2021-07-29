@@ -19,7 +19,6 @@ string wideToUtf8String(const wstring& string) {
 
 WatchPoint::WatchPoint(Server* server, size_t eventBufferSize, const wstring& path)
     : pathW(path)
-    , path(u16string(path.begin(), path.end()))
     , status(WatchPointStatus::NOT_LISTENING)
     , server(server) {
     HANDLE directoryHandle = CreateFileW(
@@ -59,7 +58,7 @@ bool WatchPoint::cancel() {
                 // Do nothing, looks like this is a typical scenario
                 logToJava(LogLevel::FINE, "Watch point already finished %s", wideToUtf8String(pathW).c_str());
             } else {
-                throw FileWatcherException("Couldn't cancel watch point", path, cancelError);
+                throw FileWatcherException("Couldn't cancel watch point", u16string(pathW.begin(), pathW.end()), cancelError);
             }
         }
         return cancelled;
@@ -110,7 +109,7 @@ ListenResult WatchPoint::listen() {
         if (listenError == ERROR_ACCESS_DENIED && !isValidDirectory()) {
             return ListenResult::DELETED;
         } else {
-            throw FileWatcherException("Couldn't start watching", path, listenError);
+            throw FileWatcherException("Couldn't start watching", u16string(pathW.begin(), pathW.end()), listenError);
         }
     }
 }
@@ -149,17 +148,16 @@ void WatchPoint::handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred) {
 
 void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& eventBuffer, DWORD bytesTransferred) {
     JNIEnv* env = getThreadEnv();
-    const u16string& path = watchPoint->path;
     const wstring& pathW = watchPoint->pathW;
 
     try {
         if (errorCode != ERROR_SUCCESS) {
             if (errorCode == ERROR_ACCESS_DENIED && !watchPoint->isValidDirectory()) {
-                reportChangeEvent(env, ChangeType::REMOVED, path);
+                reportChangeEvent(env, ChangeType::REMOVED, u16string(pathW.begin(), pathW.end()));
                 watchPoint->close();
                 return;
             } else {
-                throw FileWatcherException("Error received when handling events", path, errorCode);
+                throw FileWatcherException("Error received when handling events", u16string(pathW.begin(), pathW.end()), errorCode);
             }
         }
 
@@ -180,7 +178,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
             // (See https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-readdirectorychangesw)
             //
             // We'll handle this as a simple overflow and report it as such.
-            reportOverflow(env, path);
+            reportOverflow(env, u16string(pathW.begin(), pathW.end()));
         } else {
             int index = 0;
             for (;;) {
@@ -198,7 +196,7 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
                 break;
             case ListenResult::DELETED:
                 logToJava(LogLevel::FINE, "Watched directory removed for %s", wideToUtf8String(pathW).c_str());
-                reportChangeEvent(env, ChangeType::REMOVED, path);
+                reportChangeEvent(env, ChangeType::REMOVED, u16string(pathW.begin(), pathW.end()));
                 break;
         }
     } catch (const exception& ex) {

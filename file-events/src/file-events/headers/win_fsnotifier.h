@@ -71,7 +71,6 @@ private:
 
     Server* server;
     const wstring pathW;
-    const u16string path;
     friend class Server;
     HANDLE directoryHandle;
     OVERLAPPED overlapped;
