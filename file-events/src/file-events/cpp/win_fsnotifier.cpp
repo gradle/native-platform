@@ -270,10 +270,34 @@ void Server::handleEvent(JNIEnv* env, const wstring& watchedPathW, FILE_NOTIFY_E
         &longPathBuffer[0],                  // lpszLongPath
         (DWORD) longPathBuffer.capacity()    // cchBuffer
     );
+    wstring longChangedPathW;
     if (longPathLength == 0) {
-        throw FileWatcherException("Cannot convert changed path to long path", u16string(changedPathW.begin(), changedPathW.end()), GetLastError());
+        DWORD error = GetLastError();
+        if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND || error == ERROR_ACCESS_DENIED) {
+            // The file or directory was deleted, try to look up the parent
+            longPathLength = GetFullPathNameW(
+                changedPathW.c_str(),
+                (DWORD) longPathBuffer.capacity(),
+                &longPathBuffer[0],
+                nullptr);
+            if (longPathLength == 0) {
+                error = GetLastError();
+                if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND || error == ERROR_ACCESS_DENIED) {
+                    logToJava(LogLevel::FINE, "Could not resolve long for event 0x%x, likely because parent has also been deleted, falling back to reported path: '%s'",
+                        info->Action, wideToUtf8String(changedPathW).c_str());
+                    longChangedPathW = changedPathW;
+                } else {
+                    throw FileWatcherException("Cannot resolve full path", u16string(changedPathW.begin(), changedPathW.end()), error);
+                }
+            } else {
+                longChangedPathW = wstring(&longPathBuffer[0], 0, longPathLength);
+            }
+        } else {
+            throw FileWatcherException("Cannot resolve long path", u16string(changedPathW.begin(), changedPathW.end()), error);
+        }
+    } else {
+        longChangedPathW = wstring(&longPathBuffer[0], 0, longPathLength);
     }
-    wstring longChangedPathW(&longPathBuffer[0], 0, longPathLength);
 
     // Remove long path prefix (\\?\)
     if (isLongPath(longChangedPathW)) {
