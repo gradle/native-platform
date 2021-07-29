@@ -108,6 +108,7 @@ private:
     unordered_map<wstring, WatchPoint> watchPoints;
     bool shouldTerminate = false;
     friend void CALLBACK executeOnRunLoopCallback(_In_ ULONG_PTR info);
+    vector<wchar_t> stringBuffer;
 };
 
 #endif

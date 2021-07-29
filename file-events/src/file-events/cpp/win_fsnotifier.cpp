@@ -15,6 +15,67 @@ string wideToUtf8String(const wstring& string) {
 
 #define wideToUtf16String(string) (u16string((string).begin(), (string).end()))
 
+bool isAbsoluteLocalPath(const wstring& path) {
+    if (path.length() < 3) {
+        return false;
+    }
+    return ((L'a' <= path[0] && path[0] <= L'z') || (L'A' <= path[0] && path[0] <= L'Z'))
+        && path[1] == L':'
+        && path[2] == L'\\';
+}
+
+bool isAbsoluteUncPath(const wstring& path) {
+    if (path.length() < 3) {
+        return false;
+    }
+    return path[0] == L'\\' && path[1] == L'\\';
+}
+
+bool isLongPath(const wstring& path) {
+    return path.length() >= 4 && path.substr(0, 4) == L"\\\\?\\";
+}
+
+bool isUncLongPath(const wstring& path) {
+    return path.length() >= 8 && path.substr(0, 8) == L"\\\\?\\UNC\\";
+}
+
+// TODO How can this be done nicer, wihtout both unnecessary copy and in-place mutation?
+void convertToLongPathIfNeeded(wstring& path) {
+    // Technically, this should be MAX_PATH (i.e. 260), except some Win32 API related
+    // to working with directory paths are actually limited to 240. It is just
+    // safer/simpler to cover both cases in one code path.
+    if (path.length() <= 240) {
+        return;
+    }
+
+    // It is already a long path, nothing to do here
+    if (isLongPath(path)) {
+        return;
+    }
+
+    if (isAbsoluteLocalPath(path)) {
+        // Format: C:\... -> \\?\C:\...
+        path.insert(0, L"\\\\?\\");
+    } else if (isAbsoluteUncPath(path)) {
+        // In this case, we need to skip the first 2 characters:
+        // Format: \\server\share\... -> \\?\UNC\server\share\...
+        path.erase(0, 2);
+        path.insert(0, L"\\\\?\\UNC\\");
+    } else {
+        // It is some sort of unknown format, don't mess with it
+    }
+}
+
+void convertFromLongPathIfNeeded(wstring& path) {
+    if (isLongPath(path)) {
+        if (isUncLongPath(path)) {
+            path.erase(0, 8).insert(0, L"\\\\");
+        } else {
+            path.erase(0, 4);
+        }
+    }
+}
+
 //
 // WatchPoint
 //
@@ -148,9 +209,26 @@ void WatchPoint::handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred) {
     server->handleEvents(this, errorCode, eventBuffer, bytesTransferred);
 }
 
+//
+// Server
+//
+
+// Allocate maximum path length
+#define STRING_BUFFER_SIZE 32768
+
 void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& eventBuffer, DWORD bytesTransferred) {
     JNIEnv* env = getThreadEnv();
-    const wstring& path = watchPoint->path;
+    DWORD pathLength = GetFinalPathNameByHandleW(
+        watchPoint->directoryHandle,
+        &stringBuffer[0],
+        (DWORD) stringBuffer.capacity(),
+        FILE_NAME_OPENED
+    );
+    if (pathLength == 0 || pathLength > stringBuffer.capacity()) {
+        throw FileWatcherException("Error received when resolving file path", GetLastError());
+    }
+    wstring path(&stringBuffer[0], 0, pathLength);
+    convertFromLongPathIfNeeded(path);
 
     try {
         if (errorCode != ERROR_SUCCESS) {
@@ -206,71 +284,13 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
     }
 }
 
-bool isAbsoluteLocalPath(const wstring& path) {
-    if (path.length() < 3) {
-        return false;
-    }
-    return ((L'a' <= path[0] && path[0] <= L'z') || (L'A' <= path[0] && path[0] <= L'Z'))
-        && path[1] == L':'
-        && path[2] == L'\\';
-}
-
-bool isAbsoluteUncPath(const wstring& path) {
-    if (path.length() < 3) {
-        return false;
-    }
-    return path[0] == L'\\' && path[1] == L'\\';
-}
-
-bool isLongPath(const wstring& path) {
-    return path.length() >= 4 && path.substr(0, 4) == L"\\\\?\\";
-}
-
-bool isUncLongPath(const wstring& path) {
-    return path.length() >= 8 && path.substr(0, 8) == L"\\\\?\\UNC\\";
-}
-
-// TODO How can this be done nicer, wihtout both unnecessary copy and in-place mutation?
-void convertToLongPathIfNeeded(wstring& path) {
-    // Technically, this should be MAX_PATH (i.e. 260), except some Win32 API related
-    // to working with directory paths are actually limited to 240. It is just
-    // safer/simpler to cover both cases in one code path.
-    if (path.length() <= 240) {
-        return;
-    }
-
-    // It is already a long path, nothing to do here
-    if (isLongPath(path)) {
-        return;
-    }
-
-    if (isAbsoluteLocalPath(path)) {
-        // Format: C:\... -> \\?\C:\...
-        path.insert(0, L"\\\\?\\");
-    } else if (isAbsoluteUncPath(path)) {
-        // In this case, we need to skip the first 2 characters:
-        // Format: \\server\share\... -> \\?\UNC\server\share\...
-        path.erase(0, 2);
-        path.insert(0, L"\\\\?\\UNC\\");
-    } else {
-        // It is some sort of unknown format, don't mess with it
-    }
-}
-
 void Server::handleEvent(JNIEnv* env, const wstring& watchedPathW, FILE_NOTIFY_EXTENDED_INFORMATION* info) {
     wstring changedPathW = wstring(info->FileName, 0, info->FileNameLength / sizeof(wchar_t));
     if (!changedPathW.empty()) {
         changedPathW.insert(0, 1, L'\\');
     }
     changedPathW.insert(0, watchedPathW);
-    // TODO Remove long prefix for path once?
-    if (isLongPath(changedPathW)) {
-        if (isUncLongPath(changedPathW)) {
-            changedPathW.erase(0, 8).insert(0, L"\\\\");
-        } else {
-            changedPathW.erase(0, 4);
-        }
-    }
+    convertFromLongPathIfNeeded(changedPathW);
 
     logToJava(LogLevel::FINE, "Change detected: 0x%x '%s'", info->Action, wideToUtf8String(changedPathW).c_str());
 
@@ -303,6 +323,7 @@ Server::Server(JNIEnv* env, size_t eventBufferSize, long commandTimeoutInMillis,
     : AbstractServer(env, watcherCallback)
     , eventBufferSize(eventBufferSize)
     , commandTimeoutInMillis(commandTimeoutInMillis) {
+    this->stringBuffer.reserve(STRING_BUFFER_SIZE);
 }
 
 void Server::initializeRunLoop() {
