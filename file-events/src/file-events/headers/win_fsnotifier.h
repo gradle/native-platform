@@ -70,7 +70,7 @@ private:
     void close();
 
     Server* server;
-    const wstring pathW;
+    const wstring path;
     friend class Server;
     HANDLE directoryHandle;
     OVERLAPPED overlapped;

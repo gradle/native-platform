@@ -13,16 +13,18 @@ string wideToUtf8String(const wstring& string) {
     return conv.to_bytes(string);
 }
 
+#define wideToUtf16String(string) (u16string((string).begin(), (string).end()))
+
 //
 // WatchPoint
 //
 
 WatchPoint::WatchPoint(Server* server, size_t eventBufferSize, const wstring& path)
-    : pathW(path)
+    : path(path)
     , status(WatchPointStatus::NOT_LISTENING)
     , server(server) {
     HANDLE directoryHandle = CreateFileW(
-        pathW.c_str(),          // pointer to the file name
+        path.c_str(),          // pointer to the file name
         FILE_LIST_DIRECTORY,    // access (read/write) mode
         CREATE_SHARE,           // share mode
         NULL,                   // security descriptor
@@ -31,7 +33,7 @@ WatchPoint::WatchPoint(Server* server, size_t eventBufferSize, const wstring& pa
         NULL                    // file with attributes to copy
     );
     if (directoryHandle == INVALID_HANDLE_VALUE) {
-        throw FileWatcherException("Couldn't add watch", u16string(path.begin(), path.end()), GetLastError());
+        throw FileWatcherException("Couldn't add watch", wideToUtf16String(path), GetLastError());
     }
     this->directoryHandle = directoryHandle;
     this->eventBuffer.reserve(eventBufferSize);
@@ -41,13 +43,13 @@ WatchPoint::WatchPoint(Server* server, size_t eventBufferSize, const wstring& pa
         case ListenResult::SUCCESS:
             break;
         case ListenResult::DELETED:
-            throw FileWatcherException("Couldn't start watching because path is not a directory", u16string(path.begin(), path.end()));
+            throw FileWatcherException("Couldn't start watching because path is not a directory", wideToUtf16String(path));
     }
 }
 
 bool WatchPoint::cancel() {
     if (status == WatchPointStatus::LISTENING) {
-        logToJava(LogLevel::FINE, "Cancelling %s", wideToUtf8String(pathW).c_str());
+        logToJava(LogLevel::FINE, "Cancelling %s", wideToUtf8String(path).c_str());
         bool cancelled = (bool) CancelIoEx(directoryHandle, &overlapped);
         if (cancelled) {
             status = WatchPointStatus::CANCELLED;
@@ -56,9 +58,9 @@ bool WatchPoint::cancel() {
             close();
             if (cancelError == ERROR_NOT_FOUND) {
                 // Do nothing, looks like this is a typical scenario
-                logToJava(LogLevel::FINE, "Watch point already finished %s", wideToUtf8String(pathW).c_str());
+                logToJava(LogLevel::FINE, "Watch point already finished %s", wideToUtf8String(path).c_str());
             } else {
-                throw FileWatcherException("Couldn't cancel watch point", u16string(pathW.begin(), pathW.end()), cancelError);
+                throw FileWatcherException("Couldn't cancel watch point", wideToUtf16String(path), cancelError);
             }
         }
         return cancelled;
@@ -72,7 +74,7 @@ WatchPoint::~WatchPoint() {
         SleepEx(0, true);
         close();
     } catch (const exception& ex) {
-        logToJava(LogLevel::WARNING, "Couldn't cancel watch point %s: %s", wideToUtf8String(pathW).c_str(), ex.what());
+        logToJava(LogLevel::WARNING, "Couldn't cancel watch point %s: %s", wideToUtf8String(path).c_str(), ex.what());
     }
 }
 
@@ -82,7 +84,7 @@ static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred
 }
 
 bool WatchPoint::isValidDirectory() {
-    DWORD attrib = GetFileAttributesW(pathW.c_str());
+    DWORD attrib = GetFileAttributesW(path.c_str());
 
     return (attrib != INVALID_FILE_ATTRIBUTES)
         && ((attrib & FILE_ATTRIBUTE_DIRECTORY) != 0);
@@ -109,7 +111,7 @@ ListenResult WatchPoint::listen() {
         if (listenError == ERROR_ACCESS_DENIED && !isValidDirectory()) {
             return ListenResult::DELETED;
         } else {
-            throw FileWatcherException("Couldn't start watching", u16string(pathW.begin(), pathW.end()), listenError);
+            throw FileWatcherException("Couldn't start watching", wideToUtf16String(path), listenError);
         }
     }
 }
@@ -119,12 +121,12 @@ void WatchPoint::close() {
         try {
             BOOL ret = CloseHandle(directoryHandle);
             if (!ret) {
-                logToJava(LogLevel::SEVERE, "Couldn't close handle %p for '%ls': %d", directoryHandle, wideToUtf8String(pathW).c_str(), GetLastError());
+                logToJava(LogLevel::SEVERE, "Couldn't close handle %p for '%ls': %d", directoryHandle, wideToUtf8String(path).c_str(), GetLastError());
             }
         } catch (const exception& ex) {
             // Apparently with debugging enabled CloseHandle() can also throw, see:
             // https://docs.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-closehandle#return-value
-            logToJava(LogLevel::SEVERE, "Couldn't close handle %p for '%ls': %s", directoryHandle, wideToUtf8String(pathW).c_str(), ex.what());
+            logToJava(LogLevel::SEVERE, "Couldn't close handle %p for '%ls': %s", directoryHandle, wideToUtf8String(path).c_str(), ex.what());
         }
         status = WatchPointStatus::FINISHED;
     }
@@ -132,14 +134,14 @@ void WatchPoint::close() {
 
 void WatchPoint::handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred) {
     if (errorCode == ERROR_OPERATION_ABORTED) {
-        logToJava(LogLevel::FINE, "Finished watching '%s', status = %d", wideToUtf8String(pathW).c_str(), status);
+        logToJava(LogLevel::FINE, "Finished watching '%s', status = %d", wideToUtf8String(path).c_str(), status);
         close();
         return;
     }
 
     if (status != WatchPointStatus::LISTENING) {
         logToJava(LogLevel::FINE, "Ignoring incoming events for %s as watch-point is not listening (%d bytes, errorCode = %d, status = %d)",
-            wideToUtf8String(pathW).c_str(), bytesTransferred, errorCode, status);
+            wideToUtf8String(path).c_str(), bytesTransferred, errorCode, status);
         return;
     }
     status = WatchPointStatus::NOT_LISTENING;
@@ -148,22 +150,22 @@ void WatchPoint::handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred) {
 
 void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& eventBuffer, DWORD bytesTransferred) {
     JNIEnv* env = getThreadEnv();
-    const wstring& pathW = watchPoint->pathW;
+    const wstring& path = watchPoint->path;
 
     try {
         if (errorCode != ERROR_SUCCESS) {
             if (errorCode == ERROR_ACCESS_DENIED && !watchPoint->isValidDirectory()) {
-                reportChangeEvent(env, ChangeType::REMOVED, u16string(pathW.begin(), pathW.end()));
+                reportChangeEvent(env, ChangeType::REMOVED, wideToUtf16String(path));
                 watchPoint->close();
                 return;
             } else {
-                throw FileWatcherException("Error received when handling events", u16string(pathW.begin(), pathW.end()), errorCode);
+                throw FileWatcherException("Error received when handling events", wideToUtf16String(path), errorCode);
             }
         }
 
         if (shouldTerminate) {
             logToJava(LogLevel::FINE, "Ignoring incoming events for %s because server is terminating (%d bytes, status = %d)",
-                wideToUtf8String(pathW).c_str(), bytesTransferred, watchPoint->status);
+                wideToUtf8String(path).c_str(), bytesTransferred, watchPoint->status);
             return;
         }
 
@@ -178,12 +180,12 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
             // (See https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-readdirectorychangesw)
             //
             // We'll handle this as a simple overflow and report it as such.
-            reportOverflow(env, u16string(pathW.begin(), pathW.end()));
+            reportOverflow(env, wideToUtf16String(path));
         } else {
             int index = 0;
             for (;;) {
                 FILE_NOTIFY_EXTENDED_INFORMATION* current = (FILE_NOTIFY_EXTENDED_INFORMATION*) &eventBuffer[index];
-                handleEvent(env, pathW, current);
+                handleEvent(env, path, current);
                 if (current->NextEntryOffset == 0) {
                     break;
                 }
@@ -195,8 +197,8 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
             case ListenResult::SUCCESS:
                 break;
             case ListenResult::DELETED:
-                logToJava(LogLevel::FINE, "Watched directory removed for %s", wideToUtf8String(pathW).c_str());
-                reportChangeEvent(env, ChangeType::REMOVED, u16string(pathW.begin(), pathW.end()));
+                logToJava(LogLevel::FINE, "Watched directory removed for %s", wideToUtf8String(path).c_str());
+                reportChangeEvent(env, ChangeType::REMOVED, wideToUtf16String(path));
                 break;
         }
     } catch (const exception& ex) {
@@ -286,11 +288,11 @@ void Server::handleEvent(JNIEnv* env, const wstring& watchedPathW, FILE_NOTIFY_E
         type = ChangeType::MODIFIED;
     } else {
         logToJava(LogLevel::WARNING, "Unknown event 0x%x for %s", info->Action, wideToUtf8String(changedPathW).c_str());
-        reportUnknownEvent(env, u16string(changedPathW.begin(), changedPathW.end()));
+        reportUnknownEvent(env, wideToUtf16String(changedPathW));
         return;
     }
 
-    reportChangeEvent(env, type, u16string(changedPathW.begin(), changedPathW.end()));
+    reportChangeEvent(env, type, wideToUtf16String(changedPathW));
 }
 
 //
@@ -353,7 +355,7 @@ void Server::runLoop() {
                 break;
             default:
                 logToJava(LogLevel::WARNING, "Watch point %s did not finish before termination timeout (status = %d)",
-                    wideToUtf8String(watchPoint.pathW).c_str(), watchPoint.status);
+                    wideToUtf8String(watchPoint.path).c_str(), watchPoint.status);
                 break;
         }
     }
