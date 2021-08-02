@@ -467,7 +467,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(rootDir)
 
         when:
-        watcher.startWatching(rootDir)
+        startWatching(rootDir)
 
         then:
         def ex = thrown NativeException
@@ -481,7 +481,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher()
 
         expect:
-        !watcher.stopWatching(rootDir)
+        !stopWatching(rootDir)
 
         expectLogMessage(INFO, "Path is not watched: ${rootDir.absolutePath}")
     }
@@ -489,10 +489,10 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
     def "can un-watch watched directory twice"() {
         given:
         startWatcher(rootDir)
-        watcher.stopWatching(rootDir)
 
         expect:
-        !watcher.stopWatching(rootDir)
+        stopWatching(rootDir)
+        !stopWatching(rootDir)
 
         expectLogMessage(INFO, "Path is not watched: ${rootDir.absolutePath}")
     }
@@ -503,7 +503,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         startWatcher(rootDir)
 
         expect:
-        watcher.stopWatching(rootDir)
+        stopWatching(rootDir)
 
         when:
         createNewFile(file)
@@ -611,10 +611,10 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         LOGGER.info("> Starting first watcher")
         def firstWatcher = startNewWatcher(firstQueue)
-        firstWatcher.startWatching(firstRoot)
+        firstWatcher.startWatching([firstRoot])
         LOGGER.info("> Starting second watcher")
         def secondWatcher = startNewWatcher(secondQueue)
-        secondWatcher.startWatching(secondRoot)
+        secondWatcher.startWatching([secondRoot])
         LOGGER.info("> Watchers started")
 
         when:

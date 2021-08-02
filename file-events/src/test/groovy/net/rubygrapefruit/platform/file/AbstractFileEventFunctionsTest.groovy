@@ -66,7 +66,7 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     def eventQueue = newEventQueue()
     File testDir
     File rootDir
-    TestFileWatcher watcher
+    FileWatcher watcher
     List<Throwable> uncaughtFailureOnThread
 
     private Map<Pattern, Level> expectedLogMessages
@@ -245,8 +245,8 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
 
         abstract FileWatcher startNewWatcherInternal(BlockingQueue<FileWatchEvent> eventQueue, boolean preventOverflow)
 
-        TestFileWatcher startNewWatcher(BlockingQueue<FileWatchEvent> eventQueue) {
-            new TestFileWatcher(startNewWatcherInternal(eventQueue, false))
+        FileWatcher startNewWatcher(BlockingQueue<FileWatchEvent> eventQueue) {
+            startNewWatcherInternal(eventQueue, false)
         }
 
         /**
@@ -254,8 +254,8 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
          * Overflow events are okay when we have lots of chagnes, but they make it impossible to test
          * other behavior we care about in stress tests.
          */
-        TestFileWatcher startNewWatcherWithOverflowPrevention(BlockingQueue<FileWatchEvent> eventQueue) {
-            new TestFileWatcher(startNewWatcherInternal(eventQueue, true))
+        FileWatcher startNewWatcherWithOverflowPrevention(BlockingQueue<FileWatchEvent> eventQueue) {
+            startNewWatcherInternal(eventQueue, true)
         }
 
         abstract void waitForChangeEventLatency()
@@ -371,14 +371,22 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         watcher = startNewWatcher(eventQueue, roots)
     }
 
-    protected TestFileWatcher startNewWatcher(BlockingQueue<FileWatchEvent> eventQueue = this.eventQueue, File... roots) {
+    protected FileWatcher startNewWatcher(BlockingQueue<FileWatchEvent> eventQueue = this.eventQueue, File... roots) {
         def watcher = startNewWatcher(eventQueue)
-        watcher.startWatching(roots)
+        watcher.startWatching(roots as List)
         return watcher
     }
 
-    protected TestFileWatcher startNewWatcher(BlockingQueue<FileWatchEvent> eventQueue) {
+    protected FileWatcher startNewWatcher(BlockingQueue<FileWatchEvent> eventQueue) {
         watcherFixture.startNewWatcher(eventQueue)
+    }
+
+    protected void startWatching(File... roots) {
+        watcher.startWatching(roots as List)
+    }
+
+    protected boolean stopWatching(File... roots) {
+        return watcher.stopWatching(roots as List)
     }
 
     protected void shutdownWatcher() {
@@ -556,23 +564,6 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
         LOGGER.info("> Creating ${shorten(file)}")
         file.createNewFile()
         LOGGER.info("< Created ${shorten(file)}")
-    }
-
-    static class TestFileWatcher implements FileWatcher {
-        @Delegate
-        private final FileWatcher delegate
-
-        TestFileWatcher(FileWatcher delegate) {
-            this.delegate = delegate
-        }
-
-        void startWatching(File... paths) {
-            delegate.startWatching(paths as List)
-        }
-
-        boolean stopWatching(File... paths) {
-            delegate.stopWatching(paths as List)
-        }
     }
 
     private static class MatcherHandler implements FileWatchEvent.Handler {
