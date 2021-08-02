@@ -46,7 +46,7 @@ import java.util.concurrent.TimeUnit;
  *     behavior and can lead to a deadlock.</li>
  * </ul>
  */
-public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
+public class WindowsFileEventFunctions extends AbstractFileEventFunctions<WindowsFileEventFunctions.WindowsFileWatcher> {
 
     public static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
     public static final int DEFAULT_COMMAND_TIMEOUT_IN_SECONDS = 5;
@@ -56,7 +56,7 @@ public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
         return new WatcherBuilder(eventQueue);
     }
 
-    public static class WindowsFileWatcher extends NativeFileWatcher {
+    public static class WindowsFileWatcher extends AbstractFileEventFunctions.NativeFileWatcher {
         public WindowsFileWatcher(Object server, long startTimeout, TimeUnit startTimeoutUnit, NativeFileWatcherCallback callback) throws InterruptedException {
             super(server, startTimeout, startTimeoutUnit, callback);
         }

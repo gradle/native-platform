@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit;
  *     behavior and can lead to a deadlock.</li>
  * </ul>
  */
-public class LinuxFileEventFunctions extends AbstractFileEventFunctions {
+public class LinuxFileEventFunctions extends AbstractFileEventFunctions<LinuxFileEventFunctions.LinuxFileWatcher> {
 
     public LinuxFileEventFunctions() {
         // We have seen some weird behavior on Alpine Linux that uses musl with Gradle that lead to crashes
@@ -53,7 +53,7 @@ public class LinuxFileEventFunctions extends AbstractFileEventFunctions {
         return new WatcherBuilder(eventQueue);
     }
 
-    public static class LinuxFileWatcher extends NativeFileWatcher {
+    public static class LinuxFileWatcher extends AbstractFileEventFunctions.NativeFileWatcher {
         public LinuxFileWatcher(Object server, long startTimeout, TimeUnit startTimeoutUnit, NativeFileWatcherCallback callback) throws InterruptedException {
             super(server, startTimeout, startTimeoutUnit, callback);
         }

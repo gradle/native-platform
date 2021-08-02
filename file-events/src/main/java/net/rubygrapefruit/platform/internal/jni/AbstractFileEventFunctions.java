@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-public abstract class AbstractFileEventFunctions implements NativeIntegration {
+public abstract class AbstractFileEventFunctions<W extends FileWatcher> implements NativeIntegration {
     public static String getVersion() {
         return getVersion0();
     }
@@ -81,7 +81,7 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
      * The queue must have a total capacity of at least 2 elements.
      * The caller should only consume events from the queue, and never add any of their own.
      */
-    public abstract AbstractWatcherBuilder newWatcher(BlockingQueue<FileWatchEvent> queue);
+    public abstract AbstractWatcherBuilder<W> newWatcher(BlockingQueue<FileWatchEvent> queue);
 
     protected static class NativeFileWatcherCallback {
 

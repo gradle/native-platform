@@ -41,7 +41,7 @@ import java.util.concurrent.TimeUnit;
  *     behavior and can lead to a deadlock.</li>
  * </ul>
  */
-public class OsxFileEventFunctions extends AbstractFileEventFunctions {
+public class OsxFileEventFunctions extends AbstractFileEventFunctions<OsxFileEventFunctions.OsxFileWatcher> {
     private static final long DEFAULT_LATENCY_IN_MS = 0;
 
     @Override
@@ -49,7 +49,7 @@ public class OsxFileEventFunctions extends AbstractFileEventFunctions {
         return new WatcherBuilder(eventQueue);
     }
 
-    public static class OsxFileWatcher extends NativeFileWatcher {
+    public static class OsxFileWatcher extends AbstractFileEventFunctions.NativeFileWatcher {
         public OsxFileWatcher(Object server, long startTimeout, TimeUnit startTimeoutUnit, NativeFileWatcherCallback callback) throws InterruptedException {
             super(server, startTimeout, startTimeoutUnit, callback);
         }
