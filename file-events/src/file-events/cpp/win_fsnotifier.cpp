@@ -85,7 +85,7 @@ WatchPoint::WatchPoint(Server* server, size_t eventBufferSize, const wstring& pa
     , status(WatchPointStatus::NOT_LISTENING)
     , server(server) {
     HANDLE directoryHandle = CreateFileW(
-        path.c_str(),          // pointer to the file name
+        path.c_str(),           // pointer to the file name
         FILE_LIST_DIRECTORY,    // access (read/write) mode
         CREATE_SHARE,           // share mode
         NULL,                   // security descriptor
@@ -149,8 +149,7 @@ wstring WatchPoint::getPath() {
         this->directoryHandle,
         &buffer[0],
         PATH_BUFFER_SIZE,
-        FILE_NAME_OPENED
-    );
+        FILE_NAME_OPENED);
     if (pathLength == 0 || pathLength > PATH_BUFFER_SIZE) {
         throw FileWatcherException("Error received when resolving file path", GetLastError());
     }
@@ -171,16 +170,15 @@ bool WatchPoint::isValidDirectory() {
 
 ListenResult WatchPoint::listen() {
     BOOL success = ReadDirectoryChangesExW(
-        directoryHandle,              // handle to directory
+        directoryHandle,                   // handle to directory
         &eventBuffer[0],                   // read results buffer
         (DWORD) eventBuffer.capacity(),    // length of buffer
-        TRUE,                         // include children
-        EVENT_MASK,                   // filter conditions
-        NULL,                         // bytes returned
-        &overlapped,                  // overlapped buffer
-        &handleEventCallback,         // completion routine
-        ReadDirectoryNotifyExtendedInformation
-    );
+        TRUE,                              // include children
+        EVENT_MASK,                        // filter conditions
+        NULL,                              // bytes returned
+        &overlapped,                       // overlapped buffer
+        &handleEventCallback,              // completion routine
+        ReadDirectoryNotifyExtendedInformation);
     if (success) {
         status = WatchPointStatus::LISTENING;
         return ListenResult::SUCCESS;
