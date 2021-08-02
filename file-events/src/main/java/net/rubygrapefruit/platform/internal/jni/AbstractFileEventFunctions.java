@@ -32,7 +32,7 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
 
     private native void invalidateLogLevelCache0();
 
-    public abstract static class AbstractWatcherBuilder {
+    public abstract static class AbstractWatcherBuilder<T extends FileWatcher> {
         public static final long DEFAULT_START_TIMEOUT_IN_SECONDS = 5;
 
         private final BlockingQueue<FileWatchEvent> eventQueue;
@@ -50,7 +50,7 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
          *
          * @see FileWatcher#startWatching(Collection)
          */
-        public FileWatcher start() throws InterruptedException {
+        public T start() throws InterruptedException {
             return start(DEFAULT_START_TIMEOUT_IN_SECONDS, SECONDS);
         }
 
@@ -63,13 +63,15 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
          *
          * @see FileWatcher#startWatching(Collection)
          */
-        public FileWatcher start(long startTimeout, TimeUnit startTimeoutUnit) throws InterruptedException, InsufficientResourcesForWatchingException {
+        public T start(long startTimeout, TimeUnit startTimeoutUnit) throws InterruptedException, InsufficientResourcesForWatchingException {
             NativeFileWatcherCallback callback = new NativeFileWatcherCallback(eventQueue);
             Object server = startWatcher(callback);
-            return new NativeFileWatcher(server, startTimeout, startTimeoutUnit, callback);
+            return createWatcher(server, startTimeout, startTimeoutUnit, callback);
         }
 
         protected abstract Object startWatcher(NativeFileWatcherCallback callback);
+
+        protected abstract T createWatcher(final Object server, long startTimeout, TimeUnit startTimeoutUnit, final NativeFileWatcherCallback callback) throws InterruptedException;
     }
 
     /**
@@ -154,7 +156,7 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
         }
     }
 
-    protected static class NativeFileWatcher implements FileWatcher {
+    protected static abstract class NativeFileWatcher implements FileWatcher {
         private final Object server;
         private final Thread processorThread;
         private boolean shutdown;

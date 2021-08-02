@@ -49,7 +49,13 @@ public class OsxFileEventFunctions extends AbstractFileEventFunctions {
         return new WatcherBuilder(eventQueue);
     }
 
-    public static class WatcherBuilder extends AbstractWatcherBuilder {
+    public static class OsxFileWatcher extends NativeFileWatcher {
+        public OsxFileWatcher(Object server, long startTimeout, TimeUnit startTimeoutUnit, NativeFileWatcherCallback callback) throws InterruptedException {
+            super(server, startTimeout, startTimeoutUnit, callback);
+        }
+    }
+
+    public static class WatcherBuilder extends AbstractWatcherBuilder<OsxFileWatcher> {
         private long latencyInMillis = DEFAULT_LATENCY_IN_MS;
 
         WatcherBuilder(BlockingQueue<FileWatchEvent> eventQueue) {
@@ -71,6 +77,11 @@ public class OsxFileEventFunctions extends AbstractFileEventFunctions {
         @Override
         protected Object startWatcher(NativeFileWatcherCallback callback) {
             return startWatcher0(latencyInMillis, callback);
+        }
+
+        @Override
+        protected OsxFileWatcher createWatcher(Object server, long startTimeout, TimeUnit startTimeoutUnit, NativeFileWatcherCallback callback) throws InterruptedException {
+            return new OsxFileWatcher(server, startTimeout, startTimeoutUnit, callback);
         }
     }
 

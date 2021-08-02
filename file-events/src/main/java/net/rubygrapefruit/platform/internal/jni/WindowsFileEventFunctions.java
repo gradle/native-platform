@@ -53,7 +53,13 @@ public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
         return new WatcherBuilder(eventQueue);
     }
 
-    public static class WatcherBuilder extends AbstractWatcherBuilder {
+    public static class WindowsFileWatcher extends NativeFileWatcher {
+        public WindowsFileWatcher(Object server, long startTimeout, TimeUnit startTimeoutUnit, NativeFileWatcherCallback callback) throws InterruptedException {
+            super(server, startTimeout, startTimeoutUnit, callback);
+        }
+    }
+
+    public static class WatcherBuilder extends AbstractWatcherBuilder<WindowsFileWatcher> {
         private int bufferSize = DEFAULT_BUFFER_SIZE;
         private long commandTimeoutInMillis = TimeUnit.SECONDS.toMillis(DEFAULT_COMMAND_TIMEOUT_IN_SECONDS);
 
@@ -88,6 +94,11 @@ public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
         @Override
         protected Object startWatcher(NativeFileWatcherCallback callback) {
             return startWatcher0(bufferSize, commandTimeoutInMillis, callback);
+        }
+
+        @Override
+        protected WindowsFileWatcher createWatcher(Object server, long startTimeout, TimeUnit startTimeoutUnit, NativeFileWatcherCallback callback) throws InterruptedException {
+            return new WindowsFileWatcher(server, startTimeout, startTimeoutUnit, callback);
         }
     }
 

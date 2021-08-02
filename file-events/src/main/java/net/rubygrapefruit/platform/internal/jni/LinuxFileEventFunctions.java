@@ -21,6 +21,7 @@ import net.rubygrapefruit.platform.file.FileWatchEvent;
 import net.rubygrapefruit.platform.file.FileWatcher;
 
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * File watcher for Linux. Reports changes to the watched paths and their immediate children.
@@ -52,7 +53,13 @@ public class LinuxFileEventFunctions extends AbstractFileEventFunctions {
         return new WatcherBuilder(eventQueue);
     }
 
-    public static class WatcherBuilder extends AbstractWatcherBuilder {
+    public static class LinuxFileWatcher extends NativeFileWatcher {
+        public LinuxFileWatcher(Object server, long startTimeout, TimeUnit startTimeoutUnit, NativeFileWatcherCallback callback) throws InterruptedException {
+            super(server, startTimeout, startTimeoutUnit, callback);
+        }
+    }
+
+    public static class WatcherBuilder extends AbstractWatcherBuilder<LinuxFileWatcher> {
         WatcherBuilder(BlockingQueue<FileWatchEvent> eventQueue) {
             super(eventQueue);
         }
@@ -60,6 +67,11 @@ public class LinuxFileEventFunctions extends AbstractFileEventFunctions {
         @Override
         protected Object startWatcher(NativeFileWatcherCallback callback) throws InotifyInstanceLimitTooLowException {
             return startWatcher0(callback);
+        }
+
+        @Override
+        protected LinuxFileWatcher createWatcher(Object server, long startTimeout, TimeUnit startTimeoutUnit, NativeFileWatcherCallback callback) throws InterruptedException {
+            return new LinuxFileWatcher(server, startTimeout, startTimeoutUnit, callback);
         }
     }
 
