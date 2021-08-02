@@ -838,7 +838,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         // Restart watching freshly recreated directory on platforms that auto-unregister on deletion
         if (!Platform.current().macOs) {
-            watcher.startWatching(watchedDir)
+            watcher.startWatching([watchedDir])
         }
         // Ignore events received during setup
         waitForChangeEventLatency()
