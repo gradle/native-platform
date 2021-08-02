@@ -44,6 +44,8 @@ public:
 
 class AbstractServer;
 
+AbstractServer* getServer(JNIEnv* env, jobject javaServer);
+
 class AbstractServer : public JniSupport {
 public:
     AbstractServer(JNIEnv* env, jobject watcherCallback);

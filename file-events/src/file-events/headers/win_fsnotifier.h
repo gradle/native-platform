@@ -13,6 +13,7 @@
 // Needs to stay below <windows.h> otherwise byte symbol gets confused with std::byte
 #include "generic_fsnotifier.h"
 #include "net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_WindowsFileWatcher.h"
 
 using namespace std;
 
@@ -90,6 +91,9 @@ class Server : public AbstractServer {
 public:
     Server(JNIEnv* env, size_t eventBufferSize, long commandTimeoutInMillis, jobject watcherCallback);
 
+    // List<String> droppedPaths
+    void stopWatchingMovedPaths(jobject droppedPaths);
+
     void handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& eventBuffer, DWORD bytesTransferred);
     bool executeOnRunLoop(function<bool()> command);
 
@@ -113,6 +117,7 @@ private:
     list<WatchPoint> watchPoints;
     bool shouldTerminate = false;
     friend void CALLBACK executeOnRunLoopCallback(_In_ ULONG_PTR info);
+    jmethodID listAddMethod;
 };
 
 #endif

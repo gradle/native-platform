@@ -327,6 +327,8 @@ Server::Server(JNIEnv* env, size_t eventBufferSize, long commandTimeoutInMillis,
     : AbstractServer(env, watcherCallback)
     , eventBufferSize(eventBufferSize)
     , commandTimeoutInMillis(commandTimeoutInMillis) {
+    jclass listClass = env->FindClass("java/util/List");
+    this->listAddMethod = env->GetMethodID(listClass, "add", "(Ljava/lang/Object;)Z");
 }
 
 void Server::initializeRunLoop() {
@@ -450,6 +452,22 @@ bool Server::unregisterPath(const u16string& path) {
     return false;
 }
 
+void Server::stopWatchingMovedPaths(jobject droppedPaths) {
+    JNIEnv* env = getThreadEnv();
+    for (auto it = watchPoints.begin(); it != watchPoints.end(); ++it) {
+        wstring registeredPath = it->registeredPath;
+        if (registeredPath != it->getPath()) {
+            convertFromLongPathIfNeeded(registeredPath);
+
+            jstring javaPath = env->NewString((jchar*) wideToUtf16String(registeredPath).c_str(), (jsize) registeredPath.length());
+            env->CallBooleanMethod(droppedPaths, listAddMethod, javaPath);
+            env->DeleteLocalRef(javaPath);
+
+            it->cancel();
+        }
+    }
+}
+
 //
 // JNI calls
 //
@@ -457,6 +475,16 @@ bool Server::unregisterPath(const u16string& path) {
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatcher0(JNIEnv* env, jclass target, jint eventBufferSize, jlong commandTimeoutInMillis, jobject javaCallback) {
     return wrapServer(env, new Server(env, eventBufferSize, (long) commandTimeoutInMillis, javaCallback));
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_00024WindowsFileWatcher_stopWatchingMovedPaths0(JNIEnv* env, jobject, jobject javaServer, jobject jDroppedPaths) {
+    try {
+        Server* server = (Server*) getServer(env, javaServer);
+        server->stopWatchingMovedPaths(jDroppedPaths);
+    } catch (const exception& e) {
+        rethrowAsJavaException(env, e);
+    }
 }
 
 #endif

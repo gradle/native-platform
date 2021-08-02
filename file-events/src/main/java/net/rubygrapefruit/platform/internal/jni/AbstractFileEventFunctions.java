@@ -157,7 +157,7 @@ public abstract class AbstractFileEventFunctions implements NativeIntegration {
     }
 
     protected static abstract class NativeFileWatcher implements FileWatcher {
-        private final Object server;
+        protected final Object server;
         private final Thread processorThread;
         private boolean shutdown;
 
