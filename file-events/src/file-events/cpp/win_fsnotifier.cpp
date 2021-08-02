@@ -139,6 +139,24 @@ WatchPoint::~WatchPoint() {
     }
 }
 
+// Allocate maximum path length
+#define PATH_BUFFER_SIZE 32768
+
+wstring WatchPoint::getPath() {
+    vector<wchar_t> buffer;
+    buffer.reserve(PATH_BUFFER_SIZE);
+    DWORD pathLength = GetFinalPathNameByHandleW(
+        this->directoryHandle,
+        &buffer[0],
+        PATH_BUFFER_SIZE,
+        FILE_NAME_OPENED
+    );
+    if (pathLength == 0 || pathLength > PATH_BUFFER_SIZE) {
+        throw FileWatcherException("Error received when resolving file path", GetLastError());
+    }
+    return wstring(&buffer[0], 0, pathLength);
+}
+
 static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped) {
     WatchPoint* watchPoint = (WatchPoint*) overlapped->hEvent;
     watchPoint->handleEventsInBuffer(errorCode, bytesTransferred);
@@ -213,21 +231,9 @@ void WatchPoint::handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred) {
 // Server
 //
 
-// Allocate maximum path length
-#define STRING_BUFFER_SIZE 32768
-
 void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& eventBuffer, DWORD bytesTransferred) {
     JNIEnv* env = getThreadEnv();
-    DWORD pathLength = GetFinalPathNameByHandleW(
-        watchPoint->directoryHandle,
-        &stringBuffer[0],
-        (DWORD) stringBuffer.capacity(),
-        FILE_NAME_OPENED
-    );
-    if (pathLength == 0 || pathLength > stringBuffer.capacity()) {
-        throw FileWatcherException("Error received when resolving file path", GetLastError());
-    }
-    wstring path(&stringBuffer[0], 0, pathLength);
+    wstring path = watchPoint->getPath();
     convertFromLongPathIfNeeded(path);
 
     try {
@@ -323,7 +329,6 @@ Server::Server(JNIEnv* env, size_t eventBufferSize, long commandTimeoutInMillis,
     : AbstractServer(env, watcherCallback)
     , eventBufferSize(eventBufferSize)
     , commandTimeoutInMillis(commandTimeoutInMillis) {
-    this->stringBuffer.reserve(STRING_BUFFER_SIZE);
 }
 
 void Server::initializeRunLoop() {

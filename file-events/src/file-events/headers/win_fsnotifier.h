@@ -64,6 +64,11 @@ public:
 
     ListenResult listen();
     bool cancel();
+    /**
+     * Returns the path that is being watched. If the watched handle has been moved,
+     * this returns the new path.
+     */
+    wstring getPath();
 
 private:
     bool isValidDirectory();
@@ -108,7 +113,6 @@ private:
     unordered_map<wstring, WatchPoint> watchPoints;
     bool shouldTerminate = false;
     friend void CALLBACK executeOnRunLoopCallback(_In_ ULONG_PTR info);
-    vector<wchar_t> stringBuffer;
 };
 
 #endif
