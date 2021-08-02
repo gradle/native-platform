@@ -462,6 +462,7 @@ void Server::stopWatchingMovedPaths(jobject droppedPaths) {
             jstring javaPath = env->NewString((jchar*) wideToUtf16String(registeredPath).c_str(), (jsize) registeredPath.length());
             env->CallBooleanMethod(droppedPaths, listAddMethod, javaPath);
             env->DeleteLocalRef(javaPath);
+            getJavaExceptionAndPrintStacktrace(env);
 
             it->cancel();
         }
