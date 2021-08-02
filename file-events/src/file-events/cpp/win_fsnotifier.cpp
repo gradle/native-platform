@@ -358,8 +358,7 @@ void Server::runLoop() {
 
     // We have received termination, cancel all watchers
     logToJava(LogLevel::FINE, "Finished with run loop, now cancelling remaining watch points", NULL);
-    for (auto& it : watchPoints) {
-        auto& watchPoint = it.second;
+    for (auto& watchPoint : watchPoints) {
         if (watchPoint.status == WatchPointStatus::LISTENING) {
             try {
                 watchPoint.cancel();
@@ -373,8 +372,7 @@ void Server::runLoop() {
     SleepEx(0, true);
 
     // Warn about  any unfinished watchpoints
-    for (auto& it : watchPoints) {
-        auto& watchPoint = it.second;
+    for (auto& watchPoint : watchPoints) {
         switch (watchPoint.status) {
             case WatchPointStatus::NOT_LISTENING:
             case WatchPointStatus::FINISHED:
@@ -426,27 +424,32 @@ bool Server::unregisterPaths(const vector<u16string>& paths) {
 void Server::registerPath(const u16string& path) {
     wstring longPathW(path.begin(), path.end());
     convertToLongPathIfNeeded(longPathW);
-    auto it = watchPoints.find(longPathW);
-    if (it != watchPoints.end()) {
-        if (it->second.status == WatchPointStatus::FINISHED) {
+    for (auto it = watchPoints.begin(); it != watchPoints.end(); ++it) {
+        if (it->path != longPathW) {
+            continue;
+        }
+        if (it->status == WatchPointStatus::FINISHED) {
             watchPoints.erase(it);
+            break;
         } else {
             throw FileWatcherException("Already watching path", path);
         }
     }
-    watchPoints.emplace(piecewise_construct,
-        forward_as_tuple(longPathW),
-        forward_as_tuple(this, eventBufferSize, longPathW));
+    watchPoints.emplace_back(this, eventBufferSize, longPathW);
 }
 
 bool Server::unregisterPath(const u16string& path) {
     wstring longPathW(path.begin(), path.end());
     convertToLongPathIfNeeded(longPathW);
-    if (watchPoints.erase(longPathW) == 0) {
-        logToJava(LogLevel::INFO, "Path is not watched: %s", wideToUtf8String(longPathW).c_str());
-        return false;
+    for (auto it = watchPoints.begin(); it != watchPoints.end(); ++it) {
+        if (it->path != longPathW) {
+            continue;
+        }
+        watchPoints.erase(it);
+        return true;
     }
-    return true;
+    logToJava(LogLevel::INFO, "Path is not watched: %s", wideToUtf8String(longPathW).c_str());
+    return false;
 }
 
 //

@@ -5,7 +5,7 @@
 #include <Shlwapi.h>
 #include <functional>
 #include <string>
-#include <unordered_map>
+#include <list>
 #include <vector>
 #include <wchar.h>
 #include <windows.h>
@@ -110,7 +110,7 @@ private:
     HANDLE threadHandle;
     const size_t eventBufferSize;
     const long commandTimeoutInMillis;
-    unordered_map<wstring, WatchPoint> watchPoints;
+    list<WatchPoint> watchPoints;
     bool shouldTerminate = false;
     friend void CALLBACK executeOnRunLoopCallback(_In_ ULONG_PTR info);
 };
