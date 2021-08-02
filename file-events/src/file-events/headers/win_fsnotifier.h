@@ -75,7 +75,7 @@ private:
     void close();
 
     Server* server;
-    const wstring path;
+    const wstring registeredPath;
     friend class Server;
     HANDLE directoryHandle;
     OVERLAPPED overlapped;

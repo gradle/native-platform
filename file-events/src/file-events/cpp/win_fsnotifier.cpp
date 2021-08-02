@@ -81,7 +81,7 @@ void convertFromLongPathIfNeeded(wstring& path) {
 //
 
 WatchPoint::WatchPoint(Server* server, size_t eventBufferSize, const wstring& path)
-    : path(path)
+    : registeredPath(path)
     , status(WatchPointStatus::NOT_LISTENING)
     , server(server) {
     HANDLE directoryHandle = CreateFileW(
@@ -110,7 +110,7 @@ WatchPoint::WatchPoint(Server* server, size_t eventBufferSize, const wstring& pa
 
 bool WatchPoint::cancel() {
     if (status == WatchPointStatus::LISTENING) {
-        logToJava(LogLevel::FINE, "Cancelling %s", wideToUtf8String(path).c_str());
+        logToJava(LogLevel::FINE, "Cancelling %s", wideToUtf8String(registeredPath).c_str());
         bool cancelled = (bool) CancelIoEx(directoryHandle, &overlapped);
         if (cancelled) {
             status = WatchPointStatus::CANCELLED;
@@ -119,9 +119,9 @@ bool WatchPoint::cancel() {
             close();
             if (cancelError == ERROR_NOT_FOUND) {
                 // Do nothing, looks like this is a typical scenario
-                logToJava(LogLevel::FINE, "Watch point already finished %s", wideToUtf8String(path).c_str());
+                logToJava(LogLevel::FINE, "Watch point already finished %s", wideToUtf8String(registeredPath).c_str());
             } else {
-                throw FileWatcherException("Couldn't cancel watch point", wideToUtf16String(path), cancelError);
+                throw FileWatcherException("Couldn't cancel watch point", wideToUtf16String(registeredPath), cancelError);
             }
         }
         return cancelled;
@@ -135,7 +135,7 @@ WatchPoint::~WatchPoint() {
         SleepEx(0, true);
         close();
     } catch (const exception& ex) {
-        logToJava(LogLevel::WARNING, "Couldn't cancel watch point %s: %s", wideToUtf8String(path).c_str(), ex.what());
+        logToJava(LogLevel::WARNING, "Couldn't cancel watch point %s: %s", wideToUtf8String(registeredPath).c_str(), ex.what());
     }
 }
 
@@ -162,7 +162,7 @@ static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred
 }
 
 bool WatchPoint::isValidDirectory() {
-    DWORD attrib = GetFileAttributesW(path.c_str());
+    DWORD attrib = GetFileAttributesW(registeredPath.c_str());
 
     return (attrib != INVALID_FILE_ATTRIBUTES)
         && ((attrib & FILE_ATTRIBUTE_DIRECTORY) != 0);
@@ -188,7 +188,7 @@ ListenResult WatchPoint::listen() {
         if (listenError == ERROR_ACCESS_DENIED && !isValidDirectory()) {
             return ListenResult::DELETED;
         } else {
-            throw FileWatcherException("Couldn't start watching", wideToUtf16String(path), listenError);
+            throw FileWatcherException("Couldn't start watching", wideToUtf16String(registeredPath), listenError);
         }
     }
 }
@@ -198,12 +198,12 @@ void WatchPoint::close() {
         try {
             BOOL ret = CloseHandle(directoryHandle);
             if (!ret) {
-                logToJava(LogLevel::SEVERE, "Couldn't close handle %p for '%ls': %d", directoryHandle, wideToUtf8String(path).c_str(), GetLastError());
+                logToJava(LogLevel::SEVERE, "Couldn't close handle %p for '%ls': %d", directoryHandle, wideToUtf8String(registeredPath).c_str(), GetLastError());
             }
         } catch (const exception& ex) {
             // Apparently with debugging enabled CloseHandle() can also throw, see:
             // https://docs.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-closehandle#return-value
-            logToJava(LogLevel::SEVERE, "Couldn't close handle %p for '%ls': %s", directoryHandle, wideToUtf8String(path).c_str(), ex.what());
+            logToJava(LogLevel::SEVERE, "Couldn't close handle %p for '%ls': %s", directoryHandle, wideToUtf8String(registeredPath).c_str(), ex.what());
         }
         status = WatchPointStatus::FINISHED;
     }
@@ -211,14 +211,14 @@ void WatchPoint::close() {
 
 void WatchPoint::handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred) {
     if (errorCode == ERROR_OPERATION_ABORTED) {
-        logToJava(LogLevel::FINE, "Finished watching '%s', status = %d", wideToUtf8String(path).c_str(), status);
+        logToJava(LogLevel::FINE, "Finished watching '%s', status = %d", wideToUtf8String(registeredPath).c_str(), status);
         close();
         return;
     }
 
     if (status != WatchPointStatus::LISTENING) {
         logToJava(LogLevel::FINE, "Ignoring incoming events for %s as watch-point is not listening (%d bytes, errorCode = %d, status = %d)",
-            wideToUtf8String(path).c_str(), bytesTransferred, errorCode, status);
+            wideToUtf8String(registeredPath).c_str(), bytesTransferred, errorCode, status);
         return;
     }
     status = WatchPointStatus::NOT_LISTENING;
@@ -377,7 +377,7 @@ void Server::runLoop() {
                 break;
             default:
                 logToJava(LogLevel::WARNING, "Watch point %s did not finish before termination timeout (status = %d)",
-                    wideToUtf8String(watchPoint.path).c_str(), watchPoint.status);
+                    wideToUtf8String(watchPoint.registeredPath).c_str(), watchPoint.status);
                 break;
         }
     }
@@ -423,7 +423,7 @@ void Server::registerPath(const u16string& path) {
     wstring longPathW(path.begin(), path.end());
     convertToLongPathIfNeeded(longPathW);
     for (auto it = watchPoints.begin(); it != watchPoints.end(); ++it) {
-        if (it->path != longPathW) {
+        if (it->registeredPath != longPathW) {
             continue;
         }
         if (it->status == WatchPointStatus::FINISHED) {
@@ -440,7 +440,7 @@ bool Server::unregisterPath(const u16string& path) {
     wstring longPathW(path.begin(), path.end());
     convertToLongPathIfNeeded(longPathW);
     for (auto it = watchPoints.begin(); it != watchPoints.end(); ++it) {
-        if (it->path != longPathW) {
+        if (it->registeredPath != longPathW) {
             continue;
         }
         watchPoints.erase(it);
