@@ -7,6 +7,19 @@
 
 using namespace std;
 
+// Utility wrapper to adapt locale-bound facets for wstring convert
+// Exposes the protected destructor as public
+// See https://en.cppreference.com/w/cpp/locale/codecvt
+template <class Facet>
+struct deletable_facet : Facet {
+    template <class... Args>
+    deletable_facet(Args&&... args)
+        : Facet(forward<Args>(args)...) {
+    }
+    ~deletable_facet() {
+    }
+};
+
 template <typename T>
 class JniGlobalRef;
 

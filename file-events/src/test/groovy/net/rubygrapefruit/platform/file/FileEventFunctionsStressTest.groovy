@@ -53,8 +53,8 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         def createdFile = new File(rootDir, "created.txt")
         startWatcher(rootDir)
         100.times {
-            assert watcher.stopWatching(rootDir)
-            watcher.startWatching(rootDir)
+            assert stopWatching(rootDir)
+            startWatching(rootDir)
         }
 
         when:
@@ -72,8 +72,8 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
 
         when:
         100.times { iteration ->
-            watcher.startWatching(watchedDirs)
-            assert watcher.stopWatching(watchedDirs)
+            startWatching(watchedDirs)
+            assert stopWatching(watchedDirs)
         }
 
         then:
@@ -196,7 +196,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
         List<File> watchedDirectories = createHierarchy(watchedDir, watchedDirectoryDepth)
         def watcher = startNewWatcher()
         def onslaught = new OnslaughtExecutor(watchedDirectories.collect { watchedDirectory ->
-            return { -> watcher.stopWatching(watchedDirectory) } as Runnable
+            return { -> watcher.stopWatching([watchedDirectory]) } as Runnable
         })
 
         onslaught.awaitReady()
@@ -271,7 +271,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
 
         def stopWatchingJobs = watchedDirectories.collect { dir ->
             return {
-                watcher.stopWatching(dir)
+                watcher.stopWatching([dir])
             } as Runnable
         }
         def deleteDirectoriesJobs = watchedDirectories.collect { dir ->
@@ -304,7 +304,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
 
         when:
         def watcher = startNewWatcher()
-        watcher.startWatching(watchedDir)
+        watcher.startWatching([watchedDir])
         waitForChangeEventLatency()
         assert watchedDir.deleteDir()
         shutdownWatcher(watcher)
@@ -314,7 +314,7 @@ class FileEventFunctionsStressTest extends AbstractFileEventFunctionsTest {
     }
 
     @Override
-    protected TestFileWatcher startNewWatcher(BlockingQueue<FileWatchEvent> eventQueue) {
+    protected FileWatcher startNewWatcher(BlockingQueue<FileWatchEvent> eventQueue) {
         // Make sure we don't receive overflow events during these tests
         return watcherFixture.startNewWatcherWithOverflowPrevention(eventQueue)
     }

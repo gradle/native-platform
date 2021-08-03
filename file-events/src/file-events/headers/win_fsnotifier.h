@@ -5,7 +5,7 @@
 #include <Shlwapi.h>
 #include <functional>
 #include <string>
-#include <unordered_map>
+#include <list>
 #include <vector>
 #include <wchar.h>
 #include <windows.h>
@@ -13,6 +13,7 @@
 // Needs to stay below <windows.h> otherwise byte symbol gets confused with std::byte
 #include "generic_fsnotifier.h"
 #include "net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_WindowsFileWatcher.h"
 
 using namespace std;
 
@@ -59,22 +60,27 @@ enum class WatchPointStatus {
 
 class WatchPoint {
 public:
-    WatchPoint(Server* server, size_t bufferSize, const u16string& path);
+    WatchPoint(Server* server, size_t eventBufferSize, const wstring& path);
     ~WatchPoint();
 
     ListenResult listen();
     bool cancel();
+    /**
+     * Returns the path that is being watched. If the watched handle has been moved,
+     * this returns the new path.
+     */
+    wstring getPath();
 
 private:
     bool isValidDirectory();
     void close();
 
     Server* server;
-    const u16string path;
+    const wstring registeredPath;
     friend class Server;
     HANDLE directoryHandle;
     OVERLAPPED overlapped;
-    vector<BYTE> buffer;
+    vector<BYTE> eventBuffer;
     WatchPointStatus status;
 
     void handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred);
@@ -83,9 +89,12 @@ private:
 
 class Server : public AbstractServer {
 public:
-    Server(JNIEnv* env, size_t bufferSize, long commandTimeoutInMillis, jobject watcherCallback);
+    Server(JNIEnv* env, size_t eventBufferSize, long commandTimeoutInMillis, jobject watcherCallback);
 
-    void handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& buffer, DWORD bytesTransferred);
+    // List<String> droppedPaths
+    void stopWatchingMovedPaths(jobject droppedPaths);
+
+    void handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& eventBuffer, DWORD bytesTransferred);
     bool executeOnRunLoop(function<bool()> command);
 
     virtual void registerPaths(const vector<u16string>& paths) override;
@@ -97,17 +106,18 @@ protected:
     void shutdownRunLoop() override;
 
 private:
-    void handleEvent(JNIEnv* env, const u16string& path, FILE_NOTIFY_EXTENDED_INFORMATION* info);
+    void handleEvent(JNIEnv* env, const wstring& watchedPath, FILE_NOTIFY_EXTENDED_INFORMATION* info);
 
     void registerPath(const u16string& path);
     bool unregisterPath(const u16string& path);
 
     HANDLE threadHandle;
-    const size_t bufferSize;
+    const size_t eventBufferSize;
     const long commandTimeoutInMillis;
-    unordered_map<u16string, WatchPoint> watchPoints;
+    list<WatchPoint> watchPoints;
     bool shouldTerminate = false;
     friend void CALLBACK executeOnRunLoopCallback(_In_ ULONG_PTR info);
+    jmethodID listAddMethod;
 };
 
 #endif

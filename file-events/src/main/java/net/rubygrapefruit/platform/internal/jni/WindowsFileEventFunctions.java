@@ -19,7 +19,10 @@ package net.rubygrapefruit.platform.internal.jni;
 import net.rubygrapefruit.platform.file.FileWatchEvent;
 import net.rubygrapefruit.platform.file.FileWatcher;
 
+import java.io.File;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -43,7 +46,7 @@ import java.util.concurrent.TimeUnit;
  *     behavior and can lead to a deadlock.</li>
  * </ul>
  */
-public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
+public class WindowsFileEventFunctions extends AbstractFileEventFunctions<WindowsFileEventFunctions.WindowsFileWatcher> {
 
     public static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
     public static final int DEFAULT_COMMAND_TIMEOUT_IN_SECONDS = 5;
@@ -53,7 +56,29 @@ public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
         return new WatcherBuilder(eventQueue);
     }
 
-    public static class WatcherBuilder extends AbstractWatcherBuilder {
+    public static class WindowsFileWatcher extends AbstractFileEventFunctions.NativeFileWatcher {
+        public WindowsFileWatcher(Object server, long startTimeout, TimeUnit startTimeoutUnit, NativeFileWatcherCallback callback) throws InterruptedException {
+            super(server, startTimeout, startTimeoutUnit, callback);
+        }
+
+        /**
+         * Stops watching any directory hierarchies that have been moved to a different path since registration,
+         * and returns the list of the registered paths that have been dropped.
+         */
+        public List<File> stopWatchingMovedPaths() {
+            List<String> droppedPathStrings = new ArrayList<String>();
+            stopWatchingMovedPaths0(server, droppedPathStrings);
+            List<File> droppedPaths = new ArrayList<File>(droppedPathStrings.size());
+            for (String droppedPath : droppedPathStrings) {
+                droppedPaths.add(new File(droppedPath));
+            }
+            return droppedPaths;
+        }
+
+        private native void stopWatchingMovedPaths0(Object server, List<String> droppedPaths);
+    }
+
+    public static class WatcherBuilder extends AbstractWatcherBuilder<WindowsFileWatcher> {
         private int bufferSize = DEFAULT_BUFFER_SIZE;
         private long commandTimeoutInMillis = TimeUnit.SECONDS.toMillis(DEFAULT_COMMAND_TIMEOUT_IN_SECONDS);
 
@@ -88,6 +113,11 @@ public class WindowsFileEventFunctions extends AbstractFileEventFunctions {
         @Override
         protected Object startWatcher(NativeFileWatcherCallback callback) {
             return startWatcher0(bufferSize, commandTimeoutInMillis, callback);
+        }
+
+        @Override
+        protected WindowsFileWatcher createWatcher(Object server, long startTimeout, TimeUnit startTimeoutUnit, NativeFileWatcherCallback callback) throws InterruptedException {
+            return new WindowsFileWatcher(server, startTimeout, startTimeoutUnit, callback);
         }
     }
 
