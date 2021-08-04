@@ -455,6 +455,9 @@ bool Server::unregisterPath(const u16string& path) {
 void Server::stopWatchingMovedPaths(jobject droppedPaths) {
     JNIEnv* env = getThreadEnv();
     for (auto it = watchPoints.begin(); it != watchPoints.end(); ++it) {
+        if (it->status == WatchPointStatus::FINISHED) {
+            continue;
+        }
         wstring registeredPath = it->registeredPath;
         if (registeredPath != it->getPath()) {
             convertFromLongPathIfNeeded(registeredPath);
