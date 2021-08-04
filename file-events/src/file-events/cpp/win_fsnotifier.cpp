@@ -368,7 +368,8 @@ void Server::runLoop() {
 
     // We have received termination, cancel all watchers
     logToJava(LogLevel::FINE, "Finished with run loop, now cancelling remaining watch points", NULL);
-    for (auto& watchPoint : watchPoints) {
+    for (auto& it : watchPoints) {
+        auto& watchPoint = it.second;
         if (watchPoint.status == WatchPointStatus::LISTENING) {
             try {
                 watchPoint.cancel();
@@ -382,7 +383,8 @@ void Server::runLoop() {
     SleepEx(0, true);
 
     // Warn about  any unfinished watchpoints
-    for (auto& watchPoint : watchPoints) {
+    for (auto& it : watchPoints) {
+        auto& watchPoint = it.second;
         switch (watchPoint.status) {
             case WatchPointStatus::NOT_LISTENING:
             case WatchPointStatus::FINISHED:
@@ -434,43 +436,39 @@ bool Server::unregisterPaths(const vector<u16string>& paths) {
 void Server::registerPath(const u16string& path) {
     wstring longPathW(path.begin(), path.end());
     convertToLongPathIfNeeded(longPathW);
-    for (auto it = watchPoints.begin(); it != watchPoints.end(); ++it) {
-        if (it->registeredPath != longPathW) {
-            continue;
-        }
-        if (it->status == WatchPointStatus::FINISHED) {
+    auto it = watchPoints.find(longPathW);
+    if (it != watchPoints.end()) {
+        if (it->second.status == WatchPointStatus::FINISHED) {
             watchPoints.erase(it);
-            break;
         } else {
             throw FileWatcherException("Already watching path", path);
         }
     }
-    watchPoints.emplace_back(this, eventBufferSize, longPathW);
+    watchPoints.emplace(piecewise_construct,
+        forward_as_tuple(longPathW),
+        forward_as_tuple(this, eventBufferSize, longPathW));
 }
 
 bool Server::unregisterPath(const u16string& path) {
     wstring longPathW(path.begin(), path.end());
     convertToLongPathIfNeeded(longPathW);
-    for (auto it = watchPoints.begin(); it != watchPoints.end(); ++it) {
-        if (it->registeredPath != longPathW) {
-            continue;
-        }
-        watchPoints.erase(it);
-        return true;
+    if (watchPoints.erase(longPathW) == 0) {
+        logToJava(LogLevel::INFO, "Path is not watched: %s", wideToUtf8String(longPathW).c_str());
+        return false;
     }
-    logToJava(LogLevel::INFO, "Path is not watched: %s", wideToUtf8String(longPathW).c_str());
-    return false;
+    return true;
 }
 
 void Server::stopWatchingMovedPaths(jobject droppedPaths) {
     JNIEnv* env = getThreadEnv();
-    for (auto it = watchPoints.begin(); it != watchPoints.end(); ++it) {
-        if (it->status == WatchPointStatus::FINISHED) {
+    for (auto& it : watchPoints) {
+        auto& watchPoint = it.second;
+        if (watchPoint.status == WatchPointStatus::FINISHED) {
             continue;
         }
-        wstring registeredPath = it->registeredPath;
+        wstring registeredPath = watchPoint.registeredPath;
         wstring watchedPath;
-        bool watchedHandleIsAccessible = it->getPath(watchedPath);
+        bool watchedHandleIsAccessible = watchPoint.getPath(watchedPath);
         if (!watchedHandleIsAccessible || registeredPath != watchedPath) {
             convertFromLongPathIfNeeded(registeredPath);
 
@@ -479,7 +477,7 @@ void Server::stopWatchingMovedPaths(jobject droppedPaths) {
             env->DeleteLocalRef(javaPath);
             getJavaExceptionAndPrintStacktrace(env);
 
-            it->cancel();
+            watchPoint.cancel();
         }
     }
 }
