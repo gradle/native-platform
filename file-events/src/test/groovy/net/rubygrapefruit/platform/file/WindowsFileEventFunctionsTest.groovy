@@ -20,12 +20,13 @@ import spock.lang.Requires
 import spock.lang.Unroll
 
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.CREATED
+import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.REMOVED
 
 @Unroll
 @Requires({ Platform.current().windows })
 class WindowsFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
-    def "reports events in new location when watched directory has been moved"() {
+    def "stops watching and reports watched directory as removed after it has been moved and an event is received"() {
         given:
         def watchedDir = new File(rootDir, "watched")
         assert watchedDir.mkdirs()
@@ -33,13 +34,20 @@ class WindowsFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         def createdFile = new File(renamedDir, "created.txt")
         startWatcher(watchedDir)
 
+        when:
         watchedDir.renameTo(renamedDir)
+        then:
+        expectNoEvents()
 
         when:
         createdFile.createNewFile()
-
         then:
-        expectEvents change(CREATED, createdFile)
+        expectEvents change(REMOVED, watchedDir)
+
+        when:
+        assert createdFile.delete()
+        then:
+        expectNoEvents()
     }
 
     def "reports changes on subst drive"() {

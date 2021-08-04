@@ -544,19 +544,23 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         def fileInUppercaseDir = new File(uppercaseDir, "UPPERCASE.TXT")
         uppercaseDir.mkdirs()
 
+        def reportedDir = Platform.current().macOs
+            ? uppercaseDir
+            : lowercaseDir
+
         startWatcher(lowercaseDir)
 
         when:
         createNewFile(fileInLowercaseDir)
 
         then:
-        expectEvents change(CREATED, new File(uppercaseDir, fileInLowercaseDir.name))
+        expectEvents change(CREATED, new File(reportedDir, fileInLowercaseDir.name))
 
         when:
         createNewFile(fileInUppercaseDir)
 
         then:
-        expectEvents change(CREATED, new File(uppercaseDir, fileInUppercaseDir.name))
+        expectEvents change(CREATED, new File(reportedDir, fileInUppercaseDir.name))
     }
 
     def "fails when stopped multiple times"() {
