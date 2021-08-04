@@ -67,7 +67,7 @@ public:
     bool cancel();
     /**
      * Gets the path currently associated with the watched handle. Returns false
-     * if it failed to set the path becuase the handle was somehow inaccessible.
+     * if it failed to set the path because the handle was somehow inaccessible.
      */
     bool getPath(wstring& path);
 
