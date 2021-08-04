@@ -15,7 +15,6 @@
  */
 package net.rubygrapefruit.platform.file
 
-
 import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.Requires
 import spock.lang.Unroll
@@ -26,7 +25,6 @@ import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.CREATED
 @Requires({ Platform.current().windows })
 class WindowsFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
-    @Requires({ Platform.current().windows })
     def "reports events in new location when watched directory has been moved"() {
         given:
         def watchedDir = new File(rootDir, "watched")
@@ -44,7 +42,23 @@ class WindowsFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         expectEvents change(CREATED, createdFile)
     }
 
-    @Requires({ Platform.current().windows })
+    def "reports changes on subst drive"() {
+        given:
+        subst("G:", rootDir)
+        def watchedDir = new File("G:\\watched")
+        def createdFile = new File(watchedDir, "created.txt")
+        assert watchedDir.mkdirs()
+        startWatcher(watchedDir)
+
+        when:
+        createNewFile(createdFile)
+        then:
+        expectEvents change(CREATED, createdFile)
+
+        cleanup:
+        unsubst("G:")
+    }
+
     def "drops moved locations"() {
         given:
         def watchedDir = new File(rootDir, "watched")
@@ -69,5 +83,31 @@ class WindowsFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         droppedPaths = watcher.stopWatchingMovedPaths()
         then:
         droppedPaths == []
+    }
+
+    def "does not drop subst drive as"() {
+        given:
+        subst("G:", rootDir)
+        def watchedDir = new File("G:\\watched")
+        assert watchedDir.mkdirs()
+        startWatcher(watchedDir)
+
+        when:
+        def droppedPaths = watcher.stopWatchingMovedPaths()
+        then:
+        droppedPaths == []
+
+        cleanup:
+        unsubst("G:")
+    }
+
+    def subst(String substDrive, File substPath) {
+        ["CMD", "/C", "SUBST", substDrive, substPath.absolutePath].execute()
+            .waitForProcessOutput(System.out, System.err)
+    }
+
+    def unsubst(String substDrive) {
+        ["CMD", "/C", "SUBST", "/D", substDrive].execute()
+            .waitForProcessOutput(System.out, System.err)
     }
 }
