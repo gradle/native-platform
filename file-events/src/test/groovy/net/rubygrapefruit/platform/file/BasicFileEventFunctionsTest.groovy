@@ -850,49 +850,4 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         then:
         expectEvents change(CREATED, createdFile)
     }
-
-    @Requires({ Platform.current().windows })
-    def "reports events in new location when watched directory has been moved"() {
-        given:
-        def watchedDir = new File(rootDir, "watched")
-        assert watchedDir.mkdirs()
-        def renamedDir = new File(rootDir, "renamed")
-        def createdFile = new File(renamedDir, "created.txt")
-        startWatcher(watchedDir)
-
-        watchedDir.renameTo(renamedDir)
-
-        when:
-        createdFile.createNewFile()
-
-        then:
-        expectEvents change(CREATED, createdFile)
-    }
-
-    @Requires({ Platform.current().windows })
-    def "drops moved locations"() {
-        given:
-        def watchedDir = new File(rootDir, "watched")
-        assert watchedDir.mkdirs()
-        def renamedDir = new File(rootDir, "renamed")
-        def createdFile = new File(renamedDir, "created.txt")
-        startWatcher(watchedDir)
-
-        watchedDir.renameTo(renamedDir)
-
-        when:
-        def droppedPaths = watcher.stopWatchingMovedPaths()
-        then:
-        droppedPaths == [watchedDir]
-
-        when:
-        createdFile.createNewFile()
-        then:
-        expectNoEvents()
-
-        when:
-        droppedPaths = watcher.stopWatchingMovedPaths()
-        then:
-        droppedPaths == []
-    }
 }
