@@ -882,14 +882,17 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         when:
         def droppedPaths = watcher.stopWatchingMovedPaths()
-
         then:
         droppedPaths == [watchedDir]
 
         when:
         createdFile.createNewFile()
-
         then:
         expectNoEvents()
+
+        when:
+        droppedPaths = watcher.stopWatchingMovedPaths()
+        then:
+        droppedPaths == []
     }
 }

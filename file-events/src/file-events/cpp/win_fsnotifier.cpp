@@ -142,18 +142,21 @@ WatchPoint::~WatchPoint() {
 // Allocate maximum path length
 #define PATH_BUFFER_SIZE 32768
 
-wstring WatchPoint::getPath() {
+bool WatchPoint::getPath(wstring& path) {
     vector<wchar_t> buffer;
     buffer.reserve(PATH_BUFFER_SIZE);
     DWORD pathLength = GetFinalPathNameByHandleW(
-        this->directoryHandle,
+        directoryHandle,
         &buffer[0],
         PATH_BUFFER_SIZE,
         FILE_NAME_OPENED);
     if (pathLength == 0 || pathLength > PATH_BUFFER_SIZE) {
-        throw FileWatcherException("Error received when resolving file path", GetLastError());
+        logToJava(LogLevel::WARNING, "Couldn't look up handle 0x%x, error code: %d", directoryHandle, GetLastError());
+        return false;
     }
-    return wstring(&buffer[0], 0, pathLength);
+    path.clear();
+    path.insert(0, &buffer[0], pathLength);
+    return true;
 }
 
 static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped) {
@@ -231,19 +234,25 @@ void WatchPoint::handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred) {
 
 void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<BYTE>& eventBuffer, DWORD bytesTransferred) {
     JNIEnv* env = getThreadEnv();
-    wstring path = watchPoint->getPath();
-    convertFromLongPathIfNeeded(path);
 
     try {
         if (errorCode != ERROR_SUCCESS) {
             if (errorCode == ERROR_ACCESS_DENIED && !watchPoint->isValidDirectory()) {
-                reportChangeEvent(env, ChangeType::REMOVED, wideToUtf16String(path));
-                watchPoint->close();
+                reportWatchPointDeleted(watchPoint);
                 return;
             } else {
-                throw FileWatcherException("Error received when handling events", wideToUtf16String(path), errorCode);
+                throw FileWatcherException("Error received when handling events", wideToUtf16String(watchPoint->registeredPath), errorCode);
             }
         }
+
+        wstring path;
+        bool watchedHandleIsAccessible = watchPoint->getPath(path);
+        if (!watchedHandleIsAccessible) {
+            // The handle has become invalid or missing, consider this as if the the watch point was deleted
+            reportWatchPointDeleted(watchPoint);
+            return;
+        }
+        convertFromLongPathIfNeeded(path);
 
         if (shouldTerminate) {
             logToJava(LogLevel::FINE, "Ignoring incoming events for %s because server is terminating (%d bytes, status = %d)",
@@ -319,9 +328,10 @@ void Server::handleEvent(JNIEnv* env, const wstring& watchedPathW, FILE_NOTIFY_E
     reportChangeEvent(env, type, wideToUtf16String(changedPathW));
 }
 
-//
-// Server
-//
+void Server::reportWatchPointDeleted(WatchPoint* watchPoint) {
+    reportChangeEvent(getThreadEnv(), ChangeType::REMOVED, wideToUtf16String(watchPoint->registeredPath));
+    watchPoint->close();
+}
 
 Server::Server(JNIEnv* env, size_t eventBufferSize, long commandTimeoutInMillis, jobject watcherCallback)
     : AbstractServer(env, watcherCallback)
@@ -455,8 +465,13 @@ bool Server::unregisterPath(const u16string& path) {
 void Server::stopWatchingMovedPaths(jobject droppedPaths) {
     JNIEnv* env = getThreadEnv();
     for (auto it = watchPoints.begin(); it != watchPoints.end(); ++it) {
+        if (it->status == WatchPointStatus::FINISHED) {
+            continue;
+        }
         wstring registeredPath = it->registeredPath;
-        if (registeredPath != it->getPath()) {
+        wstring watchedPath;
+        bool watchedHandleIsAccessible = it->getPath(watchedPath);
+        if (!watchedHandleIsAccessible || registeredPath != watchedPath) {
             convertFromLongPathIfNeeded(registeredPath);
 
             jstring javaPath = env->NewString((jchar*) wideToUtf16String(registeredPath).c_str(), (jsize) registeredPath.length());
