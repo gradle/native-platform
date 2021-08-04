@@ -66,14 +66,24 @@ void convertToLongPathIfNeeded(wstring& path) {
     }
 }
 
-void convertFromLongPathIfNeeded(wstring& path) {
-    if (isLongPath(path)) {
-        if (isUncLongPath(path)) {
-            path.erase(0, 8).insert(0, L"\\\\");
-        } else {
-            path.erase(0, 4);
-        }
+// Allocate maximum path length
+#define PATH_BUFFER_SIZE 32768
+
+bool resolveFinalPath(HANDLE handle, wstring& path) {
+    vector<wchar_t> buffer;
+    buffer.reserve(PATH_BUFFER_SIZE);
+    DWORD pathLength = GetFinalPathNameByHandleW(
+        handle,
+        &buffer[0],
+        PATH_BUFFER_SIZE,
+        FILE_NAME_OPENED);
+    if (pathLength == 0 || pathLength > PATH_BUFFER_SIZE) {
+        logToJava(LogLevel::WARNING, "Couldn't get final path for handle 0x%x, error code: %d", handle, GetLastError());
+        return false;
     }
+    path.clear();
+    path.insert(0, &buffer[0], pathLength);
+    return true;
 }
 
 //
@@ -84,8 +94,10 @@ WatchPoint::WatchPoint(Server* server, size_t eventBufferSize, const wstring& pa
     : registeredPath(path)
     , status(WatchPointStatus::NOT_LISTENING)
     , server(server) {
+    wstring longPath = path;
+    convertToLongPathIfNeeded(longPath);
     HANDLE directoryHandle = CreateFileW(
-        path.c_str(),           // pointer to the file name
+        longPath.c_str(),           // pointer to the file name
         FILE_LIST_DIRECTORY,    // access (read/write) mode
         CREATE_SHARE,           // share mode
         NULL,                   // security descriptor
@@ -97,6 +109,10 @@ WatchPoint::WatchPoint(Server* server, size_t eventBufferSize, const wstring& pa
         throw FileWatcherException("Couldn't add watch", wideToUtf16String(path), GetLastError());
     }
     this->directoryHandle = directoryHandle;
+    bool directoryHandleIsAccessible = resolveFinalPath(directoryHandle, registeredFinalPath);
+    if (!directoryHandleIsAccessible) {
+        throw FileWatcherException("Couldn't resolve final path of", wideToUtf16String(path), GetLastError());
+    }
     this->eventBuffer.reserve(eventBufferSize);
     ZeroMemory(&this->overlapped, sizeof(OVERLAPPED));
     this->overlapped.hEvent = this;
@@ -137,26 +153,6 @@ WatchPoint::~WatchPoint() {
     } catch (const exception& ex) {
         logToJava(LogLevel::WARNING, "Couldn't cancel watch point %s: %s", wideToUtf8String(registeredPath).c_str(), ex.what());
     }
-}
-
-// Allocate maximum path length
-#define PATH_BUFFER_SIZE 32768
-
-bool WatchPoint::getPath(wstring& path) {
-    vector<wchar_t> buffer;
-    buffer.reserve(PATH_BUFFER_SIZE);
-    DWORD pathLength = GetFinalPathNameByHandleW(
-        directoryHandle,
-        &buffer[0],
-        PATH_BUFFER_SIZE,
-        FILE_NAME_OPENED);
-    if (pathLength == 0 || pathLength > PATH_BUFFER_SIZE) {
-        logToJava(LogLevel::WARNING, "Couldn't look up handle 0x%x, error code: %d", directoryHandle, GetLastError());
-        return false;
-    }
-    path.clear();
-    path.insert(0, &buffer[0], pathLength);
-    return true;
 }
 
 static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped) {
@@ -245,15 +241,15 @@ void Server::handleEvents(WatchPoint* watchPoint, DWORD errorCode, const vector<
             }
         }
 
-        wstring path;
-        bool watchedHandleIsAccessible = watchPoint->getPath(path);
-        if (!watchedHandleIsAccessible) {
-            // The handle has become invalid or missing, consider this as if the the watch point was deleted
+        wstring currentFinalPath;
+        bool watchedHandleIsAccessible = resolveFinalPath(watchPoint->directoryHandle, currentFinalPath);
+        if (!watchedHandleIsAccessible || currentFinalPath != watchPoint->registeredFinalPath) {
+            // The handle has become invalid or missing, or the directory has been relocated, consider this as if the the watch point was deleted
             reportWatchPointDeleted(watchPoint);
             return;
         }
-        convertFromLongPathIfNeeded(path);
 
+        const wstring& path = watchPoint->registeredPath;
         if (shouldTerminate) {
             logToJava(LogLevel::FINE, "Ignoring incoming events for %s because server is terminating (%d bytes, status = %d)",
                 wideToUtf8String(path).c_str(), bytesTransferred, watchPoint->status);
@@ -303,7 +299,6 @@ void Server::handleEvent(JNIEnv* env, const wstring& watchedPathW, FILE_NOTIFY_E
         changedPathW.insert(0, 1, L'\\');
     }
     changedPathW.insert(0, watchedPathW);
-    convertFromLongPathIfNeeded(changedPathW);
 
     logToJava(LogLevel::FINE, "Change detected: 0x%x '%s'", info->Action, wideToUtf8String(changedPathW).c_str());
 
@@ -368,7 +363,8 @@ void Server::runLoop() {
 
     // We have received termination, cancel all watchers
     logToJava(LogLevel::FINE, "Finished with run loop, now cancelling remaining watch points", NULL);
-    for (auto& watchPoint : watchPoints) {
+    for (auto& it : watchPoints) {
+        auto& watchPoint = it.second;
         if (watchPoint.status == WatchPointStatus::LISTENING) {
             try {
                 watchPoint.cancel();
@@ -382,7 +378,8 @@ void Server::runLoop() {
     SleepEx(0, true);
 
     // Warn about  any unfinished watchpoints
-    for (auto& watchPoint : watchPoints) {
+    for (auto& it : watchPoints) {
+        auto& watchPoint = it.second;
         switch (watchPoint.status) {
             case WatchPointStatus::NOT_LISTENING:
             case WatchPointStatus::FINISHED:
@@ -432,54 +429,45 @@ bool Server::unregisterPaths(const vector<u16string>& paths) {
 }
 
 void Server::registerPath(const u16string& path) {
-    wstring longPathW(path.begin(), path.end());
-    convertToLongPathIfNeeded(longPathW);
-    for (auto it = watchPoints.begin(); it != watchPoints.end(); ++it) {
-        if (it->registeredPath != longPathW) {
-            continue;
-        }
-        if (it->status == WatchPointStatus::FINISHED) {
+    wstring registeredPath(path.begin(), path.end());
+    auto it = watchPoints.find(registeredPath);
+    if (it != watchPoints.end()) {
+        if (it->second.status == WatchPointStatus::FINISHED) {
             watchPoints.erase(it);
-            break;
         } else {
             throw FileWatcherException("Already watching path", path);
         }
     }
-    watchPoints.emplace_back(this, eventBufferSize, longPathW);
+    watchPoints.emplace(piecewise_construct,
+        forward_as_tuple(registeredPath),
+        forward_as_tuple(this, eventBufferSize, registeredPath));
 }
 
 bool Server::unregisterPath(const u16string& path) {
-    wstring longPathW(path.begin(), path.end());
-    convertToLongPathIfNeeded(longPathW);
-    for (auto it = watchPoints.begin(); it != watchPoints.end(); ++it) {
-        if (it->registeredPath != longPathW) {
-            continue;
-        }
-        watchPoints.erase(it);
-        return true;
+    wstring registeredPath(path.begin(), path.end());
+    if (watchPoints.erase(registeredPath) == 0) {
+        logToJava(LogLevel::INFO, "Path is not watched: %s", wideToUtf8String(registeredPath).c_str());
+        return false;
     }
-    logToJava(LogLevel::INFO, "Path is not watched: %s", wideToUtf8String(longPathW).c_str());
-    return false;
+    return true;
 }
 
 void Server::stopWatchingMovedPaths(jobject droppedPaths) {
     JNIEnv* env = getThreadEnv();
-    for (auto it = watchPoints.begin(); it != watchPoints.end(); ++it) {
-        if (it->status == WatchPointStatus::FINISHED) {
+    for (auto& it : watchPoints) {
+        auto& watchPoint = it.second;
+        if (watchPoint.status == WatchPointStatus::FINISHED) {
             continue;
         }
-        wstring registeredPath = it->registeredPath;
-        wstring watchedPath;
-        bool watchedHandleIsAccessible = it->getPath(watchedPath);
-        if (!watchedHandleIsAccessible || registeredPath != watchedPath) {
-            convertFromLongPathIfNeeded(registeredPath);
-
-            jstring javaPath = env->NewString((jchar*) wideToUtf16String(registeredPath).c_str(), (jsize) registeredPath.length());
+        wstring currentFinalPath;
+        bool watchedHandleIsAccessible = resolveFinalPath(watchPoint.directoryHandle, currentFinalPath);
+        if (!watchedHandleIsAccessible || watchPoint.registeredFinalPath != currentFinalPath) {
+            jstring javaPath = env->NewString((jchar*) wideToUtf16String(watchPoint.registeredPath).c_str(), (jsize) watchPoint.registeredPath.length());
             env->CallBooleanMethod(droppedPaths, listAddMethod, javaPath);
             env->DeleteLocalRef(javaPath);
             getJavaExceptionAndPrintStacktrace(env);
 
-            it->cancel();
+            watchPoint.cancel();
         }
     }
 }
