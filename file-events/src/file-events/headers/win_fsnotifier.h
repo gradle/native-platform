@@ -66,10 +66,10 @@ public:
     ListenResult listen();
     bool cancel();
     /**
-     * Returns the path that is being watched. If the watched handle has been moved,
-     * this returns the new path.
+     * Gets the path currently associated with the watched handle. Returns false
+     * if it failed to set the path becuase the handle was somehow inaccessible.
      */
-    wstring getPath();
+    bool getPath(wstring& path);
 
 private:
     bool isValidDirectory();
@@ -110,6 +110,8 @@ private:
 
     void registerPath(const u16string& path);
     bool unregisterPath(const u16string& path);
+
+    void reportWatchPointDeleted(WatchPoint* watchPoint);
 
     HANDLE threadHandle;
     const size_t eventBufferSize;
