@@ -93,7 +93,7 @@ class WindowsFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         droppedPaths == []
     }
 
-    def "does not drop subst drive as"() {
+    def "does not drop subst drive as moved"() {
         given:
         subst("G:", rootDir)
         def watchedDir = new File("G:\\watched")
