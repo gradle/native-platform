@@ -21,7 +21,7 @@ import jetbrains.buildServer.configs.kotlin.v2019_2.RelativeId
 import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.gradle
 import jetbrains.buildServer.configs.kotlin.v2019_2.triggers.vcs
 
-open class NativePlatformBuild(agent: Agent, init: BuildType.() -> Unit = {}) : BuildType({
+open class NativePlatformBuild(agent: Agent, buildReceiptSource: Boolean = false, init: BuildType.() -> Unit = {}) : BuildType({
     name = "Test on $agent"
     id = RelativeId("Build$agent")
 
@@ -34,6 +34,9 @@ open class NativePlatformBuild(agent: Agent, init: BuildType.() -> Unit = {}) : 
     steps {
         gradle {
             tasks = "clean build${agent.allPublishTasks}"
+            if (buildReceiptSource) {
+                gradleParams = "-PignoreIncomingBuildReceipt"
+            }
             buildFile = ""
         }
     }

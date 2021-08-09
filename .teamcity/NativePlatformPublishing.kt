@@ -66,6 +66,7 @@ open class NativePlatformPublishSnapshot(releaseType: ReleaseType, uploadTasks: 
         if (releaseType.userProvidedVersion) {
             text("reverse.dep.*.$versionPostfixParameterName", "${releaseType.gradleProperty}-1", display = ParameterDisplay.PROMPT, allowEmpty = false)
         }
+        param("env.GRADLE_INTERNAL_REPO_URL", "%gradle.internal.repository.url%")
         param("env.ORG_GRADLE_PROJECT_publishUserName", "%ARTIFACTORY_USERNAME%")
         param("env.ORG_GRADLE_PROJECT_publishApiKey", "%ARTIFACTORY_PASSWORD%")
         param("env.PGP_SIGNING_KEY", "%pgpSigningKey%")

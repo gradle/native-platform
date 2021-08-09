@@ -5,15 +5,17 @@ import javax.inject.Inject;
 import java.util.Optional;
 
 public class VersionDetails {
+    private static final String GRADLE_INTERNAL_REPOSITORY_URL = System.getenv("GRADLE_INTERNAL_REPO_URL");
+    private static final String GRADLE_REPOSITORY_URL = GRADLE_INTERNAL_REPOSITORY_URL == null ? "https://repo.gradle.org/gradle" : GRADLE_INTERNAL_REPOSITORY_URL;
 
     public enum ReleaseRepository {
-        GradleRepoSnapshots("https://repo.gradle.org/gradle/ext-snapshots-local"),
-        GradleRepoReleases("https://repo.gradle.org/gradle/ext-releases-local");
+        GradleRepoSnapshots("libs-snapshots-local"),
+        GradleRepoReleases("libs-releases-local");
 
         private final String url;
 
         ReleaseRepository(String url) {
-            this.url = url;
+            this.url = GRADLE_REPOSITORY_URL + "/" + url;
         }
 
         public String getUrl() {
