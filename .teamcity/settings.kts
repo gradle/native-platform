@@ -31,7 +31,7 @@ project {
         param("env.GRADLE_ENTERPRISE_ACCESS_KEY", "%ge.gradle.org.access.key%")
     }
 
-    val buildReceiptSource = NativePlatformBuild(Agent.UbuntuAmd64) {
+    val buildReceiptSource = NativePlatformBuild(Agent.UbuntuAmd64, buildReceiptSource = true) {
         artifactRules = listOf(artifactRules, buildReceipt).joinToString("\n")
     }
     val testBuilds = listOf(buildReceiptSource) +
