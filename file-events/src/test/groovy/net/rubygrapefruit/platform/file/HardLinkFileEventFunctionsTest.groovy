@@ -43,11 +43,31 @@ class HardLinkFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         then:
         // Windows sometimes reports a modification after the creation
-        // macOS reports a change to the directory containing the link
+        // macOS reports a change to the directory containing the original file
         expectEvents byPlatform(
             (WINDOWS): [change(CREATED, link), optionalChange(MODIFIED, link)],
             (MAC_OS): [change(MODIFIED, rootDir)],
             (LINUX): [change(CREATED, link)]
+        )
+    }
+
+    def "does not detect hard link created outside watched hierarchy"() {
+        given:
+        def watched = new File(rootDir, "watched")
+        watched.mkdirs()
+        def target = new File(watched, "target")
+        target.createNewFile()
+        def link = new File(rootDir, "link")
+        startWatcher(watched)
+
+        when:
+        createHardLink(link, target)
+
+        then:
+        // macOS reports a change to the directory containing the original file
+        expectEvents byPlatform(
+            (MAC_OS): [change(MODIFIED, watched)],
+            (OTHERWISE): []
         )
     }
 
@@ -72,6 +92,35 @@ class HardLinkFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         )
     }
 
+    def "does not detect hard link modified outside watched hierarchy"() {
+        given:
+        def watched = new File(rootDir, "watched")
+        watched.mkdirs()
+        def target = new File(watched, "target")
+        target.createNewFile()
+        def link = new File(rootDir, "link")
+        createHardLink(link, target)
+        startWatcher(watched)
+
+        when:
+        link.text = "modified"
+
+        then:
+        expectNoEvents()
+
+        when:
+        target.text = "modified2"
+
+        then:
+        // On Windows we seem to be getting multiple MODIFIED events
+        // On Linux we _sometimes_ seem to be getting multiple events
+        expectEvents byPlatform(
+            (MAC_OS): [change(MODIFIED, target)],
+            (WINDOWS): [change(MODIFIED, target)] * 2,
+            (LINUX): [change(MODIFIED, target), optionalChange(MODIFIED, target)]
+        )
+    }
+
     def "can detect hard link removed"() {
         given:
         def target = new File(rootDir, "target")
@@ -86,9 +135,26 @@ class HardLinkFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         then:
         // Windows sometimes reports a modification before the removal
         expectEvents byPlatform(
-            (WINDOWS):   [optionalChange(MODIFIED, link), change(REMOVED, link)],
+            (WINDOWS): [optionalChange(MODIFIED, link), change(REMOVED, link)],
             (OTHERWISE): [change(REMOVED, link)]
         )
+    }
+
+    def "does not detect hard link removed outside watched hierarchy"() {
+        given:
+        def watched = new File(rootDir, "watched")
+        watched.mkdirs()
+        def target = new File(watched, "target")
+        target.createNewFile()
+        def link = new File(rootDir, "link")
+        createHardLink(link, target)
+        startWatcher(watched)
+
+        when:
+        link.delete()
+
+        then:
+        expectNoEvents()
     }
 
     private void createHardLink(File linked, File target) {
