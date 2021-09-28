@@ -28,6 +28,29 @@ import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.CREATED
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.REMOVED
 
+/**
+ * None of the operating systems deliver notifications about changing watched content via hard links
+ * that exist in non-watched locations:
+ *
+ * <dl>
+ *     <dt>Linux</dt>
+ *     <dd><em>"Watching a directory with inotify does not trigger events on hardlinks"</em>
+ *     – <a href="https://bugzilla.kernel.org/show_bug.cgi?id=115571">link</a></dd>
+ *
+ *     <dt>macOS</dt>
+ *     <dd><em>"Symbolic links work well, the problem is only related with hardlinks. Hardlinks are not possible for folders,
+ *     so FSEvents is a good way to monitor the creation/deletion and move of files inside the given folder.
+ *     In order to monitor file modification, I switched to Kernel Queues, which allows to monitor properly hardlinks."</em>
+ *     – <a href="https://stackoverflow.com/questions/64101560/how-to-detect-fsevent-if-a-file-is-modified-through-a-hard-symlink">link</a></dd>
+ *
+ *     <dt>Windows</dt>
+ *     <dd><em>"[...] since these changes have no effect on the directory, they are not recognized
+ *     by ReadDirectoryChangesW. The ReadDirectoryChangesW function tells you about changes to
+ *     the directory; if something happens that doesn’t change the directory, then
+ *     ReadDirectoryChangesW will just shrug its shoulders and say, “Hey, not my job.”"</em>
+ *     – <a href="https://devblogs.microsoft.com/oldnewthing/20110812-00/?p=9913">link</a></dd>
+ * </dl>
+ */
 @Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
 class HardLinkFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
