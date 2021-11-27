@@ -9,6 +9,7 @@ import groovy.util.Node;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.plugins.JavaPluginConvention;
+import org.gradle.api.provider.ProviderFactory;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.tasks.SourceSet;
@@ -48,10 +49,12 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
         JavaNativeInterfaceLibrary library = project.getExtensions().getByType(JavaNativeInterfaceLibrary.class);
         VariantsExtension variants = project.getExtensions().getByType(VariantsExtension.class);
         variants.getVariantNames().set(library.getVariants().flatMap(it -> {
-            if (it.getSharedLibrary().isBuildable()) {
-                return ImmutableList.of(toVariantName(it.getTargetMachine()));
-            } else {
+            // Only depend on variants which can be built on the current machine
+            boolean onlyLocalVariants = project.getProviders().gradleProperty("onlyLocalVariants").forUseAtConfigurationTime().isPresent();
+            if (onlyLocalVariants && !it.getSharedLibrary().isBuildable()) {
                 return ImmutableList.of();
+            } else {
+                return ImmutableList.of(toVariantName(it.getTargetMachine()));
             }
         }));
     }
