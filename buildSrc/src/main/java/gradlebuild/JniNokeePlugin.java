@@ -19,6 +19,7 @@ import org.gradle.model.Mutate;
 import org.gradle.model.RuleSource;
 import org.gradle.nativeplatform.platform.OperatingSystem;
 import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform;
+import org.gradle.nativeplatform.tasks.LinkSharedLibrary;
 import org.gradle.nativeplatform.toolchain.Clang;
 import org.gradle.nativeplatform.toolchain.Gcc;
 import org.gradle.nativeplatform.toolchain.NativeToolChainRegistry;
@@ -65,6 +66,32 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
 
     private void configureMainLibrary(JavaNativeInterfaceLibrary library) {
         library.getTargetMachines().set(supportedMachines(library.getMachines()));
+        library.getTasks().configureEach(CppCompile.class, task -> {
+            task.getCompilerArgs().addAll(task.getTargetPlatform().map(targetPlatform -> {
+                OperatingSystem targetOs = targetPlatform.getOperatingSystem();
+                if (targetOs.isMacOsX()) {
+                    return ImmutableList.of("-mmacosx-version-min=10.9");
+                } else if (targetOs.isLinux()) {
+                    return ImmutableList.of("-D_FILE_OFFSET_BITS=64");
+                } else {
+                    return ImmutableList.of(); // do nothing
+                }
+            }));
+        });
+        library.getTasks().configureEach(LinkSharedLibrary.class, task -> {
+            task.getLinkerArgs().addAll(task.getTargetPlatform().map(targetPlatform -> {
+                OperatingSystem targetOs = targetPlatform.getOperatingSystem();
+                if (targetOs.isMacOsX()) {
+                    return ImmutableList.of(
+                        "-mmacosx-version-min=10.9",
+                        "-framework", "CoreServices");
+                } else if (targetOs.isWindows()) {
+                    return ImmutableList.of("Shlwapi.lib", "Advapi32.lib");
+                } else {
+                    return ImmutableList.of(); // do nothing
+                }
+            }));
+        });
     }
 
     private static Set<TargetMachine> supportedMachines(TargetMachineFactory machines) {
