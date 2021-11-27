@@ -92,6 +92,13 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
                 }
             }));
         });
+        library.getVariants().configureEach(variant -> {
+            if (variant.getBuildVariant().hasAxisOf(WindowsDistribution.WINDOWS_XP_OR_LOWER)) {
+                variant.getTasks().configureEach(CppCompile.class, task -> {
+                    task.getCompilerArgs().add("/DWINDOWS_MIN");
+                });
+            }
+        });
     }
 
     private static Set<TargetMachine> supportedMachines(TargetMachineFactory machines) {
