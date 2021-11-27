@@ -41,7 +41,7 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
         project.getPluginManager().apply(NativeToolChainRules.class);
 
         configureCppTasks(project);
-        configureMainLibrary(project.getExtensions().getByType(JavaNativeInterfaceLibrary.class));
+        configureMainLibrary(project);
         configureVariants(project);
         addComponentSourcesSetsToProjectSourceSet(project.getTasks(), project.getExtensions().getByType(JavaNativeInterfaceLibrary.class));
 
@@ -68,7 +68,8 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
         return targetMachine.getOperatingSystemFamily().getName() + "-" + targetMachine.getArchitecture().getName();
     }
 
-    private void configureMainLibrary(JavaNativeInterfaceLibrary library) {
+    private void configureMainLibrary(Project project) {
+        JavaNativeInterfaceLibrary library = project.getExtensions().getByType(JavaNativeInterfaceLibrary.class);
         library.getTargetMachines().set(supportedMachines(library.getMachines()));
         library.getTasks().configureEach(CppCompile.class, task -> {
             task.getCompilerArgs().addAll(task.getTargetPlatform().map(targetPlatform -> {
@@ -102,6 +103,12 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
                     task.getCompilerArgs().add("/DWINDOWS_MIN");
                 });
             }
+        });
+        library.getVariants().configureEach(variant -> {
+            variant.getResourcePath().set(String.join("/",
+                project.getGroup().toString().replace('.', '/'),
+                "platform",
+                toVariantName(variant.getTargetMachine())));
         });
     }
 
