@@ -1,5 +1,6 @@
 package gradlebuild;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import dev.nokee.platform.jni.JavaNativeInterfaceLibrary;
 import dev.nokee.runtime.nativebase.TargetMachine;
@@ -32,8 +33,25 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
         project.getPluginManager().apply(NativeToolChainRules.class);
 
         configureMainLibrary(project.getExtensions().getByType(JavaNativeInterfaceLibrary.class));
+        configureVariants(project);
 
         configureNativeVersionGeneration(project);
+    }
+
+    private void configureVariants(Project project) {
+        JavaNativeInterfaceLibrary library = project.getExtensions().getByType(JavaNativeInterfaceLibrary.class);
+        VariantsExtension variants = project.getExtensions().getByType(VariantsExtension.class);
+        variants.getVariantNames().set(library.getVariants().flatMap(it -> {
+            if (it.getSharedLibrary().isBuildable()) {
+                return ImmutableList.of(toVariantName(it.getTargetMachine()));
+            } else {
+                return ImmutableList.of();
+            }
+        }));
+    }
+
+    private static String toVariantName(TargetMachine targetMachine) {
+        return targetMachine.getOperatingSystemFamily().getName() + "-" + targetMachine.getArchitecture().getName();
     }
 
     private void configureMainLibrary(JavaNativeInterfaceLibrary library) {
