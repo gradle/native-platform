@@ -2,6 +2,7 @@ package gradlebuild;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import dev.nokee.language.cpp.CppSourceSet;
 import dev.nokee.platform.jni.JavaNativeInterfaceLibrary;
 import dev.nokee.runtime.nativebase.TargetMachine;
 import dev.nokee.runtime.nativebase.TargetMachineFactory;
@@ -9,11 +10,12 @@ import groovy.util.Node;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.plugins.JavaPluginConvention;
-import org.gradle.api.provider.ProviderFactory;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.tasks.SourceSet;
+import org.gradle.api.tasks.TaskContainer;
 import org.gradle.api.tasks.TaskProvider;
+import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.language.cpp.tasks.CppCompile;
 import org.gradle.model.Mutate;
 import org.gradle.model.RuleSource;
@@ -38,8 +40,10 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
         project.getPluginManager().apply("dev.nokee.jni-library");
         project.getPluginManager().apply(NativeToolChainRules.class);
 
+        configureCppTasks(project);
         configureMainLibrary(project.getExtensions().getByType(JavaNativeInterfaceLibrary.class));
         configureVariants(project);
+        addComponentSourcesSetsToProjectSourceSet(project.getTasks(), project.getExtensions().getByType(JavaNativeInterfaceLibrary.class));
 
         configureNativeVersionGeneration(project);
 
@@ -99,6 +103,27 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
                 });
             }
         });
+    }
+
+    private void addComponentSourcesSetsToProjectSourceSet(TaskContainer tasks, JavaNativeInterfaceLibrary library) {
+        tasks.withType(WriteNativeVersionSources.class, task -> {
+            task.getNativeSources().from(library.getSources().flatMap(sourceSet -> {
+                if (sourceSet instanceof CppSourceSet) {
+                    return ImmutableList.of(sourceSet.getSourceDirectories(), ((CppSourceSet) sourceSet).getHeaders().getSourceDirectories());
+                } else {
+                    return ImmutableList.of();
+                }
+            }));
+        });
+    }
+
+    private void configureCppTasks(Project project) {
+        TaskContainer tasks = project.getTasks();
+        TaskProvider<JavaCompile> compileJavaProvider = tasks.named("compileJava", JavaCompile.class);
+        tasks.withType(CppCompile.class)
+            .configureEach(task -> task.includes(
+                compileJavaProvider.flatMap(it -> it.getOptions().getHeaderOutputDirectory())
+            ));
     }
 
     private static Set<TargetMachine> supportedMachines(TargetMachineFactory machines) {

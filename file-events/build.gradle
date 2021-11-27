@@ -26,7 +26,6 @@ library {
     sources.configureEach(CppSourceSet) {
         source.from('src/file-events/cpp')
         headers.from('src/file-events/headers')
-        headers.from(sources.java.flatMap { it.compileTask }.flatMap { it.options.headerOutputDirectory })
     }
     tasks.configureEach(CppCompile) {
         compilerArgs.addAll(targetPlatform.map {
