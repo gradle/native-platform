@@ -5,9 +5,12 @@ import com.google.common.collect.ImmutableSet;
 import dev.nokee.platform.jni.JavaNativeInterfaceLibrary;
 import dev.nokee.runtime.nativebase.TargetMachine;
 import dev.nokee.runtime.nativebase.TargetMachineFactory;
+import groovy.util.Node;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.plugins.JavaPluginConvention;
+import org.gradle.api.publish.PublishingExtension;
+import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.language.cpp.tasks.CppCompile;
@@ -29,6 +32,7 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
     @Override
     public void apply(Project project) {
         project.getPluginManager().apply(NativePlatformComponentPlugin.class);
+        VariantsExtension variants = project.getExtensions().getByType(VariantsExtension.class);
         project.getPluginManager().apply("dev.nokee.jni-library");
         project.getPluginManager().apply(NativeToolChainRules.class);
 
@@ -36,6 +40,8 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
         configureVariants(project);
 
         configureNativeVersionGeneration(project);
+
+        configurePomOfMainJar(project, variants);
     }
 
     private void configureVariants(Project project) {
@@ -89,6 +95,23 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
         javaPluginConvention.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME).java(javaSources ->
             javaSources.srcDir(writeNativeVersionSources.flatMap(WriteNativeVersionSources::getGeneratedJavaSourcesDir))
         );
+    }
+
+    private void configurePomOfMainJar(Project project, VariantsExtension variants) {
+        project.getExtensions().configure(
+            PublishingExtension.class,
+            extension -> extension.getPublications().named("main", MavenPublication.class, main ->
+                main.getPom().withXml(xmlProvider -> {
+                    Node node = xmlProvider.asNode();
+                    Node deps = node.appendNode("dependencies");
+                    variants.getVariantNames().get().forEach(variantName -> {
+                        Node dep = deps.appendNode("dependency");
+                        dep.appendNode("groupId", project.getGroup());
+                        dep.appendNode("artifactId", main.getArtifactId() + "-" + variantName);
+                        dep.appendNode("version", project.getVersion());
+                        dep.appendNode("scope", "runtime");
+                    });
+                })));
     }
 
     public static class NativeToolChainRules extends RuleSource {
