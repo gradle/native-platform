@@ -9,7 +9,9 @@ import dev.nokee.runtime.nativebase.TargetMachineFactory;
 import groovy.util.Node;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.plugins.ExtensionAware;
 import org.gradle.api.plugins.JavaPluginConvention;
+import org.gradle.api.provider.SetProperty;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.tasks.SourceSet;
@@ -70,6 +72,7 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
 
     private void configureMainLibrary(Project project) {
         JavaNativeInterfaceLibrary library = project.getExtensions().getByType(JavaNativeInterfaceLibrary.class);
+        registerWindowsDistributionDimension(library);
         library.getTargetMachines().set(supportedMachines(library.getMachines()));
         library.getTasks().configureEach(CppCompile.class, task -> {
             task.getCompilerArgs().addAll(task.getTargetPlatform().map(targetPlatform -> {
@@ -110,6 +113,12 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
                 "platform",
                 toVariantName(variant.getTargetMachine())));
         });
+    }
+
+    private void registerWindowsDistributionDimension(JavaNativeInterfaceLibrary library) {
+        SetProperty<WindowsDistribution> newDimension = library.getDimensions().newAxis(WindowsDistribution.class, builder -> builder.onlyOn(library.getMachines().getWindows().getOperatingSystemFamily()));
+        newDimension.convention(ImmutableSet.copyOf(WindowsDistribution.values()));
+        ((ExtensionAware) library).getExtensions().add("targetWindowsDistributions", newDimension);
     }
 
     private void addComponentSourcesSetsToProjectSourceSet(TaskContainer tasks, JavaNativeInterfaceLibrary library) {
