@@ -5,12 +5,12 @@ plugins {
 repositories {
     jcenter()
     gradlePluginPortal()
-    mavenLocal()
+    maven { url = 'https://repo.nokee.dev/snapshot' }
 }
 
 dependencies {
     implementation gradleApi()
-    implementation platform('dev.nokee:nokee-gradle-plugins:0.5.0-SNAPSHOT')
+    implementation platform('dev.nokee:nokee-gradle-plugins:0.4.1229-202112011142.4a01703c')
     implementation 'org.apache.httpcomponents.client5:httpclient5:5.0.1'
     implementation 'com.google.guava:guava:28.2-jre'
     implementation 'org.gradle:test-retry-gradle-plugin:1.1.8'
