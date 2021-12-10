@@ -10,6 +10,7 @@
 
 #include "generic_fsnotifier.h"
 #include "net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_LinuxFileWatcher.h"
 
 using namespace std;
 
@@ -91,6 +92,9 @@ class Server : public AbstractServer {
 public:
     Server(JNIEnv* env, jobject watcherCallback);
 
+    // List<String> droppedPaths
+    void stopWatchingMovedPaths(jobject droppedPaths);
+
     virtual void registerPaths(const vector<u16string>& paths) override;
     virtual bool unregisterPaths(const vector<u16string>& paths) override;
 
@@ -115,6 +119,7 @@ private:
     const ShutdownEvent shutdownEvent;
     bool shouldTerminate = false;
     vector<uint8_t> buffer;
+    jmethodID listAddMethod;
 };
 
 class LinuxJniConstants : public JniSupport {

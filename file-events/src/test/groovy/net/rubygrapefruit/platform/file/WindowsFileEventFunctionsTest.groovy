@@ -67,32 +67,6 @@ class WindowsFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         unsubst("G:")
     }
 
-    def "drops moved locations"() {
-        given:
-        def watchedDir = new File(rootDir, "watched")
-        assert watchedDir.mkdirs()
-        def renamedDir = new File(rootDir, "renamed")
-        def createdFile = new File(renamedDir, "created.txt")
-        startWatcher(watchedDir)
-
-        watchedDir.renameTo(renamedDir)
-
-        when:
-        def droppedPaths = watcher.stopWatchingMovedPaths()
-        then:
-        droppedPaths == [watchedDir]
-
-        when:
-        createdFile.createNewFile()
-        then:
-        expectNoEvents()
-
-        when:
-        droppedPaths = watcher.stopWatchingMovedPaths()
-        then:
-        droppedPaths == []
-    }
-
     def "does not drop subst drive as moved"() {
         given:
         subst("G:", rootDir)

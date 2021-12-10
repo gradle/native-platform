@@ -372,23 +372,6 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         expectEvents change(CREATED, targetFileInside)
     }
 
-    @Issue("https://github.com/gradle/native-platform/issues/193")
-    def "can rename watched directory"() {
-        given:
-        def watchedDirectory = new File(rootDir, "watched")
-        watchedDirectory.mkdirs()
-        startWatcher(watchedDirectory)
-
-        when:
-        watchedDirectory.renameTo(new File(rootDir, "newWatched"))
-        waitForChangeEventLatency()
-        then:
-        if (Platform.current().linux) {
-            expectLogMessage(WARNING, Pattern.compile("Unknown event 0x800 for ${Pattern.quote(watchedDirectory.absolutePath)}"))
-        }
-        noExceptionThrown()
-    }
-
     def "can receive multiple events from the same directory"() {
         given:
         def firstFile = new File(rootDir, "first.txt")
@@ -710,45 +693,6 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         "zwnj"           | "test\u200cdirectory"    | true
         "newline"        | "test\ndirectory"        | Platform.current().macOs
         "URL-quoted"     | "test%<directory>#2.txt" | !Platform.current().windows
-    }
-
-    def "can detect #ancestry removed"() {
-        given:
-        def parentDir = new File(rootDir, "parent")
-        def watchedDir = new File(parentDir, "removed")
-        watchedDir.mkdirs()
-        def removedFile = new File(watchedDir, "file.txt")
-        createNewFile(removedFile)
-        File removedDir = removedDirectory(watchedDir)
-        startWatcher(watchedDir)
-
-        when:
-        def directoryRemoved = removedDir.deleteDir()
-        // On Windows we don't always manage to remove the watched directory, but it's unreliable
-        if (!Platform.current().windows) {
-            assert directoryRemoved
-        }
-
-        def expectedEvents = []
-        if (Platform.current().macOs) {
-            expectedEvents << change(INVALIDATED, watchedDir)
-            if (ancestry == "watched directory") {
-                expectedEvents << change(REMOVED, watchedDir)
-            }
-        } else if (Platform.current().linux) {
-            expectedEvents << change(REMOVED, removedFile) << change(REMOVED, watchedDir)
-        } else if (Platform.current().windows) {
-            expectedEvents << change(MODIFIED, removedFile) << optionalChange(REMOVED, removedFile) << change(REMOVED, watchedDir)
-        }
-
-        then:
-        expectEvents expectedEvents
-
-        where:
-        ancestry                            | removedDirectory
-        "watched directory"                 | { it }
-        "parent of watched directory"       | { it.parentFile }
-        "grand-parent of watched directory" | { it.parentFile.parentFile }
     }
 
     def "can set log level by #action"() {

@@ -88,6 +88,8 @@ Server::Server(JNIEnv* env, jobject watcherCallback)
     : AbstractServer(env, watcherCallback)
     , inotify(new Inotify()) {
     buffer.reserve(EVENT_BUFFER_SIZE);
+    jclass listClass = env->FindClass("java/util/List");
+    this->listAddMethod = env->GetMethodID(listClass, "add", "(Ljava/lang/Object;)Z");
 }
 
 void Server::initializeRunLoop() {
@@ -328,6 +330,29 @@ bool Server::unregisterPath(const u16string& path) {
     return ret == CancelResult::CANCELLED;
 }
 
+void Server::stopWatchingMovedPaths(jobject droppedPaths) {
+    JNIEnv* env = getThreadEnv();
+    for (auto& it : watchPoints) {
+        auto& watchPoint = it.second;
+        if (watchPoint.status != WatchPointStatus::LISTENING) {
+            continue;
+        }
+
+        string pathNarrow = utf16ToUtf8String(watchPoint.path);
+        struct stat st;
+        if (lstat(pathNarrow.c_str(), &st) == 0 && st.st_ino == watchPoint.inode) {
+            continue;
+        }
+
+        jstring javaPath = env->NewString((jchar*) watchPoint.path.c_str(), (jsize) watchPoint.path.length());
+        env->CallBooleanMethod(droppedPaths, listAddMethod, javaPath);
+        env->DeleteLocalRef(javaPath);
+        getJavaExceptionAndPrintStacktrace(env);
+
+        watchPoint.cancel();
+    }
+}
+
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_startWatcher0(JNIEnv* env, jclass, jobject javaCallback) {
     try {
@@ -348,6 +373,16 @@ Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_isGlibc0(J
     jboolean isValid = libcVerCheck != NULL;
     dlclose(libcLibrary);
     return isValid;
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_00024LinuxFileWatcher_stopWatchingMovedPaths0(JNIEnv* env, jobject, jobject javaServer, jobject jDroppedPaths) {
+    try {
+        Server* server = (Server*) getServer(env, javaServer);
+        server->stopWatchingMovedPaths(jDroppedPaths);
+    } catch (const exception& e) {
+        rethrowAsJavaException(env, e);
+    }
 }
 
 LinuxJniConstants::LinuxJniConstants(JavaVM* jvm)
