@@ -21,11 +21,12 @@ InotifyWatchesLimitTooLowException::InotifyWatchesLimitTooLowException()
     : InsufficientResourcesFileWatcherException("Inotify watches limit too low") {
 }
 
-WatchPoint::WatchPoint(const u16string& path, shared_ptr<Inotify> inotify, int watchDescriptor)
+WatchPoint::WatchPoint(const u16string& path, shared_ptr<Inotify> inotify, int watchDescriptor, ino_t inode)
     : status(WatchPointStatus::LISTENING)
     , watchDescriptor(watchDescriptor)
     , inotify(inotify)
-    , path(path) {
+    , path(path)
+    , inode(inode) {
 }
 
 CancelResult WatchPoint::cancel() {
@@ -261,19 +262,6 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
     reportChangeEvent(env, type, path);
 }
 
-static int addInotifyWatch(const u16string& path, shared_ptr<Inotify> inotify, JNIEnv* env) {
-    string pathNarrow = utf16ToUtf8String(path);
-    int fdWatch = inotify_add_watch(inotify->fd, pathNarrow.c_str(), EVENT_MASK);
-    if (fdWatch == -1) {
-        if (errno == ENOSPC) {
-            rethrowAsJavaException(env, InotifyWatchesLimitTooLowException(), linuxJniConstants->inotifyWatchesLimitTooLowExceptionClass.get());
-            throw JavaExceptionThrownException();
-        }
-        throw FileWatcherException("Couldn't add watch", path, errno);
-    }
-    return fdWatch;
-}
-
 void Server::registerPaths(const vector<u16string>& paths) {
     unique_lock<recursive_mutex> lock(mutationMutex);
     for (auto& path : paths) {
@@ -295,13 +283,27 @@ void Server::registerPath(const u16string& path) {
     if (it != watchPoints.end()) {
         throw FileWatcherException("Already watching path", path);
     }
-    int watchDescriptor = addInotifyWatch(path, inotify, getThreadEnv());
+    string pathNarrow = utf16ToUtf8String(path);
+    struct stat st;
+    if (lstat(pathNarrow.c_str(), &st) != 0) {
+        throw FileWatcherException("Couldn't stat path", path, errno);
+    }
+
+    int watchDescriptor = inotify_add_watch(inotify->fd, pathNarrow.c_str(), EVENT_MASK);
+    if (watchDescriptor == -1) {
+        if (errno == ENOSPC) {
+            rethrowAsJavaException(getThreadEnv(), InotifyWatchesLimitTooLowException(), linuxJniConstants->inotifyWatchesLimitTooLowExceptionClass.get());
+            throw JavaExceptionThrownException();
+        }
+        throw FileWatcherException("Couldn't add watch", path, errno);
+    }
     if (watchRoots.find(watchDescriptor) != watchRoots.end()) {
         throw FileWatcherException("Already watching path", path);
     }
+
     watchPoints.emplace(piecewise_construct,
         forward_as_tuple(path),
-        forward_as_tuple(path, inotify, watchDescriptor));
+        forward_as_tuple(path, inotify, watchDescriptor, st.st_ino));
     watchRoots[watchDescriptor] = path;
 }
 

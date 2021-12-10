@@ -5,6 +5,7 @@
 #include <poll.h>
 #include <sys/eventfd.h>
 #include <sys/inotify.h>
+#include <sys/stat.h>
 #include <unordered_map>
 
 #include "generic_fsnotifier.h"
@@ -72,7 +73,7 @@ enum class CancelResult {
 
 class WatchPoint {
 public:
-    WatchPoint(const u16string& path, const shared_ptr<Inotify> inotify, int watchDescriptor);
+    WatchPoint(const u16string& path, const shared_ptr<Inotify> inotify, int watchDescriptor, ino_t inode);
 
     CancelResult cancel();
 
@@ -81,6 +82,7 @@ private:
     const int watchDescriptor;
     const shared_ptr<Inotify> inotify;
     const u16string path;
+    const ino_t inode;
 
     friend class Server;
 };
