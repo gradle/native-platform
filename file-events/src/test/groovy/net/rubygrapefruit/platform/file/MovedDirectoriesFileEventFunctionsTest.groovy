@@ -20,6 +20,7 @@ import spock.lang.Issue
 import spock.lang.Requires
 import spock.lang.Unroll
 
+import java.nio.file.AccessDeniedException
 import java.nio.file.Files
 import java.util.regex.Pattern
 
@@ -105,6 +106,7 @@ class MovedDirectoriesFileEventFunctionsTest extends AbstractFileEventFunctionsT
         droppedPaths == [watchedDir]
 
         when:
+        assert watchedDir.mkdir()
         assert createdFile.createNewFile()
         then:
         expectNoEvents()
@@ -115,7 +117,7 @@ class MovedDirectoriesFileEventFunctionsTest extends AbstractFileEventFunctionsT
         droppedPaths == []
     }
 
-    @Requires({ Platform.current().linux || Platform.current().windows })
+    @Requires({ Platform.current().linux })
     def "stops watching when parent of path is moved"() {
         given:
         def parentDir = new File(rootDir, "parent")
@@ -142,5 +144,21 @@ class MovedDirectoriesFileEventFunctionsTest extends AbstractFileEventFunctionsT
         droppedPaths = watcher.stopWatchingMovedPaths()
         then:
         droppedPaths == []
+    }
+
+    @Requires({ Platform.current().windows })
+    def "cannot move parent of watched directory on Windows"() {
+        given:
+        def parentDir = new File(rootDir, "parent")
+        def watchedDir = new File(parentDir, "watched")
+        assert watchedDir.mkdirs()
+        startWatcher(watchedDir)
+
+        def renamedDir = new File(rootDir, "renamed")
+
+        when:
+        Files.move(parentDir.toPath(), renamedDir.toPath())
+        then:
+        thrown(AccessDeniedException)
     }
 }
