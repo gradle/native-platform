@@ -22,6 +22,7 @@ import net.rubygrapefruit.platform.file.FileWatcher;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -65,9 +66,10 @@ public class LinuxFileEventFunctions extends AbstractFileEventFunctions<LinuxFil
          * Stops watching any directories that have been moved to a different path since registration,
          * and returns the list of the registered paths that have been dropped.
          */
-        public List<File> stopWatchingMovedPaths() {
+        public List<File> stopWatchingMovedPaths(Collection<File> pathsToCheck) {
+            String[] absolutePathsToCheck = toAbsolutePaths(pathsToCheck);
             List<String> droppedPathStrings = new ArrayList<String>();
-            stopWatchingMovedPaths0(server, droppedPathStrings);
+            stopWatchingMovedPaths0(server, absolutePathsToCheck, droppedPathStrings);
             List<File> droppedPaths = new ArrayList<File>(droppedPathStrings.size());
             for (String droppedPath : droppedPathStrings) {
                 droppedPaths.add(new File(droppedPath));
@@ -75,7 +77,7 @@ public class LinuxFileEventFunctions extends AbstractFileEventFunctions<LinuxFil
             return droppedPaths;
         }
 
-        private native void stopWatchingMovedPaths0(Object server, List<String> droppedPaths);
+        private native void stopWatchingMovedPaths0(Object server, String[] absolutePathsToCheck, List<String> droppedPaths);
     }
 
     public static class WatcherBuilder extends AbstractWatcherBuilder<LinuxFileWatcher> {

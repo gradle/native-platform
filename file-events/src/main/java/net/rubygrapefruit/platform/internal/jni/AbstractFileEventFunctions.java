@@ -208,7 +208,7 @@ public abstract class AbstractFileEventFunctions<W extends FileWatcher> implemen
 
         private native boolean stopWatching0(Object server, String[] absolutePaths);
 
-        private static String[] toAbsolutePaths(Collection<File> files) {
+        protected static String[] toAbsolutePaths(Collection<File> files) {
             String[] paths = new String[files.size()];
             int index = 0;
             for (File file : files) {

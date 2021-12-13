@@ -330,10 +330,14 @@ bool Server::unregisterPath(const u16string& path) {
     return ret == CancelResult::CANCELLED;
 }
 
-void Server::stopWatchingMovedPaths(jobject droppedPaths) {
+void Server::stopWatchingMovedPaths(vector<u16string> absolutePathsToCheck, jobject droppedPaths) {
     JNIEnv* env = getThreadEnv();
-    for (auto& it : watchPoints) {
-        auto& watchPoint = it.second;
+    for (auto& pathToCheck : absolutePathsToCheck) {
+        auto it = watchPoints.find(pathToCheck);
+        if (it == watchPoints.end()) {
+            continue;
+        }
+        auto& watchPoint = it->second;
         if (watchPoint.status != WatchPointStatus::LISTENING) {
             continue;
         }
@@ -376,10 +380,12 @@ Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_isGlibc0(J
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_00024LinuxFileWatcher_stopWatchingMovedPaths0(JNIEnv* env, jobject, jobject javaServer, jobject jDroppedPaths) {
+Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_00024LinuxFileWatcher_stopWatchingMovedPaths0(JNIEnv* env, jobject, jobject javaServer, jobjectArray jAbsolutePathsToCheck, jobject jDroppedPaths) {
     try {
         Server* server = (Server*) getServer(env, javaServer);
-        server->stopWatchingMovedPaths(jDroppedPaths);
+        vector<u16string> absolutePathsToCheck;
+        javaToUtf16StringArray(env, jAbsolutePathsToCheck, absolutePathsToCheck);
+        server->stopWatchingMovedPaths(absolutePathsToCheck, jDroppedPaths);
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
     }

@@ -130,7 +130,7 @@ class MovedDirectoriesFileEventFunctionsTest extends AbstractFileEventFunctionsT
         Files.move(parentDir.toPath(), renamedDir.toPath())
 
         when:
-        def droppedPaths = watcher.stopWatchingMovedPaths()
+        def droppedPaths = watcher.stopWatchingMovedPaths([watchedDir])
         then:
         droppedPaths == [watchedDir]
 
@@ -142,7 +142,7 @@ class MovedDirectoriesFileEventFunctionsTest extends AbstractFileEventFunctionsT
         expectNoEvents()
 
         when:
-        droppedPaths = watcher.stopWatchingMovedPaths()
+        droppedPaths = watcher.stopWatchingMovedPaths([watchedDir])
         then:
         droppedPaths == []
     }
