@@ -21,7 +21,6 @@ import net.rubygrapefruit.platform.internal.jni.AbstractFileEventFunctions
 import net.rubygrapefruit.platform.internal.jni.NativeLogger
 import org.junit.Assume
 import spock.lang.IgnoreIf
-import spock.lang.Issue
 import spock.lang.Requires
 import spock.lang.Unroll
 
@@ -38,7 +37,6 @@ import static java.util.logging.Level.WARNING
 import static net.rubygrapefruit.platform.file.AbstractFileEventFunctionsTest.PlatformType.OTHERWISE
 import static net.rubygrapefruit.platform.file.AbstractFileEventFunctionsTest.PlatformType.WINDOWS
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.CREATED
-import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.INVALIDATED
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.REMOVED
 
@@ -417,15 +415,18 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
     def "fails when watching non-existent directory"() {
         given:
         def missingDirectory = new File(rootDir, "missing")
+        def message = Platform.current().linux
+            ? "Couldn't stat path"
+            : "Couldn't add watch"
 
         when:
         startWatcher(missingDirectory)
 
         then:
         def ex = thrown NativeException
-        ex.message ==~ /Couldn't stat path.*: ${Pattern.quote(missingDirectory.absolutePath)}/
+        ex.message ==~ /${message}.*: ${Pattern.quote(missingDirectory.absolutePath)}/
 
-        expectLogMessage(SEVERE, Pattern.compile("Caught exception: Couldn't stat path.*: ${Pattern.quote(missingDirectory.absolutePath)}"))
+        expectLogMessage(SEVERE, Pattern.compile("Caught exception: ${message}.*: ${Pattern.quote(missingDirectory.absolutePath)}"))
     }
 
     // Apparently on macOS we can watch files
@@ -434,16 +435,19 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
     def "fails when watching file"() {
         given:
         def file = new File(rootDir, "file.txt")
-        file.createNewFile()
+        assert file.createNewFile()
+        def message = Platform.current().linux
+            ? "Couldn't add watch"
+            : "Couldn't start watching"
 
         when:
         startWatcher(file)
 
         then:
         def ex = thrown NativeException
-        ex.message ==~ /Couldn't add watch.*: ${Pattern.quote(file.absolutePath)}/
+        ex.message ==~ /${message}.*: ${Pattern.quote(file.absolutePath)}/
 
-        expectLogMessage(SEVERE, Pattern.compile("Caught exception: Couldn't add watch.*: ${Pattern.quote(file.absolutePath)}"))
+        expectLogMessage(SEVERE, Pattern.compile("Caught exception: ${message}.*: ${Pattern.quote(file.absolutePath)}"))
     }
 
     def "fails when watching directory twice"() {
