@@ -15,29 +15,15 @@
  */
 package net.rubygrapefruit.platform.file
 
-import net.rubygrapefruit.platform.NativeException
 import net.rubygrapefruit.platform.internal.Platform
-import net.rubygrapefruit.platform.internal.jni.AbstractFileEventFunctions
-import net.rubygrapefruit.platform.internal.jni.NativeLogger
-import org.junit.Assume
-import spock.lang.IgnoreIf
 import spock.lang.Issue
 import spock.lang.Requires
 import spock.lang.Unroll
 
-import java.util.concurrent.BlockingQueue
-import java.util.concurrent.TimeUnit
-import java.util.logging.Level
-import java.util.logging.Logger
+import java.nio.file.Files
 import java.util.regex.Pattern
 
-import static java.util.concurrent.TimeUnit.SECONDS
-import static java.util.logging.Level.INFO
-import static java.util.logging.Level.SEVERE
 import static java.util.logging.Level.WARNING
-import static net.rubygrapefruit.platform.file.AbstractFileEventFunctionsTest.PlatformType.OTHERWISE
-import static net.rubygrapefruit.platform.file.AbstractFileEventFunctionsTest.PlatformType.WINDOWS
-import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.CREATED
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.INVALIDATED
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.REMOVED
@@ -111,7 +97,7 @@ class MovedDirectoriesFileEventFunctionsTest extends AbstractFileEventFunctionsT
         startWatcher(watchedDir)
 
         def renamedDir = new File(rootDir, "renamed")
-        assert watchedDir.renameTo(renamedDir)
+        Files.move(watchedDir.toPath(), renamedDir.toPath())
 
         when:
         def droppedPaths = watcher.stopWatchingMovedPaths()
@@ -138,7 +124,7 @@ class MovedDirectoriesFileEventFunctionsTest extends AbstractFileEventFunctionsT
         startWatcher(watchedDir)
 
         def renamedDir = new File(rootDir, "renamed")
-        assert parentDir.renameTo(renamedDir)
+        Files.move(parentDir.toPath(), renamedDir.toPath())
 
         when:
         def droppedPaths = watcher.stopWatchingMovedPaths()
