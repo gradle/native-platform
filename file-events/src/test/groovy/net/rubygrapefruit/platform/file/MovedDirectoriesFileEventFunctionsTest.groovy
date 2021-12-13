@@ -25,6 +25,7 @@ import java.nio.file.Files
 import java.util.regex.Pattern
 
 import static java.util.logging.Level.WARNING
+import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.CREATED
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.INVALIDATED
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.MODIFIED
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.REMOVED
@@ -118,7 +119,7 @@ class MovedDirectoriesFileEventFunctionsTest extends AbstractFileEventFunctionsT
     }
 
     @Requires({ Platform.current().linux })
-    def "stops watching when parent of path is moved"() {
+    def "stops watching when parent of watched directory is moved on Linux"() {
         given:
         def parentDir = new File(rootDir, "parent")
         def watchedDir = new File(parentDir, "watched")
@@ -144,6 +145,33 @@ class MovedDirectoriesFileEventFunctionsTest extends AbstractFileEventFunctionsT
         droppedPaths = watcher.stopWatchingMovedPaths()
         then:
         droppedPaths == []
+    }
+
+    @Requires({ Platform.current().macOs })
+    def "keeps watching when parent of watched directory is moved on macOS"() {
+        given:
+        def parentDir = new File(rootDir, "parent")
+        def watchedDir = new File(parentDir, "watched")
+        assert watchedDir.mkdirs()
+        startWatcher(watchedDir)
+
+        def renamedDir = new File(rootDir, "renamed")
+
+        when:
+        Files.move(parentDir.toPath(), renamedDir.toPath())
+        then:
+        expectEvents change(INVALIDATED, watchedDir)
+
+        when:
+        assert watchedDir.mkdirs()
+        then:
+        expectEvents change(INVALIDATED, watchedDir), change(CREATED, watchedDir)
+
+        when:
+        def createdFile = new File(watchedDir, "created.txt")
+        assert createdFile.createNewFile()
+        then:
+        expectEvents change(CREATED, createdFile)
     }
 
     @Requires({ Platform.current().windows })
