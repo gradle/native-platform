@@ -93,7 +93,7 @@ public:
     Server(JNIEnv* env, jobject watcherCallback);
 
     // List<String> droppedPaths
-    void stopWatchingMovedPaths(vector<u16string> absolutePathsToCheck, jobject droppedPaths);
+    void stopWatchingMovedPaths(const vector<u16string>& absolutePathsToCheck, jobject droppedPaths);
 
     virtual void registerPaths(const vector<u16string>& paths) override;
     virtual bool unregisterPaths(const vector<u16string>& paths) override;

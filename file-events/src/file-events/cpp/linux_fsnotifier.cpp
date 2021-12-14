@@ -330,7 +330,7 @@ bool Server::unregisterPath(const u16string& path) {
     return ret == CancelResult::CANCELLED;
 }
 
-void Server::stopWatchingMovedPaths(vector<u16string> absolutePathsToCheck, jobject droppedPaths) {
+void Server::stopWatchingMovedPaths(const vector<u16string>& absolutePathsToCheck, jobject droppedPaths) {
     JNIEnv* env = getThreadEnv();
     for (auto& pathToCheck : absolutePathsToCheck) {
         auto it = watchPoints.find(pathToCheck);
