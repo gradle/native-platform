@@ -120,7 +120,7 @@ WatchPoint::WatchPoint(Server* server, size_t eventBufferSize, const wstring& pa
         case ListenResult::SUCCESS:
             break;
         case ListenResult::DELETED:
-            throw FileWatcherException("Couldn't start watching because path is not a directory", wideToUtf16String(path));
+            throw FileWatcherException("Couldn't add watch, path is not a directory", wideToUtf16String(path));
     }
 }
 
@@ -187,7 +187,7 @@ ListenResult WatchPoint::listen() {
         if (listenError == ERROR_ACCESS_DENIED && !isValidDirectory()) {
             return ListenResult::DELETED;
         } else {
-            throw FileWatcherException("Couldn't start watching", wideToUtf16String(registeredPath), listenError);
+            throw FileWatcherException("Couldn't add watch", wideToUtf16String(registeredPath), listenError);
         }
     }
 }

@@ -415,18 +415,15 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
     def "fails when watching non-existent directory"() {
         given:
         def missingDirectory = new File(rootDir, "missing")
-        def message = Platform.current().linux
-            ? "Couldn't stat path"
-            : "Couldn't add watch"
 
         when:
         startWatcher(missingDirectory)
 
         then:
         def ex = thrown NativeException
-        ex.message ==~ /${message}.*: ${Pattern.quote(missingDirectory.absolutePath)}/
+        ex.message ==~ /Couldn't add watch.*: ${Pattern.quote(missingDirectory.absolutePath)}/
 
-        expectLogMessage(SEVERE, Pattern.compile("Caught exception: ${message}.*: ${Pattern.quote(missingDirectory.absolutePath)}"))
+        expectLogMessage(SEVERE, Pattern.compile("Caught exception: Couldn't add watch.*: ${Pattern.quote(missingDirectory.absolutePath)}"))
     }
 
     // Apparently on macOS we can watch files
@@ -436,18 +433,15 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         given:
         def file = new File(rootDir, "file.txt")
         assert file.createNewFile()
-        def message = Platform.current().linux
-            ? "Couldn't add watch"
-            : "Couldn't start watching"
 
         when:
         startWatcher(file)
 
         then:
         def ex = thrown NativeException
-        ex.message ==~ /${message}.*: ${Pattern.quote(file.absolutePath)}/
+        ex.message ==~ /Couldn't add watch.*: ${Pattern.quote(file.absolutePath)}/
 
-        expectLogMessage(SEVERE, Pattern.compile("Caught exception: ${message}.*: ${Pattern.quote(file.absolutePath)}"))
+        expectLogMessage(SEVERE, Pattern.compile("Caught exception: Couldn't add watch.*: ${Pattern.quote(file.absolutePath)}"))
     }
 
     def "fails when watching directory twice"() {

@@ -288,7 +288,7 @@ void Server::registerPath(const u16string& path) {
     string pathNarrow = utf16ToUtf8String(path);
     struct stat st;
     if (lstat(pathNarrow.c_str(), &st) != 0) {
-        throw FileWatcherException("Couldn't stat path", path, errno);
+        throw FileWatcherException("Couldn't add watch, stat failed", path, errno);
     }
 
     int watchDescriptor = inotify_add_watch(inotify->fd, pathNarrow.c_str(), EVENT_MASK);
@@ -297,7 +297,7 @@ void Server::registerPath(const u16string& path) {
             rethrowAsJavaException(getThreadEnv(), InotifyWatchesLimitTooLowException(), linuxJniConstants->inotifyWatchesLimitTooLowExceptionClass.get());
             throw JavaExceptionThrownException();
         }
-        throw FileWatcherException("Couldn't add watch", path, errno);
+        throw FileWatcherException("Couldn't add watch, inotify_add_watch failed", path, errno);
     }
     if (watchRoots.find(watchDescriptor) != watchRoots.end()) {
         throw FileWatcherException("Already watching path", path);
