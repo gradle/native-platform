@@ -21,11 +21,12 @@ InotifyWatchesLimitTooLowException::InotifyWatchesLimitTooLowException()
     : InsufficientResourcesFileWatcherException("Inotify watches limit too low") {
 }
 
-WatchPoint::WatchPoint(const u16string& path, shared_ptr<Inotify> inotify, int watchDescriptor)
+WatchPoint::WatchPoint(const u16string& path, shared_ptr<Inotify> inotify, int watchDescriptor, ino_t inode)
     : status(WatchPointStatus::LISTENING)
     , watchDescriptor(watchDescriptor)
     , inotify(inotify)
-    , path(path) {
+    , path(path)
+    , inode(inode) {
 }
 
 CancelResult WatchPoint::cancel() {
@@ -87,6 +88,8 @@ Server::Server(JNIEnv* env, jobject watcherCallback)
     : AbstractServer(env, watcherCallback)
     , inotify(new Inotify()) {
     buffer.reserve(EVENT_BUFFER_SIZE);
+    jclass listClass = env->FindClass("java/util/List");
+    this->listAddMethod = env->GetMethodID(listClass, "add", "(Ljava/lang/Object;)Z");
 }
 
 void Server::initializeRunLoop() {
@@ -261,19 +264,6 @@ void Server::handleEvent(JNIEnv* env, const inotify_event* event) {
     reportChangeEvent(env, type, path);
 }
 
-static int addInotifyWatch(const u16string& path, shared_ptr<Inotify> inotify, JNIEnv* env) {
-    string pathNarrow = utf16ToUtf8String(path);
-    int fdWatch = inotify_add_watch(inotify->fd, pathNarrow.c_str(), EVENT_MASK);
-    if (fdWatch == -1) {
-        if (errno == ENOSPC) {
-            rethrowAsJavaException(env, InotifyWatchesLimitTooLowException(), linuxJniConstants->inotifyWatchesLimitTooLowExceptionClass.get());
-            throw JavaExceptionThrownException();
-        }
-        throw FileWatcherException("Couldn't add watch", path, errno);
-    }
-    return fdWatch;
-}
-
 void Server::registerPaths(const vector<u16string>& paths) {
     unique_lock<recursive_mutex> lock(mutationMutex);
     for (auto& path : paths) {
@@ -295,13 +285,27 @@ void Server::registerPath(const u16string& path) {
     if (it != watchPoints.end()) {
         throw FileWatcherException("Already watching path", path);
     }
-    int watchDescriptor = addInotifyWatch(path, inotify, getThreadEnv());
+    string pathNarrow = utf16ToUtf8String(path);
+    struct stat st;
+    if (lstat(pathNarrow.c_str(), &st) != 0) {
+        throw FileWatcherException("Couldn't add watch, stat failed", path, errno);
+    }
+
+    int watchDescriptor = inotify_add_watch(inotify->fd, pathNarrow.c_str(), EVENT_MASK);
+    if (watchDescriptor == -1) {
+        if (errno == ENOSPC) {
+            rethrowAsJavaException(getThreadEnv(), InotifyWatchesLimitTooLowException(), linuxJniConstants->inotifyWatchesLimitTooLowExceptionClass.get());
+            throw JavaExceptionThrownException();
+        }
+        throw FileWatcherException("Couldn't add watch, inotify_add_watch failed", path, errno);
+    }
     if (watchRoots.find(watchDescriptor) != watchRoots.end()) {
         throw FileWatcherException("Already watching path", path);
     }
+
     watchPoints.emplace(piecewise_construct,
         forward_as_tuple(path),
-        forward_as_tuple(path, inotify, watchDescriptor));
+        forward_as_tuple(path, inotify, watchDescriptor, st.st_ino));
     watchRoots[watchDescriptor] = path;
 }
 
@@ -326,6 +330,33 @@ bool Server::unregisterPath(const u16string& path) {
     return ret == CancelResult::CANCELLED;
 }
 
+void Server::stopWatchingMovedPaths(const vector<u16string>& absolutePathsToCheck, jobject droppedPaths) {
+    JNIEnv* env = getThreadEnv();
+    for (auto& pathToCheck : absolutePathsToCheck) {
+        auto it = watchPoints.find(pathToCheck);
+        if (it == watchPoints.end()) {
+            continue;
+        }
+        auto& watchPoint = it->second;
+        if (watchPoint.status != WatchPointStatus::LISTENING) {
+            continue;
+        }
+
+        string pathNarrow = utf16ToUtf8String(watchPoint.path);
+        struct stat st;
+        if (lstat(pathNarrow.c_str(), &st) == 0 && st.st_ino == watchPoint.inode) {
+            continue;
+        }
+
+        jstring javaPath = env->NewString((jchar*) watchPoint.path.c_str(), (jsize) watchPoint.path.length());
+        env->CallBooleanMethod(droppedPaths, listAddMethod, javaPath);
+        env->DeleteLocalRef(javaPath);
+        getJavaExceptionAndPrintStacktrace(env);
+
+        watchPoint.cancel();
+    }
+}
+
 JNIEXPORT jobject JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_startWatcher0(JNIEnv* env, jclass, jobject javaCallback) {
     try {
@@ -346,6 +377,18 @@ Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_isGlibc0(J
     jboolean isValid = libcVerCheck != NULL;
     dlclose(libcLibrary);
     return isValid;
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_00024LinuxFileWatcher_stopWatchingMovedPaths0(JNIEnv* env, jobject, jobject javaServer, jobjectArray jAbsolutePathsToCheck, jobject jDroppedPaths) {
+    try {
+        Server* server = (Server*) getServer(env, javaServer);
+        vector<u16string> absolutePathsToCheck;
+        javaToUtf16StringArray(env, jAbsolutePathsToCheck, absolutePathsToCheck);
+        server->stopWatchingMovedPaths(absolutePathsToCheck, jDroppedPaths);
+    } catch (const exception& e) {
+        rethrowAsJavaException(env, e);
+    }
 }
 
 LinuxJniConstants::LinuxJniConstants(JavaVM* jvm)

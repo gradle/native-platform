@@ -5,10 +5,12 @@
 #include <poll.h>
 #include <sys/eventfd.h>
 #include <sys/inotify.h>
+#include <sys/stat.h>
 #include <unordered_map>
 
 #include "generic_fsnotifier.h"
 #include "net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_LinuxFileWatcher.h"
 
 using namespace std;
 
@@ -72,7 +74,7 @@ enum class CancelResult {
 
 class WatchPoint {
 public:
-    WatchPoint(const u16string& path, const shared_ptr<Inotify> inotify, int watchDescriptor);
+    WatchPoint(const u16string& path, const shared_ptr<Inotify> inotify, int watchDescriptor, ino_t inode);
 
     CancelResult cancel();
 
@@ -81,6 +83,7 @@ private:
     const int watchDescriptor;
     const shared_ptr<Inotify> inotify;
     const u16string path;
+    const ino_t inode;
 
     friend class Server;
 };
@@ -88,6 +91,9 @@ private:
 class Server : public AbstractServer {
 public:
     Server(JNIEnv* env, jobject watcherCallback);
+
+    // List<String> droppedPaths
+    void stopWatchingMovedPaths(const vector<u16string>& absolutePathsToCheck, jobject droppedPaths);
 
     virtual void registerPaths(const vector<u16string>& paths) override;
     virtual bool unregisterPaths(const vector<u16string>& paths) override;
@@ -113,6 +119,7 @@ private:
     const ShutdownEvent shutdownEvent;
     bool shouldTerminate = false;
     vector<uint8_t> buffer;
+    jmethodID listAddMethod;
 };
 
 class LinuxJniConstants : public JniSupport {
