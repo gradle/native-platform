@@ -339,10 +339,12 @@ void Server::stopWatchingMovedPaths(jobjectArray absolutePathsToCheck, jobject d
 
         auto it = watchPoints.find(pathToCheck);
         if (it == watchPoints.end()) {
+            addToList(env, droppedPaths, jPathToCheck);
             continue;
         }
         auto& watchPoint = it->second;
         if (watchPoint.status != WatchPointStatus::LISTENING) {
+            addToList(env, droppedPaths, jPathToCheck);
             continue;
         }
 
@@ -352,11 +354,15 @@ void Server::stopWatchingMovedPaths(jobjectArray absolutePathsToCheck, jobject d
             continue;
         }
 
-        env->CallBooleanMethod(droppedPaths, listAddMethod, jPathToCheck);
-        getJavaExceptionAndPrintStacktrace(env);
+        addToList(env, droppedPaths, jPathToCheck);
 
         watchPoint.cancel();
     }
+}
+
+void Server::addToList(JNIEnv* env, jobject jList, jstring jString) {
+        env->CallBooleanMethod(jList, listAddMethod, jString);
+        getJavaExceptionAndPrintStacktrace(env);
 }
 
 JNIEXPORT jobject JNICALL

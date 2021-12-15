@@ -111,6 +111,8 @@ private:
     void registerPath(const u16string& path);
     bool unregisterPath(const u16string& path);
 
+    void addToList(JNIEnv* env, jobject jList, jstring jString);
+
     recursive_mutex mutationMutex;
     unordered_map<u16string, WatchPoint> watchPoints;
     unordered_map<int, u16string> watchRoots;
