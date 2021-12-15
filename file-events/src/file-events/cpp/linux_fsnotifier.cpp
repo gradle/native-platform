@@ -330,9 +330,13 @@ bool Server::unregisterPath(const u16string& path) {
     return ret == CancelResult::CANCELLED;
 }
 
-void Server::stopWatchingMovedPaths(const vector<u16string>& absolutePathsToCheck, jobject droppedPaths) {
+void Server::stopWatchingMovedPaths(jobjectArray absolutePathsToCheck, jobject droppedPaths) {
     JNIEnv* env = getThreadEnv();
-    for (auto& pathToCheck : absolutePathsToCheck) {
+    int count = env->GetArrayLength(absolutePathsToCheck);
+    for (int i = 0; i < count; i++) {
+        jstring jPathToCheck = reinterpret_cast<jstring>(env->GetObjectArrayElement(absolutePathsToCheck, i));
+        auto pathToCheck = javaToUtf16String(env, jPathToCheck);
+
         auto it = watchPoints.find(pathToCheck);
         if (it == watchPoints.end()) {
             continue;
@@ -348,9 +352,7 @@ void Server::stopWatchingMovedPaths(const vector<u16string>& absolutePathsToChec
             continue;
         }
 
-        jstring javaPath = env->NewString((jchar*) watchPoint.path.c_str(), (jsize) watchPoint.path.length());
-        env->CallBooleanMethod(droppedPaths, listAddMethod, javaPath);
-        env->DeleteLocalRef(javaPath);
+        env->CallBooleanMethod(droppedPaths, listAddMethod, jPathToCheck);
         getJavaExceptionAndPrintStacktrace(env);
 
         watchPoint.cancel();
@@ -380,11 +382,9 @@ Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_isGlibc0(J
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_00024LinuxFileWatcher_stopWatchingMovedPaths0(JNIEnv* env, jobject, jobject javaServer, jobjectArray jAbsolutePathsToCheck, jobject jDroppedPaths) {
+Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_00024LinuxFileWatcher_stopWatchingMovedPaths0(JNIEnv* env, jobject, jobject javaServer, jobjectArray absolutePathsToCheck, jobject jDroppedPaths) {
     try {
         Server* server = (Server*) getServer(env, javaServer);
-        vector<u16string> absolutePathsToCheck;
-        javaToUtf16StringArray(env, jAbsolutePathsToCheck, absolutePathsToCheck);
         server->stopWatchingMovedPaths(absolutePathsToCheck, jDroppedPaths);
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
