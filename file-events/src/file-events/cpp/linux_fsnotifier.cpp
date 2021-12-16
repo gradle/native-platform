@@ -362,7 +362,6 @@ void Server::stopWatchingMovedPaths(jobjectArray absolutePathsToCheck, jobject d
 
 void Server::addToList(JNIEnv* env, jobject jList, jstring jString) {
         env->CallBooleanMethod(jList, listAddMethod, jString);
-        getJavaExceptionAndPrintStacktrace(env);
 }
 
 JNIEXPORT jobject JNICALL
