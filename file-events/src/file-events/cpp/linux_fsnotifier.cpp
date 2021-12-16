@@ -362,6 +362,7 @@ void Server::stopWatchingMovedPaths(jobjectArray absolutePathsToCheck, jobject d
 
 void Server::addToList(JNIEnv* env, jobject jList, jstring jString) {
         env->CallBooleanMethod(jList, listAddMethod, jString);
+        throwNativeExceptionWhenJavaExceptionOccurred(env);
 }
 
 JNIEXPORT jobject JNICALL
@@ -391,6 +392,8 @@ Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_00024Linux
     try {
         Server* server = (Server*) getServer(env, javaServer);
         server->stopWatchingMovedPaths(jAbsolutePathsToCheck, jDroppedPaths);
+    } catch (const JavaExceptionThrownException&) {
+        // Ignore, the Java exception has already been thrown.
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
     }
