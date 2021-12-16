@@ -387,10 +387,10 @@ Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_isGlibc0(J
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_00024LinuxFileWatcher_stopWatchingMovedPaths0(JNIEnv* env, jobject, jobject javaServer, jobjectArray absolutePathsToCheck, jobject jDroppedPaths) {
+Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_00024LinuxFileWatcher_stopWatchingMovedPaths0(JNIEnv* env, jobject, jobject javaServer, jobjectArray jAbsolutePathsToCheck, jobject jDroppedPaths) {
     try {
         Server* server = (Server*) getServer(env, javaServer);
-        server->stopWatchingMovedPaths(absolutePathsToCheck, jDroppedPaths);
+        server->stopWatchingMovedPaths(jAbsolutePathsToCheck, jDroppedPaths);
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
     }
