@@ -49,6 +49,11 @@ public:
      */
     static void rethrowJavaException(JNIEnv* env);
 
+    /**
+     * Check for a Java exception and throw native JavaExceptionThrownException.
+     */
+    static void throwNativeExceptionWhenJavaExceptionOccurred(JNIEnv* env);
+
 protected:
     const JniGlobalRef<jclass>& findClass(const char* className);
     JNIEnv* getThreadEnv();

@@ -83,6 +83,13 @@ void JniSupport::rethrowJavaException(JNIEnv* env) {
     }
 }
 
+void JniSupport::throwNativeExceptionWhenJavaExceptionOccurred(JNIEnv* env) {
+    jthrowable exception = env->ExceptionOccurred();
+    if (exception != nullptr) {
+        throw JavaExceptionThrownException();
+    }
+}
+
 BaseJniConstants::BaseJniConstants(JavaVM* jvm)
     : JniSupport(jvm)
     , classClass(getThreadEnv(), "java/lang/Class") {
