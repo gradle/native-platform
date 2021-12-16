@@ -16,6 +16,10 @@ JavaVM* getJavaVm(JNIEnv* env) {
     return jvm;
 }
 
+JavaExceptionThrownException::JavaExceptionThrownException()
+    : runtime_error("Java exception thrown from native code") {
+}
+
 JniSupport::JniSupport(JavaVM* jvm)
     : jvm(jvm) {
 }
