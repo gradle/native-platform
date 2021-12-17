@@ -340,21 +340,25 @@ void Server::stopWatchingMovedPaths(jobjectArray absolutePathsToCheck, jobject d
         auto it = watchPoints.find(pathToCheck);
         if (it == watchPoints.end()) {
             addToList(env, droppedPaths, jPathToCheck);
+            env->DeleteLocalRef(jPathToCheck);
             continue;
         }
         auto& watchPoint = it->second;
         if (watchPoint.status != WatchPointStatus::LISTENING) {
             addToList(env, droppedPaths, jPathToCheck);
+            env->DeleteLocalRef(jPathToCheck);
             continue;
         }
 
         string pathNarrow = utf16ToUtf8String(watchPoint.path);
         struct stat st;
         if (lstat(pathNarrow.c_str(), &st) == 0 && st.st_ino == watchPoint.inode) {
+            env->DeleteLocalRef(jPathToCheck);
             continue;
         }
 
         addToList(env, droppedPaths, jPathToCheck);
+        env->DeleteLocalRef(jPathToCheck);
 
         watchPoint.cancel();
     }
