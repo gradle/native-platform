@@ -30,6 +30,7 @@ model {
                 if (targetPlatform.operatingSystem.macOsX
                     || targetPlatform.operatingSystem.linux) {
                     cppCompiler.args "-g"                       // Produce debug output
+                    cppCompiler.args "-O2"                      // Optimize
                     cppCompiler.args "-pthread"                 // Force nicer threading
                     cppCompiler.args "-pedantic"                // Disable non-standard things
                     cppCompiler.args "--std=c++11"              // Enable C++11
