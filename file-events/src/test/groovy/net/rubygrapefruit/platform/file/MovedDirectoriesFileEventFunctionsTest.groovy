@@ -144,7 +144,29 @@ class MovedDirectoriesFileEventFunctionsTest extends AbstractFileEventFunctionsT
         when:
         droppedPaths = watcher.stopWatchingMovedPaths([watchedDir])
         then:
-        droppedPaths == []
+        droppedPaths == [watchedDir]
+    }
+
+    @Requires({ Platform.current().linux })
+    def "reports non-watched directory as moved on Linux"() {
+        given:
+        def parentDir = new File(rootDir, "parent")
+        def watchedDir = new File(parentDir, "watched")
+        def unwatchedDir = new File(watchedDir, "unwatched-directory")
+        assert watchedDir.mkdirs()
+        assert unwatchedDir.mkdirs()
+        startWatcher(watchedDir)
+
+        when:
+        def droppedPaths = watcher.stopWatchingMovedPaths([unwatchedDir])
+        then:
+        droppedPaths == [unwatchedDir]
+
+        when:
+        def createdFile = new File(watchedDir, "created.txt")
+        assert createdFile.createNewFile()
+        then:
+        expectEvents change(CREATED, createdFile)
     }
 
     @Requires({ Platform.current().macOs })

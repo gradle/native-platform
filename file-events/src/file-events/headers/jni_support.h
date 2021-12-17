@@ -23,6 +23,14 @@ struct deletable_facet : Facet {
 template <typename T>
 class JniGlobalRef;
 
+// Throwing a Java exception from native code does not change the program flow.
+// So it may be necessary to throw a native exception as well which then can be catched in the outmost level just before returning to Java.
+// The idea here is that the catch clause for this exception is always empty.
+struct JavaExceptionThrownException : public runtime_error {
+public:
+    JavaExceptionThrownException();
+};
+
 /**
  * Support for using JNI in a multi-threaded environment.
  */
@@ -40,6 +48,11 @@ public:
      * Check for a Java exception and rethrow as a native exception.
      */
     static void rethrowJavaException(JNIEnv* env);
+
+    /**
+     * Check for a Java exception and throw native JavaExceptionThrownException.
+     */
+    static void throwNativeExceptionWhenJavaExceptionOccurred(JNIEnv* env);
 
 protected:
     const JniGlobalRef<jclass>& findClass(const char* className);

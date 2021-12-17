@@ -29,14 +29,6 @@ enum class ChangeType {
 
 #define IS_SET(flags, mask) (((flags) & (mask)) != 0)
 
-// Throwing a Java exception from native code does not change the program flow.
-// So it may be necessary to throw a native exception as well which then can be catched in the outmost level just before returning to Java.
-// The idea here is that the catch clause for this exception is always empty.
-struct JavaExceptionThrownException : public runtime_error {
-public:
-    JavaExceptionThrownException();
-};
-
 struct InsufficientResourcesFileWatcherException : public FileWatcherException {
 public:
     InsufficientResourcesFileWatcherException(const string& message);

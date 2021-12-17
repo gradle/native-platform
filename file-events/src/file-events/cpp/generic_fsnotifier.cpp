@@ -2,10 +2,6 @@
 
 #include "generic_fsnotifier.h"
 
-JavaExceptionThrownException::JavaExceptionThrownException()
-    : runtime_error("Java exception thrown from native code") {
-}
-
 InsufficientResourcesFileWatcherException::InsufficientResourcesFileWatcherException(const string& message)
     : FileWatcherException(message) {
 }

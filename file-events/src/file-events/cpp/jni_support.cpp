@@ -16,6 +16,10 @@ JavaVM* getJavaVm(JNIEnv* env) {
     return jvm;
 }
 
+JavaExceptionThrownException::JavaExceptionThrownException()
+    : runtime_error("Java exception thrown from native code") {
+}
+
 JniSupport::JniSupport(JavaVM* jvm)
     : jvm(jvm) {
 }
@@ -76,6 +80,13 @@ void JniSupport::rethrowJavaException(JNIEnv* env) {
         env->DeleteLocalRef(exception);
 
         throw runtime_error(message);
+    }
+}
+
+void JniSupport::throwNativeExceptionWhenJavaExceptionOccurred(JNIEnv* env) {
+    jthrowable exception = env->ExceptionOccurred();
+    if (exception != nullptr) {
+        throw JavaExceptionThrownException();
     }
 }
 

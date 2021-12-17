@@ -92,8 +92,8 @@ class Server : public AbstractServer {
 public:
     Server(JNIEnv* env, jobject watcherCallback);
 
-    // List<String> droppedPaths
-    void stopWatchingMovedPaths(const vector<u16string>& absolutePathsToCheck, jobject droppedPaths);
+    // List<String> absolutePathsToCheck, List<String> droppedPaths
+    void stopWatchingMovedPaths(jobjectArray absolutePathsToCheck, jobject droppedPaths);
 
     virtual void registerPaths(const vector<u16string>& paths) override;
     virtual bool unregisterPaths(const vector<u16string>& paths) override;
@@ -110,6 +110,8 @@ private:
 
     void registerPath(const u16string& path);
     bool unregisterPath(const u16string& path);
+
+    void addToList(JNIEnv* env, jobject jList, jstring jString);
 
     recursive_mutex mutationMutex;
     unordered_map<u16string, WatchPoint> watchPoints;

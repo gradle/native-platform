@@ -330,31 +330,43 @@ bool Server::unregisterPath(const u16string& path) {
     return ret == CancelResult::CANCELLED;
 }
 
-void Server::stopWatchingMovedPaths(const vector<u16string>& absolutePathsToCheck, jobject droppedPaths) {
+void Server::stopWatchingMovedPaths(jobjectArray absolutePathsToCheck, jobject droppedPaths) {
     JNIEnv* env = getThreadEnv();
-    for (auto& pathToCheck : absolutePathsToCheck) {
+    int count = env->GetArrayLength(absolutePathsToCheck);
+    for (int i = 0; i < count; i++) {
+        jstring jPathToCheck = reinterpret_cast<jstring>(env->GetObjectArrayElement(absolutePathsToCheck, i));
+        auto pathToCheck = javaToUtf16String(env, jPathToCheck);
+
         auto it = watchPoints.find(pathToCheck);
         if (it == watchPoints.end()) {
+            addToList(env, droppedPaths, jPathToCheck);
+            env->DeleteLocalRef(jPathToCheck);
             continue;
         }
         auto& watchPoint = it->second;
         if (watchPoint.status != WatchPointStatus::LISTENING) {
+            addToList(env, droppedPaths, jPathToCheck);
+            env->DeleteLocalRef(jPathToCheck);
             continue;
         }
 
         string pathNarrow = utf16ToUtf8String(watchPoint.path);
         struct stat st;
         if (lstat(pathNarrow.c_str(), &st) == 0 && st.st_ino == watchPoint.inode) {
+            env->DeleteLocalRef(jPathToCheck);
             continue;
         }
 
-        jstring javaPath = env->NewString((jchar*) watchPoint.path.c_str(), (jsize) watchPoint.path.length());
-        env->CallBooleanMethod(droppedPaths, listAddMethod, javaPath);
-        env->DeleteLocalRef(javaPath);
-        getJavaExceptionAndPrintStacktrace(env);
+        addToList(env, droppedPaths, jPathToCheck);
+        env->DeleteLocalRef(jPathToCheck);
 
         watchPoint.cancel();
     }
+}
+
+void Server::addToList(JNIEnv* env, jobject jList, jstring jString) {
+        env->CallBooleanMethod(jList, listAddMethod, jString);
+        throwNativeExceptionWhenJavaExceptionOccurred(env);
 }
 
 JNIEXPORT jobject JNICALL
@@ -383,9 +395,9 @@ JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_LinuxFileEventFunctions_00024LinuxFileWatcher_stopWatchingMovedPaths0(JNIEnv* env, jobject, jobject javaServer, jobjectArray jAbsolutePathsToCheck, jobject jDroppedPaths) {
     try {
         Server* server = (Server*) getServer(env, javaServer);
-        vector<u16string> absolutePathsToCheck;
-        javaToUtf16StringArray(env, jAbsolutePathsToCheck, absolutePathsToCheck);
-        server->stopWatchingMovedPaths(absolutePathsToCheck, jDroppedPaths);
+        server->stopWatchingMovedPaths(jAbsolutePathsToCheck, jDroppedPaths);
+    } catch (const JavaExceptionThrownException&) {
+        // Ignore, the Java exception has already been thrown.
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
     }
