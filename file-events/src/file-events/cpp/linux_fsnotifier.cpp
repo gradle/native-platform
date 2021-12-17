@@ -73,7 +73,9 @@ ShutdownEvent::~ShutdownEvent() {
 
 void ShutdownEvent::trigger() const {
     const uint64_t increment = 1;
-    write(fd, &increment, sizeof(increment));
+    if (write(fd, &increment, sizeof(increment)) == -1) {
+        throw FileWatcherException("Couldn't trigger shutdown event");
+    }
 }
 
 void ShutdownEvent::consume() const {
