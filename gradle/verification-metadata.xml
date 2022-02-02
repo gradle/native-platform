@@ -8,6 +8,8 @@
          <trust file=".*-sources[.]jar" regex="true"/>
          <trust file=".*-src[.]zip" regex="true"/>
          <trust group="net.rubygrapefruit"/>
+         <trust group="dev.nokee"/>
+         <trust group="dev.gradleplugins"/>
       </trusted-artifacts>
       <trusted-keys>
          <trusted-key id="0785b3eff60b1b1bea94e0bb7c25280eae63ebe5" group="^org[.]apache[.]httpcomponents($|([.].*))" regex="true"/>
@@ -16,12 +18,44 @@
             <trusting group="com.gradle"/>
             <trusting group="org.gradle"/>
          </trusted-key>
+         <trusted-key id="c7be5bcc9fec15518cfda882b0f3710fa64900e7">
+             <trusting group="com.google.auto"/>
+             <trusting group="com.google.auto.value"/>
+             <trusting group="com.google.auto.factory"/>
+             <trusting group="com.google.auto.service"/>
+         </trusted-key>
+         
+         <trusted-key id="015479e1055341431b4545ab72475fd306b9cab7" group="com.googlecode.javaewah"/>
+         <trusted-key id="19beab2d799c020f17c69126b16698a4adf4d638" group="org.checkerframework"/>
+         <trusted-key id="2db4f1ef0fa761ecc4ea935c86fdc7e2a11262cb" group="org.apache.commons"/>
+         <trusted-key id="b6e73d84ea4fcc47166087253faad2cd5ecbb314" group="org.apache.commons"/>
+         <trusted-key id="cd5464315f0b98c77e6e8ecd9daadc1c9fcc82d0" group="commons-io"/>
+         <trusted-key id="60c6700e08f02b9eb6f4a46745145f826cf4bf98" group="com.googlecode.plist"/>
+         <trusted-key id="e77417ac194160a3fabd04969a259c7ee636c5ed" group="com.google.errorprone"/>
+         <trusted-key id="afcc4c7594d09e2182c60e0f7a01b0f236e5430f" group="com.google.code.gson"/>
+         <trusted-key id="6214760097dc5cfad0175ac2c9fbaa83a8753994">
+             <trusting group="com.fasterxml.jackson.core"/>
+             <trusting group="com.fasterxml.jackson.dataformat"/>
+             <trusting group="com.fasterxml.jackson.module"/>
+         </trusted-key>
+         <trusted-key id="1d0a8b5e77c678a7c724445abf984b4145ea13f7" group="com.squareup"/>
+         <trusted-key id="5989baf76217b843d66be55b2d0e1fb8fe4b68b4" group="org.eclipse.jetty"/>
+         <trusted-key id="7c669810892cbd3148fa92995b05ccde140c2876" group="org.eclipse.jgit"/>
+         <trusted-key id="4f7e32d440ef90a83011a8fc6425559c47cc79c4" group="javax.servlet"/>
+         <trusted-key id="e76ee6165e9218331553e444c1e3a8c9fc9cf9a1" group="org.simpleframework"/>
+         <trusted-key id="064f04959cd99accc4dfb54c9cd8549acf9bd0ce" group="org.codehaus.woodstox"/>
+         <trusted-key id="6214760097dc5cfad0175ac2c9fbaa83a8753994" group="com.fasterxml.woodstox"/>
          <trusted-key id="4db1a49729b053caf015cee9a6adfc93ef34893e" group="org.hamcrest"/>
+         <trusted-key id="4f7e32d440ef90a83011a8fc6425559c47cc79c4" group="org.glassfish"/>
          <trusted-key id="694621a7227d8d5289699830abe9f3126bb741c1" group="^com[.]google($|([.].*))" regex="true"/>
          <trusted-key id="7faa0f2206de228f0db01ad741321490758aad6f" group="org.codehaus.groovy"/>
+         <trusted-key id="842afb86375d805422835bfd82b5574242c20d6f" group="org.antlr"/>
          <trusted-key id="b801e2f8ef035068ec1139cc29579f18fa8fd93b" group="com.google.j2objc" name="j2objc-annotations"/>
          <trusted-key id="bdb5fa4fe719d787fb3d3197f6d4a1d411e9d1ae" group="com.google.guava"/>
+         <trusted-key id="cb3190ca7842439e57f3712e44ce7bf2825ea2cd" group="com.ibm.icu"/>
          <trusted-key id="ce8075a251547bee249bc151a2115ae15f6b8b72" group="org.apache.ant"/>
+         <trusted-key id="d54a395b5cf3f86eb45f6e426b1b008864323b92" group="org.antlr"/>
+         <trusted-key id="d790f72ea8fd39551012b62dcf9f3090ce4cb752" group="org.abego.treelayout"/>
       </trusted-keys>
    </configuration>
    <components>
