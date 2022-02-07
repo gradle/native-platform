@@ -6,6 +6,7 @@ import dev.nokee.platform.jni.JavaNativeInterfaceLibrary;
 import dev.nokee.runtime.nativebase.TargetMachine;
 import dev.nokee.runtime.nativebase.TargetMachineFactory;
 import gradlebuild.actions.MixInJavaNativeInterfaceLibraryProperties;
+import gradlebuild.actions.RegisterJniTestTask;
 import groovy.util.Node;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
@@ -50,8 +51,13 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
         addComponentSourcesSetsToProjectSourceSet(project.getTasks(), project.getExtensions().getByType(JavaNativeInterfaceLibrary.class));
 
         configureNativeVersionGeneration(project);
+        configureJniTest(project);
 
         configurePomOfMainJar(project, variants);
+    }
+
+    private void configureJniTest(Project project) {
+        new RegisterJniTestTask().execute(project);
     }
 
     private void configureVariants(Project project) {
