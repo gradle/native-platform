@@ -32,8 +32,9 @@ import org.gradle.nativeplatform.toolchain.VisualCpp;
 import java.io.File;
 import java.util.Set;
 
-import static gradlebuild.JavaNativeInterfaceLibraryProperties.cppSources;
-import static gradlebuild.JavaNativeInterfaceLibraryProperties.privateHeaders;
+import static gradlebuild.JavaNativeInterfaceLibraryUtils.cppSources;
+import static gradlebuild.JavaNativeInterfaceLibraryUtils.library;
+import static gradlebuild.JavaNativeInterfaceLibraryUtils.privateHeaders;
 
 @SuppressWarnings("UnstableApiUsage")
 public abstract class JniNokeePlugin implements Plugin<Project> {
@@ -61,17 +62,18 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
     }
 
     private void configureVariants(Project project) {
-        JavaNativeInterfaceLibrary library = project.getExtensions().getByType(JavaNativeInterfaceLibrary.class);
-        VariantsExtension variants = project.getExtensions().getByType(VariantsExtension.class);
-        variants.getVariantNames().set(library.getVariants().flatMap(it -> {
-            // Only depend on variants which can be built on the current machine
-            boolean onlyLocalVariants = project.getProviders().gradleProperty("onlyLocalVariants").forUseAtConfigurationTime().isPresent();
-            if (onlyLocalVariants && !it.getSharedLibrary().isBuildable()) {
-                return ImmutableList.of();
-            } else {
-                return ImmutableList.of(toVariantName(it.getTargetMachine()));
-            }
-        }));
+        library(project, library -> {
+            VariantsExtension variants = project.getExtensions().getByType(VariantsExtension.class);
+            variants.getVariantNames().set(library.getVariants().flatMap(it -> {
+                // Only depend on variants which can be built on the current machine
+                boolean onlyLocalVariants = project.getProviders().gradleProperty("onlyLocalVariants").forUseAtConfigurationTime().isPresent();
+                if (onlyLocalVariants && !it.getSharedLibrary().isBuildable()) {
+                    return ImmutableList.of();
+                } else {
+                    return ImmutableList.of(toVariantName(it.getTargetMachine()));
+                }
+            }));
+        });
     }
 
     private static String toVariantName(TargetMachine targetMachine) {
@@ -79,47 +81,48 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
     }
 
     private void configureMainLibrary(Project project) {
-        JavaNativeInterfaceLibrary library = project.getExtensions().getByType(JavaNativeInterfaceLibrary.class);
-        registerWindowsDistributionDimension(library);
-        library.getTargetMachines().set(supportedMachines(library.getMachines()));
-        library.getTasks().configureEach(CppCompile.class, task -> {
-            task.getCompilerArgs().addAll(task.getTargetPlatform().map(targetPlatform -> {
-                OperatingSystem targetOs = targetPlatform.getOperatingSystem();
-                if (targetOs.isMacOsX()) {
-                    return ImmutableList.of("-mmacosx-version-min=10.9");
-                } else if (targetOs.isLinux()) {
-                    return ImmutableList.of("-D_FILE_OFFSET_BITS=64");
-                } else {
-                    return ImmutableList.of(); // do nothing
+        library(project, library -> {
+            registerWindowsDistributionDimension(library);
+            library.getTargetMachines().set(supportedMachines(library.getMachines()));
+            library.getTasks().configureEach(CppCompile.class, task -> {
+                task.getCompilerArgs().addAll(task.getTargetPlatform().map(targetPlatform -> {
+                    OperatingSystem targetOs = targetPlatform.getOperatingSystem();
+                    if (targetOs.isMacOsX()) {
+                        return ImmutableList.of("-mmacosx-version-min=10.9");
+                    } else if (targetOs.isLinux()) {
+                        return ImmutableList.of("-D_FILE_OFFSET_BITS=64");
+                    } else {
+                        return ImmutableList.of(); // do nothing
+                    }
+                }));
+            });
+            library.getTasks().configureEach(LinkSharedLibrary.class, task -> {
+                task.getLinkerArgs().addAll(task.getTargetPlatform().map(targetPlatform -> {
+                    OperatingSystem targetOs = targetPlatform.getOperatingSystem();
+                    if (targetOs.isMacOsX()) {
+                        return ImmutableList.of(
+                            "-mmacosx-version-min=10.9",
+                            "-framework", "CoreServices");
+                    } else if (targetOs.isWindows()) {
+                        return ImmutableList.of("Shlwapi.lib", "Advapi32.lib");
+                    } else {
+                        return ImmutableList.of(); // do nothing
+                    }
+                }));
+            });
+            library.getVariants().configureEach(variant -> {
+                if (variant.getBuildVariant().hasAxisOf(WindowsDistribution.WINDOWS_XP_OR_LOWER)) {
+                    variant.getTasks().configureEach(CppCompile.class, task -> {
+                        task.getCompilerArgs().add("/DWINDOWS_MIN");
+                    });
                 }
-            }));
-        });
-        library.getTasks().configureEach(LinkSharedLibrary.class, task -> {
-            task.getLinkerArgs().addAll(task.getTargetPlatform().map(targetPlatform -> {
-                OperatingSystem targetOs = targetPlatform.getOperatingSystem();
-                if (targetOs.isMacOsX()) {
-                    return ImmutableList.of(
-                        "-mmacosx-version-min=10.9",
-                        "-framework", "CoreServices");
-                } else if (targetOs.isWindows()) {
-                    return ImmutableList.of("Shlwapi.lib", "Advapi32.lib");
-                } else {
-                    return ImmutableList.of(); // do nothing
-                }
-            }));
-        });
-        library.getVariants().configureEach(variant -> {
-            if (variant.getBuildVariant().hasAxisOf(WindowsDistribution.WINDOWS_XP_OR_LOWER)) {
-                variant.getTasks().configureEach(CppCompile.class, task -> {
-                    task.getCompilerArgs().add("/DWINDOWS_MIN");
-                });
-            }
-        });
-        library.getVariants().configureEach(variant -> {
-            variant.getResourcePath().set(String.join("/",
-                project.getGroup().toString().replace('.', '/'),
-                "platform",
-                toVariantName(variant.getTargetMachine())));
+            });
+            library.getVariants().configureEach(variant -> {
+                variant.getResourcePath().set(String.join("/",
+                    project.getGroup().toString().replace('.', '/'),
+                    "platform",
+                    toVariantName(variant.getTargetMachine())));
+            });
         });
     }
 
