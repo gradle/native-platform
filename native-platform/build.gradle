@@ -7,7 +7,6 @@ plugins {
 //    id 'gradlebuild.ncurses'
 }
 
-import dev.nokee.language.cpp.CppSourceSet
 import gradlebuild.NcursesVersion
 
 nativeVersion {
@@ -25,10 +24,8 @@ javadoc {
 
 library {
     baseName = 'native-platform'
-    sources.configureEach(CppSourceSet) {
-        source.from('src/shared/cpp', 'src/main/cpp')
-        headers.from('src/shared/headers')
-    }
+    cppSources.setFrom('src/shared/cpp', 'src/main/cpp')
+    privateHeaders.setFrom('src/shared/headers')
     variants.configureEach {
         if (NcursesVersion.values().any { buildVariant.hasAxisOf(it) }) {
             baseName = 'native-platform-curses'

@@ -4,8 +4,6 @@ plugins {
     id 'gradlebuild.jni-nokee'
 }
 
-import dev.nokee.language.cpp.CppSourceSet
-
 nativeVersion {
     versionClassPackageName = "net.rubygrapefruit.platform.internal.jni"
     versionClassName = "FileEventsVersion"
@@ -23,10 +21,8 @@ javadoc {
 
 library {
     baseName = 'native-platform-file-events'
-    sources.configureEach(CppSourceSet) {
-        source.from('src/file-events/cpp')
-        headers.from('src/file-events/headers')
-    }
+    cppSources.setFrom('src/file-events/cpp')
+    privateHeaders.setFrom('src/file-events/headers')
     tasks.configureEach(CppCompile) {
         compilerArgs.addAll(targetPlatform.map {
             if (it.operatingSystem.macOsX
