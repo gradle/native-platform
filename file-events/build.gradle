@@ -2,6 +2,7 @@ plugins {
     id 'groovy'
     id 'dev.nokee.cpp-language'
     id 'gradlebuild.jni-nokee'
+    id 'gradlebuild.freebsd-runtime'
 }
 
 nativeVersion {

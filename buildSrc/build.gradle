@@ -44,6 +44,10 @@ gradlePlugin {
             id = "gradlebuild.freebsd"
             implementationClass = "gradlebuild.FreeBsdPlugin"
         }
+        freebsdRuntime {
+            id = "gradlebuild.freebsd-runtime"
+            implementationClass = "gradlebuild.FreeBsdRuntimePlugin"
+        }
         ncurses {
             id = "gradlebuild.ncurses"
             implementationClass = "gradlebuild.NcursesPlugin"
