@@ -52,5 +52,9 @@ gradlePlugin {
             id = "gradlebuild.ncurses"
             implementationClass = "gradlebuild.NcursesPlugin"
         }
+        ncursesRuntime {
+            id = "gradlebuild.ncurses-runtime"
+            implementationClass = "gradlebuild.NcursesRuntimePlugin"
+        }
     }
 }

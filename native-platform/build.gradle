@@ -4,7 +4,7 @@ plugins {
     id 'dev.nokee.cpp-language'
     id 'gradlebuild.jni-nokee'
     id 'gradlebuild.freebsd-runtime'
-//    id 'gradlebuild.ncurses'
+    id 'gradlebuild.ncurses-runtime'
 }
 
 import gradlebuild.NcursesVersion
