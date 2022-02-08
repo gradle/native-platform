@@ -29,6 +29,9 @@ library {
     variants.configureEach {
         if (NcursesVersion.values().any { buildVariant.hasAxisOf(it) }) {
             baseName = 'native-platform-curses'
+            sources.configureEach(dev.nokee.language.cpp.CppSourceSet) {
+                source.from('src/curses/cpp')
+            }
         }
     }
 }
