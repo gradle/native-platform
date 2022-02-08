@@ -32,9 +32,7 @@ import org.gradle.nativeplatform.toolchain.VisualCpp;
 import java.io.File;
 import java.util.Set;
 
-import static gradlebuild.JavaNativeInterfaceLibraryUtils.cppSources;
 import static gradlebuild.JavaNativeInterfaceLibraryUtils.library;
-import static gradlebuild.JavaNativeInterfaceLibraryUtils.privateHeaders;
 
 @SuppressWarnings("UnstableApiUsage")
 public abstract class JniNokeePlugin implements Plugin<Project> {
@@ -49,7 +47,6 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
         configureCppTasks(project);
         configureMainLibrary(project);
         configureVariants(project);
-        addComponentSourcesSetsToProjectSourceSet(project.getTasks(), project.getExtensions().getByType(JavaNativeInterfaceLibrary.class));
 
         configureNativeVersionGeneration(project);
         configureJniTest(project);
@@ -132,12 +129,6 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
         ((ExtensionAware) library).getExtensions().add("targetWindowsDistributions", newDimension);
     }
 
-    private void addComponentSourcesSetsToProjectSourceSet(TaskContainer tasks, JavaNativeInterfaceLibrary library) {
-        tasks.withType(WriteNativeVersionSources.class, task -> {
-            task.getNativeSources().from(cppSources(library), privateHeaders(library));
-        });
-    }
-
     private void configureCppTasks(Project project) {
         project.getPluginManager().withPlugin("dev.nokee.cpp-language", new MixInJavaNativeInterfaceLibraryProperties(project));
     }
@@ -163,6 +154,10 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
             task.getGeneratedJavaSourcesDir().set(new File(generatedFilesDir, "version/java"));
             task.getVersionClassPackageName().set(nativeVersion.getVersionClassPackageName());
             task.getVersionClassName().set(nativeVersion.getVersionClassName());
+            task.getNativeSources().from(
+                library(project).map(JavaNativeInterfaceLibraryUtils::cppSources),
+                library(project).map(JavaNativeInterfaceLibraryUtils::privateHeaders)
+            );
         });
 
 

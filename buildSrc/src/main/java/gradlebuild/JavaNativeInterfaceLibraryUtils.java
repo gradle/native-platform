@@ -5,6 +5,7 @@ import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.plugins.ExtensionAware;
+import org.gradle.api.provider.Provider;
 
 final class JavaNativeInterfaceLibraryUtils {
     private JavaNativeInterfaceLibraryUtils() {}
@@ -19,5 +20,9 @@ final class JavaNativeInterfaceLibraryUtils {
 
     public static void library(Project project, Action<? super JavaNativeInterfaceLibrary> action) {
         project.getExtensions().configure("library", action);
+    }
+
+    public static Provider<JavaNativeInterfaceLibrary> library(Project project) {
+        return project.provider(() -> (JavaNativeInterfaceLibrary) project.getExtensions().getByName("library"));
     }
 }
