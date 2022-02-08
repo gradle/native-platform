@@ -13,8 +13,10 @@ import groovy.util.Node;
 import org.gradle.api.Namer;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.Transformer;
 import org.gradle.api.plugins.ExtensionAware;
 import org.gradle.api.plugins.JavaPluginConvention;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.provider.SetProperty;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
@@ -66,13 +68,36 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
     private void configureVariants(Project project) {
         library(project, library -> {
             VariantsExtension variants = project.getExtensions().getByType(VariantsExtension.class);
-            variants.getVariantNames().set(library.getVariants().flatMap(it -> {
-                // Only depend on variants which can be built on the current machine
-                boolean onlyLocalVariants = project.getProviders().gradleProperty("onlyLocalVariants").forUseAtConfigurationTime().isPresent();
-                if (onlyLocalVariants && !it.getSharedLibrary().isBuildable()) {
-                    return ImmutableList.of();
-                } else {
-                    return ImmutableList.of(VariantNamer.INSTANCE.determineName(it));
+            variants.getVariantNames().set(library.getVariants().flatMap(new Transformer<Iterable<String>, JniLibrary>() {
+                @Override
+                public Iterable<String> transform(JniLibrary it) {
+                    // Only depend on variants which can be built on the current machine
+                    boolean onlyLocalVariants = project.getProviders().gradleProperty("onlyLocalVariants").forUseAtConfigurationTime().isPresent();
+                    if (onlyLocalVariants && !isBuildable(it)) {
+                        return ImmutableList.of();
+                    } else {
+                        return ImmutableList.of(JniNokeePlugin.VariantNamer.INSTANCE.determineName(it));
+                    }
+                }
+
+                private boolean isBuildable(JniLibrary variant) {
+                    if (!variant.getSharedLibrary().isBuildable()) {
+                        return false; // strait-up not buildable
+                    } else {
+                        @SuppressWarnings("unchecked")
+                        final Provider<Set<NcursesVersion>> availableNcursesVersions = (Provider<Set<NcursesVersion>>) project.getExtensions().findByName("availableNcursesVersions");
+                        if (availableNcursesVersions == null) {
+                            return true; // no known ncurses versions, assuming buildable
+                        } else {
+                            // For each variant with the ncurses dimension, check if the version is available
+                            if (variant.getBuildVariant().hasAxisOf(NCURSES_5)) {
+                                return availableNcursesVersions.get().contains(NCURSES_5);
+                            } else if (variant.getBuildVariant().hasAxisOf(NCURSES_6)) {
+                                return availableNcursesVersions.get().contains(NCURSES_6);
+                            }
+                            return true;
+                        }
+                    }
                 }
             }));
         });
