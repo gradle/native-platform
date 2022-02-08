@@ -2,12 +2,15 @@ package gradlebuild;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import dev.nokee.platform.base.BuildVariant;
 import dev.nokee.platform.jni.JavaNativeInterfaceLibrary;
+import dev.nokee.platform.jni.JniLibrary;
 import dev.nokee.runtime.nativebase.TargetMachine;
 import dev.nokee.runtime.nativebase.TargetMachineFactory;
 import gradlebuild.actions.MixInJavaNativeInterfaceLibraryProperties;
 import gradlebuild.actions.RegisterJniTestTask;
 import groovy.util.Node;
+import org.gradle.api.Namer;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.plugins.ExtensionAware;
@@ -16,7 +19,6 @@ import org.gradle.api.provider.SetProperty;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.tasks.SourceSet;
-import org.gradle.api.tasks.TaskContainer;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.language.cpp.tasks.CppCompile;
 import org.gradle.model.Mutate;
@@ -33,6 +35,9 @@ import java.io.File;
 import java.util.Set;
 
 import static gradlebuild.JavaNativeInterfaceLibraryUtils.library;
+import static gradlebuild.NcursesVersion.NCURSES_5;
+import static gradlebuild.NcursesVersion.NCURSES_6;
+import static gradlebuild.WindowsDistribution.WINDOWS_XP_OR_LOWER;
 
 @SuppressWarnings("UnstableApiUsage")
 public abstract class JniNokeePlugin implements Plugin<Project> {
@@ -67,14 +72,10 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
                 if (onlyLocalVariants && !it.getSharedLibrary().isBuildable()) {
                     return ImmutableList.of();
                 } else {
-                    return ImmutableList.of(toVariantName(it.getTargetMachine()));
+                    return ImmutableList.of(VariantNamer.INSTANCE.determineName(it));
                 }
             }));
         });
-    }
-
-    private static String toVariantName(TargetMachine targetMachine) {
-        return targetMachine.getOperatingSystemFamily().getName() + "-" + targetMachine.getArchitecture().getName();
     }
 
     private void configureMainLibrary(Project project) {
@@ -108,7 +109,7 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
                 }));
             });
             library.getVariants().configureEach(variant -> {
-                if (variant.getBuildVariant().hasAxisOf(WindowsDistribution.WINDOWS_XP_OR_LOWER)) {
+                if (variant.getBuildVariant().hasAxisOf(WINDOWS_XP_OR_LOWER)) {
                     variant.getTasks().configureEach(CppCompile.class, task -> {
                         task.getCompilerArgs().add("/DWINDOWS_MIN");
                     });
@@ -118,7 +119,7 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
                 variant.getResourcePath().set(String.join("/",
                     project.getGroup().toString().replace('.', '/'),
                     "platform",
-                    toVariantName(variant.getTargetMachine())));
+                    VariantNamer.INSTANCE.determineName(variant)));
             });
         });
     }
@@ -168,6 +169,52 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
         javaPluginConvention.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME).java(javaSources ->
             javaSources.srcDir(writeNativeVersionSources.flatMap(WriteNativeVersionSources::getGeneratedJavaSourcesDir))
         );
+    }
+
+    /**
+     * Determines the {@literal variantName} of a JNI variant as expected by {@literal native-platform}.
+     * The project use the {@literal variantName} for JNI resource path, publishable JARs and buildable check.
+     */
+    private static final class VariantNamer implements Namer<JniLibrary> {
+        public static final VariantNamer INSTANCE = new VariantNamer();
+
+        @Override
+        public String determineName(JniLibrary variant) {
+            if (variant.getTargetMachine().getOperatingSystemFamily().isFreeBSD()) {
+                return toVariantName(variant.getTargetMachine()) + cppRuntimeSuffix(variant.getBuildVariant());
+            } else if (variant.getTargetMachine().getOperatingSystemFamily().isWindows()) {
+                return toVariantName(variant.getTargetMachine()) + minSuffix(variant.getBuildVariant());
+            } else if (variant.getTargetMachine().getOperatingSystemFamily().isLinux()) {
+                return toVariantName(variant.getTargetMachine()) + ncursesSuffix(variant.getBuildVariant());
+            } else {
+                // No suffix, just use OS family and architecture names
+                return toVariantName(variant.getTargetMachine());
+            }
+        }
+
+        private static String cppRuntimeSuffix(BuildVariant buildVariant) {
+            // The project only support libcpp.
+            //   To match the artifact id for backward compatibility, we use libcpp.
+            return "-libcpp"; // for backward compatibility
+        }
+
+        private static String minSuffix(BuildVariant buildVariant) {
+            return buildVariant.hasAxisOf(WINDOWS_XP_OR_LOWER) ? "-min" : "";
+        }
+
+        private static String ncursesSuffix(BuildVariant buildVariant) {
+            if (buildVariant.hasAxisOf(NCURSES_5)) {
+                return "-ncurses5";
+            } else if (buildVariant.hasAxisOf(NCURSES_6)) {
+                return "-ncurses6";
+            } else {
+                return "";
+            }
+        }
+
+        private static String toVariantName(TargetMachine targetMachine) {
+            return targetMachine.getOperatingSystemFamily().getName() + "-" + targetMachine.getArchitecture().getName();
+        }
     }
 
     private void configurePomOfMainJar(Project project, VariantsExtension variants) {
