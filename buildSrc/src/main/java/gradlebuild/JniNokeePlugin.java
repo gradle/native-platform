@@ -1,7 +1,9 @@
 package gradlebuild;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Multimaps;
 import dev.nokee.platform.base.BuildVariant;
 import dev.nokee.platform.jni.JavaNativeInterfaceLibrary;
 import dev.nokee.platform.jni.JniLibrary;
@@ -10,18 +12,30 @@ import dev.nokee.runtime.nativebase.TargetMachineFactory;
 import gradlebuild.actions.MixInJavaNativeInterfaceLibraryProperties;
 import gradlebuild.actions.RegisterJniTestTask;
 import groovy.util.Node;
+import org.gradle.api.Action;
+import org.gradle.api.NamedDomainObjectCollectionSchema;
 import org.gradle.api.Namer;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.Task;
 import org.gradle.api.Transformer;
+import org.gradle.api.artifacts.DependencySubstitutions;
+import org.gradle.api.artifacts.PublishArtifact;
+import org.gradle.api.artifacts.component.ComponentSelector;
+import org.gradle.api.artifacts.component.ProjectComponentSelector;
+import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.internal.artifacts.publish.ArchivePublishArtifact;
 import org.gradle.api.plugins.ExtensionAware;
 import org.gradle.api.plugins.JavaPluginConvention;
+import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.provider.SetProperty;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskProvider;
+import org.gradle.api.tasks.bundling.Jar;
+import org.gradle.api.tasks.testing.Test;
 import org.gradle.language.cpp.tasks.CppCompile;
 import org.gradle.model.Mutate;
 import org.gradle.model.RuleSource;
@@ -34,12 +48,15 @@ import org.gradle.nativeplatform.toolchain.NativeToolChainRegistry;
 import org.gradle.nativeplatform.toolchain.VisualCpp;
 
 import java.io.File;
+import java.util.Map;
 import java.util.Set;
 
+import static com.google.common.collect.Streams.stream;
 import static gradlebuild.JavaNativeInterfaceLibraryUtils.library;
 import static gradlebuild.NcursesVersion.NCURSES_5;
 import static gradlebuild.NcursesVersion.NCURSES_6;
 import static gradlebuild.WindowsDistribution.WINDOWS_XP_OR_LOWER;
+import static java.util.stream.Collectors.toList;
 
 @SuppressWarnings("UnstableApiUsage")
 public abstract class JniNokeePlugin implements Plugin<Project> {
@@ -59,6 +76,16 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
         configureJniTest(project);
 
         configurePomOfMainJar(project, variants);
+
+        // Enabling this property means that the tests will try to resolve an external dependency for native platform
+        // and test that instead of building native platform for the current machine.
+        // The external dependency can live in the file repository `incoming-repo`.
+        boolean testVersionFromLocalRepository = project.getProviders().gradleProperty("testVersionFromLocalRepository").forUseAtConfigurationTime().isPresent();
+        if (testVersionFromLocalRepository) {
+            setupDependencySubstitutionForTestTask(project);
+        }
+
+        configureNativeJars(project, variants, testVersionFromLocalRepository);
     }
 
     private void configureJniTest(Project project) {
@@ -197,6 +224,112 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
         javaPluginConvention.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME).java(javaSources ->
             javaSources.srcDir(writeNativeVersionSources.flatMap(WriteNativeVersionSources::getGeneratedJavaSourcesDir))
         );
+    }
+
+    private void configureNativeJars(Project project, VariantsExtension variants, boolean testVersionFromLocalRepository) {
+        TaskProvider<Jar> emptyZip = project.getTasks().register("emptyZip", Jar.class, jar -> jar.getArchiveClassifier().set("empty"));
+        // We register the publications here, so they are available when the project is used as a composite build.
+        final Provider<String> artifactId = project.getTasks().named("jar", Jar.class)
+            .flatMap(Jar::getArchiveBaseName);
+        final Provider<Iterable<Jar>> publishableJarTasks = library(project).flatMap(allVariants())
+            .map(toPublishableVariantGroups())
+            .map(toBuildableVariantUsingVariantNames(variants.getVariantNames()))
+            .flatMap(toPublishableJars(project, artifactId));
+
+        project.getConfigurations().named("runtimeElements", configuration -> {
+            final Provider<? extends Iterable<PublishArtifact>> publishableJars = project.getObjects().listProperty(PublishArtifact.class).value(publishableJarTasks.map(it -> stream(it).map(ArchivePublishArtifact::new).collect(toList())));
+            configuration.getOutgoing().getArtifacts().addAllLater(publishableJars);
+        });
+
+        project.afterEvaluate(ignored -> {
+            for (Jar nativeJar : publishableJarTasks.get()) {
+                final String variantName = nativeJar.getName().substring("jar-".length());
+                project.getExtensions().configure(PublishingExtension.class, publishing -> publishing.publications(publications -> publications.create(variantName, MavenPublication.class, publication -> {
+                    publication.artifact(nativeJar);
+                    publication.artifact(emptyZip.get(), it -> it.setClassifier("sources"));
+                    publication.artifact(emptyZip.get(), it -> it.setClassifier("javadoc"));
+                    publication.setArtifactId(nativeJar.getArchiveBaseName().get());
+                })));
+            }
+        });
+
+        if (!testVersionFromLocalRepository) {
+            project.getTasks().withType(Test.class).configureEach(task -> {
+                ((ConfigurableFileCollection) task.getClasspath()).from(publishableJarTasks);
+            });
+        }
+    }
+
+    private void setupDependencySubstitutionForTestTask(Project project) {
+        // We need to change the group here, since dependency substitution will not replace
+        // a project artifact with an external artifact with the same GAV coordinates.
+        project.setGroup("new-group-for-root-project");
+
+        project.getConfigurations().all(configuration -> {
+            DependencySubstitutions dependencySubstitution = configuration.getResolutionStrategy().getDependencySubstitution();
+            dependencySubstitution.all(spec -> {
+                ComponentSelector requested = spec.getRequested();
+                if (requested instanceof ProjectComponentSelector) {
+                    Project projectDependency = project.project(((ProjectComponentSelector) requested).getProjectPath());
+                    // Exclude test fixtures by excluding requested dependencies with capabilities.
+                    if (requested.getRequestedCapabilities().isEmpty()) {
+                        spec.useTarget(dependencySubstitution.module(String.join(":", NativePlatformComponentPlugin.GROUP_ID, projectDependency.getName(), projectDependency.getVersion().toString())));
+                    }
+                }
+            });
+        });
+        project.getRepositories().maven(maven -> {
+            maven.setName("IncomingLocalRepository");
+            maven.setUrl(project.getRootProject().file("incoming-repo"));
+        });
+    }
+
+    // Returns all variants of a JNI component
+    private static Transformer<Provider<? extends Iterable<JniLibrary>>, JavaNativeInterfaceLibrary> allVariants() {
+        return library -> library.getVariants().getElements();
+    }
+
+    // Removes variant group entries not contained in {@literal variants.variantNames}.
+    private static Transformer<Map<String, ? extends Iterable<JniLibrary>>, Map<String, ? extends Iterable<JniLibrary>>> toBuildableVariantUsingVariantNames(Provider<Set<String>> variantNamesProvider) {
+        return variantGroups -> {
+            Set<String> variantNames = variantNamesProvider.get();
+            return variantGroups.entrySet().stream().filter(it -> variantNames.contains(it.getKey()))
+                .collect(ImmutableMap.toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
+        };
+    }
+
+    // Collects JNI JARs for each variant group entry
+    private static Transformer<Provider<? extends Iterable<Jar>>, Map<String, ? extends Iterable<JniLibrary>>> toPublishableJars(Project project, Provider<String> artifactId) {
+        return new Transformer<Provider<? extends Iterable<Jar>>, Map<String, ? extends Iterable<JniLibrary>>>() {
+            @Override
+            public Provider<? extends Iterable<Jar>> transform(Map<String, ? extends Iterable<JniLibrary>> variantGroups) {
+                final ListProperty<Jar> result = project.getObjects().listProperty(Jar.class);
+                variantGroups.forEach((variantName, variants) -> {
+                    result.add(registerIfAbsent("jar-" + variantName, Jar.class, task -> {
+                        for (JniLibrary variant : variants) {
+                            task.from(variant.getJavaNativeInterfaceJar().getJarTask().flatMap(Jar::getArchiveFile).map(project::zipTree));
+                            task.getArchiveBaseName().set(artifactId.map(it -> it + "-" + variantName));
+                        }
+                    }));
+                });
+                return result;
+            }
+
+            private <T extends Task> TaskProvider<T> registerIfAbsent(String name, Class<T> type, Action<? super T> ifAbsentConfigurationAction) {
+                for (NamedDomainObjectCollectionSchema.NamedDomainObjectSchema element : project.getTasks().getCollectionSchema().getElements()) {
+                    if (element.getName().equals(name) && element.getPublicType().isAssignableFrom(type)) {
+                        return project.getTasks().named(name, type);
+                    }
+                }
+
+                return project.getTasks().register(name, type, ifAbsentConfigurationAction);
+            }
+        };
+    }
+
+    // Groups variants together based on their {@literal variantName}.
+    private static Transformer<Map<String, ? extends Iterable<JniLibrary>>, Iterable<JniLibrary>> toPublishableVariantGroups() {
+        return variants -> Multimaps.index(variants, VariantNamer.INSTANCE::determineName).asMap();
     }
 
     /**
