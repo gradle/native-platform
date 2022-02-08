@@ -17,6 +17,8 @@ public final class RegisterJniTestTask implements Action<Project> {
     @Override
     public void execute(Project project) {
         TaskProvider<Test> testJni = project.getTasks().register("testJni", Test.class, task -> {
+            task.setGroup("verification");
+
             // See https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/clopts002.html
             task.jvmArgs("-Xcheck:jni");
 
