@@ -1,14 +1,15 @@
 package gradlebuild;
 
+import org.apache.commons.lang3.SystemUtils;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.model.Mutate;
 import org.gradle.model.RuleSource;
-import org.gradle.nativeplatform.platform.NativePlatform;
 import org.gradle.nativeplatform.toolchain.Clang;
 import org.gradle.nativeplatform.toolchain.NativeToolChainRegistry;
 
 import static gradlebuild.JavaNativeInterfaceLibraryUtils.library;
+import static gradlebuild.NativeRulesUtils.disableToolChain;
 
 public class FreeBsdRuntimePlugin implements Plugin<Project> {
     @Override
@@ -26,14 +27,16 @@ public class FreeBsdRuntimePlugin implements Plugin<Project> {
 
     @SuppressWarnings("UnstableApiUsage")
     public static class FreeBsdToolChainRules extends RuleSource {
-        @Mutate void configureToolChains(NativeToolChainRegistry toolChainRegistry) {
+        @Mutate
+        void configureToolChains(NativeToolChainRegistry toolChainRegistry) {
             toolChainRegistry.named("clang", Clang.class, toolChain ->
-                toolChain.eachPlatform(platformToolChain -> {
-                    NativePlatform platform = platformToolChain.getPlatform();
-                    if (platform.getOperatingSystem().isFreeBSD()) {
+                toolChain.target("freebsdx86-64", platformToolChain -> {
+                    if (SystemUtils.IS_OS_FREE_BSD) {
                         platformToolChain.getcCompiler().setExecutable("cc");
                         platformToolChain.getCppCompiler().setExecutable("c++");
                         platformToolChain.getLinker().setExecutable("c++");
+                    } else {
+                        disableToolChain(platformToolChain);
                     }
                 }));
         }
