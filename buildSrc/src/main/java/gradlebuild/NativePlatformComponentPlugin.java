@@ -10,6 +10,7 @@ import org.gradle.api.plugins.BasePlugin;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.plugins.JavaPluginExtension;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetOutput;
 import org.gradle.api.tasks.compile.GroovyCompile;
@@ -62,6 +63,9 @@ public abstract class NativePlatformComponentPlugin implements Plugin<Project> {
             Configuration testRuntimeClasspath = project.getConfigurations().getByName("testRuntimeClasspath");
             SourceSetOutput testOutput = javaPluginConvention.getSourceSets().getByName(SourceSet.TEST_SOURCE_SET_NAME).getOutput();
             test.setClasspath(project.files(testRuntimeClasspath, testOutput));
+
+            Provider<String> agentName = project.getProviders().gradleProperty("agentName").forUseAtConfigurationTime();
+            test.systemProperty("agentName", agentName.getOrElse("Unknown"));
         });
         // We need to add the root project to testImplementation manually, since we changed the wiring
         // for the test task to not use sourceSets.main.output.
