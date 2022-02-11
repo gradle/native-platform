@@ -18,8 +18,12 @@ import org.gradle.api.tasks.testing.Test;
 import org.gradle.testretry.TestRetryPlugin;
 import org.gradle.testretry.TestRetryTaskExtension;
 
+import java.io.File;
+import java.util.stream.Stream;
+
 public abstract class NativePlatformComponentPlugin implements Plugin<Project> {
     public static final String GROUP_ID = "net.rubygrapefruit";
+    private static final String TEST_DIRECTORY_SYSTEM_PROPERTY = "test.directory";
 
     @Override
     public void apply(Project project) {
@@ -51,7 +55,7 @@ public abstract class NativePlatformComponentPlugin implements Plugin<Project> {
         boolean isCiServer = project.getProviders().environmentVariable("CI").forUseAtConfigurationTime().isPresent();
         JavaPluginConvention javaPluginConvention = project.getConvention().getPlugin(JavaPluginConvention.class);
         project.getTasks().withType(Test.class).configureEach(test -> {
-            test.systemProperty("test.directory", project.getLayout().getBuildDirectory().dir("test files").map(dir -> dir.getAsFile().getAbsoluteFile()).get());
+            test.systemProperty(TEST_DIRECTORY_SYSTEM_PROPERTY, project.getLayout().getBuildDirectory().dir("test files").map(dir -> dir.getAsFile().getAbsoluteFile()).get());
             TestRetryTaskExtension retry = test.getExtensions().getByType(TestRetryTaskExtension.class);
             retry.getMaxRetries().set(isCiServer ? 1 : 0);
             retry.getMaxFailures().set(10);
@@ -67,11 +71,24 @@ public abstract class NativePlatformComponentPlugin implements Plugin<Project> {
             Provider<String> agentName = project.getProviders().gradleProperty("agentName").forUseAtConfigurationTime();
             test.systemProperty("agentName", agentName.getOrElse("Unknown"));
         });
+
+        Stream.of("xfs", "btrfs").forEach(fileSystem -> {
+            project.getTasks().register("test" + capitalize(fileSystem), Test.class, test -> {
+                test.systemProperty(TEST_DIRECTORY_SYSTEM_PROPERTY, new File("/" + fileSystem, "native-platform/test files").getAbsolutePath());
+            });
+        });
+
         // We need to add the root project to testImplementation manually, since we changed the wiring
         // for the test task to not use sourceSets.main.output.
         // This allows using dependency substitution for the root project.
         DependencyHandler dependencies = project.getDependencies();
         project.getDependencies().add("testImplementation", project.getDependencies().project(ImmutableMap.of("path", project.getPath())));
         dependencies.add("testImplementation", "org.spockframework:spock-core:1.3-groovy-2.5");
+    }
+
+    private static String capitalize(String name) {
+        StringBuilder builder = new StringBuilder(name);
+        builder.setCharAt(0, Character.toUpperCase(builder.charAt(0)));
+        return builder.toString();
     }
 }
