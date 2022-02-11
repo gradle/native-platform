@@ -99,7 +99,7 @@ val Agent.allPublishTasks
 
 val Agent.extraTestTasks
     get() = when (this) {
-        Agent.UbuntuAmd64 -> " :file-events:testBtrfs :file-Events:testXfs"
+        Agent.UbuntuAmd64 -> " :file-events:testBtrfs :file-events:testXfs"
         else -> ""
     }
 
