@@ -97,6 +97,12 @@ val Agent.allPublishTasks
         else -> publishJniTasks
     }
 
+val Agent.extraTestTasks
+    get() = when (this) {
+        Agent.UbuntuAmd64 -> " :file-events:testBtrfs :file-Events:testXfs"
+        else -> ""
+    }
+
 fun BuildFeatures.lowerRequiredFreeDiskSpace() {
     freeDiskSpace {
         // Configure less than the default 3GB, since the disk of the agents is only 5GB big.
