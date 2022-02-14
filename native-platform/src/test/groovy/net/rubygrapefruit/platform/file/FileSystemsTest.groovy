@@ -17,9 +17,13 @@
 package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.Native
+import net.rubygrapefruit.platform.internal.Platform
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
+import spock.lang.Requires
 import spock.lang.Specification
+
+import static org.junit.Assume.assumeTrue
 
 class FileSystemsTest extends Specification {
     private static final List<String> EXPECTED_FILE_SYSTEM_TYPES = [
@@ -53,5 +57,21 @@ class FileSystemsTest extends Specification {
         mountedFileSystems.collect() { it.mountPoint }.containsAll(File.listRoots())
         mountedFileSystems.every { it.caseSensitivity != null }
         mountedFileSystems.any { EXPECTED_FILE_SYSTEM_TYPES.contains(it.fileSystemType) }
+    }
+
+
+    @Requires({ Platform.current().linux })
+    def "mounts are set-up correctly"() {
+        def mountPoint = "/${fileSystemType}"
+        assumeTrue("Mount point for ${fileSystemType} exists", new File(mountPoint).exists())
+
+        when:
+        def mountedFileSystems = fileSystems.fileSystems
+        def specialFileSystem = mountedFileSystems.find { it.mountPoint.absolutePath == mountPoint }
+        then:
+        specialFileSystem.fileSystemType == fileSystemType
+
+        where:
+        fileSystemType << ["xfs", "btrfs"]
     }
 }
