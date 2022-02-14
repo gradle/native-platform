@@ -61,7 +61,7 @@ class FileSystemsTest extends Specification {
 
 
     @Requires({ Platform.current().linux })
-    def "mounts are set-up correctly"() {
+    def "detects file systems of mount points correctly"() {
         def mountPoint = "/${fileSystemType}"
         assumeTrue("Mount point for ${fileSystemType} exists", new File(mountPoint).exists())
 
