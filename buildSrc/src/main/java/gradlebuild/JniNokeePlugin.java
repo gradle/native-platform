@@ -51,6 +51,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.google.common.collect.Streams.stream;
+import static gradlebuild.BuildableExtension.isBuildable;
 import static gradlebuild.JavaNativeInterfaceLibraryUtils.library;
 import static gradlebuild.NcursesVersion.NCURSES_5;
 import static gradlebuild.NcursesVersion.NCURSES_6;
@@ -105,32 +106,16 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
                         return ImmutableList.of(JniNokeePlugin.VariantNamer.INSTANCE.determineName(it));
                     }
                 }
-
-                private boolean isBuildable(JniLibrary variant) {
-                    if (!variant.getSharedLibrary().isBuildable()) {
-                        return false; // strait-up not buildable
-                    } else {
-                        @SuppressWarnings("unchecked")
-                        final Provider<Set<NcursesVersion>> availableNcursesVersions = (Provider<Set<NcursesVersion>>) project.getExtensions().findByName("availableNcursesVersions");
-                        if (availableNcursesVersions == null) {
-                            return true; // no known ncurses versions, assuming buildable
-                        } else {
-                            // For each variant with the ncurses dimension, check if the version is available
-                            if (variant.getBuildVariant().hasAxisOf(NCURSES_5)) {
-                                return availableNcursesVersions.get().contains(NCURSES_5);
-                            } else if (variant.getBuildVariant().hasAxisOf(NCURSES_6)) {
-                                return availableNcursesVersions.get().contains(NCURSES_6);
-                            }
-                            return true;
-                        }
-                    }
-                }
             }));
         });
     }
 
     private void configureMainLibrary(Project project) {
         library(project, library -> {
+            library.getVariants().configureEach(variant -> {
+                ((ExtensionAware) variant).getExtensions()
+                    .add("buildable", new BuildableExtension(project, variant));
+            });
             registerWindowsDistributionDimension(library);
             library.getTargetMachines().set(supportedMachines(library.getMachines()));
             library.getTasks().configureEach(CppCompile.class, task -> {
