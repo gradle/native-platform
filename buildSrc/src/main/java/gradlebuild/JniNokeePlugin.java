@@ -13,6 +13,7 @@ import dev.nokee.runtime.nativebase.TargetMachineFactory;
 import gradlebuild.actions.MixInJavaNativeInterfaceLibraryProperties;
 import gradlebuild.actions.RegisterJniTestTask;
 import groovy.util.Node;
+import org.apache.commons.lang3.SystemUtils;
 import org.gradle.api.Action;
 import org.gradle.api.NamedDomainObjectCollectionSchema;
 import org.gradle.api.Namer;
@@ -56,6 +57,7 @@ import java.util.Set;
 import static com.google.common.collect.Streams.stream;
 import static gradlebuild.BuildableExtension.isBuildable;
 import static gradlebuild.JavaNativeInterfaceLibraryUtils.library;
+import static gradlebuild.NativeRulesUtils.disableToolChain;
 import static gradlebuild.NcursesVersion.NCURSES_5;
 import static gradlebuild.NcursesVersion.NCURSES_6;
 import static gradlebuild.WindowsDistribution.WINDOWS_XP_OR_LOWER;
@@ -397,7 +399,11 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
             });
             toolChainRegistry.create("clang", Clang.class, toolChain -> {
                 // The core Gradle toolchain for Clang only targets x86 and x86_64 out of the box.
-                toolChain.target("macosaarch64");
+                toolChain.target("macosaarch64", platformToolChain -> {
+                    if (!SystemUtils.IS_OS_MAC_OSX || !SystemUtils.OS_ARCH.equals("aarch64")) {
+                        disableToolChain(platformToolChain);
+                    }
+                });
             });
             toolChainRegistry.create("visualCpp", VisualCpp.class);
         }
