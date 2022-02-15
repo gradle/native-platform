@@ -7,6 +7,7 @@ import com.google.common.collect.Multimaps;
 import dev.nokee.platform.base.BuildVariant;
 import dev.nokee.platform.jni.JavaNativeInterfaceLibrary;
 import dev.nokee.platform.jni.JniLibrary;
+import dev.nokee.platform.jni.JvmJarBinary;
 import dev.nokee.runtime.nativebase.TargetMachine;
 import dev.nokee.runtime.nativebase.TargetMachineFactory;
 import gradlebuild.actions.MixInJavaNativeInterfaceLibraryProperties;
@@ -24,6 +25,7 @@ import org.gradle.api.artifacts.PublishArtifact;
 import org.gradle.api.artifacts.component.ComponentSelector;
 import org.gradle.api.artifacts.component.ProjectComponentSelector;
 import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.internal.artifacts.dsl.LazyPublishArtifact;
 import org.gradle.api.internal.artifacts.publish.ArchivePublishArtifact;
 import org.gradle.api.plugins.ExtensionAware;
 import org.gradle.api.plugins.JavaPluginConvention;
@@ -223,7 +225,10 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
         publishableJarTasks.finalizeValueOnRead(); // to minimize computation of provided value
 
         project.getConfigurations().named("runtimeElements", configuration -> {
-            final Provider<? extends Iterable<PublishArtifact>> publishableJars = project.getObjects().listProperty(PublishArtifact.class).value(publishableJarTasks.map(it -> stream(it).map(ArchivePublishArtifact::new).collect(toList())));
+            final ListProperty<PublishArtifact> publishableJars = project.getObjects().listProperty(PublishArtifact.class);
+            publishableJars.addAll(publishableJarTasks.map(it -> it.stream().map(ArchivePublishArtifact::new).collect(toList())));
+            publishableJars.addAll(library(project).flatMap(library -> library.getBinaries().withType(JvmJarBinary.class).map(it -> new LazyPublishArtifact(it.getJarTask()))));
+            configuration.getOutgoing().getArtifacts().clear(); // Remove wiring from Nokee plugins
             configuration.getOutgoing().getArtifacts().addAllLater(publishableJars);
         });
 
