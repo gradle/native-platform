@@ -47,6 +47,7 @@ import org.gradle.nativeplatform.toolchain.NativeToolChainRegistry;
 import org.gradle.nativeplatform.toolchain.VisualCpp;
 
 import java.io.File;
+import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Map;
 import java.util.Set;
 
@@ -215,10 +216,11 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
         // We register the publications here, so they are available when the project is used as a composite build.
         final Provider<String> artifactId = project.getTasks().named("jar", Jar.class)
             .flatMap(Jar::getArchiveBaseName);
-        final Provider<Iterable<Jar>> publishableJarTasks = library(project).flatMap(allVariants())
+        final ListProperty<Jar> publishableJarTasks = project.getObjects().listProperty(Jar.class).value(library(project).flatMap(allVariants())
             .map(toPublishableVariantGroups())
-            .map(toBuildableVariantUsingVariantNames(variants.getVariantNames()))
-            .flatMap(toPublishableJars(project, artifactId));
+            .map(toBuildableVariantUsingBuildableExtension())
+            .flatMap(toPublishableJars(project, artifactId)));
+        publishableJarTasks.finalizeValueOnRead(); // to minimize computation of provided value
 
         project.getConfigurations().named("runtimeElements", configuration -> {
             final Provider<? extends Iterable<PublishArtifact>> publishableJars = project.getObjects().listProperty(PublishArtifact.class).value(publishableJarTasks.map(it -> stream(it).map(ArchivePublishArtifact::new).collect(toList())));
@@ -273,11 +275,12 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
         return library -> library.getVariants().getElements();
     }
 
-    // Removes variant group entries not contained in {@literal variants.variantNames}.
-    private static Transformer<Map<String, ? extends Iterable<JniLibrary>>, Map<String, ? extends Iterable<JniLibrary>>> toBuildableVariantUsingVariantNames(Provider<Set<String>> variantNamesProvider) {
+    // Removes variant group entries not buildable according to {@link BuildableExtension}.
+    private static Transformer<Map<String, ? extends Iterable<JniLibrary>>, Map<String, ? extends Iterable<JniLibrary>>> toBuildableVariantUsingBuildableExtension() {
         return variantGroups -> {
-            Set<String> variantNames = variantNamesProvider.get();
-            return variantGroups.entrySet().stream().filter(it -> variantNames.contains(it.getKey()))
+            return variantGroups.entrySet().stream()
+                .map(it -> new SimpleImmutableEntry<>(it.getKey(), stream(it.getValue()).filter(BuildableExtension::isBuildable).collect(toList())))
+                .filter(it -> !it.getValue().isEmpty())
                 .collect(ImmutableMap.toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
         };
     }
