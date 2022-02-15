@@ -5,6 +5,7 @@ import com.google.common.collect.ImmutableSet;
 import dev.nokee.platform.base.BuildVariant;
 import dev.nokee.platform.base.Variant;
 import dev.nokee.platform.jni.JavaNativeInterfaceLibrary;
+import dev.nokee.runtime.nativebase.OperatingSystemFamily;
 import dev.nokee.runtime.nativebase.TargetMachineFactory;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
@@ -67,14 +68,9 @@ public class NcursesRuntimePlugin implements Plugin<Project> {
     }
 
     private SetProperty<NcursesVersion> registerNcursesDimension(JavaNativeInterfaceLibrary library) {
-        return library.getDimensions().newAxis(NcursesVersion.class, it -> it.filter(t -> {
-            if (t.hasAxisOf(library.getMachines().getWindows().getOperatingSystemFamily())) {
-                return t.hasAxisOf(NCURSES_5) || t.hasAxisOf(NCURSES_6);
-            } else if (t.hasAxisOf(library.getMachines().getLinux().getOperatingSystemFamily())) {
-                return false;
-            } else {
-                return t.hasAxisOf(NCURSES_6);
-            }
+        return library.getDimensions().newAxis(NcursesVersion.class, it -> it.onlyIf(OperatingSystemFamily.class, (ncurses, osFamily) -> {
+            return !ncurses.isPresent() || osFamily.isLinux()
+                || (!osFamily.isWindows() && ncurses.get().equals(NCURSES_5));
         }));
     }
 
