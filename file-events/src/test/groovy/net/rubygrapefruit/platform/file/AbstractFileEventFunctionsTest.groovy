@@ -27,6 +27,7 @@ import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions
 import net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions
 import net.rubygrapefruit.platform.testfixture.JniChecksEnabled
 import net.rubygrapefruit.platform.testfixture.JulLogging
+import org.junit.Assume
 import org.junit.Rule
 import org.junit.experimental.categories.Category
 import org.junit.rules.TemporaryFolder
@@ -83,6 +84,13 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     }
 
     def setup() {
+        uncaughtFailureOnThread = []
+        expectedLogMessages = [:]
+
+        def isJniTest = Boolean.getBoolean("testJni")
+        def isAmazonLinux = System.getProperty("agentName", "unknown").contains("Amazon")
+        Assume.assumeFalse("testJni doesn't seem to work on Amazon Linux", isJniTest && isAmazonLinux)
+
         watcherFixture = FileWatcherFixture.of(Platform.current())
         LOGGER.info(">>> Running '${testName.methodName}'")
         testDir = tmpDir.newFolder(testName.methodName).canonicalFile

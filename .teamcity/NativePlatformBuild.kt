@@ -33,7 +33,7 @@ open class NativePlatformBuild(agent: Agent, buildReceiptSource: Boolean = false
 
     steps {
         gradle {
-            tasks = "clean build${agent.allPublishTasks}"
+            tasks = "clean build --refresh-keys -PagentName=${agent.name}${agent.extraTestTasks}${agent.allPublishTasks}"
             if (buildReceiptSource) {
                 gradleParams = "-PignoreIncomingBuildReceipt"
             }

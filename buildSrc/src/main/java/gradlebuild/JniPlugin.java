@@ -99,6 +99,7 @@ public abstract class JniPlugin implements Plugin<Project> {
             task.useJUnit(jUnitOptions ->
                 jUnitOptions.includeCategories("net.rubygrapefruit.platform.testfixture.JniChecksEnabled")
             );
+            task.systemProperty("testJni", "true");
             // Check standard output for JNI warnings and fail if we find anything
             DetectJniWarnings detectJniWarnings = new DetectJniWarnings();
             task.addTestListener(detectJniWarnings);
