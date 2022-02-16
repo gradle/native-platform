@@ -395,7 +395,11 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
             toolChainRegistry.create("gcc", Gcc.class, toolChain -> {
                 // The core Gradle toolchain for gcc only targets x86 and x86_64 out of the box.
                 // https://github.com/gradle/gradle/blob/36614ee523e5906ddfa1fed9a5dc00a5addac1b0/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/gcc/AbstractGccCompatibleToolChain.java
-                toolChain.target("linuxaarch64");
+                toolChain.target("linuxaarch64", platformToolChain -> {
+                    if (!SystemUtils.IS_OS_LINUX || !SystemUtils.OS_ARCH.equals("aarch64")) {
+                        disableToolChain(platformToolChain);
+                    }
+                });
             });
             toolChainRegistry.create("clang", Clang.class, toolChain -> {
                 // The core Gradle toolchain for Clang only targets x86 and x86_64 out of the box.
