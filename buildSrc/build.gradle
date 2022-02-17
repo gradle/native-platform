@@ -30,7 +30,7 @@ if (JavaVersion.current() < JavaVersion.VERSION_1_8) {
 gradlePlugin {
     plugins {
         jniNokee {
-            id = "gradlebuild.jni-nokee"
+            id = "gradlebuild.jni"
             implementationClass = "gradlebuild.JniPlugin"
         }
         nativeComponent {
