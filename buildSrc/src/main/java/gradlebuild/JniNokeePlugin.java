@@ -161,9 +161,6 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
                     project.getGroup().toString().replace('.', '/'),
                     "platform",
                     VariantNamer.INSTANCE.determineName(variant)));
-                variant.getJavaNativeInterfaceJar().getJarTask().configure(task -> {
-                    task.getDestinationDirectory().set(project.getLayout().getBuildDirectory().dir("libs/main"));
-                });
             });
         });
     }
