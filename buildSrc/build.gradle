@@ -31,7 +31,7 @@ gradlePlugin {
     plugins {
         jniNokee {
             id = "gradlebuild.jni-nokee"
-            implementationClass = "gradlebuild.JniNokeePlugin"
+            implementationClass = "gradlebuild.JniPlugin"
         }
         nativeComponent {
             id = "gradlebuild.native-platform-component"

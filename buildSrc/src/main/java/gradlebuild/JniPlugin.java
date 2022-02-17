@@ -64,7 +64,7 @@ import static gradlebuild.WindowsDistribution.WINDOWS_XP_OR_LOWER;
 import static java.util.stream.Collectors.toList;
 
 @SuppressWarnings("UnstableApiUsage")
-public abstract class JniNokeePlugin implements Plugin<Project> {
+public abstract class JniPlugin implements Plugin<Project> {
 
     @Override
     public void apply(Project project) {
@@ -108,7 +108,7 @@ public abstract class JniNokeePlugin implements Plugin<Project> {
                     if (onlyLocalVariants && !isBuildable(it)) {
                         return ImmutableList.of();
                     } else {
-                        return ImmutableList.of(JniNokeePlugin.VariantNamer.INSTANCE.determineName(it));
+                        return ImmutableList.of(JniPlugin.VariantNamer.INSTANCE.determineName(it));
                     }
                 }
             }));
