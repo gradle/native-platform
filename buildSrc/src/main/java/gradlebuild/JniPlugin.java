@@ -43,6 +43,7 @@ import org.gradle.nativeplatform.internal.NativeBinarySpecInternal;
 import org.gradle.nativeplatform.platform.Architecture;
 import org.gradle.nativeplatform.platform.NativePlatform;
 import org.gradle.nativeplatform.platform.OperatingSystem;
+import org.gradle.nativeplatform.platform.internal.DefaultArchitecture;
 import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform;
 import org.gradle.nativeplatform.tasks.LinkSharedLibrary;
 import org.gradle.nativeplatform.toolchain.Clang;
@@ -288,12 +289,15 @@ public abstract class JniPlugin implements Plugin<Project> {
         @Mutate void configureBinaries(@Each NativeBinarySpecInternal binarySpec) {
             DefaultNativePlatform currentPlatform = new DefaultNativePlatform("current");
             Architecture currentArch = currentPlatform.getArchitecture();
+            System.out.println("Current arch: " + currentArch.getName());
+            if (currentPlatform.getName().equals("arm-v8")) {
+                currentArch = new DefaultArchitecture("aarch64");
+            }
             NativePlatform targetPlatform = binarySpec.getTargetPlatform();
             Architecture targetArch = targetPlatform.getArchitecture();
             OperatingSystem targetOs = targetPlatform.getOperatingSystem();
             System.out.println("Target os: " + targetOs.getName());
             System.out.println("Target arch: " + targetArch.getName());
-            System.out.println("Current arch: " + currentArch.getName());
             if (ImmutableList.of("linux", "freebsd", "osx").contains(targetOs.getName()) && !targetArch.equals(currentArch)) {
                 // Native plugins don't detect whether multilib support is available or not. Assume not for now
                 binarySpec.setBuildable(false);
