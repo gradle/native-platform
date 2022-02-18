@@ -66,8 +66,6 @@ public abstract class Platform {
                     } else if (arch.equals("x86_64") || arch.equals("amd64") || arch.equals("universal")) {
                         platform = new MacOs64Bit();
                     } else if (arch.equals("aarch64")) {
-                        platform = new MacOsAarch64();
-                    } else if (arch.equals("arm-v8")) {
                         platform = new MacOsArmV8();
                     }
                 } else if (osName.contains("freebsd")) {
