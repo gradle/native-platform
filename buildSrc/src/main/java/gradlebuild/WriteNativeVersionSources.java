@@ -18,6 +18,7 @@ import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.util.GradleVersion;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -84,6 +85,7 @@ public abstract class WriteNativeVersionSources extends DefaultTask {
             hasher.putString(relativePath, StandardCharsets.UTF_8);
             hasher.putBytes(fileHash.asBytes());
         });
+        hasher.putString(GradleVersion.current().getVersion(), StandardCharsets.UTF_8);
         return hasher.hash();
     }
 
