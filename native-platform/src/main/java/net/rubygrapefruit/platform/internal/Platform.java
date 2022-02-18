@@ -67,6 +67,8 @@ public abstract class Platform {
                         platform = new MacOs64Bit();
                     } else if (arch.equals("aarch64")) {
                         platform = new MacOsAarch64();
+                    } else if (arch.equals("arm-v8")) {
+                        platform = new MacOsArmV8();
                     }
                 } else if (osName.contains("freebsd")) {
                     if (arch.equals("amd64")) {
@@ -365,6 +367,13 @@ public abstract class Platform {
         @Override
         public String getId() {
             return "osx-aarch64";
+        }
+    }
+
+    private static class MacOsArmV8 extends MacOs {
+        @Override
+        public String getId() {
+            return "osx-arm-v8";
         }
     }
 
