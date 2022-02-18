@@ -1,11 +1,13 @@
 plugins {
     id 'groovy'
     id 'java-test-fixtures'
-    id 'cpp'
-    id 'gradlebuild.jni'
-    id 'gradlebuild.freebsd'
-    id 'gradlebuild.ncurses'
+    id 'dev.nokee.cpp-language'
+    id 'gradlebuild.jni-nokee'
+    id 'gradlebuild.freebsd-runtime'
+    id 'gradlebuild.ncurses-runtime'
 }
+
+import gradlebuild.NcursesVersion
 
 nativeVersion {
     versionClassPackageName = "net.rubygrapefruit.platform.internal.jni"
@@ -20,40 +22,15 @@ javadoc {
     exclude '**/internal/**'
 }
 
-model {
-    components {
-        nativePlatform(NativeLibrarySpec) {
-            baseName 'native-platform'
-            $.platforms.each { p ->
-                if (p.name.contains("ncurses")) {
-                    return
-                }
-                targetPlatform p.name
-            }
-            sources {
-                cpp {
-                    source.srcDirs = ['src/shared/cpp', 'src/main/cpp']
-                    exportedHeaders.srcDirs = ['src/shared/headers']
-                }
-            }
-        }
-
-        nativePlatformCurses(NativeLibrarySpec) {
-            baseName 'native-platform-curses'
-            $.platforms.each { p ->
-                if (p.operatingSystem.windows) {
-                    return
-                }
-                if (p.operatingSystem.linux && !p.name.contains("ncurses")) {
-                    return
-                }
-                targetPlatform p.name
-            }
-            sources {
-                cpp {
-                    source.srcDirs = ['src/shared/cpp', 'src/curses/cpp']
-                    exportedHeaders.srcDirs = ['src/shared/headers']
-                }
+library {
+    baseName = 'native-platform'
+    cppSources.setFrom('src/shared/cpp', 'src/main/cpp')
+    privateHeaders.setFrom('src/shared/headers')
+    variants.configureEach {
+        if (NcursesVersion.values().any { buildVariant.hasAxisOf(it) }) {
+            baseName = 'native-platform-curses'
+            sources.configureEach(dev.nokee.language.cpp.CppSourceSet) {
+                source.from('src/curses/cpp')
             }
         }
     }

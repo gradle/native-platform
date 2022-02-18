@@ -5,13 +5,16 @@ plugins {
 repositories {
     jcenter()
     gradlePluginPortal()
+    maven { url = 'https://repo.nokee.dev/snapshot' }
 }
 
 dependencies {
     implementation gradleApi()
+    implementation platform('dev.nokee:nokee-gradle-plugins:0.4.1561-202202152051.db45d178')
     implementation 'org.apache.httpcomponents.client5:httpclient5:5.0.1'
     implementation 'com.google.guava:guava:28.2-jre'
     implementation 'org.gradle:test-retry-gradle-plugin:1.1.8'
+    implementation 'org.apache.commons:commons-lang3:3.12.0'
 }
 
 java {
@@ -30,6 +33,10 @@ gradlePlugin {
             id = "gradlebuild.jni"
             implementationClass = "gradlebuild.JniPlugin"
         }
+        jniNokee {
+            id = "gradlebuild.jni-nokee"
+            implementationClass = "gradlebuild.JniNokeePlugin"
+        }
         nativeComponent {
             id = "gradlebuild.native-platform-component"
             implementationClass = "gradlebuild.NativePlatformComponentPlugin"
@@ -38,9 +45,17 @@ gradlePlugin {
             id = "gradlebuild.freebsd"
             implementationClass = "gradlebuild.FreeBsdPlugin"
         }
+        freebsdRuntime {
+            id = "gradlebuild.freebsd-runtime"
+            implementationClass = "gradlebuild.FreeBsdRuntimePlugin"
+        }
         ncurses {
             id = "gradlebuild.ncurses"
             implementationClass = "gradlebuild.NcursesPlugin"
+        }
+        ncursesRuntime {
+            id = "gradlebuild.ncurses-runtime"
+            implementationClass = "gradlebuild.NcursesRuntimePlugin"
         }
     }
 }
