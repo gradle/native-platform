@@ -43,7 +43,6 @@ import org.gradle.nativeplatform.internal.NativeBinarySpecInternal;
 import org.gradle.nativeplatform.platform.Architecture;
 import org.gradle.nativeplatform.platform.NativePlatform;
 import org.gradle.nativeplatform.platform.OperatingSystem;
-import org.gradle.nativeplatform.platform.internal.DefaultArchitecture;
 import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform;
 import org.gradle.nativeplatform.tasks.LinkSharedLibrary;
 import org.gradle.nativeplatform.toolchain.Clang;
@@ -252,6 +251,7 @@ public abstract class JniPlugin implements Plugin<Project> {
         void createPlatforms(PlatformContainer platformContainer) {
             addPlatform(platformContainer, "osx_amd64", "osx", "amd64");
             addPlatform(platformContainer, "osx_aarch64", "osx", "aarch64");
+            addPlatform(platformContainer, "osx_arm-v8", "osx", "arm-v8");
             addPlatform(platformContainer, "linux_amd64", "linux", "amd64");
             addPlatform(platformContainer, "linux_aarch64", "linux", "aarch64");
             addPlatform(platformContainer, "windows_i386", "windows", "i386");
@@ -272,6 +272,7 @@ public abstract class JniPlugin implements Plugin<Project> {
                 System.out.println("Os is macOsX: " + os.isMacOsX());
                 if (os.isMacOsX()) {
                     toolChain.target("osx_aarch64");
+                    toolChain.target("osx_arm-v8");
                 }
             });
             toolChainRegistry.create("visualCpp", VisualCpp.class);
@@ -290,9 +291,6 @@ public abstract class JniPlugin implements Plugin<Project> {
             DefaultNativePlatform currentPlatform = new DefaultNativePlatform("current");
             Architecture currentArch = currentPlatform.getArchitecture();
             System.out.println("Current arch: " + currentArch.getName());
-            if (currentPlatform.getName().equals("arm-v8")) {
-                currentArch = new DefaultArchitecture("aarch64");
-            }
             NativePlatform targetPlatform = binarySpec.getTargetPlatform();
             Architecture targetArch = targetPlatform.getArchitecture();
             OperatingSystem targetOs = targetPlatform.getOperatingSystem();
