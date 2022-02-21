@@ -3,8 +3,6 @@ package patches.buildTypes
 import jetbrains.buildServer.configs.kotlin.v2019_2.*
 import jetbrains.buildServer.configs.kotlin.v2019_2.buildFeatures.CommitStatusPublisher
 import jetbrains.buildServer.configs.kotlin.v2019_2.buildFeatures.commitStatusPublisher
-import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.GradleBuildStep
-import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.gradle
 import jetbrains.buildServer.configs.kotlin.v2019_2.ui.*
 
 /*
@@ -36,20 +34,6 @@ changeBuildType(RelativeId("BuildUbuntuAmd64")) {
         test-app/build/reports/** => test-app/reports
         build-receipt.properties
     """.trimIndent()
-
-    expectSteps {
-        gradle {
-            tasks = "clean build -PagentName=UbuntuAmd64 :file-events:testBtrfs :file-events:testXfs :native-platform:uploadJni :file-events:uploadJni :native-platform:uploadMain :file-events:uploadMain"
-            buildFile = ""
-            gradleParams = "-PignoreIncomingBuildReceipt"
-        }
-    }
-    steps {
-        update<GradleBuildStep>(0) {
-            clearConditions()
-            tasks = "clean build -PagentName=UbuntuAmd64 :file-events:testBtrfs :file-events:testXfs :native-platform:uploadJni :file-events:uploadJni :native-platform:uploadMain :file-events:uploadMain --info"
-        }
-    }
 
     features {
         val feature1 = find<CommitStatusPublisher> {
