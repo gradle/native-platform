@@ -10,7 +10,7 @@ repositories {
 
 dependencies {
     implementation gradleApi()
-    implementation platform('dev.nokee:nokee-gradle-plugins:0.4.1561-202202152051.db45d178')
+    implementation platform('dev.nokee:nokee-gradle-plugins:0.4.1570-202202221519.38e1fe69')
     implementation 'org.apache.httpcomponents.client5:httpclient5:5.0.1'
     implementation 'com.google.guava:guava:28.2-jre'
     implementation 'org.gradle:test-retry-gradle-plugin:1.1.8'
