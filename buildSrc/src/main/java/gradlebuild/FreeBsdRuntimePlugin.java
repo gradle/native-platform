@@ -18,7 +18,7 @@ public class FreeBsdRuntimePlugin implements Plugin<Project> {
 
         // We depend on custom JNI plugin because we are appending a new target machine
         //   The custom JNI plugin overwrite the target machines
-        project.getPluginManager().withPlugin("gradlebuild.jni-nokee", ignored -> {
+        project.getPluginManager().withPlugin("gradlebuild.jni", ignored -> {
             library(project, library -> {
                 library.getTargetMachines().add(library.getMachines().getFreeBSD().architecture("amd64"));
             });
