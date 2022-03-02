@@ -101,6 +101,12 @@ abstract class AbstractFileEventFunctionsTest extends Specification {
     }
 
     def cleanup() {
+        def isJniTest = Boolean.getBoolean("testJni")
+        def isAmazonLinux = System.getProperty("agentName", "unknown").contains("Amazon")
+        if (isJniTest && isAmazonLinux) {
+            return
+        }
+
         shutdownWatcher()
         LOGGER.info("<<< Finished '${testName.methodName}'")
 
