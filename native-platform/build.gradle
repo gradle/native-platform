@@ -2,7 +2,7 @@ plugins {
     id 'groovy'
     id 'java-test-fixtures'
     id 'dev.nokee.cpp-language'
-    id 'gradlebuild.jni-nokee'
+    id 'gradlebuild.jni'
     id 'gradlebuild.freebsd-runtime'
     id 'gradlebuild.ncurses-runtime'
 }

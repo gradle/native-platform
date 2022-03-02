@@ -10,7 +10,7 @@ repositories {
 
 dependencies {
     implementation gradleApi()
-    implementation platform('dev.nokee:nokee-gradle-plugins:0.4.1561-202202152051.db45d178')
+    implementation platform('dev.nokee:nokee-gradle-plugins:0.4.1571-202202231222.5a38a0dd')
     implementation 'org.apache.httpcomponents.client5:httpclient5:5.0.1'
     implementation 'com.google.guava:guava:28.2-jre'
     implementation 'org.gradle:test-retry-gradle-plugin:1.1.8'
@@ -29,29 +29,17 @@ if (JavaVersion.current() < JavaVersion.VERSION_1_8) {
 
 gradlePlugin {
     plugins {
-        jni {
+        jniNokee {
             id = "gradlebuild.jni"
             implementationClass = "gradlebuild.JniPlugin"
-        }
-        jniNokee {
-            id = "gradlebuild.jni-nokee"
-            implementationClass = "gradlebuild.JniNokeePlugin"
         }
         nativeComponent {
             id = "gradlebuild.native-platform-component"
             implementationClass = "gradlebuild.NativePlatformComponentPlugin"
         }
-        freebsd {
-            id = "gradlebuild.freebsd"
-            implementationClass = "gradlebuild.FreeBsdPlugin"
-        }
         freebsdRuntime {
             id = "gradlebuild.freebsd-runtime"
             implementationClass = "gradlebuild.FreeBsdRuntimePlugin"
-        }
-        ncurses {
-            id = "gradlebuild.ncurses"
-            implementationClass = "gradlebuild.NcursesPlugin"
         }
         ncursesRuntime {
             id = "gradlebuild.ncurses-runtime"

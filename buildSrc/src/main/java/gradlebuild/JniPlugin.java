@@ -1,80 +1,82 @@
 package gradlebuild;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Multimaps;
+import dev.nokee.platform.base.BuildVariant;
+import dev.nokee.platform.jni.JavaNativeInterfaceLibrary;
+import dev.nokee.platform.jni.JniLibrary;
+import dev.nokee.platform.jni.JvmJarBinary;
+import dev.nokee.runtime.nativebase.TargetMachine;
+import dev.nokee.runtime.nativebase.TargetMachineFactory;
+import gradlebuild.actions.MixInJavaNativeInterfaceLibraryProperties;
+import gradlebuild.actions.RegisterJniTestTask;
 import groovy.util.Node;
+import org.apache.commons.lang3.SystemUtils;
 import org.gradle.api.Action;
+import org.gradle.api.NamedDomainObjectCollectionSchema;
+import org.gradle.api.Namer;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
+import org.gradle.api.Transformer;
 import org.gradle.api.artifacts.DependencySubstitutions;
+import org.gradle.api.artifacts.PublishArtifact;
 import org.gradle.api.artifacts.component.ComponentSelector;
 import org.gradle.api.artifacts.component.ProjectComponentSelector;
 import org.gradle.api.file.ConfigurableFileCollection;
-import org.gradle.api.internal.project.ProjectInternal;
-import org.gradle.api.logging.StandardOutputListener;
-import org.gradle.api.plugins.ExtensionContainer;
+import org.gradle.api.internal.artifacts.dsl.LazyPublishArtifact;
+import org.gradle.api.internal.artifacts.publish.ArchivePublishArtifact;
+import org.gradle.api.plugins.ExtensionAware;
 import org.gradle.api.plugins.JavaPluginConvention;
-import org.gradle.api.provider.ProviderFactory;
+import org.gradle.api.provider.ListProperty;
+import org.gradle.api.provider.Provider;
+import org.gradle.api.provider.SetProperty;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.tasks.SourceSet;
-import org.gradle.api.tasks.TaskContainer;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.bundling.Jar;
-import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.api.tasks.testing.Test;
-import org.gradle.api.tasks.testing.TestDescriptor;
-import org.gradle.api.tasks.testing.TestListener;
-import org.gradle.api.tasks.testing.TestResult;
-import org.gradle.internal.jvm.Jvm;
-import org.gradle.internal.service.ServiceRegistry;
-import org.gradle.language.cpp.CppSourceSet;
 import org.gradle.language.cpp.tasks.CppCompile;
-import org.gradle.model.Each;
-import org.gradle.model.ModelMap;
 import org.gradle.model.Mutate;
 import org.gradle.model.RuleSource;
-import org.gradle.model.internal.registry.ModelRegistry;
-import org.gradle.nativeplatform.NativeBinarySpec;
-import org.gradle.nativeplatform.PreprocessingTool;
-import org.gradle.nativeplatform.SharedLibraryBinarySpec;
-import org.gradle.nativeplatform.Tool;
-import org.gradle.nativeplatform.internal.NativeBinarySpecInternal;
-import org.gradle.nativeplatform.platform.Architecture;
-import org.gradle.nativeplatform.platform.NativePlatform;
 import org.gradle.nativeplatform.platform.OperatingSystem;
-import org.gradle.nativeplatform.platform.internal.DefaultArchitecture;
-import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform;
 import org.gradle.nativeplatform.tasks.LinkSharedLibrary;
 import org.gradle.nativeplatform.toolchain.Clang;
 import org.gradle.nativeplatform.toolchain.Gcc;
 import org.gradle.nativeplatform.toolchain.NativeToolChainRegistry;
 import org.gradle.nativeplatform.toolchain.VisualCpp;
-import org.gradle.platform.base.BinarySpec;
-import org.gradle.platform.base.PlatformContainer;
-import org.gradle.platform.base.SourceComponentSpec;
 
 import java.io.File;
-import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.AbstractMap.SimpleImmutableEntry;
+import java.util.Map;
+import java.util.Set;
 
-import static gradlebuild.NativeRulesUtils.addPlatform;
+import static com.google.common.collect.Streams.stream;
+import static gradlebuild.BuildableExtension.isBuildable;
+import static gradlebuild.JavaNativeInterfaceLibraryUtils.library;
+import static gradlebuild.NativeRulesUtils.disableToolChain;
+import static gradlebuild.NcursesVersion.NCURSES_5;
+import static gradlebuild.NcursesVersion.NCURSES_6;
+import static gradlebuild.WindowsDistribution.WINDOWS_XP_OR_LOWER;
+import static java.util.stream.Collectors.toList;
 
 @SuppressWarnings("UnstableApiUsage")
 public abstract class JniPlugin implements Plugin<Project> {
-
-    private static String binaryToVariantName(NativeBinarySpec binary) {
-        return binary.getTargetPlatform().getName().replace('_', '-');
-    }
 
     @Override
     public void apply(Project project) {
         project.getPluginManager().apply(NativePlatformComponentPlugin.class);
         VariantsExtension variants = project.getExtensions().getByType(VariantsExtension.class);
-        project.getPluginManager().apply(JniRules.class);
+        project.getPluginManager().apply("dev.nokee.jni-library");
+        project.getPluginManager().apply(NativeToolChainRules.class);
 
         configureCppTasks(project);
+        configureMainLibrary(project);
+        configureVariants(project);
+
         configureNativeVersionGeneration(project);
         configureJniTest(project);
 
@@ -92,33 +94,96 @@ public abstract class JniPlugin implements Plugin<Project> {
     }
 
     private void configureJniTest(Project project) {
-        TaskProvider<Test> testJni = project.getTasks().register("testJni", Test.class, task -> {
-            // See https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/clopts002.html
-            task.jvmArgs("-Xcheck:jni");
+        new RegisterJniTestTask().execute(project);
+    }
 
-            // Only run tests that have the category
-            task.useJUnit(jUnitOptions ->
-                jUnitOptions.includeCategories("net.rubygrapefruit.platform.testfixture.JniChecksEnabled")
-            );
-            task.systemProperty("testJni", "true");
-            // Check standard output for JNI warnings and fail if we find anything
-            DetectJniWarnings detectJniWarnings = new DetectJniWarnings();
-            task.addTestListener(detectJniWarnings);
-            task.getLogging().addStandardOutputListener(detectJniWarnings);
-            task.doLast(new Action<Task>() {
+    private void configureVariants(Project project) {
+        library(project, library -> {
+            VariantsExtension variants = project.getExtensions().getByType(VariantsExtension.class);
+            variants.getVariantNames().set(library.getVariants().flatMap(new Transformer<Iterable<String>, JniLibrary>() {
                 @Override
-                public void execute(Task task) {
-                    List<String> detectedWarnings = detectJniWarnings.getDetectedWarnings();
-                    if (!detectedWarnings.isEmpty()) {
-                        throw new RuntimeException(String.format(
-                            "Detected JNI check warnings on standard output while executing tests:\n - %s",
-                            String.join("\n - ", detectedWarnings)
-                        ));
+                public Iterable<String> transform(JniLibrary it) {
+                    // Only depend on variants which can be built on the current machine
+                    boolean onlyLocalVariants = project.getProviders().gradleProperty("onlyLocalVariants").forUseAtConfigurationTime().isPresent();
+                    if (onlyLocalVariants && !isBuildable(it)) {
+                        return ImmutableList.of();
+                    } else {
+                        return ImmutableList.of(JniPlugin.VariantNamer.INSTANCE.determineName(it));
                     }
                 }
+            }));
+        });
+    }
+
+    private void configureMainLibrary(Project project) {
+        library(project, library -> {
+            library.getVariants().configureEach(variant -> {
+                ((ExtensionAware) variant).getExtensions()
+                    .add("buildable", new BuildableExtension(project, variant));
+            });
+            registerWindowsDistributionDimension(library);
+            library.getTargetMachines().set(supportedMachines(library.getMachines()));
+            library.getTasks().configureEach(CppCompile.class, task -> {
+                task.getCompilerArgs().addAll(task.getTargetPlatform().map(targetPlatform -> {
+                    OperatingSystem targetOs = targetPlatform.getOperatingSystem();
+                    if (targetOs.isMacOsX()) {
+                        return ImmutableList.of("-mmacosx-version-min=10.9");
+                    } else if (targetOs.isLinux()) {
+                        return ImmutableList.of("-D_FILE_OFFSET_BITS=64");
+                    } else {
+                        return ImmutableList.of(); // do nothing
+                    }
+                }));
+            });
+            library.getTasks().configureEach(LinkSharedLibrary.class, task -> {
+                task.getLinkerArgs().addAll(task.getTargetPlatform().map(targetPlatform -> {
+                    OperatingSystem targetOs = targetPlatform.getOperatingSystem();
+                    if (targetOs.isMacOsX()) {
+                        return ImmutableList.of(
+                            "-mmacosx-version-min=10.9",
+                            "-framework", "CoreServices");
+                    } else if (targetOs.isWindows()) {
+                        return ImmutableList.of("Shlwapi.lib", "Advapi32.lib");
+                    } else {
+                        return ImmutableList.of(); // do nothing
+                    }
+                }));
+            });
+            library.getVariants().configureEach(variant -> {
+                if (variant.getBuildVariant().hasAxisOf(WINDOWS_XP_OR_LOWER)) {
+                    variant.getTasks().configureEach(CppCompile.class, task -> {
+                        task.getCompilerArgs().add("/DWINDOWS_MIN");
+                    });
+                }
+            });
+            library.getVariants().configureEach(variant -> {
+                variant.getResourcePath().set(String.join("/",
+                    project.getGroup().toString().replace('.', '/'),
+                    "platform",
+                    VariantNamer.INSTANCE.determineName(variant)));
             });
         });
-        project.getTasks().named("check", check -> check.dependsOn(testJni));
+    }
+
+    private void registerWindowsDistributionDimension(JavaNativeInterfaceLibrary library) {
+        SetProperty<WindowsDistribution> newDimension = library.getDimensions().newAxis(WindowsDistribution.class, builder -> builder.onlyOn(library.getMachines().getWindows().getOperatingSystemFamily()));
+        newDimension.convention(ImmutableSet.copyOf(WindowsDistribution.values()));
+        ((ExtensionAware) library).getExtensions().add("targetWindowsDistributions", newDimension);
+    }
+
+    private void configureCppTasks(Project project) {
+        project.getPluginManager().withPlugin("dev.nokee.cpp-language", new MixInJavaNativeInterfaceLibraryProperties(project));
+    }
+
+    private static Set<TargetMachine> supportedMachines(TargetMachineFactory machines) {
+        ImmutableSet.Builder<TargetMachine> result = ImmutableSet.builder();
+        result.add(machines.os("osx").architecture("amd64"));
+        result.add(machines.os("osx").architecture("aarch64"));
+        result.add(machines.getLinux().architecture("amd64"));
+        result.add(machines.getLinux().architecture("aarch64"));
+        result.add(machines.getWindows().architecture("i386"));
+        result.add(machines.getWindows().architecture("amd64"));
+        return result.build();
     }
 
     private void configureNativeVersionGeneration(Project project) {
@@ -131,6 +196,10 @@ public abstract class JniPlugin implements Plugin<Project> {
             task.getGeneratedJavaSourcesDir().set(new File(generatedFilesDir, "version/java"));
             task.getVersionClassPackageName().set(nativeVersion.getVersionClassPackageName());
             task.getVersionClassName().set(nativeVersion.getVersionClassName());
+            task.getNativeSources().from(
+                library(project).map(JavaNativeInterfaceLibraryUtils::cppSources),
+                library(project).map(JavaNativeInterfaceLibraryUtils::privateHeaders)
+            );
         });
 
 
@@ -143,48 +212,42 @@ public abstract class JniPlugin implements Plugin<Project> {
         );
     }
 
-    @SuppressWarnings("unchecked")
     private void configureNativeJars(Project project, VariantsExtension variants, boolean testVersionFromLocalRepository) {
         TaskProvider<Jar> emptyZip = project.getTasks().register("emptyZip", Jar.class, jar -> jar.getArchiveClassifier().set("empty"));
         // We register the publications here, so they are available when the project is used as a composite build.
-// When we don't use the software model plugins anymore, then this can move out of the afterEvaluate block.
-        project.afterEvaluate(ignored -> {
-            String artifactId = project.getTasks().named("jar", Jar.class).get().getArchiveBaseName().get();
-            ModelRegistry modelRegistry = ((ProjectInternal) project).getModelRegistry();
-            // Realize the software model components, so we can create the corresponding publications.
-            modelRegistry.realize("components", ModelMap.class)
-                .forEach(spec -> getBinaries(spec).withType(NativeBinarySpec.class)
-                    .forEach(binary -> {
-                        if (variants.getVariantNames().get().contains(binaryToVariantName(binary)) && binary.isBuildable()) {
-                            String variantName = binaryToVariantName(binary);
-                            String taskName = "jar-" + variantName;
-                            Jar foundNativeJar = (Jar) project.getTasks().findByName(taskName);
-                            Jar nativeJar = foundNativeJar == null
-                                ? project.getTasks().create(taskName, Jar.class, jar -> jar.getArchiveBaseName().set(artifactId + "-" + variantName))
-                                : foundNativeJar;
-                            if (foundNativeJar == null) {
-                                project.getArtifacts().add("runtimeElements", nativeJar);
-                                project.getExtensions().configure(PublishingExtension.class, publishingExtension -> publishingExtension.publications(publications -> publications.create(variantName, MavenPublication.class, publication -> {
-                                    publication.artifact(nativeJar);
-                                    publication.artifact(emptyZip.get(), it -> it.setClassifier("sources"));
-                                    publication.artifact(emptyZip.get(), it -> it.setClassifier("javadoc"));
-                                    publication.setArtifactId(nativeJar.getArchiveBaseName().get());
-                                })));
-                            }
-                            binary.getTasks().withType(LinkSharedLibrary.class, builderTask ->
-                                nativeJar.into(String.join(
-                                    "/",
-                                    project.getGroup().toString().replace(".", "/"),
-                                    "platform",
-                                    variantName
-                                ), it -> it.from(builderTask.getLinkedFile()))
-                            );
-                            if (!testVersionFromLocalRepository) {
-                                project.getTasks().withType(Test.class).configureEach(it -> ((ConfigurableFileCollection) it.getClasspath()).from(nativeJar));
-                            }
-                        }
-                    }));
+        final Provider<String> artifactId = project.getTasks().named("jar", Jar.class)
+            .flatMap(Jar::getArchiveBaseName);
+        final ListProperty<Jar> publishableJarTasks = project.getObjects().listProperty(Jar.class).value(library(project).flatMap(allVariants())
+            .map(toPublishableVariantGroups())
+            .map(toBuildableVariantUsingBuildableExtension())
+            .flatMap(toPublishableJars(project, artifactId)));
+        publishableJarTasks.finalizeValueOnRead(); // to minimize computation of provided value
+
+        project.getConfigurations().named("runtimeElements", configuration -> {
+            final ListProperty<PublishArtifact> publishableJars = project.getObjects().listProperty(PublishArtifact.class);
+            publishableJars.addAll(publishableJarTasks.map(it -> it.stream().map(ArchivePublishArtifact::new).collect(toList())));
+            publishableJars.addAll(library(project).flatMap(library -> library.getBinaries().withType(JvmJarBinary.class).map(it -> new LazyPublishArtifact(it.getJarTask()))));
+            configuration.getOutgoing().getArtifacts().clear(); // Remove wiring from Nokee plugins
+            configuration.getOutgoing().getArtifacts().addAllLater(publishableJars);
         });
+
+        project.afterEvaluate(ignored -> {
+            for (Jar nativeJar : publishableJarTasks.get()) {
+                final String variantName = nativeJar.getName().substring("jar-".length());
+                project.getExtensions().configure(PublishingExtension.class, publishing -> publishing.publications(publications -> publications.create(variantName, MavenPublication.class, publication -> {
+                    publication.artifact(nativeJar);
+                    publication.artifact(emptyZip.get(), it -> it.setClassifier("sources"));
+                    publication.artifact(emptyZip.get(), it -> it.setClassifier("javadoc"));
+                    publication.setArtifactId(nativeJar.getArchiveBaseName().get());
+                })));
+            }
+        });
+
+        if (!testVersionFromLocalRepository) {
+            project.getTasks().withType(Test.class).configureEach(task -> {
+                ((ConfigurableFileCollection) task.getClasspath()).from(publishableJarTasks);
+            });
+        }
     }
 
     private void setupDependencySubstitutionForTestTask(Project project) {
@@ -192,8 +255,7 @@ public abstract class JniPlugin implements Plugin<Project> {
         // a project artifact with an external artifact with the same GAV coordinates.
         project.setGroup("new-group-for-root-project");
 
-        project.getConfigurations().all(configuration ->
-        {
+        project.getConfigurations().all(configuration -> {
             DependencySubstitutions dependencySubstitution = configuration.getResolutionStrategy().getDependencySubstitution();
             dependencySubstitution.all(spec -> {
                 ComponentSelector requested = spec.getRequested();
@@ -210,6 +272,101 @@ public abstract class JniPlugin implements Plugin<Project> {
             maven.setName("IncomingLocalRepository");
             maven.setUrl(project.getRootProject().file("incoming-repo"));
         });
+    }
+
+    // Returns all variants of a JNI component
+    private static Transformer<Provider<? extends Iterable<JniLibrary>>, JavaNativeInterfaceLibrary> allVariants() {
+        return library -> library.getVariants().getElements();
+    }
+
+    // Removes variant group entries not buildable according to {@link BuildableExtension}.
+    private static Transformer<Map<String, ? extends Iterable<JniLibrary>>, Map<String, ? extends Iterable<JniLibrary>>> toBuildableVariantUsingBuildableExtension() {
+        return variantGroups -> {
+            return variantGroups.entrySet().stream()
+                .map(it -> new SimpleImmutableEntry<>(it.getKey(), stream(it.getValue()).filter(BuildableExtension::isBuildable).collect(toList())))
+                .filter(it -> !it.getValue().isEmpty())
+                .collect(ImmutableMap.toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
+        };
+    }
+
+    // Collects JNI JARs for each variant group entry
+    private static Transformer<Provider<? extends Iterable<Jar>>, Map<String, ? extends Iterable<JniLibrary>>> toPublishableJars(Project project, Provider<String> artifactId) {
+        return new Transformer<Provider<? extends Iterable<Jar>>, Map<String, ? extends Iterable<JniLibrary>>>() {
+            @Override
+            public Provider<? extends Iterable<Jar>> transform(Map<String, ? extends Iterable<JniLibrary>> variantGroups) {
+                final ListProperty<Jar> result = project.getObjects().listProperty(Jar.class);
+                variantGroups.forEach((variantName, variants) -> {
+                    result.add(registerIfAbsent("jar-" + variantName, Jar.class, task -> {
+                        for (JniLibrary variant : variants) {
+                            task.from(variant.getJavaNativeInterfaceJar().getJarTask().flatMap(Jar::getArchiveFile).map(project::zipTree));
+                            task.getArchiveBaseName().set(artifactId.map(it -> it + "-" + variantName));
+                        }
+                    }));
+                });
+                return result;
+            }
+
+            private <T extends Task> TaskProvider<T> registerIfAbsent(String name, Class<T> type, Action<? super T> ifAbsentConfigurationAction) {
+                for (NamedDomainObjectCollectionSchema.NamedDomainObjectSchema element : project.getTasks().getCollectionSchema().getElements()) {
+                    if (element.getName().equals(name) && element.getPublicType().isAssignableFrom(type)) {
+                        return project.getTasks().named(name, type);
+                    }
+                }
+
+                return project.getTasks().register(name, type, ifAbsentConfigurationAction);
+            }
+        };
+    }
+
+    // Groups variants together based on their {@literal variantName}.
+    private static Transformer<Map<String, ? extends Iterable<JniLibrary>>, Iterable<JniLibrary>> toPublishableVariantGroups() {
+        return variants -> Multimaps.index(variants, VariantNamer.INSTANCE::determineName).asMap();
+    }
+
+    /**
+     * Determines the {@literal variantName} of a JNI variant as expected by {@literal native-platform}.
+     * The project use the {@literal variantName} for JNI resource path, publishable JARs and buildable check.
+     */
+    private static final class VariantNamer implements Namer<JniLibrary> {
+        public static final VariantNamer INSTANCE = new VariantNamer();
+
+        @Override
+        public String determineName(JniLibrary variant) {
+            if (variant.getTargetMachine().getOperatingSystemFamily().isFreeBSD()) {
+                return toVariantName(variant.getTargetMachine()) + cppRuntimeSuffix(variant.getBuildVariant());
+            } else if (variant.getTargetMachine().getOperatingSystemFamily().isWindows()) {
+                return toVariantName(variant.getTargetMachine()) + minSuffix(variant.getBuildVariant());
+            } else if (variant.getTargetMachine().getOperatingSystemFamily().isLinux()) {
+                return toVariantName(variant.getTargetMachine()) + ncursesSuffix(variant.getBuildVariant());
+            } else {
+                // No suffix, just use OS family and architecture names
+                return toVariantName(variant.getTargetMachine());
+            }
+        }
+
+        private static String cppRuntimeSuffix(BuildVariant buildVariant) {
+            // The project only support libcpp.
+            //   To match the artifact id for backward compatibility, we use libcpp.
+            return "-libcpp"; // for backward compatibility
+        }
+
+        private static String minSuffix(BuildVariant buildVariant) {
+            return buildVariant.hasAxisOf(WINDOWS_XP_OR_LOWER) ? "-min" : "";
+        }
+
+        private static String ncursesSuffix(BuildVariant buildVariant) {
+            if (buildVariant.hasAxisOf(NCURSES_5)) {
+                return "-ncurses5";
+            } else if (buildVariant.hasAxisOf(NCURSES_6)) {
+                return "-ncurses6";
+            } else {
+                return "";
+            }
+        }
+
+        private static String toVariantName(TargetMachine targetMachine) {
+            return targetMachine.getOperatingSystemFamily().getName() + "-" + targetMachine.getArchitecture().getName();
+        }
     }
 
     private void configurePomOfMainJar(Project project, VariantsExtension variants) {
@@ -229,158 +386,27 @@ public abstract class JniPlugin implements Plugin<Project> {
                 })));
     }
 
-    private void configureCppTasks(Project project) {
-        TaskContainer tasks = project.getTasks();
-        TaskProvider<JavaCompile> compileJavaProvider = tasks.named("compileJava", JavaCompile.class);
-        tasks.withType(CppCompile.class)
-            .configureEach(task -> task.includes(
-                compileJavaProvider.flatMap(it -> it.getOptions().getHeaderOutputDirectory())
-            ));
-    }
-
-    @SuppressWarnings("unchecked")
-    private static ModelMap<BinarySpec> getBinaries(Object modelSpec) {
-        try {
-            return (ModelMap<BinarySpec>) modelSpec.getClass().getMethod("getBinaries").invoke(modelSpec);
-        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static class JniRules extends RuleSource {
+    public static class NativeToolChainRules extends RuleSource {
         @Mutate
-        void createPlatforms(PlatformContainer platformContainer) {
-            addPlatform(platformContainer, "osx_amd64", "osx", "amd64");
-            addPlatform(platformContainer, "osx_aarch64", "osx", "aarch64");
-            addPlatform(platformContainer, "linux_amd64", "linux", "amd64");
-            addPlatform(platformContainer, "linux_aarch64", "linux", "aarch64");
-            addPlatform(platformContainer, "windows_i386", "windows", "i386");
-            addPlatform(platformContainer, "windows_amd64", "windows", "amd64");
-            addPlatform(platformContainer, "windows_i386_min", "windows", "i386");
-            addPlatform(platformContainer, "windows_amd64_min", "windows", "amd64");
-        }
-
-        @Mutate void createToolChains(NativeToolChainRegistry toolChainRegistry) {
+        void createToolChains(NativeToolChainRegistry toolChainRegistry) {
             toolChainRegistry.create("gcc", Gcc.class, toolChain -> {
                 // The core Gradle toolchain for gcc only targets x86 and x86_64 out of the box.
                 // https://github.com/gradle/gradle/blob/36614ee523e5906ddfa1fed9a5dc00a5addac1b0/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/gcc/AbstractGccCompatibleToolChain.java
-                toolChain.target("linux_aarch64");
+                toolChain.target("linuxaarch64", platformToolChain -> {
+                    if (!SystemUtils.IS_OS_LINUX || !SystemUtils.OS_ARCH.equals("aarch64")) {
+                        disableToolChain(platformToolChain);
+                    }
+                });
             });
             toolChainRegistry.create("clang", Clang.class, toolChain -> {
                 // The core Gradle toolchain for Clang only targets x86 and x86_64 out of the box.
-                OperatingSystem os = new DefaultNativePlatform("current").getOperatingSystem();
-                if (os.isMacOsX()) {
-                    toolChain.target("osx_aarch64");
-                }
+                toolChain.target("macosaarch64", platformToolChain -> {
+                    if (!SystemUtils.IS_OS_MAC_OSX || !SystemUtils.OS_ARCH.equals("aarch64")) {
+                        disableToolChain(platformToolChain);
+                    }
+                });
             });
             toolChainRegistry.create("visualCpp", VisualCpp.class);
-        }
-
-        @Mutate
-        void addComponentSourcesSetsToProjectSourceSet(ModelMap<Task> tasks, ModelMap<SourceComponentSpec> sourceContainer) {
-            sourceContainer.forEach(sources -> sources.getSources().withType(CppSourceSet.class).forEach(sourceSet ->
-                tasks.withType(WriteNativeVersionSources.class, task -> {
-                    task.getNativeSources().from(sourceSet.getSource().getSourceDirectories());
-                    task.getNativeSources().from(sourceSet.getExportedHeaders().getSourceDirectories());
-                })));
-        }
-
-        @Mutate void configureBinaries(@Each NativeBinarySpecInternal binarySpec) {
-            DefaultNativePlatform currentPlatform = new DefaultNativePlatform("current");
-            Architecture currentArch = currentPlatform.getArchitecture();
-            // TODO: There's a mismatch between the names of 64-bit ARM architectures between
-            // native-platform and the native plugins in Gradle. If we're using the Gradle name,
-            // switch it to the native-platform version
-            if (currentArch.getName().equals("arm-v8")) {
-                currentArch = new org.gradle.nativeplatform.platform.internal.DefaultArchitecture("aarch64");
-            }
-            NativePlatform targetPlatform = binarySpec.getTargetPlatform();
-            Architecture targetArch = targetPlatform.getArchitecture();
-            OperatingSystem targetOs = targetPlatform.getOperatingSystem();
-            if (ImmutableList.of("linux", "freebsd", "osx").contains(targetOs.getName()) && !targetArch.equals(currentArch)) {
-                // Native plugins don't detect whether multilib support is available or not. Assume not for now
-                binarySpec.setBuildable(false);
-            }
-
-            PreprocessingTool cppCompiler = binarySpec.getCppCompiler();
-            Tool linker = binarySpec.getLinker();
-            if (targetOs.isMacOsX()) {
-                cppCompiler.getArgs().addAll(determineJniIncludes("darwin"));
-                cppCompiler.args("-mmacosx-version-min=10.9");
-                linker.args("-mmacosx-version-min=10.9");
-                linker.args("-framework", "CoreServices");
-            } else if (targetOs.isLinux()) {
-                cppCompiler.getArgs().addAll(determineJniIncludes("linux"));
-                cppCompiler.args("-D_FILE_OFFSET_BITS=64");
-            } else if (targetOs.isWindows()) {
-                if (binarySpec.getName().contains("_min")) {
-                    cppCompiler.define("WINDOWS_MIN");
-                }
-                cppCompiler.getArgs().addAll(determineWindowsJniIncludes());
-                linker.args("Shlwapi.lib", "Advapi32.lib");
-            } else if (targetOs.isFreeBSD()) {
-                cppCompiler.getArgs().addAll(determineJniIncludes("freebsd"));
-            }
-        }
-
-        @Mutate void configureSharedLibraryBinaries(@Each SharedLibraryBinarySpec binarySpec, ExtensionContainer extensions, ServiceRegistry serviceRegistry) {
-            // Only depend on variants which can be built on the current machine
-            boolean onlyLocalVariants = serviceRegistry.get(ProviderFactory.class).gradleProperty("onlyLocalVariants").forUseAtConfigurationTime().isPresent();
-            if (onlyLocalVariants && !binarySpec.isBuildable()) {
-                return;
-            }
-            String variantName = binaryToVariantName(binarySpec);
-            extensions.getByType(VariantsExtension.class).getVariantNames().add(variantName);
-        }
-
-        private List<String> determineJniIncludes(String osSpecificInclude) {
-            Jvm currentJvm = Jvm.current();
-            File jvmIncludePath = new File(currentJvm.getJavaHome(), "include");
-            return ImmutableList.of(
-                "-I", jvmIncludePath.getAbsolutePath(),
-                "-I", new File(jvmIncludePath, osSpecificInclude).getAbsolutePath()
-            );
-        }
-
-        private List<String> determineWindowsJniIncludes() {
-            Jvm currentJvm = Jvm.current();
-            File jvmIncludePath = new File(currentJvm.getJavaHome(), "include");
-            return ImmutableList.of(
-                "-I" + jvmIncludePath.getAbsolutePath(),
-                "-I" + new File(jvmIncludePath, "win32").getAbsolutePath()
-            );
-        }
-    }
-
-    private static class DetectJniWarnings implements TestListener, StandardOutputListener {
-        private String currentTest;
-        private List<String> detectedWarnings = new ArrayList<>();
-
-        @Override
-        public void beforeSuite(TestDescriptor testDescriptor) {}
-
-        @Override
-        public void afterSuite(TestDescriptor testDescriptor, TestResult testResult) {}
-
-        @Override
-        public void beforeTest(TestDescriptor testDescriptor) {
-            currentTest = testDescriptor.getClassName() + "." + testDescriptor.getDisplayName();
-        }
-
-        @Override
-        public void afterTest(TestDescriptor testDescriptor, TestResult testResult) {
-            currentTest = null;
-        }
-
-        @Override
-        public void onOutput(CharSequence message) {
-            if (currentTest != null && message.toString().startsWith("WARNING")) {
-                detectedWarnings.add(String.format("%s (test: %s)", message, currentTest));
-            }
-        }
-
-        public List<String> getDetectedWarnings() {
-            return detectedWarnings;
         }
     }
 }
