@@ -38,7 +38,7 @@ public abstract class NativePlatformComponentPlugin implements Plugin<Project> {
         project.setGroup(GROUP_ID);
 
         project.getPlugins().apply(JavaPlugin.class);
-        project.getRepositories().jcenter();
+        project.getRepositories().mavenCentral();
 
         project.getPlugins().apply(ReleasePlugin.class);
 

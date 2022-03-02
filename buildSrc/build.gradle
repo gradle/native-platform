@@ -3,7 +3,7 @@ plugins {
 }
 
 repositories {
-    jcenter()
+    mavenCentral()
     gradlePluginPortal()
     maven { url = 'https://repo.nokee.dev/snapshot' }
 }
