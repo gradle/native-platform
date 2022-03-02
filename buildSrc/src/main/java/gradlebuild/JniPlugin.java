@@ -43,6 +43,7 @@ import org.gradle.nativeplatform.internal.NativeBinarySpecInternal;
 import org.gradle.nativeplatform.platform.Architecture;
 import org.gradle.nativeplatform.platform.NativePlatform;
 import org.gradle.nativeplatform.platform.OperatingSystem;
+import org.gradle.nativeplatform.platform.internal.DefaultArchitecture;
 import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform;
 import org.gradle.nativeplatform.tasks.LinkSharedLibrary;
 import org.gradle.nativeplatform.toolchain.Clang;
@@ -287,6 +288,12 @@ public abstract class JniPlugin implements Plugin<Project> {
         @Mutate void configureBinaries(@Each NativeBinarySpecInternal binarySpec) {
             DefaultNativePlatform currentPlatform = new DefaultNativePlatform("current");
             Architecture currentArch = currentPlatform.getArchitecture();
+            // TODO: There's a mismatch between the names of 64-bit ARM architectures between
+            // native-platform and the native plugins in Gradle. If we're using the Gradle name,
+            // switch it to the native-platform version
+            if (currentArch.getName().equals("arm-v8")) {
+                currentArch = new org.gradle.nativeplatform.platform.internal.DefaultArchitecture("aarch64");
+            }
             NativePlatform targetPlatform = binarySpec.getTargetPlatform();
             Architecture targetArch = targetPlatform.getArchitecture();
             OperatingSystem targetOs = targetPlatform.getOperatingSystem();
