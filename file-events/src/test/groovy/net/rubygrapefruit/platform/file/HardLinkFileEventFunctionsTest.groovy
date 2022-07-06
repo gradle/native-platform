@@ -66,10 +66,10 @@ class HardLinkFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
         then:
         // Windows sometimes reports a modification after the creation
-        // macOS reports a change to the directory containing the original file
+        // macOS additionally reports a change to the directory containing the original file
         expectEvents byPlatform(
             (WINDOWS): [change(CREATED, link), optionalChange(MODIFIED, link)],
-            (MAC_OS): [change(MODIFIED, rootDir)],
+            (MAC_OS): [change(MODIFIED, rootDir), optionalChange(CREATED, link)],
             (LINUX): [change(CREATED, link)]
         )
     }
@@ -108,8 +108,9 @@ class HardLinkFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         then:
         // On Windows we seem to be getting multiple MODIFIED events
         // On Linux we _sometimes_ seem to be getting multiple events
+        // For macOS 12 we get events for both hardlink locations
         expectEvents byPlatform(
-            (MAC_OS): [change(MODIFIED, link)],
+            (MAC_OS): [change(MODIFIED, link), optionalChange(MODIFIED, target)],
             (WINDOWS): [change(MODIFIED, link)] * 2,
             (LINUX): [change(MODIFIED, link), optionalChange(MODIFIED, link)]
         )
@@ -129,7 +130,13 @@ class HardLinkFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         link.text = "modified"
 
         then:
-        expectNoEvents()
+        // For macOS 12 we get an event for the hardlink in the watched directory
+        if (Platform.current().macOs) {
+            expectEvents optionalChange(MODIFIED, target)
+        } else {
+            expectNoEvents()
+        }
+
 
         when:
         target.text = "modified2"
@@ -137,8 +144,9 @@ class HardLinkFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         then:
         // On Windows we seem to be getting multiple MODIFIED events
         // On Linux we _sometimes_ seem to be getting multiple events
+        // For macOS 12 we get events for both the hardlink locations, though the path for link is wrong
         expectEvents byPlatform(
-            (MAC_OS): [change(MODIFIED, target)],
+            (MAC_OS): [change(MODIFIED, target), optionalChange(MODIFIED, new File(watched, "link"))],
             (WINDOWS): [change(MODIFIED, target)] * 2,
             (LINUX): [change(MODIFIED, target), optionalChange(MODIFIED, target)]
         )
