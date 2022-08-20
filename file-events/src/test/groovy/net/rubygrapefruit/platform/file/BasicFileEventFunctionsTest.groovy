@@ -41,7 +41,7 @@ import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.MODIFIE
 import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.REMOVED
 
 @Unroll
-@Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
+@Requires({ Platform.current().linux || Platform.current().windows })
 class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
     def "can start and shutdown watcher without watching any paths"() {
         when:

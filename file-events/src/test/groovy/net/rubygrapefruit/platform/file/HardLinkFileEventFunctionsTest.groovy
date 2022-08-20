@@ -51,7 +51,7 @@ import static net.rubygrapefruit.platform.file.FileWatchEvent.ChangeType.REMOVED
  *     – <a href="https://devblogs.microsoft.com/oldnewthing/20110812-00/?p=9913">link</a></dd>
  * </dl>
  */
-@Requires({ Platform.current().macOs || Platform.current().linux || Platform.current().windows })
+@Requires({ Platform.current().linux || Platform.current().windows })
 class HardLinkFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
 
     def "can detect hard link created"() {
