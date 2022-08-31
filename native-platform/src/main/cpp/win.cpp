@@ -213,6 +213,8 @@ Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getSystemIn
         arch = env->NewStringUTF("x86");
     } else if (systemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_IA64) {
         arch = env->NewStringUTF("ia64");
+    } else if (systemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM64) {
+        arch = env->NewStringUTF("arm64");
     } else {
         arch = env->NewStringUTF("unknown");
     }

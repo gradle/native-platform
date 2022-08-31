@@ -51,6 +51,8 @@ public abstract class Platform {
                         platform = new Window32Bit();
                     } else if (arch.equals("amd64")) {
                         platform = new Window64Bit();
+                    } else if (arch.equals("aarch64")) {
+                        platform = new WindowAarch64();
                     }
                 } else if (osName.contains("linux")) {
                     if (arch.equals("amd64") || arch.equals("x86_64")) {
@@ -194,6 +196,13 @@ public abstract class Platform {
         @Override
         public String getId() {
             return "windows-amd64";
+        }
+    }
+
+    private static class WindowAarch64 extends Windows {
+        @Override
+        public String getId() {
+            return "windows-aarch64";
         }
     }
 
