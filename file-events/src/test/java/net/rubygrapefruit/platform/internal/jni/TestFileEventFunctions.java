@@ -20,7 +20,7 @@ import net.rubygrapefruit.platform.file.FileWatchEvent;
 import java.io.File;
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class TestFileEventFunctions extends AbstractFileEventFunctions<TestFileEventFunctions.TestFileWatcher> {
 
@@ -30,7 +30,11 @@ public class TestFileEventFunctions extends AbstractFileEventFunctions<TestFileE
     }
 
     public static class TestFileWatcher extends AbstractFileWatcher {
-        private final CountDownLatch running = new CountDownLatch(1);
+        enum Command {
+            THROW, TERMINATE
+        }
+
+        private final BlockingQueue<Command> commands = new LinkedBlockingQueue<Command>();
 
         public TestFileWatcher(NativeFileWatcherCallback callback) {
             super(callback);
@@ -43,15 +47,28 @@ public class TestFileEventFunctions extends AbstractFileEventFunctions<TestFileE
         @Override
         protected void executeRunLoop() {
             try {
-                running.await();
+                boolean running = true;
+                while (running) {
+                    switch (commands.take()) {
+                        case THROW:
+                            throw new RuntimeException("Error");
+                        case TERMINATE:
+                            running = false;
+                            break;
+                    }
+                }
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
         }
 
+        public void failRunLoop() {
+            commands.offer(Command.THROW);
+        }
+
         @Override
         protected void doShutdown() {
-            running.countDown();
+            commands.offer(Command.TERMINATE);
         }
 
         @Override

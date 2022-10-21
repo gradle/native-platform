@@ -4,23 +4,28 @@ import net.rubygrapefruit.platform.internal.jni.TestFileEventFunctions
 import spock.lang.Specification
 
 import java.util.concurrent.LinkedBlockingDeque
+import java.util.concurrent.TimeUnit
 
 class SyntheticFileEventFunctionsTest extends Specification {
-    def "termination produces termination event"() {
-        def service = new TestFileEventFunctions()
-        def eventQueue = new LinkedBlockingDeque()
+    def service = new TestFileEventFunctions()
+    def eventQueue = new LinkedBlockingDeque()
+    def watcher = service
+        .newWatcher(eventQueue)
+        .start()
 
-        def watcher = service
-            .newWatcher(eventQueue)
-            .start()
-
-        expect:
-        watcher != null
-        eventQueue.empty
-
+    def "normal termination produces termination event"() {
         when:
         watcher.shutdown()
+        watcher.awaitTermination(1, TimeUnit.SECONDS)
         then:
-        eventQueue.toList()*.toString() == ["TERMINATE"]
+        eventQueue*.toString() == ["TERMINATE"]
+    }
+
+    def "failure produces failure event followed by termination events"() {
+        when:
+        watcher.failRunLoop()
+        watcher.awaitTermination(1, TimeUnit.SECONDS)
+        then:
+        eventQueue*.toString() == ["FAILURE Error", "TERMINATE"]
     }
 }
