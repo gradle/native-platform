@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 /**
  * File watcher for Linux. Reports changes to the watched paths and their immediate children.
@@ -39,7 +38,7 @@ import java.util.concurrent.TimeUnit;
  *     behavior and can lead to a deadlock.</li>
  * </ul>
  */
-public class LinuxFileEventFunctions extends AbstractFileEventFunctions<LinuxFileEventFunctions.LinuxFileWatcher> {
+public class LinuxFileEventFunctions extends AbstractNativeFileEventFunctions<LinuxFileEventFunctions.LinuxFileWatcher> {
 
     public LinuxFileEventFunctions() {
         // We have seen some weird behavior on Alpine Linux that uses musl with Gradle that lead to crashes
@@ -57,9 +56,9 @@ public class LinuxFileEventFunctions extends AbstractFileEventFunctions<LinuxFil
         return new WatcherBuilder(eventQueue);
     }
 
-    public static class LinuxFileWatcher extends AbstractFileEventFunctions.NativeFileWatcher {
-        public LinuxFileWatcher(Object server, long startTimeout, TimeUnit startTimeoutUnit, NativeFileWatcherCallback callback) throws InterruptedException {
-            super(server, startTimeout, startTimeoutUnit, callback);
+    public static class LinuxFileWatcher extends NativeFileWatcher {
+        public LinuxFileWatcher(Object server, NativeFileWatcherCallback callback) {
+            super(server, callback);
         }
 
         /**
@@ -86,13 +85,9 @@ public class LinuxFileEventFunctions extends AbstractFileEventFunctions<LinuxFil
         }
 
         @Override
-        protected Object startWatcher(NativeFileWatcherCallback callback) throws InotifyInstanceLimitTooLowException {
-            return startWatcher0(callback);
-        }
-
-        @Override
-        protected LinuxFileWatcher createWatcher(Object server, long startTimeout, TimeUnit startTimeoutUnit, NativeFileWatcherCallback callback) throws InterruptedException {
-            return new LinuxFileWatcher(server, startTimeout, startTimeoutUnit, callback);
+        protected LinuxFileWatcher createWatcher(NativeFileWatcherCallback callback) {
+            Object server = startWatcher0(callback);
+            return new LinuxFileWatcher(server, callback);
         }
     }
 

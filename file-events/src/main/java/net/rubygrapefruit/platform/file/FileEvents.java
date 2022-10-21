@@ -7,7 +7,7 @@ import net.rubygrapefruit.platform.ThreadSafe;
 import net.rubygrapefruit.platform.internal.NativeLibraryLoader;
 import net.rubygrapefruit.platform.internal.NativeLibraryLocator;
 import net.rubygrapefruit.platform.internal.Platform;
-import net.rubygrapefruit.platform.internal.jni.AbstractFileEventFunctions;
+import net.rubygrapefruit.platform.internal.jni.AbstractNativeFileEventFunctions;
 import net.rubygrapefruit.platform.internal.jni.FileEventsVersion;
 import net.rubygrapefruit.platform.internal.jni.LinuxFileEventFunctions;
 import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions;
@@ -33,7 +33,7 @@ public class FileEvents {
                 try {
                     loader = new NativeLibraryLoader(platform, new NativeLibraryLocator(extractDir, FileEventsVersion.VERSION));
                     loader.load(determineLibraryName(platform), platform.getLibraryVariants());
-                    String nativeVersion = AbstractFileEventFunctions.getVersion();
+                    String nativeVersion = AbstractNativeFileEventFunctions.getVersion();
                     if (!nativeVersion.equals(FileEventsVersion.VERSION)) {
                         throw new NativeException(String.format(
                             "Unexpected native file events library version loaded. Expected %s, was %s.",

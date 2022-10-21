@@ -46,7 +46,7 @@ import java.util.concurrent.TimeUnit;
  *     behavior and can lead to a deadlock.</li>
  * </ul>
  */
-public class WindowsFileEventFunctions extends AbstractFileEventFunctions<WindowsFileEventFunctions.WindowsFileWatcher> {
+public class WindowsFileEventFunctions extends AbstractNativeFileEventFunctions<WindowsFileEventFunctions.WindowsFileWatcher> {
 
     public static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
     public static final int DEFAULT_COMMAND_TIMEOUT_IN_SECONDS = 5;
@@ -56,9 +56,9 @@ public class WindowsFileEventFunctions extends AbstractFileEventFunctions<Window
         return new WatcherBuilder(eventQueue);
     }
 
-    public static class WindowsFileWatcher extends AbstractFileEventFunctions.NativeFileWatcher {
-        public WindowsFileWatcher(Object server, long startTimeout, TimeUnit startTimeoutUnit, NativeFileWatcherCallback callback) throws InterruptedException {
-            super(server, startTimeout, startTimeoutUnit, callback);
+    public static class WindowsFileWatcher extends NativeFileWatcher {
+        public WindowsFileWatcher(Object server, NativeFileWatcherCallback callback) {
+            super(server, callback);
         }
 
         /**
@@ -111,13 +111,9 @@ public class WindowsFileEventFunctions extends AbstractFileEventFunctions<Window
         }
 
         @Override
-        protected Object startWatcher(NativeFileWatcherCallback callback) {
-            return startWatcher0(bufferSize, commandTimeoutInMillis, callback);
-        }
-
-        @Override
-        protected WindowsFileWatcher createWatcher(Object server, long startTimeout, TimeUnit startTimeoutUnit, NativeFileWatcherCallback callback) throws InterruptedException {
-            return new WindowsFileWatcher(server, startTimeout, startTimeoutUnit, callback);
+        protected WindowsFileWatcher createWatcher(NativeFileWatcherCallback callback) {
+            Object server = startWatcher0(bufferSize, commandTimeoutInMillis, callback);
+            return new WindowsFileWatcher(server, callback);
         }
     }
 

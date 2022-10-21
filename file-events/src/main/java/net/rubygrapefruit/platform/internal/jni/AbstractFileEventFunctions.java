@@ -16,22 +16,6 @@ import java.util.concurrent.TimeUnit;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 public abstract class AbstractFileEventFunctions<W extends FileWatcher> implements NativeIntegration {
-    public static String getVersion() {
-        return getVersion0();
-    }
-
-    private static native String getVersion0();
-
-    /**
-     * Forces the native backend to drop the cached JUL log level and thus
-     * re-query it the next time it tries to log something to the Java side.
-     */
-    public void invalidateLogLevelCache() {
-        invalidateLogLevelCache0();
-    }
-
-    private native void invalidateLogLevelCache0();
-
     public abstract static class AbstractWatcherBuilder<T extends FileWatcher> {
         public static final long DEFAULT_START_TIMEOUT_IN_SECONDS = 5;
 
@@ -65,13 +49,12 @@ public abstract class AbstractFileEventFunctions<W extends FileWatcher> implemen
          */
         public T start(long startTimeout, TimeUnit startTimeoutUnit) throws InterruptedException, InsufficientResourcesForWatchingException {
             NativeFileWatcherCallback callback = new NativeFileWatcherCallback(eventQueue);
-            Object server = startWatcher(callback);
-            return createWatcher(server, startTimeout, startTimeoutUnit, callback);
+            T watcher = createWatcher(callback);
+            watcher.initialize(startTimeout, startTimeoutUnit);
+            return watcher;
         }
 
-        protected abstract Object startWatcher(NativeFileWatcherCallback callback);
-
-        protected abstract T createWatcher(final Object server, long startTimeout, TimeUnit startTimeoutUnit, final NativeFileWatcherCallback callback) throws InterruptedException;
+        protected abstract T createWatcher(NativeFileWatcherCallback callback);
     }
 
     /**
@@ -156,21 +139,19 @@ public abstract class AbstractFileEventFunctions<W extends FileWatcher> implemen
         }
     }
 
-    protected static abstract class NativeFileWatcher implements FileWatcher {
-        protected final Object server;
+    protected static abstract class AbstractFileWatcher implements FileWatcher {
+        private final CountDownLatch runLoopInitialized = new CountDownLatch(1);
         private final Thread processorThread;
         private boolean shutdown;
 
-        public NativeFileWatcher(final Object server, long startTimeout, TimeUnit startTimeoutUnit, final NativeFileWatcherCallback callback) throws InterruptedException {
-            this.server = server;
-            final CountDownLatch runLoopInitialized = new CountDownLatch(1);
+        public AbstractFileWatcher(final NativeFileWatcherCallback callback) {
             this.processorThread = new Thread("File watcher server") {
                 @Override
                 public void run() {
-                    initializeRunLoop0(server);
+                    initializeRunLoop();
                     runLoopInitialized.countDown();
                     try {
-                        executeRunLoop0(server);
+                        executeRunLoop();
                         if (!shutdown) {
                             callback.reportFailure(new FileWatcherException("File watcher server did exit without being shutdown"));
                         }
@@ -182,6 +163,10 @@ public abstract class AbstractFileEventFunctions<W extends FileWatcher> implemen
                 }
             };
             this.processorThread.setDaemon(true);
+        }
+
+        @Override
+        public void initialize(long startTimeout, TimeUnit startTimeoutUnit) throws InterruptedException {
             this.processorThread.start();
             boolean started = runLoopInitialized.await(startTimeout, startTimeoutUnit);
             if (!started) {
@@ -190,49 +175,30 @@ public abstract class AbstractFileEventFunctions<W extends FileWatcher> implemen
             }
         }
 
-        private native void initializeRunLoop0(Object server);
-
-        private native void executeRunLoop0(Object server);
-
         @Override
         public void startWatching(Collection<File> paths) {
             ensureOpen();
-            startWatching0(server, toAbsolutePaths(paths));
+            doStartWatching(paths);
         }
-
-        private native void startWatching0(Object server, String[] absolutePaths);
 
         @Override
         public boolean stopWatching(Collection<File> paths) {
             ensureOpen();
-            return stopWatching0(server, toAbsolutePaths(paths));
-        }
-
-        private native boolean stopWatching0(Object server, String[] absolutePaths);
-
-        protected static String[] toAbsolutePaths(Collection<File> files) {
-            String[] paths = new String[files.size()];
-            int index = 0;
-            for (File file : files) {
-                paths[index++] = file.getAbsolutePath();
-            }
-            return paths;
+            return doStopWatching(paths);
         }
 
         @Override
         public void shutdown() {
             ensureOpen();
             shutdown = true;
-            shutdown0(server);
+            doShutdown();
         }
-
-        private native void shutdown0(Object server);
 
         @Override
         public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
             long timeoutInMillis = unit.toMillis(timeout);
             long startTime = System.currentTimeMillis();
-            boolean successful = awaitTermination0(server, timeoutInMillis);
+            boolean successful = awaitTermination(timeoutInMillis);
             if (successful) {
                 long endTime = System.currentTimeMillis();
                 long remainingTimeout = timeoutInMillis - (endTime - startTime);
@@ -245,7 +211,17 @@ public abstract class AbstractFileEventFunctions<W extends FileWatcher> implemen
             }
         }
 
-        private native boolean awaitTermination0(Object server, long timeoutInMillis);
+        protected abstract void initializeRunLoop();
+
+        protected abstract void executeRunLoop();
+
+        protected abstract void doStartWatching(Collection<File> paths);
+
+        protected abstract boolean doStopWatching(Collection<File> paths);
+
+        protected abstract void doShutdown();
+
+        protected abstract boolean awaitTermination(long timeoutInMillis);
 
         private void ensureOpen() {
             if (shutdown) {
