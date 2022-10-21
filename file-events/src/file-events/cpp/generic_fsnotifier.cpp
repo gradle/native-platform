@@ -77,27 +77,6 @@ jobject wrapServer(JNIEnv* env, AbstractServer* server) {
     return env->NewDirectByteBuffer(server, sizeof(server));
 }
 
-void AbstractServer::executeRunLoop(JNIEnv* env) {
-    try {
-        runLoop();
-    } catch (const exception& ex) {
-        rethrowAsJavaException(env, ex);
-    }
-    unique_lock<mutex> terminationLock(terminationMutex);
-    terminated = true;
-    terminationVariable.notify_all();
-}
-
-bool AbstractServer::awaitTermination(long timeoutInMillis) {
-    unique_lock<mutex> terminationLock(terminationMutex);
-    if (terminated) {
-        return true;
-    }
-    auto status = terminationVariable.wait_for(terminationLock, chrono::milliseconds(timeoutInMillis));
-    bool success = status != cv_status::timeout;
-    return success;
-}
-
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_AbstractNativeFileEventFunctions_00024NativeFileWatcher_initializeRunLoop0(JNIEnv* env, jobject, jobject javaServer) {
     try {
@@ -112,7 +91,7 @@ JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_AbstractNativeFileEventFunctions_00024NativeFileWatcher_executeRunLoop0(JNIEnv* env, jobject, jobject javaServer) {
     try {
         AbstractServer* server = getServer(env, javaServer);
-        server->executeRunLoop(env);
+        server->runLoop();
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
     }
@@ -152,21 +131,6 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractNativeFileEventFunctions_0
         server->shutdownRunLoop();
     } catch (const exception& e) {
         rethrowAsJavaException(env, e);
-    }
-}
-
-JNIEXPORT jboolean JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_AbstractNativeFileEventFunctions_00024NativeFileWatcher_awaitTermination0(JNIEnv* env, jobject, jobject javaServer, jlong timeoutInMillis) {
-    try {
-        AbstractServer* server = getServer(env, javaServer);
-        bool successful = server->awaitTermination((long) timeoutInMillis);
-        if (successful) {
-            delete server;
-        }
-        return successful;
-    } catch (const exception& e) {
-        rethrowAsJavaException(env, e);
-        return false;
     }
 }
 

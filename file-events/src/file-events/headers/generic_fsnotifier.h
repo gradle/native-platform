@@ -44,7 +44,7 @@ public:
     virtual ~AbstractServer();
 
     virtual void initializeRunLoop() = 0;
-    void executeRunLoop(JNIEnv* env);
+    virtual void runLoop() = 0;
 
     /**
      * Registers new watch point with the server for the given paths.
@@ -61,24 +61,13 @@ public:
      */
     virtual void shutdownRunLoop() = 0;
 
-    /**
-     * Waits for the given timeout for the server to finsih terminating.
-     */
-    bool awaitTermination(long timeoutInMillis);
-
 protected:
-    virtual void runLoop() = 0;
-
     void reportChangeEvent(JNIEnv* env, ChangeType type, const u16string& path);
     void reportUnknownEvent(JNIEnv* env, const u16string& path);
     void reportOverflow(JNIEnv* env, const u16string& path);
     void reportFailure(JNIEnv* env, const exception& ex);
 
 private:
-    mutex terminationMutex;
-    condition_variable terminationVariable;
-    bool terminated = false;
-
     JniGlobalRef<jobject> watcherCallback;
     jmethodID watcherReportChangeEventMethod;
     jmethodID watcherReportUnknownEventMethod;

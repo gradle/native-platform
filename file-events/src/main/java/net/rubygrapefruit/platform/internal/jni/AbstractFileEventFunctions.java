@@ -196,19 +196,8 @@ public abstract class AbstractFileEventFunctions<W extends FileWatcher> implemen
 
         @Override
         public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-            long timeoutInMillis = unit.toMillis(timeout);
-            long startTime = System.currentTimeMillis();
-            boolean successful = awaitTermination(timeoutInMillis);
-            if (successful) {
-                long endTime = System.currentTimeMillis();
-                long remainingTimeout = timeoutInMillis - (endTime - startTime);
-                if (remainingTimeout > 0) {
-                    processorThread.join(remainingTimeout);
-                }
-                return !processorThread.isAlive();
-            } else {
-                return false;
-            }
+            processorThread.join(unit.toMillis(timeout));
+            return !processorThread.isAlive();
         }
 
         protected abstract void initializeRunLoop();
@@ -220,8 +209,6 @@ public abstract class AbstractFileEventFunctions<W extends FileWatcher> implemen
         protected abstract boolean doStopWatching(Collection<File> paths);
 
         protected abstract void doShutdown();
-
-        protected abstract boolean awaitTermination(long timeoutInMillis);
 
         private void ensureOpen() {
             if (shutdown) {

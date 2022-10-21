@@ -73,12 +73,5 @@ public abstract class AbstractNativeFileEventFunctions<W extends FileWatcher> ex
         }
 
         private native void shutdown0(Object server);
-
-        @Override
-        protected boolean awaitTermination(long timeoutInMillis) {
-            return awaitTermination0(server, timeoutInMillis);
-        }
-
-        private native boolean awaitTermination0(Object server, long timeoutInMillis);
     }
 }

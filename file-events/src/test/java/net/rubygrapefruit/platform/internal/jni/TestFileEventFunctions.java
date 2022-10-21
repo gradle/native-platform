@@ -72,11 +72,6 @@ public class TestFileEventFunctions extends AbstractFileEventFunctions<TestFileE
         }
 
         @Override
-        protected boolean awaitTermination(long timeoutInMillis) {
-            return true;
-        }
-
-        @Override
         protected void doStartWatching(Collection<File> paths) {
             throw new UnsupportedOperationException();
         }
