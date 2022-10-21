@@ -13,6 +13,8 @@ import java.util.concurrent.TimeUnit;
  */
 @NotThreadSafe
 public interface FileWatcher {
+    void initialize(long startTimeout, TimeUnit startTimeoutUnit) throws InterruptedException;
+
     void startWatching(Collection<File> paths) throws InsufficientResourcesForWatchingException;
 
     @CheckReturnValue
