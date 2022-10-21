@@ -56,7 +56,7 @@ public class LinuxFileEventFunctions extends AbstractNativeFileEventFunctions<Li
         return new WatcherBuilder(eventQueue);
     }
 
-    public static class LinuxFileWatcher extends NativeFileWatcher {
+    public static class LinuxFileWatcher extends AbstractNativeFileEventFunctions.NativeFileWatcher {
         public LinuxFileWatcher(Object server, NativeFileWatcherCallback callback) {
             super(server, callback);
         }

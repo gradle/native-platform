@@ -49,7 +49,7 @@ public class OsxFileEventFunctions extends AbstractNativeFileEventFunctions<OsxF
         return new WatcherBuilder(eventQueue);
     }
 
-    public static class OsxFileWatcher extends NativeFileWatcher {
+    public static class OsxFileWatcher extends AbstractNativeFileEventFunctions.NativeFileWatcher {
         public OsxFileWatcher(Object server, NativeFileWatcherCallback callback) {
             super(server, callback);
         }

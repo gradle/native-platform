@@ -29,7 +29,7 @@ public class TestFileEventFunctions extends AbstractFileEventFunctions<TestFileE
         return new WatcherBuilder(eventQueue);
     }
 
-    public static class TestFileWatcher extends AbstractFileWatcher {
+    public static class TestFileWatcher extends AbstractFileEventFunctions.AbstractFileWatcher {
         enum Command {
             THROW, TERMINATE
         }

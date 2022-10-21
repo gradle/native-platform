@@ -56,7 +56,7 @@ public class WindowsFileEventFunctions extends AbstractNativeFileEventFunctions<
         return new WatcherBuilder(eventQueue);
     }
 
-    public static class WindowsFileWatcher extends NativeFileWatcher {
+    public static class WindowsFileWatcher extends AbstractNativeFileEventFunctions.NativeFileWatcher {
         public WindowsFileWatcher(Object server, NativeFileWatcherCallback callback) {
             super(server, callback);
         }
