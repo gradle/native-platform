@@ -21,9 +21,9 @@ class SyntheticFileEventFunctionsTest extends Specification {
         eventQueue*.toString() == ["TERMINATE"]
     }
 
-    def "failure produces failure event followed by termination events"() {
+    def "failure in run loop produces failure event followed by termination events"() {
         when:
-        watcher.failRunLoop()
+        watcher.injectFailureIntoRunLoop()
         watcher.awaitTermination(1, TimeUnit.SECONDS)
         then:
         eventQueue*.toString() == ["FAILURE Error", "TERMINATE"]

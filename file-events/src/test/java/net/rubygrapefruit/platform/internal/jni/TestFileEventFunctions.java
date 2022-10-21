@@ -31,7 +31,7 @@ public class TestFileEventFunctions extends AbstractFileEventFunctions<TestFileE
 
     public static class TestFileWatcher extends AbstractFileEventFunctions.AbstractFileWatcher {
         enum Command {
-            THROW, TERMINATE
+            FAIL, TERMINATE
         }
 
         private final BlockingQueue<Command> commands = new LinkedBlockingQueue<Command>();
@@ -50,7 +50,7 @@ public class TestFileEventFunctions extends AbstractFileEventFunctions<TestFileE
                 boolean running = true;
                 while (running) {
                     switch (commands.take()) {
-                        case THROW:
+                        case FAIL:
                             throw new RuntimeException("Error");
                         case TERMINATE:
                             running = false;
@@ -62,8 +62,8 @@ public class TestFileEventFunctions extends AbstractFileEventFunctions<TestFileE
             }
         }
 
-        public void failRunLoop() {
-            commands.offer(Command.THROW);
+        public void injectFailureIntoRunLoop() {
+            commands.offer(Command.FAIL);
         }
 
         @Override
