@@ -176,6 +176,8 @@ public abstract class AbstractFileEventFunctions<W extends FileWatcher> implemen
                         }
                     } catch (Throwable e) {
                         callback.reportFailure(e);
+                    } finally {
+                        callback.reportTermination();
                     }
                 }
             };

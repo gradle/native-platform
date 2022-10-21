@@ -14,7 +14,6 @@ AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback)
     this->watcherReportUnknownEventMethod = env->GetMethodID(callbackClass, "reportUnknownEvent", "(Ljava/lang/String;)V");
     this->watcherReportOverflowMethod = env->GetMethodID(callbackClass, "reportOverflow", "(Ljava/lang/String;)V");
     this->watcherReportFailureMethod = env->GetMethodID(callbackClass, "reportFailure", "(Ljava/lang/Throwable;)V");
-    this->watcherReportTerminationMethod = env->GetMethodID(callbackClass, "reportTermination", "()V");
 }
 
 AbstractServer::~AbstractServer() {
@@ -53,11 +52,6 @@ void AbstractServer::reportFailure(JNIEnv* env, const exception& exception) {
     getJavaExceptionAndPrintStacktrace(env);
 }
 
-void AbstractServer::reportTermination(JNIEnv* env) {
-    env->CallVoidMethod(watcherCallback.get(), watcherReportTerminationMethod);
-    getJavaExceptionAndPrintStacktrace(env);
-}
-
 AbstractServer* getServer(JNIEnv* env, jobject javaServer) {
     AbstractServer* server = (AbstractServer*) env->GetDirectBufferAddress(javaServer);
     if (server == NULL) {
@@ -91,7 +85,6 @@ void AbstractServer::executeRunLoop(JNIEnv* env) {
     }
     unique_lock<mutex> terminationLock(terminationMutex);
     terminated = true;
-    reportTermination(env);
     terminationVariable.notify_all();
 }
 
