@@ -23,11 +23,11 @@ These bindings work for the UNIX terminal, the Windows console and Mintty from C
 * Read raw input from the terminal. Not support for Mintty.
 * Read arrow keys and other function keys from the terminal. Not support for Mintty.
 
-See [Terminals](src/main/java/net/rubygrapefruit/platform/terminal/Terminals.java)
+See [Terminals](native-platform/src/main/java/net/rubygrapefruit/platform/terminal/Terminals.java)
 
 * Utility class to display various kinds of prompts to the user on the terminal.
 
-See [Prompter](src/main/java/net/rubygrapefruit/platform/prompts/Prompter.java)
+See [Prompter](native-platform/src/main/java/net/rubygrapefruit/platform/prompts/Prompter.java)
 
 ### System information
 
@@ -36,7 +36,7 @@ See [Prompter](src/main/java/net/rubygrapefruit/platform/prompts/Prompter.java)
 * Query hostname.
 * Query total and available memory (OS X only).
 
-See [SystemInfo](src/main/java/net/rubygrapefruit/platform/SystemInfo.java)
+See [SystemInfo](native-platform/src/main/java/net/rubygrapefruit/platform/SystemInfo.java)
 
 ### Processes
 
@@ -45,7 +45,7 @@ See [SystemInfo](src/main/java/net/rubygrapefruit/platform/SystemInfo.java)
 * Query and set the process environment variables.
 * Detach process from its controlling console
 
-See [Process](src/main/java/net/rubygrapefruit/platform/Process.java)
+See [Process](native-platform/src/main/java/net/rubygrapefruit/platform/Process.java)
 
 ### File systems
 
@@ -55,7 +55,7 @@ See [Process](src/main/java/net/rubygrapefruit/platform/Process.java)
 * Query file type, size and timestamps.
 * Query directory contents.
 
-See [Files](src/main/java/net/rubygrapefruit/platform/Files.java)
+See [Files](native-platform/src/main/java/net/rubygrapefruit/platform/Files.java)
 
 * List the available file systems on the machine and details of each file system.
 * Query file system mount point.
@@ -64,14 +64,14 @@ See [Files](src/main/java/net/rubygrapefruit/platform/Files.java)
 * Query whether a file system is local or remote.
 * Query whether a file system is case-sensitive and case preserving.
 
-See [FileSystems](src/main/java/net/rubygrapefruit/platform/FileSystems.java)
+See [FileSystems](native-platform/src/main/java/net/rubygrapefruit/platform/FileSystems.java)
 
 ### Windows registry
 
 * Query registry value.
 * Query the subkeys and values of a registry key.
 
-See [WindowsRegistry](src/main/java/net/rubygrapefruit/platform/WindowsRegistry.java)
+See [WindowsRegistry](native-platform/src/main/java/net/rubygrapefruit/platform/WindowsRegistry.java)
 
 ## Supported platforms
 
