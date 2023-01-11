@@ -41,7 +41,7 @@ import java.util.concurrent.TimeUnit;
  *     behavior and can lead to a deadlock.</li>
  * </ul>
  */
-public class OsxFileEventFunctions extends AbstractFileEventFunctions<OsxFileEventFunctions.OsxFileWatcher> {
+public class OsxFileEventFunctions extends AbstractNativeFileEventFunctions<OsxFileEventFunctions.OsxFileWatcher> {
     private static final long DEFAULT_LATENCY_IN_MS = 0;
 
     @Override
@@ -49,9 +49,9 @@ public class OsxFileEventFunctions extends AbstractFileEventFunctions<OsxFileEve
         return new WatcherBuilder(eventQueue);
     }
 
-    public static class OsxFileWatcher extends AbstractFileEventFunctions.NativeFileWatcher {
-        public OsxFileWatcher(Object server, long startTimeout, TimeUnit startTimeoutUnit, NativeFileWatcherCallback callback) throws InterruptedException {
-            super(server, startTimeout, startTimeoutUnit, callback);
+    public static class OsxFileWatcher extends AbstractNativeFileEventFunctions.NativeFileWatcher {
+        public OsxFileWatcher(Object server, NativeFileWatcherCallback callback) {
+            super(server, callback);
         }
     }
 
@@ -75,13 +75,9 @@ public class OsxFileEventFunctions extends AbstractFileEventFunctions<OsxFileEve
         }
 
         @Override
-        protected Object startWatcher(NativeFileWatcherCallback callback) {
-            return startWatcher0(latencyInMillis, callback);
-        }
-
-        @Override
-        protected OsxFileWatcher createWatcher(Object server, long startTimeout, TimeUnit startTimeoutUnit, NativeFileWatcherCallback callback) throws InterruptedException {
-            return new OsxFileWatcher(server, startTimeout, startTimeoutUnit, callback);
+        protected OsxFileWatcher createWatcher(NativeFileWatcherCallback callback) {
+            Object server = startWatcher0(latencyInMillis, callback);
+            return new OsxFileWatcher(server, callback);
         }
     }
 

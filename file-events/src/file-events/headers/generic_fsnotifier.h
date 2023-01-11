@@ -14,8 +14,8 @@
 #include "exception.h"
 #include "jni_support.h"
 #include "logging.h"
-#include "net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions.h"
-#include "net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_NativeFileWatcher.h"
+#include "net_rubygrapefruit_platform_internal_jni_AbstractNativeFileEventFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_AbstractNativeFileEventFunctions_NativeFileWatcher.h"
 
 using namespace std;
 
@@ -73,7 +73,6 @@ protected:
     void reportUnknownEvent(JNIEnv* env, const u16string& path);
     void reportOverflow(JNIEnv* env, const u16string& path);
     void reportFailure(JNIEnv* env, const exception& ex);
-    void reportTermination(JNIEnv* env);
 
 private:
     mutex terminationMutex;
@@ -85,7 +84,6 @@ private:
     jmethodID watcherReportUnknownEventMethod;
     jmethodID watcherReportOverflowMethod;
     jmethodID watcherReportFailureMethod;
-    jmethodID watcherReportTerminationMethod;
 };
 
 class NativePlatformJniConstants : public JniSupport {

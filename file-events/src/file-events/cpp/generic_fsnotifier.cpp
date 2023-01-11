@@ -14,7 +14,6 @@ AbstractServer::AbstractServer(JNIEnv* env, jobject watcherCallback)
     this->watcherReportUnknownEventMethod = env->GetMethodID(callbackClass, "reportUnknownEvent", "(Ljava/lang/String;)V");
     this->watcherReportOverflowMethod = env->GetMethodID(callbackClass, "reportOverflow", "(Ljava/lang/String;)V");
     this->watcherReportFailureMethod = env->GetMethodID(callbackClass, "reportFailure", "(Ljava/lang/Throwable;)V");
-    this->watcherReportTerminationMethod = env->GetMethodID(callbackClass, "reportTermination", "()V");
 }
 
 AbstractServer::~AbstractServer() {
@@ -53,11 +52,6 @@ void AbstractServer::reportFailure(JNIEnv* env, const exception& exception) {
     getJavaExceptionAndPrintStacktrace(env);
 }
 
-void AbstractServer::reportTermination(JNIEnv* env) {
-    env->CallVoidMethod(watcherCallback.get(), watcherReportTerminationMethod);
-    getJavaExceptionAndPrintStacktrace(env);
-}
-
 AbstractServer* getServer(JNIEnv* env, jobject javaServer) {
     AbstractServer* server = (AbstractServer*) env->GetDirectBufferAddress(javaServer);
     if (server == NULL) {
@@ -91,7 +85,6 @@ void AbstractServer::executeRunLoop(JNIEnv* env) {
     }
     unique_lock<mutex> terminationLock(terminationMutex);
     terminated = true;
-    reportTermination(env);
     terminationVariable.notify_all();
 }
 
@@ -106,7 +99,7 @@ bool AbstractServer::awaitTermination(long timeoutInMillis) {
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_initializeRunLoop0(JNIEnv* env, jobject, jobject javaServer) {
+Java_net_rubygrapefruit_platform_internal_jni_AbstractNativeFileEventFunctions_00024NativeFileWatcher_initializeRunLoop0(JNIEnv* env, jobject, jobject javaServer) {
     try {
         AbstractServer* server = getServer(env, javaServer);
         server->initializeRunLoop();
@@ -116,7 +109,7 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_executeRunLoop0(JNIEnv* env, jobject, jobject javaServer) {
+Java_net_rubygrapefruit_platform_internal_jni_AbstractNativeFileEventFunctions_00024NativeFileWatcher_executeRunLoop0(JNIEnv* env, jobject, jobject javaServer) {
     try {
         AbstractServer* server = getServer(env, javaServer);
         server->executeRunLoop(env);
@@ -126,7 +119,7 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_startWatching0(JNIEnv* env, jobject, jobject javaServer, jobjectArray javaPaths) {
+Java_net_rubygrapefruit_platform_internal_jni_AbstractNativeFileEventFunctions_00024NativeFileWatcher_startWatching0(JNIEnv* env, jobject, jobject javaServer, jobjectArray javaPaths) {
     try {
         AbstractServer* server = getServer(env, javaServer);
         vector<u16string> paths;
@@ -140,7 +133,7 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
 }
 
 JNIEXPORT jboolean JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_stopWatching0(JNIEnv* env, jobject, jobject javaServer, jobjectArray javaPaths) {
+Java_net_rubygrapefruit_platform_internal_jni_AbstractNativeFileEventFunctions_00024NativeFileWatcher_stopWatching0(JNIEnv* env, jobject, jobject javaServer, jobjectArray javaPaths) {
     try {
         AbstractServer* server = getServer(env, javaServer);
         vector<u16string> paths;
@@ -153,7 +146,7 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_shutdown0(JNIEnv* env, jobject, jobject javaServer) {
+Java_net_rubygrapefruit_platform_internal_jni_AbstractNativeFileEventFunctions_00024NativeFileWatcher_shutdown0(JNIEnv* env, jobject, jobject javaServer) {
     try {
         AbstractServer* server = getServer(env, javaServer);
         server->shutdownRunLoop();
@@ -163,7 +156,7 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
 }
 
 JNIEXPORT jboolean JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024NativeFileWatcher_awaitTermination0(JNIEnv* env, jobject, jobject javaServer, jlong timeoutInMillis) {
+Java_net_rubygrapefruit_platform_internal_jni_AbstractNativeFileEventFunctions_00024NativeFileWatcher_awaitTermination0(JNIEnv* env, jobject, jobject javaServer, jlong timeoutInMillis) {
     try {
         AbstractServer* server = getServer(env, javaServer);
         bool successful = server->awaitTermination((long) timeoutInMillis);
@@ -178,7 +171,7 @@ Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_00024Na
 }
 
 JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_AbstractFileEventFunctions_invalidateLogLevelCache0(JNIEnv* env, jobject) {
+Java_net_rubygrapefruit_platform_internal_jni_AbstractNativeFileEventFunctions_invalidateLogLevelCache0(JNIEnv* env, jobject) {
     try {
         logging->invalidateLogLevelCache();
     } catch (const exception& e) {
