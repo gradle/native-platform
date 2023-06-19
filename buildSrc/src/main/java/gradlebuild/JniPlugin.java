@@ -255,8 +255,10 @@ public abstract class JniPlugin implements Plugin<Project> {
             addPlatform(platformContainer, "linux_aarch64", "linux", "aarch64");
             addPlatform(platformContainer, "windows_i386", "windows", "i386");
             addPlatform(platformContainer, "windows_amd64", "windows", "amd64");
+            addPlatform(platformContainer, "windows_aarch64", "windows", "aarch64");
             addPlatform(platformContainer, "windows_i386_min", "windows", "i386");
             addPlatform(platformContainer, "windows_amd64_min", "windows", "amd64");
+            addPlatform(platformContainer, "windows_aarch64_min", "windows", "aarch64");
         }
 
         @Mutate void createToolChains(NativeToolChainRegistry toolChainRegistry) {
