@@ -24,7 +24,6 @@ import spock.lang.IgnoreIf
 import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
 
-import java.lang.management.ManagementFactory
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 
@@ -53,8 +52,8 @@ class OsxMemoryTest extends Specification {
         memoryInfo.totalPhysicalMemory > 0
         memoryInfo.availablePhysicalMemory > 0
         memoryInfo.availablePhysicalMemory <= memoryInfo.totalPhysicalMemory
-        memoryInfo.totalPhysicalMemory == jmxTotalPhysicalMemory
-        memoryInfo.availablePhysicalMemory > jmxAvailablePhysicalMemory
+        memoryInfo.totalPhysicalMemory == MemoryTest.jmxTotalPhysicalMemory
+        memoryInfo.availablePhysicalMemory > MemoryTest.jmxAvailablePhysicalMemory
     }
 
     @Ignore
@@ -102,14 +101,6 @@ class OsxMemoryTest extends Specification {
         return csv
     }
 
-    long getJmxTotalPhysicalMemory() {
-        ManagementFactory.operatingSystemMXBean.totalPhysicalMemorySize
-    }
-
-    long getJmxAvailablePhysicalMemory() {
-        ManagementFactory.operatingSystemMXBean.freePhysicalMemorySize
-    }
-
     def VMSTAT_LINE_PATTERN = Pattern.compile(/^\D+(\d+)\D+$/)
     def vmstatMatcher = VMSTAT_LINE_PATTERN.matcher("")
 
@@ -139,7 +130,7 @@ class OsxMemoryTest extends Specification {
                 freeCount += speculativeCount
             }
         }
-        long totalMem = jmxTotalPhysicalMemory
+        long totalMem = MemoryTest.jmxTotalPhysicalMemory
         long availableMem = (freeCount + externalCount) * pageSize
         DefaultOsxMemoryInfo info = new DefaultOsxMemoryInfo()
         info.details(pageSize,

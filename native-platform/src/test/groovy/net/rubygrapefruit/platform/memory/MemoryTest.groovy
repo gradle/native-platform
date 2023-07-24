@@ -19,12 +19,21 @@ package net.rubygrapefruit.platform.memory
 import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.IgnoreIf
+import spock.lang.Requires
 import spock.lang.Specification
 
 import java.lang.management.ManagementFactory
 
-@IgnoreIf({ !Platform.current().macOs })
+@Requires({ Platform.current().macOs || Platform.current().windows })
 class MemoryTest extends Specification {
+    static long getJmxTotalPhysicalMemory() {
+        ManagementFactory.operatingSystemMXBean.totalPhysicalMemorySize
+    }
+
+    static long getJmxAvailablePhysicalMemory() {
+        ManagementFactory.operatingSystemMXBean.freePhysicalMemorySize
+    }
+
     def "caches memory instance"() {
         expect:
         def memory = Native.get(Memory.class)
@@ -40,9 +49,5 @@ class MemoryTest extends Specification {
         memoryInfo.totalPhysicalMemory == jmxTotalPhysicalMemory
         memoryInfo.availablePhysicalMemory > 0
         memoryInfo.availablePhysicalMemory <= memoryInfo.totalPhysicalMemory
-    }
-
-    long getJmxTotalPhysicalMemory() {
-        ManagementFactory.operatingSystemMXBean.totalPhysicalMemorySize
     }
 }

@@ -18,6 +18,8 @@
 
 #include "win.h"
 #include "generic.h"
+#include "net_rubygrapefruit_platform_internal_jni_MemoryFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_WindowsMemoryFunctions.h"
 #include "net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions.h"
 #include "net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions.h"
 #include "net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions.h"
@@ -1083,6 +1085,83 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsRegistryFunctions_getValueN
     RegCloseKey(key);
     free(subkeyStr);
     return true;
+}
+
+/**
+ * Memory functions
+ */
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_MemoryFunctions_getMemoryInfo(JNIEnv* env, jclass type, jobject dest, jobject result) {
+    jclass destClass = env->GetObjectClass(dest);
+    jmethodID mid = env->GetMethodID(destClass, "details", "(JJ)V");
+    if (mid == NULL) {
+        mark_failed_with_message(env, "could not find method", result);
+        return;
+    }
+
+    // Get total/avail physical memory
+    MEMORYSTATUSEX statex;
+    statex.dwLength = sizeof(statex);
+    if (!GlobalMemoryStatusEx(&statex)) {
+        mark_failed_with_errno(env, "could not query memory size", result);
+        return;
+    }
+
+    // Feed Java with details
+    env->CallVoidMethod(dest, mid, (jlong) statex.ullTotalPhys, (jlong) statex.ullAvailPhys);
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsMemoryFunctions_getWindowsMemoryInfo(JNIEnv* env, jclass type, jobject dest, jobject result) {
+    jclass destClass = env->GetObjectClass(dest);
+    jmethodID mid = env->GetMethodID(destClass, "details", "(JJJJ)V");
+    if (mid == NULL) {
+        mark_failed_with_message(env, "could not find method", result);
+        return;
+    }
+
+    // Get total/avail physical memory
+    MEMORYSTATUSEX statex;
+    statex.dwLength = sizeof(statex);
+    if (!GlobalMemoryStatusEx(&statex)) {
+        mark_failed_with_errno(env, "could not query memory size", result);
+        return;
+    }
+
+    // Get commit details
+    PERFORMANCE_INFORMATION perfInfo;
+    perfInfo.cb = sizeof(perfInfo);
+    if (!GetPerformanceInfo(&perfInfo, sizeof(perfInfo))) {
+        mark_failed_with_errno(env, "could not query performance info", result);
+        return;
+    }
+
+    size_t commitTotalInBytes;
+    HRESULT resultVal = SizeTMult(perfInfo.CommitTotal, perfInfo.PageSize, &commitTotalInBytes);
+    if (resultVal != S_OK) {
+        if (resultVal != INTSAFE_E_ARITHMETIC_OVERFLOW) {
+            mark_failed_with_message(env, "could not calculate commit size", result);
+            return;
+        }
+        commitTotalInBytes = SIZE_MAX;
+    }
+    size_t commitLimitInBytes;
+    resultVal = SizeTMult(perfInfo.CommitLimit, perfInfo.PageSize, &commitLimitInBytes);
+    if (resultVal != S_OK) {
+        if (resultVal != INTSAFE_E_ARITHMETIC_OVERFLOW) {
+            mark_failed_with_message(env, "could not calculate commit limit", result);
+            return;
+        }
+        commitLimitInBytes = SIZE_MAX;
+    }
+
+    // Feed Java with details
+    env->CallVoidMethod(dest, mid,
+        (jlong) commitTotalInBytes,
+        (jlong) commitLimitInBytes,
+        (jlong) statex.ullTotalPhys,
+        (jlong) statex.ullAvailPhys
+        );
 }
 
 #endif
