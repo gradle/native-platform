@@ -34,7 +34,8 @@ See [Prompter](native-platform/src/main/java/net/rubygrapefruit/platform/prompts
 * Query kernel name and version.
 * Query machine architecture.
 * Query hostname.
-* Query total and available memory (OS X only).
+* Query total and available memory (OS X and Windows only).
+* Query system commit total and limit (Windows only).
 
 See [SystemInfo](native-platform/src/main/java/net/rubygrapefruit/platform/SystemInfo.java)
 
@@ -123,6 +124,7 @@ Some sample code to use the terminal:
 ### 0.22 (unreleased)
 
 * Remove support for 32bit Linux & FreeBSD, as well as support for FreeBSD < 10.
+* Implement `Memory` and add `WindowsMemory` for Windows.
 
 ### 0.21
 

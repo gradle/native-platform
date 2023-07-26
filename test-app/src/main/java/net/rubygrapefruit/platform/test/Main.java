@@ -39,6 +39,8 @@ import net.rubygrapefruit.platform.internal.jni.OsxFileEventFunctions;
 import net.rubygrapefruit.platform.internal.jni.WindowsFileEventFunctions;
 import net.rubygrapefruit.platform.memory.Memory;
 import net.rubygrapefruit.platform.memory.MemoryInfo;
+import net.rubygrapefruit.platform.memory.WindowsMemory;
+import net.rubygrapefruit.platform.memory.WindowsMemoryInfo;
 import net.rubygrapefruit.platform.prompts.Prompter;
 import net.rubygrapefruit.platform.terminal.TerminalInput;
 import net.rubygrapefruit.platform.terminal.TerminalInputListener;
@@ -355,6 +357,14 @@ public class Main {
             MemoryInfo memory = Native.get(Memory.class).getMemoryInfo();
             System.out.println("* Available memory: " + memory.getAvailablePhysicalMemory());
             System.out.println("* Total memory: " + memory.getTotalPhysicalMemory());
+        } catch (NativeIntegrationUnavailableException e) {
+            // ignore
+        }
+
+        try {
+            WindowsMemoryInfo memory = Native.get(WindowsMemory.class).getMemoryInfo();
+            System.out.println("* Windows Commit Limit: " + memory.getCommitLimit());
+            System.out.println("* Windows Commit Total: " + memory.getCommitTotal());
         } catch (NativeIntegrationUnavailableException e) {
             // ignore
         }

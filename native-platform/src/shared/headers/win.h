@@ -23,6 +23,8 @@
 #include <Shlwapi.h>
 #include <wchar.h>
 #include <windows.h>
+#include <psapi.h>
+#include <intsafe.h>
 
 //
 // Converts a Java string to a UNICODE path, including the Long Path prefix ("\\?\")
