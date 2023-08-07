@@ -50,4 +50,16 @@ class MemoryTest extends Specification {
         memoryInfo.availablePhysicalMemory > 0
         memoryInfo.availablePhysicalMemory <= memoryInfo.totalPhysicalMemory
     }
+
+    @Requires({ Platform.current().windows })
+    def "memory instance is the OS-specific implementation on Windows"() {
+        expect:
+        Native.get(Memory.class) instanceof WindowsMemory
+    }
+
+    @Requires({ Platform.current().macOs })
+    def "memory instance is the OS-specific implementation on OSX"() {
+        expect:
+        Native.get(Memory.class) instanceof OsxMemory
+    }
 }
