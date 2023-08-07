@@ -182,11 +182,8 @@ public abstract class Platform {
             if (type.equals(WindowsRegistry.class)) {
                 return type.cast(new DefaultWindowsRegistry());
             }
-            if (type.equals(WindowsMemory.class)) {
+            if (type.equals(Memory.class) || type.equals(WindowsMemory.class)) {
                 return type.cast(new DefaultWindowsMemory());
-            }
-            if (type.equals(Memory.class)) {
-                return type.cast(new DefaultMemory());
             }
             return super.get(type, nativeLibraryLoader);
         }
@@ -353,11 +350,8 @@ public abstract class Platform {
 
         @Override
         public <T extends NativeIntegration> T get(Class<T> type, NativeLibraryLoader nativeLibraryLoader) {
-            if (type.equals(OsxMemory.class)) {
+            if (type.equals(Memory.class) || type.equals(OsxMemory.class)) {
                 return type.cast(new DefaultOsxMemory());
-            }
-            if (type.equals(Memory.class)) {
-                return type.cast(new DefaultMemory());
             }
             return super.get(type, nativeLibraryLoader);
         }

@@ -18,7 +18,6 @@
 
 #include "win.h"
 #include "generic.h"
-#include "net_rubygrapefruit_platform_internal_jni_MemoryFunctions.h"
 #include "net_rubygrapefruit_platform_internal_jni_WindowsMemoryFunctions.h"
 #include "net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions.h"
 #include "net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions.h"
@@ -1090,27 +1089,6 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsRegistryFunctions_getValueN
 /**
  * Memory functions
  */
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_MemoryFunctions_getMemoryInfo(JNIEnv* env, jclass type, jobject dest, jobject result) {
-    jclass destClass = env->GetObjectClass(dest);
-    jmethodID mid = env->GetMethodID(destClass, "details", "(JJ)V");
-    if (mid == NULL) {
-        mark_failed_with_message(env, "could not find method", result);
-        return;
-    }
-
-    // Get total/avail physical memory
-    MEMORYSTATUSEX statex;
-    statex.dwLength = sizeof(statex);
-    if (!GlobalMemoryStatusEx(&statex)) {
-        mark_failed_with_errno(env, "could not query memory size", result);
-        return;
-    }
-
-    // Feed Java with details
-    env->CallVoidMethod(dest, mid, (jlong) statex.ullTotalPhys, (jlong) statex.ullAvailPhys);
-}
-
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsMemoryFunctions_getWindowsMemoryInfo(JNIEnv* env, jclass type, jobject dest, jobject result) {
     jclass destClass = env->GetObjectClass(dest);
