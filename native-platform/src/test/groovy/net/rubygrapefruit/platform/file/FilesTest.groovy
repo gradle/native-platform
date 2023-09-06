@@ -159,10 +159,7 @@ abstract class FilesTest extends AbstractFilesTest {
     @IgnoreIf({ !FilesTest.supportsSymbolicLinks() })
     @Unroll
     def "can stat a directory symbolic link"() {
-        // We can't run this test with long paths on Windows, because the createDirectorySymbolicLink
-        // and createFileSymbolicLink methods use the "mklink" command on that platform, and it is currently
-        // limited to 260 character paths.
-        assumeFalse(Platform.current().windows && fileName.size() > 260)
+        assumeLongSymlinksSupported(fileName)
 
         def dir = tmpDir.newFolder()
         def testDir = new File(dir, fileName)
@@ -186,10 +183,7 @@ abstract class FilesTest extends AbstractFilesTest {
     @IgnoreIf({ !FilesTest.supportsSymbolicLinks() })
     @Unroll
     def "can stat a file symbolic link"() {
-        // We can't run this test with long paths on Windows, because the createDirectorySymbolicLink
-        // and createFileSymbolicLink methods use the "mklink" command on that platform, and it is currently
-        // limited to 260 character paths.
-        assumeFalse(Platform.current().windows && fileName.size() > 260)
+        assumeLongSymlinksSupported(fileName)
 
         def dir = tmpDir.newFolder()
         def testFile = new File(dir, fileName)
@@ -214,10 +208,7 @@ abstract class FilesTest extends AbstractFilesTest {
     @IgnoreIf({ !FilesTest.supportsSymbolicLinks() })
     @Unroll
     def "can stat a missing symbolic link"() {
-        // We can't run this test with long paths on Windows, because the createDirectorySymbolicLink
-        // and createFileSymbolicLink methods use the "mklink" command on that platform, and it is currently
-        // limited to 260 character paths.
-        assumeFalse(Platform.current().windows && fileName.size() > 260)
+        assumeLongSymlinksSupported(fileName)
 
         def dir = tmpDir.newFolder()
         def testFile = new File(dir, fileName)
@@ -461,10 +452,7 @@ abstract class FilesTest extends AbstractFilesTest {
     @IgnoreIf({ !FilesTest.supportsSymbolicLinks() })
     @Unroll
     def "can list contents of a directory with symbolic links"() {
-        // We can't run this test with long paths on Windows, because the createDirectorySymbolicLink
-        // and createFileSymbolicLink methods use the "mklink" command on that platform, and it is currently
-        // limited to 260 character paths.
-        assumeFalse(Platform.current().windows && fileName.size() > 260)
+        assumeLongSymlinksSupported(fileName)
 
         def dir = tmpDir.newFolder()
         def testFile = new File(dir, fileName)
@@ -507,10 +495,7 @@ abstract class FilesTest extends AbstractFilesTest {
     @IgnoreIf({ !FilesTest.supportsSymbolicLinks() })
     @Unroll
     def "can list contents of a directory with symbolic links and follow links option"() {
-        // We can't run this test with long paths on Windows, because the createDirectorySymbolicLink
-        // and createFileSymbolicLink methods use the "mklink" command on that platform, and it is currently
-        // limited to 260 character paths.
-        assumeFalse(Platform.current().windows && fileName.size() > 260)
+        assumeLongSymlinksSupported(fileName)
 
         def dir = tmpDir.newFolder()
         def testFile = new File(dir, fileName)
@@ -600,4 +585,10 @@ abstract class FilesTest extends AbstractFilesTest {
         fileName << names
     }
 
+    protected def assumeLongSymlinksSupported(String fileName) {
+        // We can't run this test with long paths on Windows, because the createDirectorySymbolicLink
+        // and createFileSymbolicLink methods use the "mklink" command on that platform, and it is currently
+        // limited to 260 character paths.
+        assumeFalse(Platform.current().windows && fileName.size() > 260)
+    }
 }

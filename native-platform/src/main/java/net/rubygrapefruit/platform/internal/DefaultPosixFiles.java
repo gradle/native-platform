@@ -16,7 +16,7 @@
 
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.*;
+import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.file.DirEntry;
 import net.rubygrapefruit.platform.file.FilePermissionException;
 import net.rubygrapefruit.platform.file.PosixFileInfo;
@@ -66,10 +66,15 @@ public class DefaultPosixFiles extends AbstractFiles implements PosixFiles {
         }
     }
 
-    public int getMode(File file) {
-        PosixFileInfo stat = stat(file);
+    public int getMode(File file) throws NativeException {
+        return getMode(file, false);
+    }
+
+    public int getMode(File file, boolean linkTarget) throws NativeException {
+        PosixFileInfo stat = stat(file, linkTarget);
         if (stat.getType() == PosixFileInfo.Type.Missing) {
-            throw new NativeException(String.format("Could not get UNIX mode on %s: file does not exist.", file));
+            Object target = linkTarget ? readLink(file) : file;
+            throw new NativeException(String.format("Could not get UNIX mode on %s: file does not exist.", target));
         }
         return stat.getMode();
     }

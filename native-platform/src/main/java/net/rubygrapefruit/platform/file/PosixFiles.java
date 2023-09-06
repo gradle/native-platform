@@ -38,10 +38,19 @@ public interface PosixFiles extends Files, NativeIntegration {
     /**
      * Gets the mode for the given file.
      *
-     * @throws NativeException On failure.
+     * @throws NativeException On failure, e.g. when target does not exist. See also {@link #stat(File, boolean)}.
      */
     @ThreadSafe
     int getMode(File path) throws NativeException;
+
+    /**
+     * Gets the mode for the given file.
+     *
+     * @param linkTarget When true and the file is a symlink, return details of the target of the symlink instead of details of the symlink itself.
+     * @throws NativeException On failure, e.g. when target does not exist. See also {@link #stat(File, boolean)}.
+     */
+    @ThreadSafe
+    int getMode(File path, boolean linkTarget) throws NativeException;
 
     /**
      * Creates a symbolic link with given contents.
