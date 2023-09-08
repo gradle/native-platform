@@ -317,6 +317,53 @@ class PosixFilesTest extends FilesTest {
         e.message == "Could not read symlink $symlinkFile: could not readlink (errno 22: Invalid argument)"
     }
 
+    @Unroll
+    def "can get mode for a file behind symbolic link"() {
+        def testFile = new File(tmpDir.root, name)
+        testFile.parentFile.mkdirs()
+        testFile.text = "hi"
+        files.setMode(testFile, 0660)
+
+        def symlinkFile = new File(tmpDir.root, name + '.link')
+
+        when:
+        files.symlink(symlinkFile, testFile.name)
+
+        then:
+        files.getMode(symlinkFile, true) == files.getMode(testFile)
+        files.getMode(symlinkFile, false) != files.getMode(testFile)
+        files.getMode(symlinkFile, false) == files.getMode(symlinkFile)
+
+        files.getMode(testFile, true) == files.getMode(testFile)
+
+        where:
+        name << names
+    }
+
+    @Unroll
+    def "can get mode for a file behind broken symbolic link"() {
+        def brokenSymlinkFile = new File(tmpDir.root, name + '.link')
+        brokenSymlinkFile.parentFile.mkdirs()
+        files.symlink(brokenSymlinkFile, name)
+
+        when:
+        files.getMode(brokenSymlinkFile, false)
+        files.getMode(brokenSymlinkFile)
+
+        then:
+        noExceptionThrown()
+
+        when:
+        files.getMode(brokenSymlinkFile, true)
+
+        then:
+        NativeException e = thrown()
+        e.message == "Could not get UNIX mode on $name: file does not exist."
+
+        where:
+        name << names
+    }
+
     @Override
     PosixFileAttributes attributes(File file) {
         return java.nio.file.Files.getFileAttributeView(file.toPath(), PosixFileAttributeView, LinkOption.NOFOLLOW_LINKS).readAttributes()
