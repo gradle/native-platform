@@ -337,6 +337,13 @@ Finally, add the linked `native-platform` project [as a participant to the Gradl
 
 # Releasing
 
+See [this issue](https://github.com/gradle/native-platform/issues/271) first. 
+
+In the meantime, this [TC job](https://builds.gradle.org/buildConfiguration/GradleNative_NativePlatform_Publishing_PublishJavaApiAlpha?branch=&buildTypeTab=overview&mode=builds) should be used to publish a milestone.
+[Add a tag](https://github.com/gradle/native-platform/tags) afterward.
+
+To publish manually:
+
 1. Check the version number in `build.gradle`.
 2. Create a tag
 3. Build each variant.
