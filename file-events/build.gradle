@@ -33,7 +33,9 @@ model {
                     cppCompiler.args "-pthread"                 // Force nicer threading
                     cppCompiler.args "-pedantic"                // Disable non-standard things
                     cppCompiler.args "--std=c++11"              // Enable C++11
-                    cppCompiler.args "-mno-outline-atomics"     // Disable __getauxval calls, fixes gradle/gradle#24875 on aarch64
+                    if (targetPlatform.operatingSystem.linux && targetPlatform.architecture.name == "aarch64") {
+                        cppCompiler.args "-mno-outline-atomics" // Disable __getauxval calls, fixes gradle/gradle#24875 on aarch64
+                    }
                     cppCompiler.args "-Wall"                    // All warnings
                     cppCompiler.args "-Wextra"                  // Plus extra
                     cppCompiler.args "-Wformat=2"               // Check printf format strings
