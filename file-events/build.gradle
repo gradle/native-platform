@@ -34,6 +34,7 @@ model {
                     cppCompiler.args "-pedantic"                // Disable non-standard things
                     cppCompiler.args "--std=c++11"              // Enable C++11
                     if (targetPlatform.operatingSystem.linux && targetPlatform.architecture.name == "aarch64") {
+                        println("Target platform name: " + targetPlatform.name + " " + targetPlatform + " " + targetPlatform.operatingSystem + " " + targetPlatform.operatingSystem.displayName)
                         cppCompiler.args "-mno-outline-atomics" // Disable __getauxval calls, fixes gradle/gradle#24875 on aarch64
                     }
                     cppCompiler.args "-Wall"                    // All warnings
