@@ -1,16 +1,20 @@
 #if defined(__APPLE__)
 
+#include <mutex>
+
 #include "apple_fsnotifier.h"
+#include <dispatch/dispatch.h>
 
 using namespace std;
 
-WatchPoint::WatchPoint(Server* server, CFRunLoopRef runLoop, const u16string& path, long latencyInMillis) {
+WatchPoint::WatchPoint(Server* server, const u16string& path, long latencyInMillis) {
     CFStringRef cfPath = CFStringCreateWithCharacters(NULL, (UniChar*) path.c_str(), path.length());
     if (cfPath == nullptr) {
         throw FileWatcherException("Could not allocate CFString for path", path);
     }
-    CFMutableArrayRef pathArray = CFArrayCreateMutable(NULL, 1, NULL);
+    CFMutableArrayRef pathArray = CFArrayCreateMutable(NULL, 1, &kCFTypeArrayCallBacks);
     if (pathArray == NULL) {
+        CFRelease(cfPath);
         throw FileWatcherException("Could not allocate array to store root to watch", path);
     }
     CFArrayAppendValue(pathArray, cfPath);
@@ -22,6 +26,7 @@ WatchPoint::WatchPoint(Server* server, CFRunLoopRef runLoop, const u16string& pa
         NULL,              // release
         NULL               // copyDescription
     };
+
     FSEventStreamRef watcherStream = FSEventStreamCreate(
         NULL,
         &handleEventsCallback,
@@ -30,13 +35,24 @@ WatchPoint::WatchPoint(Server* server, CFRunLoopRef runLoop, const u16string& pa
         kFSEventStreamEventIdSinceNow,
         latencyInMillis / 1000.0,
         kFSEventStreamCreateFlagNoDefer | kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagWatchRoot);
+
     CFRelease(pathArray);
     CFRelease(cfPath);
+
     if (watcherStream == NULL) {
         throw FileWatcherException("Couldn't add watch", path);
     }
-    FSEventStreamScheduleWithRunLoop(watcherStream, runLoop, kCFRunLoopDefaultMode);
-    FSEventStreamStart(watcherStream);
+
+    // Create a dispatch queue and set the stream to it instead of using a run loop
+    dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+    FSEventStreamSetDispatchQueue(watcherStream, queue);
+
+    if (!FSEventStreamStart(watcherStream)) {
+        FSEventStreamInvalidate(watcherStream);
+        FSEventStreamRelease(watcherStream);
+        throw FileWatcherException("Could not start the FSEvents stream", path);
+    }
+
     this->watcherStream = watcherStream;
 }
 
@@ -60,48 +76,9 @@ WatchPoint::~WatchPoint() {
 // Server
 //
 
-void acceptTrigger(void*) {
-    // This does nothing, we just need a message source to keep the
-    // run loop alive when there are no watch points registered
-}
-
 Server::Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis)
     : AbstractServer(env, watcherCallback)
     , latencyInMillis(latencyInMillis) {
-    CFRunLoopSourceContext context = {
-        0,               // version;
-        (void*) this,    // info;
-        NULL,            // retain()
-        NULL,            // release()
-        NULL,            // copyDescription()
-        NULL,            // equal()
-        NULL,            // hash()
-        NULL,            // schedule()
-        NULL,            // cancel()
-        acceptTrigger    // perform()
-    };
-    messageSource = CFRunLoopSourceCreate(
-        kCFAllocatorDefault,    // allocator
-        0,                      // index
-        &context                // context
-    );
-}
-
-void Server::initializeRunLoop() {
-    threadLoop = CFRunLoopGetCurrent();
-    CFRunLoopAddSource(threadLoop, messageSource, kCFRunLoopDefaultMode);
-}
-
-void Server::runLoop() {
-    CFRunLoopRun();
-
-    unique_lock<recursive_mutex> lock(mutationMutex);
-    watchPoints.clear();
-    CFRelease(messageSource);
-}
-
-void Server::shutdownRunLoop() {
-    CFRunLoopStop(threadLoop);
 }
 
 static void handleEventsCallback(
@@ -120,15 +97,41 @@ void Server::handleEvents(
     char** eventPaths,
     const FSEventStreamEventFlags eventFlags[],
     const FSEventStreamEventId eventIds[]) {
-    JNIEnv* env = getThreadEnv();
-
     try {
         for (size_t i = 0; i < numEvents; i++) {
-            handleEvent(env, eventPaths[i], eventFlags[i], eventIds[i]);
+            eventQueue.enqueue(FileEvent {
+                eventPaths[i],
+                eventFlags[i],
+                eventIds[i] });
         }
     } catch (const exception& ex) {
-        reportFailure(env, ex);
+        eventQueue.enqueue(ErrorEvent { ex.what() });
     }
+}
+
+void Server::initializeRunLoop() {
+    // We don't need to do anything here, as we're using a dispatch queue instead of a run loop.
+}
+
+void Server::runLoop() {
+    JNIEnv* env = getThreadEnv();
+    while (true) {
+        QueueItem item = eventQueue.dequeue();
+        if (holds_alternative<PoisonPill>(item)) {
+            break;
+        }
+        if (holds_alternative<FileEvent>(item)) {
+            FileEvent event = get<FileEvent>(item);
+            handleEvent(env, event.eventPath.c_str(), event.eventFlags, event.eventId);
+        } else if (holds_alternative<ErrorEvent>(item)) {
+            ErrorEvent event = get<ErrorEvent>(item);
+            reportFailure(env, event.message.c_str());
+        }
+    }
+}
+
+void Server::shutdownRunLoop() {
+    eventQueue.enqueue(PoisonPill());
 }
 
 /**
@@ -161,7 +164,7 @@ static const FSEventStreamEventFlags IGNORED_FLAGS = kFSEventStreamCreateFlagNon
     | kFSEventStreamEventFlagItemIsLastHardlink
     | kFSEventStreamEventFlagItemCloned;
 
-void Server::handleEvent(JNIEnv* env, char* path, FSEventStreamEventFlags flags, FSEventStreamEventId eventId) {
+void Server::handleEvent(JNIEnv* env, const char* path, FSEventStreamEventFlags flags, FSEventStreamEventId eventId) {
     logToJava(LogLevel::FINE, "Event flags: 0x%x (ID %d) for '%s'", flags, eventId, path);
 
     u16string pathStr = utf8ToUtf16String(path);
@@ -217,7 +220,7 @@ void Server::registerPaths(const vector<u16string>& paths) {
         }
         watchPoints.emplace(piecewise_construct,
             forward_as_tuple(path),
-            forward_as_tuple(this, threadLoop, path, latencyInMillis));
+            forward_as_tuple(this, path, latencyInMillis));
     }
 }
 

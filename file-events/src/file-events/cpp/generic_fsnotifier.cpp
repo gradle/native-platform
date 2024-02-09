@@ -42,8 +42,12 @@ void AbstractServer::reportOverflow(JNIEnv* env, const u16string& path) {
 }
 
 void AbstractServer::reportFailure(JNIEnv* env, const exception& exception) {
-    u16string message = utf8ToUtf16String(exception.what());
-    jstring javaMessage = env->NewString((jchar*) message.c_str(), (jsize) message.length());
+    reportFailure(env, exception.what());
+}
+
+void AbstractServer::reportFailure(JNIEnv* env, const char* message) {
+    u16string utf16Message = utf8ToUtf16String(message);
+    jstring javaMessage = env->NewString((jchar*) utf16Message.c_str(), (jsize) utf16Message.length());
     jmethodID constructor = env->GetMethodID(nativePlatformJniConstants->nativeExceptionClass.get(), "<init>", "(Ljava/lang/String;)V");
     jobject javaException = env->NewObject(nativePlatformJniConstants->nativeExceptionClass.get(), constructor, javaMessage);
     env->CallVoidMethod(watcherCallback.get(), watcherReportFailureMethod, javaException);
