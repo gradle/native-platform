@@ -64,6 +64,9 @@ public class NcursesPlugin extends RuleSource {
         if (binarySpec.getComponent().getName().contains("Curses")) {
             if (targetPlatform.getOperatingSystem().isLinux() && !isNcursesVersion(targetPlatform, NCURSES_5)) {
                 binarySpec.getLinker().args("-lncursesw");
+                if (targetPlatform.getArchitecture().getName().equals("aarch64")) {
+                    binarySpec.getCppCompiler().args("-mno-outline-atomics");
+                }
             } else {
                 binarySpec.getLinker().args("-lcurses");
             }
