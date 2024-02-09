@@ -78,7 +78,7 @@ See [WindowsRegistry](native-platform/src/main/java/net/rubygrapefruit/platform/
 
 Currently ported to OS X, Linux, FreeBSD and Windows. Support for Solaris is a work in progress. Supported on:
 
-* OS X, version 10.9 and later (x86_64)
+* OS X, version 10.13 and later (x86_64)
 * Fedora 23 and later (amd64).
 * Ubuntu 8.04 and later (amd64).
 * Ubuntu 18.04 and later (aarch64).
@@ -337,7 +337,7 @@ Finally, add the linked `native-platform` project [as a participant to the Gradl
 
 # Releasing
 
-See [this issue](https://github.com/gradle/native-platform/issues/271) first. 
+See [this issue](https://github.com/gradle/native-platform/issues/271) first.
 
 In the meantime, this [TC job](https://builds.gradle.org/buildConfiguration/GradleNative_NativePlatform_Publishing_PublishJavaApiAlpha?branch=&buildTypeTab=overview&mode=builds) should be used to publish a milestone.
 [Add a tag](https://github.com/gradle/native-platform/tags) afterward.

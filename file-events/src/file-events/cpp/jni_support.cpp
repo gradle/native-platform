@@ -115,11 +115,16 @@ void javaToUtf16StringArray(JNIEnv* env, jobjectArray javaStrings, vector<u16str
     strings.reserve(count);
     for (int i = 0; i < count; i++) {
         jstring javaString = reinterpret_cast<jstring>(env->GetObjectArrayElement(javaStrings, i));
-        auto string = javaToUtf16String(env, javaString);
+        u16string string = javaToUtf16String(env, javaString);
         env->DeleteLocalRef(javaString);
-        strings.push_back(std::move(string));
+        strings.push_back(string);
     }
 }
+
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
 
 u16string utf8ToUtf16String(const char* string) {
     wstring_convert<deletable_facet<codecvt<char16_t, char, mbstate_t>>, char16_t> conv16;
@@ -130,3 +135,7 @@ string utf16ToUtf8String(const u16string& string) {
     wstring_convert<deletable_facet<codecvt<char16_t, char, mbstate_t>>, char16_t> conv16;
     return conv16.to_bytes(string);
 }
+
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
