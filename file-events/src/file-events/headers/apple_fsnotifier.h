@@ -24,10 +24,6 @@ private:
     std::queue<T> queue;
 
 public:
-    virtual ~BlockingQueue() {
-        fprintf(stderr, "Destroying queue\n");
-    }
-
     // Enqueue an item into the queue and notify one waiting thread
     void enqueue(const T& item) {
         {
@@ -69,7 +65,6 @@ public:
 
 private:
     FSEventStreamRef watcherStream;
-    u16string path;
 };
 
 struct FileEvent {

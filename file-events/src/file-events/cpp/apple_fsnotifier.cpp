@@ -4,8 +4,7 @@
 
 using namespace std;
 
-WatchPoint::WatchPoint(Server* server, dispatch_queue_t dispatchQueue, const u16string& path, long latencyInMillis)
-    : path(path) {
+WatchPoint::WatchPoint(Server* server, dispatch_queue_t dispatchQueue, const u16string& path, long latencyInMillis) {
     CFStringRef cfPath = CFStringCreateWithCharacters(NULL, (UniChar*) path.c_str(), path.length());
     if (cfPath == nullptr) {
         throw FileWatcherException("Could not allocate CFString for path", path);
@@ -49,7 +48,6 @@ WatchPoint::WatchPoint(Server* server, dispatch_queue_t dispatchQueue, const u16
         throw FileWatcherException("Could not start the FSEvents stream", path);
     }
 
-    fprintf(stderr, "Started watching: %s\n", utf16ToUtf8String(path).c_str());
     this->watcherStream = watcherStream;
 }
 
@@ -67,8 +65,6 @@ WatchPoint::~WatchPoint() {
     FSEventStreamStop(watcherStream);
     FSEventStreamInvalidate(watcherStream);
     FSEventStreamRelease(watcherStream);
-
-    fprintf(stderr, "Stopped watching: %s\n", utf16ToUtf8String(path).c_str());
 }
 
 //
@@ -103,15 +99,12 @@ void Server::handleEvents(
     const FSEventStreamEventId eventIds[]) {
     try {
         for (size_t i = 0; i < numEvents; i++) {
-            // fprintf(stderr, "Got event: %s, flags = 0x%x, ID = %llu\n", eventPaths[i], eventFlags[i], eventIds[i]);
             eventQueue.enqueue(FileEvent {
                 eventPaths[i],
                 eventFlags[i],
                 eventIds[i] });
         }
     } catch (const exception& ex) {
-        fprintf(stderr, "Encountered exception while handling events: %s\n", ex.what());
-        fprintf(stderr, "  Event being handled: %s\n", eventPaths[0]);
         eventQueue.enqueue(ErrorEvent { ex.what() });
     }
 }
@@ -125,7 +118,6 @@ void Server::runLoop() {
     while (true) {
         QueueItem item = eventQueue.dequeue();
         if (holds_alternative<PoisonPill>(item)) {
-            fprintf(stderr, "Got poison pill, remaining events: %lu\n", eventQueue.size());
             break;
         }
         if (holds_alternative<FileEvent>(item)) {
