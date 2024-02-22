@@ -1,13 +1,11 @@
 #if defined(__APPLE__)
 
-#include <mutex>
-
 #include "apple_fsnotifier.h"
-#include <dispatch/dispatch.h>
 
 using namespace std;
 
-WatchPoint::WatchPoint(Server* server, const u16string& path, long latencyInMillis) {
+WatchPoint::WatchPoint(Server* server, dispatch_queue_t dispatchQueue, const u16string& path, long latencyInMillis)
+    : path(path) {
     CFStringRef cfPath = CFStringCreateWithCharacters(NULL, (UniChar*) path.c_str(), path.length());
     if (cfPath == nullptr) {
         throw FileWatcherException("Could not allocate CFString for path", path);
@@ -43,9 +41,7 @@ WatchPoint::WatchPoint(Server* server, const u16string& path, long latencyInMill
         throw FileWatcherException("Couldn't add watch", path);
     }
 
-    // Create a dispatch queue and set the stream to it instead of using a run loop
-    dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
-    FSEventStreamSetDispatchQueue(watcherStream, queue);
+    FSEventStreamSetDispatchQueue(watcherStream, dispatchQueue);
 
     if (!FSEventStreamStart(watcherStream)) {
         FSEventStreamInvalidate(watcherStream);
@@ -53,6 +49,7 @@ WatchPoint::WatchPoint(Server* server, const u16string& path, long latencyInMill
         throw FileWatcherException("Could not start the FSEvents stream", path);
     }
 
+    fprintf(stderr, "Started watching: %s\n", utf16ToUtf8String(path).c_str());
     this->watcherStream = watcherStream;
 }
 
@@ -70,6 +67,8 @@ WatchPoint::~WatchPoint() {
     FSEventStreamStop(watcherStream);
     FSEventStreamInvalidate(watcherStream);
     FSEventStreamRelease(watcherStream);
+
+    fprintf(stderr, "Stopped watching: %s\n", utf16ToUtf8String(path).c_str());
 }
 
 //
@@ -78,7 +77,12 @@ WatchPoint::~WatchPoint() {
 
 Server::Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis)
     : AbstractServer(env, watcherCallback)
-    , latencyInMillis(latencyInMillis) {
+    , latencyInMillis(latencyInMillis)
+    , dispatchQueue(dispatch_queue_create("org.gradle.vfs", DISPATCH_QUEUE_SERIAL)) {
+}
+
+Server::~Server() {
+    dispatch_release(dispatchQueue);
 }
 
 static void handleEventsCallback(
@@ -99,12 +103,15 @@ void Server::handleEvents(
     const FSEventStreamEventId eventIds[]) {
     try {
         for (size_t i = 0; i < numEvents; i++) {
+            // fprintf(stderr, "Got event: %s, flags = 0x%x, ID = %llu\n", eventPaths[i], eventFlags[i], eventIds[i]);
             eventQueue.enqueue(FileEvent {
                 eventPaths[i],
                 eventFlags[i],
                 eventIds[i] });
         }
     } catch (const exception& ex) {
+        fprintf(stderr, "Encountered exception while handling events: %s\n", ex.what());
+        fprintf(stderr, "  Event being handled: %s\n", eventPaths[0]);
         eventQueue.enqueue(ErrorEvent { ex.what() });
     }
 }
@@ -118,6 +125,7 @@ void Server::runLoop() {
     while (true) {
         QueueItem item = eventQueue.dequeue();
         if (holds_alternative<PoisonPill>(item)) {
+            fprintf(stderr, "Got poison pill, remaining events: %lu\n", eventQueue.size());
             break;
         }
         if (holds_alternative<FileEvent>(item)) {
@@ -130,7 +138,16 @@ void Server::runLoop() {
     }
 }
 
+void doNothing(void*) {
+    // Dummy function used to test the dispatch queue being emptied
+}
+
 void Server::shutdownRunLoop() {
+    // Make sure we stop watching before we stop the run loop
+    watchPoints.clear();
+    // This waits for the dispatch queue to empty completely; without it we might get events
+    // after the server has been destroyed.
+    dispatch_async_and_wait_f(dispatchQueue, nullptr, doNothing);
     eventQueue.enqueue(PoisonPill());
 }
 
@@ -139,7 +156,7 @@ void Server::shutdownRunLoop() {
  * Anything not ignored here should be handled.
  * If macOS later adds more flags, we'll report those as unknown events this way.
  */
-static const FSEventStreamEventFlags IGNORED_FLAGS = kFSEventStreamCreateFlagNone
+static constexpr FSEventStreamEventFlags IGNORED_FLAGS = kFSEventStreamCreateFlagNone
     // | kFSEventStreamEventFlagMustScanSubDirs
     | kFSEventStreamEventFlagUserDropped
     | kFSEventStreamEventFlagKernelDropped
@@ -220,7 +237,7 @@ void Server::registerPaths(const vector<u16string>& paths) {
         }
         watchPoints.emplace(piecewise_construct,
             forward_as_tuple(path),
-            forward_as_tuple(this, path, latencyInMillis));
+            forward_as_tuple(this, dispatchQueue, path, latencyInMillis));
     }
 }
 

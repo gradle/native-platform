@@ -2,12 +2,14 @@
 
 #if defined(__APPLE__)
 
+#include <mutex>
 #include <queue>
 #include <string>
 #include <unordered_map>
 #include <variant>
 
 #include <CoreServices/CoreServices.h>
+#include <dispatch/dispatch.h>
 
 #include "generic_fsnotifier.h"
 #include "net_rubygrapefruit_platform_internal_jni_OsxFileEventFunctions.h"
@@ -22,10 +24,14 @@ private:
     std::queue<T> queue;
 
 public:
+    virtual ~BlockingQueue() {
+        fprintf(stderr, "Destroying queue\n");
+    }
+
     // Enqueue an item into the queue and notify one waiting thread
     void enqueue(const T& item) {
         {
-            std::lock_guard<std::mutex> lock(mtx);
+            std::unique_lock<std::mutex> lock(mtx);
             queue.push(item);
         }
         cv.notify_one();
@@ -39,6 +45,10 @@ public:
         T item = queue.front();
         queue.pop();
         return item;
+    }
+
+    size_t size() {
+        return queue.size();
     }
 };
 
@@ -54,15 +64,16 @@ static void handleEventsCallback(
 
 class WatchPoint {
 public:
-    WatchPoint(Server* server, const u16string& path, long latencyInMillis);
+    WatchPoint(Server* server, dispatch_queue_t dispatchQueue, const u16string& path, long latencyInMillis);
     ~WatchPoint();
 
 private:
     FSEventStreamRef watcherStream;
+    u16string path;
 };
 
 struct FileEvent {
-    string eventPath;
+    std::string eventPath;
     FSEventStreamEventFlags eventFlags;
     FSEventStreamEventId eventId;
 };
@@ -78,6 +89,7 @@ using QueueItem = std::variant<FileEvent, ErrorEvent, PoisonPill>;
 class Server : public AbstractServer {
 public:
     Server(JNIEnv* env, jobject watcherCallback, long latencyInMillis);
+    virtual ~Server();
 
     virtual void registerPaths(const vector<u16string>& paths) override;
     virtual bool unregisterPaths(const vector<u16string>& paths) override;
@@ -108,9 +120,8 @@ private:
     recursive_mutex mutationMutex;
     unordered_map<u16string, WatchPoint> watchPoints;
 
+    const dispatch_queue_t dispatchQueue;
     BlockingQueue<QueueItem> eventQueue;
-    mutex runLoopMutex;
-    condition_variable runLoopRunning;
 };
 
 #endif
