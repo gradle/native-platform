@@ -139,7 +139,7 @@ void Server::shutdownRunLoop() {
     watchPoints.clear();
     // This waits for the dispatch queue to empty completely; without it we might get events
     // after the server has been destroyed.
-    dispatch_async_and_wait_f(dispatchQueue, nullptr, doNothing);
+    dispatch_sync_f(dispatchQueue, nullptr, doNothing);
     eventQueue.enqueue(PoisonPill());
 }
 
