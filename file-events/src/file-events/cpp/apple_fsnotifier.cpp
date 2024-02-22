@@ -99,6 +99,9 @@ void Server::handleEvents(
     const FSEventStreamEventId eventIds[]) {
     try {
         for (size_t i = 0; i < numEvents; i++) {
+            // This code runs on an arbitrary thread, so we can't pass it back to Java from here,
+            // as the JNIEnv is not available on this thread. We pass it to the Java run loop thread
+            // using our own queue instead.
             eventQueue.enqueue(FileEvent {
                 eventPaths[i],
                 eventFlags[i],
