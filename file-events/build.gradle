@@ -33,7 +33,6 @@ model {
                     cppCompiler.args "-pthread"                 // Force nicer threading
                     cppCompiler.args "-pedantic"                // Disable non-standard things
                     cppCompiler.args "--std=c++11"              // Enable C++11
-                    cppCompiler.args "-mno-outline-atomics"     // Disable __getauxval calls, fixes gradle/gradle#24875 on aarch64
                     cppCompiler.args "-Wall"                    // All warnings
                     cppCompiler.args "-Wextra"                  // Plus extra
                     cppCompiler.args "-Wformat=2"               // Check printf format strings
@@ -55,6 +54,11 @@ model {
                     cppCompiler.args "/D_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING"
                                                                 // Don't issue warnings for wstring_convert in generic_fsnotifier.cpp
                     linker.args "/DEBUG:FULL"                   // Generate all PDBs
+                }
+
+                if (targetPlatform.operatingSystem.linux
+                    && targetPlatform.architecture.name == "aarch64") {
+                    cppCompiler.args "-mno-outline-atomics"     // Disable __getauxval calls, fixes gradle/gradle#24875 on aarch64 with Alpine Linux
                 }
             }
             sources {
