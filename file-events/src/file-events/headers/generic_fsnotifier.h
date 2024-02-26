@@ -72,6 +72,7 @@ protected:
     void reportChangeEvent(JNIEnv* env, ChangeType type, const u16string& path);
     void reportUnknownEvent(JNIEnv* env, const u16string& path);
     void reportOverflow(JNIEnv* env, const u16string& path);
+    void reportFailure(JNIEnv* env, const char* message);
     void reportFailure(JNIEnv* env, const exception& ex);
 
 private:

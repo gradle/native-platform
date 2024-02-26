@@ -27,12 +27,19 @@ model {
                 targetPlatform p.name
             }
             binaries.all {
+                if (targetPlatform.operatingSystem.macOsX) {
+                    cppCompiler.args "--std=c++17"              // Enable C++17
+                } else if (targetPlatform.operatingSystem.linux) {
+                    cppCompiler.args "-std=c++11"               // Enable C++11
+                } else if (targetPlatform.operatingSystem.windows) {
+                    cppCompiler.args "/std:c++17"               // Won't hurt
+                }
+
                 if (targetPlatform.operatingSystem.macOsX
                     || targetPlatform.operatingSystem.linux) {
                     cppCompiler.args "-g"                       // Produce debug output
                     cppCompiler.args "-pthread"                 // Force nicer threading
                     cppCompiler.args "-pedantic"                // Disable non-standard things
-                    cppCompiler.args "--std=c++11"              // Enable C++11
                     cppCompiler.args "-Wall"                    // All warnings
                     cppCompiler.args "-Wextra"                  // Plus extra
                     cppCompiler.args "-Wformat=2"               // Check printf format strings
@@ -42,7 +49,6 @@ model {
                     linker.args "-pthread"
                 } else if (targetPlatform.operatingSystem.windows) {
                     cppCompiler.args "/DEBUG"                   // Produce debug output
-                    cppCompiler.args "/std:c++17"               // Won't hurt
                     cppCompiler.args "/permissive-"             // Make compiler more standards compatible
                     cppCompiler.args "/EHsc"                    // Force exception handling mode
                     cppCompiler.args "/Zi"                      // Force PDB debugging

@@ -299,8 +299,8 @@ public abstract class JniPlugin implements Plugin<Project> {
             Tool linker = binarySpec.getLinker();
             if (targetOs.isMacOsX()) {
                 cppCompiler.getArgs().addAll(determineJniIncludes("darwin"));
-                cppCompiler.args("-mmacosx-version-min=10.9");
-                linker.args("-mmacosx-version-min=10.9");
+                cppCompiler.args("-mmacosx-version-min=10.13");
+                linker.args("-mmacosx-version-min=10.13");
                 linker.args("-framework", "CoreServices");
             } else if (targetOs.isLinux()) {
                 cppCompiler.getArgs().addAll(determineJniIncludes("linux"));
