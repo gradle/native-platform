@@ -20,6 +20,7 @@ interface Os {
     object CentOs : Linux(Ncurses.Ncurses6) {
         override fun Requirements.additionalRequirements() {
             contains(osDistributionNameParameter, "centos")
+            contains(osDistributionVersionParameter, "9")
         }
     }
 
