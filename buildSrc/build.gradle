@@ -42,5 +42,9 @@ gradlePlugin {
             id = "gradlebuild.ncurses"
             implementationClass = "gradlebuild.NcursesPlugin"
         }
+        cargo {
+            id = "gradlebuild.cargo"
+            implementationClass = "gradlebuild.CargoPlugin"
+        }
     }
 }

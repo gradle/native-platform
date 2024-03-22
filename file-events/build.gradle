@@ -2,6 +2,7 @@ plugins {
     id 'groovy'
     id 'cpp'
     id 'gradlebuild.jni'
+    id 'gradlebuild.cargo'
 }
 
 nativeVersion {
