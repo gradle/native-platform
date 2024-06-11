@@ -41,8 +41,8 @@ jobs:
     - name: Build
       run: ./gradlew :file-events:check
 
-    - name: Check for JVM crash logs
-      if: failure()
+    - name: Check for JVM crash logs (Unix)
+      if: failure() && runner.os != 'Windows'
       run: |
         mkdir -p crash_logs
         find . -name 'hs_err_pid*.log' -exec mv {} crash_logs/ \;
@@ -51,6 +51,17 @@ jobs:
         else
           echo "No JVM crash logs found."
         fi
+
+    - name: Check for JVM crash logs (Windows)
+      if: failure() && runner.os == 'Windows'
+      run: |
+        mkdir crash_logs
+        for /r %i in (hs_err_pid*.log) do move %i crash_logs\
+        if exist crash_logs\* (
+          echo "JVM crash logs found."
+        ) else (
+          echo "No JVM crash logs found."
+        )
 
     - name: Upload JVM crash logs
       if: failure()
