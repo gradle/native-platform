@@ -80,21 +80,21 @@ jobs:
 
     - name: Upload JVM crash logs
       if: failure()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: jvm-crash-logs-${{ matrix.os }}
         path: crash_logs/
 
     - name: Upload test results
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: test-results-${{ matrix.os }}
         path: file-events/build/reports/tests/testJni
 
     - name: Upload test results (JNI)
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: test-results-${{ matrix.os }}-jni
         path: file-events/build/reports/tests/testJni
