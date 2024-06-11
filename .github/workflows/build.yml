@@ -36,6 +36,7 @@ jobs:
       if: runner.os == 'Windows'
       with:
         arch: x64
+        export-path-to-vs: VSINSTALLDIR
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
