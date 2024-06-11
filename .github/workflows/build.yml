@@ -55,13 +55,14 @@ jobs:
     - name: Check for JVM crash logs (Windows)
       if: failure() && runner.os == 'Windows'
       run: |
-        mkdir crash_logs
-        for /r %i in (hs_err_pid*.log) do move %i crash_logs\
-        if exist crash_logs\* (
-          echo "JVM crash logs found."
-        ) else (
-          echo "No JVM crash logs found."
-        )
+        New-Item -ItemType Directory -Force -Path crash_logs
+        Get-ChildItem -Recurse -Filter 'hs_err_pid*.log' | Move-Item -Destination crash_logs
+        if (Test-Path -Path crash_logs\*) {
+          Write-Host "JVM crash logs found."
+        } else {
+          Write-Host "No JVM crash logs found."
+        }
+      shell: pwsh
 
     - name: Upload JVM crash logs
       if: failure()
