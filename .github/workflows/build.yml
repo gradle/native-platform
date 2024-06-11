@@ -1,0 +1,60 @@
+name: "Build"
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [ master ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os:
+          - macos-12
+          - macos-13
+          - macos-14
+          - ubuntu-20.04
+          - ubuntu-22.04
+          - ubuntu-24.04
+          - windows-2019
+          - windows-2022
+
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        build-scan-publish: true
+        build-scan-terms-of-use-url: "https://gradle.com/terms-of-service"
+        build-scan-terms-of-use-agree: "yes"
+
+    - name: Build
+      run: ./gradlew :file-events:check
+
+    - name: Check for JVM crash logs
+      if: failure()
+      run: |
+        mkdir -p crash_logs
+        find . -name 'hs_err_pid*.log' -exec mv {} crash_logs/ \;
+        if [ -n "$(ls -A crash_logs)" ]; then
+          echo "JVM crash logs found."
+        else
+          echo "No JVM crash logs found."
+        fi
+
+    - name: Upload JVM crash logs
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: jvm-crash-logs-${{ matrix.os }}
+        path: crash_logs/
