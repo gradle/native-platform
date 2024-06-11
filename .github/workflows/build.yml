@@ -37,6 +37,13 @@ jobs:
       with:
         arch: x64
         export-path-to-vs: VSINSTALLDIR
+        export-path-to-vcvarsall: VCVARSALLDIR
+
+    - name: Set up MSVC
+      if: runner.os == 'Windows'
+      run: |
+        "${env:VSINSTALLDIR}\VC\Auxiliary\Build\vcvars64.bat"
+      shell: pwsh
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
