@@ -99,3 +99,18 @@ jobs:
       with:
         name: test-results-${{ matrix.os }}-jni
         path: file-events/build/reports/tests/testJni
+
+  # We need this to fail the PR in case any of the jobs in the matrix have failed
+  check-failure:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check for job failures
+      run: |
+        if grep -q '::error' ${{ github.workflow }}-*; then
+          echo "One or more jobs failed"
+          exit 1
+        else
+          echo "All jobs passed"
+        fi
+      continue-on-error: false
