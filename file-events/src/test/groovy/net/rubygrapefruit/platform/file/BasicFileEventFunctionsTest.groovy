@@ -426,9 +426,9 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         expectLogMessage(SEVERE, Pattern.compile("Caught exception: Couldn't add watch.*: ${Pattern.quote(missingDirectory.absolutePath)}"))
     }
 
-    // Apparently on macOS we can watch files
+    // Apparently on macOS and Windows we can watch files
     // TODO Should we fail for this?
-    @IgnoreIf({ Platform.current().macOs })
+    @IgnoreIf({ Platform.current().macOs || Platform.current().windows })
     def "fails when watching file"() {
         given:
         def file = new File(rootDir, "file.txt")
