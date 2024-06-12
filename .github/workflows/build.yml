@@ -84,6 +84,7 @@ jobs:
       with:
         name: jvm-crash-logs-${{ matrix.os }}
         path: crash_logs/
+        if-no-files-found: ignore
 
     - name: Upload test results
       if: always()
