@@ -260,6 +260,7 @@ public abstract class JniPlugin implements Plugin<Project> {
         }
 
         @Mutate void createToolChains(NativeToolChainRegistry toolChainRegistry) {
+            toolChainRegistry.create("visualCpp", VisualCpp.class);
             toolChainRegistry.create("gcc", Gcc.class, toolChain -> {
                 // The core Gradle toolchain for gcc only targets x86 and x86_64 out of the box.
                 // https://github.com/gradle/gradle/blob/36614ee523e5906ddfa1fed9a5dc00a5addac1b0/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/gcc/AbstractGccCompatibleToolChain.java
@@ -272,7 +273,6 @@ public abstract class JniPlugin implements Plugin<Project> {
                     toolChain.target("osx_aarch64");
                 }
             });
-            toolChainRegistry.create("visualCpp", VisualCpp.class);
         }
 
         @Mutate
