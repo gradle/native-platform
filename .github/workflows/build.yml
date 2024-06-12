@@ -53,7 +53,7 @@ jobs:
         build-scan-terms-of-use-agree: "yes"
 
     - name: Build
-      run: ./gradlew :file-events:check
+      run: ./gradlew :file-events:check --continue
 
     - name: Check for JVM crash logs (Unix)
       if: failure() && runner.os != 'Windows'
