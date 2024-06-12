@@ -35,7 +35,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
@@ -52,7 +52,7 @@ jobs:
     - name: Autobuild (Java)
       uses: github/codeql-action/autobuild@v1
       if: ${{ matrix.language == 'java' }}
-    
+
     - name: Autobuild (cpp)
       run: ./gradlew assemble
       if: ${{ matrix.language == 'cpp' }}

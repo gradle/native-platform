@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<verification-metadata xmlns="https://schema.gradle.org/dependency-verification" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://schema.gradle.org/dependency-verification https://schema.gradle.org/dependency-verification/dependency-verification-1.0.xsd">
+<verification-metadata xmlns="https://schema.gradle.org/dependency-verification" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://schema.gradle.org/dependency-verification https://schema.gradle.org/dependency-verification/dependency-verification-1.1.xsd">
    <configuration>
       <verify-metadata>false</verify-metadata>
       <verify-signatures>true</verify-signatures>
       <trusted-artifacts>
+         <trust group="net.rubygrapefruit"/>
          <trust file=".*-javadoc[.]jar" regex="true"/>
          <trust file=".*-sources[.]jar" regex="true"/>
          <trust file=".*-src[.]zip" regex="true"/>
-         <trust group="net.rubygrapefruit"/>
       </trusted-artifacts>
       <trusted-keys>
          <trusted-key id="0785b3eff60b1b1bea94e0bb7c25280eae63ebe5" group="^org[.]apache[.]httpcomponents($|([.].*))" regex="true"/>

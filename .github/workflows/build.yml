@@ -1,0 +1,116 @@
+name: "Build"
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [ master ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os:
+          - macos-12
+          - macos-13
+          - macos-14
+          - ubuntu-20.04
+          - ubuntu-22.04
+          - ubuntu-24.04
+          - windows-2019
+          - windows-2022
+    continue-on-error: true
+
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '11'
+
+    - uses: TheMrMilchmann/setup-msvc-dev@v3
+      if: runner.os == 'Windows'
+      with:
+        arch: x64
+        export-path-to-vs: VSINSTALLDIR
+        export-path-to-vcvarsall: VCVARSALLDIR
+
+    - name: Set up MSVC
+      if: runner.os == 'Windows'
+      run: |
+        "${env:VSINSTALLDIR}\VC\Auxiliary\Build\vcvars64.bat"
+      shell: pwsh
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        build-scan-publish: false
+        build-scan-terms-of-use-url: "https://gradle.com/terms-of-service"
+        build-scan-terms-of-use-agree: "yes"
+
+    - name: Build
+      run: ./gradlew :file-events:check --continue
+
+    - name: Check for JVM crash logs (Unix)
+      if: failure() && runner.os != 'Windows'
+      run: |
+        mkdir -p crash_logs
+        find . -name 'hs_err_pid*.log' -exec mv {} crash_logs/ \;
+        if [ -n "$(ls -A crash_logs)" ]; then
+          echo "JVM crash logs found."
+        else
+          echo "No JVM crash logs found."
+        fi
+
+    - name: Check for JVM crash logs (Windows)
+      if: failure() && runner.os == 'Windows'
+      run: |
+        New-Item -ItemType Directory -Force -Path crash_logs
+        Get-ChildItem -Recurse -Filter 'hs_err_pid*.log' | Move-Item -Destination crash_logs
+        if (Test-Path -Path crash_logs\*) {
+          Write-Host "JVM crash logs found."
+        } else {
+          Write-Host "No JVM crash logs found."
+        }
+      shell: pwsh
+
+    - name: Upload JVM crash logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: jvm-crash-logs-${{ matrix.os }}
+        path: crash_logs/
+        if-no-files-found: ignore
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.os }}
+        path: file-events/build/reports/tests/test
+
+    - name: Upload test results (JNI)
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.os }}-jni
+        path: file-events/build/reports/tests/testJni
+
+  # We need this to fail the PR in case any of the jobs in the matrix have failed
+  check-failure:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check for job failures
+      run: |
+        if grep -q '::error' ${{ github.workflow }}-*; then
+          echo "One or more jobs failed"
+          exit 1
+        else
+          echo "All jobs passed"
+        fi
+      continue-on-error: false

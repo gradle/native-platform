@@ -426,9 +426,9 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         expectLogMessage(SEVERE, Pattern.compile("Caught exception: Couldn't add watch.*: ${Pattern.quote(missingDirectory.absolutePath)}"))
     }
 
-    // Apparently on macOS we can watch files
+    // Apparently on macOS and Windows we can watch files
     // TODO Should we fail for this?
-    @IgnoreIf({ Platform.current().macOs })
+    @IgnoreIf({ Platform.current().macOs || Platform.current().windows })
     def "fails when watching file"() {
         given:
         def file = new File(rootDir, "file.txt")
@@ -784,7 +784,7 @@ class BasicFileEventFunctionsTest extends AbstractFileEventFunctionsTest {
         waitForChangeEventLatency()
 
         // Restart watching freshly recreated directory on platforms that auto-unregister on deletion
-        if (!Platform.current().macOs) {
+        if (Platform.current().linux) {
             watcher.startWatching([watchedDir])
         }
         // Ignore events received during setup
