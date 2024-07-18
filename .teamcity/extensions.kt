@@ -28,12 +28,7 @@ fun Requirements.requireAgent(agent: Agent) {
 
 fun BuildType.runOn(agent: Agent) {
     params {
-        val javaHome = if (agent == Agent.MacOsAarch64) {
-            "%macos.java8.default.64bit%"
-        } else {
-            "%env.JDK_18_x64%"
-        }
-        param("env.JAVA_HOME", javaHome)
+        param("env.JAVA_HOME", "%${agent.os.osType.lowercase()}.java8.openjdk.${agent.architecture.paramName}%")
     }
 
     requirements {

@@ -50,7 +50,7 @@ version = "2024.03"
 
 project {
     params {
-        param("env.GRADLE_ENTERPRISE_ACCESS_KEY", "%ge.gradle.org.access.key%")
+        param("env.DEVELOCITY_ACCESS_KEY", "%ge.gradle.org.access.key%")
     }
 
     val buildReceiptSource = NativePlatformBuild(Agent.UbuntuAmd64, buildReceiptSource = true) {
