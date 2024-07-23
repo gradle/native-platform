@@ -1,10 +1,3 @@
-import jetbrains.buildServer.configs.kotlin.v2019_2.BuildFeatures
-import jetbrains.buildServer.configs.kotlin.v2019_2.BuildType
-import jetbrains.buildServer.configs.kotlin.v2019_2.DslContext
-import jetbrains.buildServer.configs.kotlin.v2019_2.Requirements
-import jetbrains.buildServer.configs.kotlin.v2019_2.buildFeatures.commitStatusPublisher
-import jetbrains.buildServer.configs.kotlin.v2019_2.buildFeatures.freeDiskSpace
-
 /*
  * Copyright 2020 the original author or authors.
  *
@@ -21,6 +14,13 @@ import jetbrains.buildServer.configs.kotlin.v2019_2.buildFeatures.freeDiskSpace
  * limitations under the License.
  */
 
+import jetbrains.buildServer.configs.kotlin.BuildFeatures
+import jetbrains.buildServer.configs.kotlin.BuildType
+import jetbrains.buildServer.configs.kotlin.DslContext
+import jetbrains.buildServer.configs.kotlin.Requirements
+import jetbrains.buildServer.configs.kotlin.buildFeatures.commitStatusPublisher
+import jetbrains.buildServer.configs.kotlin.buildFeatures.freeDiskSpace
+
 fun Requirements.requireAgent(agent: Agent) {
     agent.os.addAgentRequirements(this)
     contains("teamcity.agent.jvm.os.arch", agent.architecture.agentRequirementForOs(agent.os))
@@ -28,12 +28,11 @@ fun Requirements.requireAgent(agent: Agent) {
 
 fun BuildType.runOn(agent: Agent) {
     params {
-        val javaHome = if (agent == Agent.MacOsAarch64) {
-            "%macos.java8.default.64bit%"
+        if (agent == Agent.MacOsAarch64) {
+            param("env.JAVA_HOME", "%${agent.os.osType.lowercase()}.java8.zulu.${agent.architecture.paramName}%")
         } else {
-            "%env.JDK_18_x64%"
+            param("env.JAVA_HOME", "%${agent.os.osType.lowercase()}.java8.openjdk.${agent.architecture.paramName}%")
         }
-        param("env.JAVA_HOME", javaHome)
     }
 
     requirements {
@@ -43,9 +42,12 @@ fun BuildType.runOn(agent: Agent) {
 
 const val buildReceipt = "build-receipt.properties"
 
-val archiveReports = listOf("native-platform", "file-events", "buildSrc", "test-app")
-    .map { "$it/build/reports/** => $it/reports" }
-    .joinToString("\n")
+val archiveReports = listOf(
+    "native-platform",
+    "file-events",
+    "buildSrc",
+    "test-app"
+).joinToString("\n") { "$it/build/reports/** => $it/reports" }
 
 fun BuildFeatures.publishCommitStatus() {
     commitStatusPublisher {
