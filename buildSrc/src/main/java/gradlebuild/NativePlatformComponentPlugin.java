@@ -19,8 +19,6 @@ import org.gradle.api.tasks.SourceSetOutput;
 import org.gradle.api.tasks.compile.GroovyCompile;
 import org.gradle.api.tasks.testing.Test;
 import org.gradle.process.ExecOperations;
-import org.gradle.testretry.TestRetryPlugin;
-import org.gradle.testretry.TestRetryTaskExtension;
 
 import javax.inject.Inject;
 import java.io.ByteArrayOutputStream;
@@ -58,15 +56,9 @@ public abstract class NativePlatformComponentPlugin implements Plugin<Project> {
     }
 
     private void configureTestTasks(Project project) {
-        project.getPluginManager().apply(TestRetryPlugin.class);
-        boolean isCiServer = project.getProviders().environmentVariable("CI").forUseAtConfigurationTime().isPresent();
         JavaPluginConvention javaPluginConvention = project.getConvention().getPlugin(JavaPluginConvention.class);
         project.getTasks().withType(Test.class).configureEach(test -> {
             test.systemProperty(TEST_DIRECTORY_SYSTEM_PROPERTY, project.getLayout().getBuildDirectory().dir("test files").map(dir -> dir.getAsFile().getAbsoluteFile()).get());
-            TestRetryTaskExtension retry = test.getExtensions().getByType(TestRetryTaskExtension.class);
-            retry.getMaxRetries().set(isCiServer ? 1 : 0);
-            retry.getMaxFailures().set(10);
-            retry.getFailOnPassedAfterRetry().set(true);
 
             // Reconfigure the classpath for the test task here, so we can use dependency substitution on `testRuntimeClasspath`
             // to test an external dependency.

@@ -65,11 +65,11 @@ enum class Ncurses {
     Ncurses6
 }
 
-enum class Architecture {
-    Aarch64 {
+enum class Architecture(val paramName: String) {
+    Aarch64("aarch64") {
         override fun agentRequirementForOs(os: Os): String = "aarch64"
     },
-    Amd64 {
+    Amd64("64bit") {
         override fun agentRequirementForOs(os: Os): String = when (os) {
             Os.MacOs -> "x86_64"
             else -> "amd64"
