@@ -91,13 +91,13 @@ bool resolveFinalPath(HANDLE handle, wstring& path) {
 //
 
 WatchPoint::WatchPoint(Server* server, size_t eventBufferSize, const wstring& path)
-    : registeredPath(path)
-    , status(WatchPointStatus::NOT_LISTENING)
-    , server(server) {
+    : server(server)
+    , registeredPath(path)
+    , status(WatchPointStatus::NOT_LISTENING) {
     wstring longPath = path;
     convertToLongPathIfNeeded(longPath);
     HANDLE directoryHandle = CreateFileW(
-        longPath.c_str(),           // pointer to the file name
+        longPath.c_str(),       // pointer to the file name
         FILE_LIST_DIRECTORY,    // access (read/write) mode
         CREATE_SHARE,           // share mode
         NULL,                   // security descriptor
@@ -477,7 +477,7 @@ void Server::stopWatchingMovedPaths(jobject droppedPaths) {
 //
 
 JNIEXPORT jobject JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatcher0(JNIEnv* env, jclass target, jint eventBufferSize, jlong commandTimeoutInMillis, jobject javaCallback) {
+Java_net_rubygrapefruit_platform_internal_jni_WindowsFileEventFunctions_startWatcher0(JNIEnv* env, jclass, jint eventBufferSize, jlong commandTimeoutInMillis, jobject javaCallback) {
     return wrapServer(env, new Server(env, eventBufferSize, (long) commandTimeoutInMillis, javaCallback));
 }
 

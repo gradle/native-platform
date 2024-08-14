@@ -75,6 +75,8 @@ public:
     ListenResult listen();
     bool cancel();
 
+    void handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred);
+
 private:
     bool isValidDirectory();
     void close();
@@ -120,9 +122,6 @@ private:
      * Whether the watch point is watching, has been cancelled or fully closed.
      */
     WatchPointStatus status;
-
-    void handleEventsInBuffer(DWORD errorCode, DWORD bytesTransferred);
-    friend static void CALLBACK handleEventCallback(DWORD errorCode, DWORD bytesTransferred, LPOVERLAPPED overlapped);
 };
 
 class Server : public AbstractServer {
@@ -156,7 +155,6 @@ private:
     const long commandTimeoutInMillis;
     unordered_map<wstring, WatchPoint> watchPoints;
     bool shouldTerminate = false;
-    friend void CALLBACK executeOnRunLoopCallback(_In_ ULONG_PTR info);
     jmethodID listAddMethod;
 };
 
