@@ -18,8 +18,7 @@ pub fn build(b: *std.Build) void {
     lib.addSystemIncludePath(.{ .cwd_relative = java_include_path });
     lib.addSystemIncludePath(.{ .cwd_relative = java_darwin_include_path });
 
-    // Set common C++ compiler flags
-    const cpp_args = [_][]const u8{
+    const cpp_args = &[_][]const u8{
         "--std=c++17",
         "-g",
         "-pedantic",
@@ -30,6 +29,8 @@ pub fn build(b: *std.Build) void {
         "-Wno-deprecated-declarations",
         "-Wno-format-nonliteral",
         "-Wno-unguarded-availability-new",
+        // TODO Only pass this for Windows
+        "-DNTDDI_VERSION=NTDDI_WIN10_RS3",
     };
 
     // Add source files
@@ -44,38 +45,12 @@ pub fn build(b: *std.Build) void {
             "src/file-events/cpp/services.cpp",
             "src/file-events/cpp/win_fsnotifier.cpp",
         },
-        .flags = &cpp_args,
+        .flags = cpp_args,
     });
 
     // Link against libc and libstdc++
     lib.linkLibC();
     lib.linkLibCpp();
-
-    // // Platform-specific configurations
-    // if (target.os.tag == .macos or target.os.tag == .linux) {
-    //     lib.c_flags.append("-pthread");
-
-    //     // Set linker flags
-    //     lib.linker_flags.append("-pthread");
-    // } else if (target.os.tag == .windows) {
-    //     lib.c_flags = &[_][]const u8{
-    //         "/DEBUG",
-    //         "/permissive-",
-    //         "/EShc",
-    //         "/Zi",
-    //         "/FS",
-    //         "/Zc:inline",
-    //         "/Zc:throwingNew",
-    //         "/W3",
-    //         "/WX",
-    //         "/D_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING",
-    //     };
-
-    //     // Set linker flags
-    //     lib.linker_flags = &[_][]const u8{
-    //         "/DEBUG:FULL",
-    //     };
-    // }
 
     // lib.verbose_cc = true;
     // lib.verbose_link = true;
