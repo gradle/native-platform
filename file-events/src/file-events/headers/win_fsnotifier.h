@@ -2,7 +2,6 @@
 
 #ifdef _WIN32
 
-#include <Shlwapi.h>
 #include <functional>
 #include <string>
 #include <unordered_map>
