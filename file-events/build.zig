@@ -18,7 +18,7 @@ pub fn build(b: *std.Build) void {
     lib.addSystemIncludePath(.{ .cwd_relative = java_include_path });
     lib.addSystemIncludePath(.{ .cwd_relative = java_darwin_include_path });
 
-    const cpp_args = &[_][]const u8{
+    const base_cpp_args = &[_][]const u8{
         "--std=c++17",
         "-g",
         "-pedantic",
@@ -29,9 +29,14 @@ pub fn build(b: *std.Build) void {
         "-Wno-deprecated-declarations",
         "-Wno-format-nonliteral",
         "-Wno-unguarded-availability-new",
-        // TODO Only pass this for Windows
-        "-DNTDDI_VERSION=NTDDI_WIN10_RS3",
     };
+
+    const cpp_args = if (target.result.os.tag == .windows)
+        base_cpp_args ++ &[_][]const u8{
+            "-DNTDDI_VERSION=NTDDI_WIN10_RS3",
+        }
+    else
+        base_cpp_args;
 
     // Add source files
     lib.addCSourceFiles(.{
