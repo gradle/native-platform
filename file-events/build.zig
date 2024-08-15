@@ -52,6 +52,11 @@ pub fn build(b: *std.Build) void {
     lib.linkLibC();
     lib.linkLibCpp();
 
+    if (target.result.os.tag == .macos) {
+        lib.linkFramework("CoreFoundation");
+        lib.linkFramework("CoreServices");
+    }
+
     // lib.verbose_cc = true;
     // lib.verbose_link = true;
 
