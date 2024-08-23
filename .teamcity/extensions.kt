@@ -44,7 +44,6 @@ const val buildReceipt = "build-receipt.properties"
 
 val archiveReports = listOf(
     "native-platform",
-    "file-events",
     "buildSrc",
     "test-app"
 ).joinToString("\n") { "$it/build/reports/** => $it/reports" }
@@ -71,43 +70,22 @@ val agentsForAllNativePlatformJniPublications = listOf(
     Agent.AmazonLinuxAarch64,
     Agent.FreeBsdAmd64
 )
-val agentsForAllFileEventsJniPublications = listOf(
-    Agent.UbuntuAmd64,
-    Agent.MacOsAmd64,
-    Agent.MacOsAarch64,
-    Agent.WindowsAmd64,
-    Agent.AmazonLinuxAarch64
-)
 val agentsForNcursesOnlyPublications = listOf(
     Agent.UbuntuAarch64,
     Agent.AmazonLinuxAmd64
 )
 
-val Agent.nativePlatformPublishJniTask
+val Agent.publishJniTasks
     get() = when (this) {
         in agentsForAllNativePlatformJniPublications -> " :native-platform:uploadJni"
         in agentsForNcursesOnlyPublications -> " :native-platform:uploadNcurses"
         else -> ""
     }
-val Agent.fileEventsPublishJniTask
-    get() = when (this) {
-        in agentsForAllFileEventsJniPublications -> " :file-events:uploadJni"
-        else -> ""
-    }
-
-val Agent.publishJniTasks
-    get() = nativePlatformPublishJniTask + fileEventsPublishJniTask
 
 val Agent.allPublishTasks
     get() = when (this) {
-        agentForJavaPublication -> "$publishJniTasks :native-platform:uploadMain :file-events:uploadMain"
+        agentForJavaPublication -> "$publishJniTasks :native-platform:uploadMain"
         else -> publishJniTasks
-    }
-
-val Agent.extraTestTasks
-    get() = when (this) {
-        Agent.UbuntuAmd64 -> " :file-events:testBtrfs :file-events:testXfs"
-        else -> ""
     }
 
 fun BuildFeatures.lowerRequiredFreeDiskSpace() {
