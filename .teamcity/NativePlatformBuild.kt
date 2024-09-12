@@ -62,6 +62,7 @@ open class NativePlatformBuild(agent: Agent, buildReceiptSource: Boolean = false
 
 class BuildTrigger(dependencies: List<BuildType>) : BuildType({
     name = "Run platform tests (Trigger)"
+    type = Type.COMPOSITE
 
     vcs {
         root(DslContext.settingsRoot)
@@ -83,8 +84,6 @@ class BuildTrigger(dependencies: List<BuildType>) : BuildType({
             }
         }
     }
-
-    runOn(Agent.UbuntuAmd64)
 
     features {
         publishCommitStatus()
