@@ -135,7 +135,7 @@ class NativeLibraryPublishNcurses(releaseType: ReleaseType = ReleaseType.Snapsho
 class PublishJavaApi(releaseType: ReleaseType = ReleaseType.Snapshot, nativeLibraryPublishingBuilds: List<NativePlatformPublishSnapshot>, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
     NativePlatformPublishSnapshot(
         releaseType,
-        listOf(":native-platform:uploadMain :file-events:uploadMain", ":test-app:uploadMain"),
+        listOf(":native-platform:uploadMain", ":test-app:uploadMain"),
         buildAndTest,
         buildReceiptSource,
         {
