@@ -35,6 +35,15 @@ public class MutableSystemInfo implements SystemInfo {
     }
 
     public String getArchitectureName() {
+        if (osName.startsWith("Darwin")) {
+            // On macOS, the architecture field contains the CPU name, not the architecture
+            if (machineArchitecture.startsWith("Apple")) {
+                return "arm64";
+            }
+            if (machineArchitecture.startsWith("Intel")) {
+                return "x86_64";
+            }
+        }
         return machineArchitecture;
     }
 
@@ -43,6 +52,7 @@ public class MutableSystemInfo implements SystemInfo {
     }
 
     public Architecture getArchitecture() {
+        String machineArchitecture = getArchitectureName();
         if (machineArchitecture.equals("amd64") || machineArchitecture.equals("x86_64")) {
             return Architecture.amd64;
         }
@@ -52,8 +62,7 @@ public class MutableSystemInfo implements SystemInfo {
         if (machineArchitecture.equals("aarch64") || machineArchitecture.equals("arm64")) {
             return Architecture.aarch64;
         }
-        throw new NativeException(String.format("Cannot determine architecture from kernel architecture name '%s'.",
-                machineArchitecture));
+        throw new NativeException(String.format("Cannot determine architecture from kernel architecture name '%s'.", machineArchitecture));
     }
 
     // Called from native code

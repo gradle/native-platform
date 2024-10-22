@@ -35,6 +35,7 @@
 #include <sys/utsname.h>
 #include <termios.h>
 #include <unistd.h>
+#include <sys/sysctl.h>
 
 jmethodID fileStatDetailsMethodId;
 
@@ -52,10 +53,38 @@ Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getSystemIn
     env->SetObjectField(info, osNameField, char_to_java(env, machine_info.sysname, result));
     jfieldID osVersionField = env->GetFieldID(infoClass, "osVersion", "Ljava/lang/String;");
     env->SetObjectField(info, osVersionField, char_to_java(env, machine_info.release, result));
-    jfieldID machineArchitectureField = env->GetFieldID(infoClass, "machineArchitecture", "Ljava/lang/String;");
-    env->SetObjectField(info, machineArchitectureField, char_to_java(env, machine_info.machine, result));
     jfieldID hostnameField = env->GetFieldID(infoClass, "hostname", "Ljava/lang/String;");
     env->SetObjectField(info, hostnameField, char_to_java(env, machine_info.nodename, result));
+
+    jfieldID machineArchitectureField = env->GetFieldID(infoClass, "machineArchitecture", "Ljava/lang/String;");
+#ifndef __APPLE__
+    env->SetObjectField(info, machineArchitectureField, char_to_java(env, machine_info.machine, result));
+#else
+    // On macOS, uname() reports the architecture of the current binary.
+    // Instead, use a macOS specific sysctl() to query the CPU name, which can be mapped to the architecture
+    int mib[5];
+    size_t len = 5;
+    size_t value_len;
+    char *value;
+
+    if (sysctlnametomib("machdep.cpu.brand_string", mib, &len) != 0) {
+        mark_failed_with_errno(env, "could not query machine details", result);
+        return;
+    }
+
+    if (sysctl(mib, len, NULL, &value_len, NULL, 0) != 0) {
+        mark_failed_with_errno(env, "could not query machine details", result);
+        return;
+    }
+    value = (char*)malloc(value_len);
+    if (sysctl(mib, len, value, &value_len, NULL, 0) != 0) {
+        free(value);
+        mark_failed_with_errno(env, "could not query machine details", result);
+        return;
+    }
+    env->SetObjectField(info, machineArchitectureField, char_to_java(env, value, result));
+    free(value);
+#endif
 }
 
 JNIEXPORT void JNICALL
