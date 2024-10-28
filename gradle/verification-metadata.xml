@@ -40,8 +40,8 @@
             <pgp value="7615ad56144df2376f49d98b1669c4bb543e0445"/>
          </artifact>
       </component>
-      <component group="com.gradle" name="develocity-gradle-plugin" version="3.17.5">
-         <artifact name="develocity-gradle-plugin-3.17.5.jar">
+      <component group="com.gradle" name="develocity-gradle-plugin" version="3.18.1">
+         <artifact name="develocity-gradle-plugin-3.18.1.jar">
             <pgp value="7b79add11f8a779fe90fd3d0893a028475557671"/>
          </artifact>
       </component>
