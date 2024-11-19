@@ -20,7 +20,7 @@ jobs:
         uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
-            GH_PAT, gha/gradle-profiler/_all/GH_BOT_GITHUB_TOKEN
+            GH_PAT, gha/native-platform/_all/GH_BOT_GITHUB_TOKEN
       - name: Checkout gradle-github-actions Repo
         uses: actions/checkout@v4
         with:
