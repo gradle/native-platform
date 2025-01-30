@@ -16,7 +16,6 @@
 
 package net.rubygrapefruit.platform.memory
 
-import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.NativePlatformSpec
 import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.Requires
@@ -35,13 +34,13 @@ class MemoryTest extends NativePlatformSpec {
 
     def "caches memory instance"() {
         expect:
-        def memory = Native.get(Memory.class)
-        memory.is(Native.get(Memory.class))
+        def memory = getIntegration(Memory)
+        memory.is(getIntegration(Memory))
     }
 
     def "can query system memory"() {
         expect:
-        def memory = Native.get(Memory.class)
+        def memory = getIntegration(Memory)
 
         def memoryInfo = memory.memoryInfo
         memoryInfo.totalPhysicalMemory > 0
@@ -53,12 +52,12 @@ class MemoryTest extends NativePlatformSpec {
     @Requires({ Platform.current().windows })
     def "memory instance is the OS-specific implementation on Windows"() {
         expect:
-        Native.get(Memory.class) instanceof WindowsMemory
+        getIntegration(Memory) instanceof WindowsMemory
     }
 
     @Requires({ Platform.current().macOs })
     def "memory instance is the OS-specific implementation on OSX"() {
         expect:
-        Native.get(Memory.class) instanceof OsxMemory
+        getIntegration(Memory) instanceof OsxMemory
     }
 }

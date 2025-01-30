@@ -1,12 +1,11 @@
 package net.rubygrapefruit.platform.file
 
-import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.IgnoreIf
 
 @IgnoreIf({ !Platform.current().windows })
 class WindowsFilesTest extends FilesTest {
-    final WindowsFiles files = Native.get(WindowsFiles.class)
+    final WindowsFiles files = getIntegration(WindowsFiles)
 
     @Override
     void assertIsFile(FileInfo stat, File file) {
@@ -28,8 +27,8 @@ class WindowsFilesTest extends FilesTest {
 
     def "uses same instance for specialized file types"() {
         expect:
-        Native.get(WindowsFiles.class) == files
-        Native.get(Files.class) == files
+        getIntegration(WindowsFiles) == files
+        getIntegration(Files) == files
     }
 
     def "can stat file using UNC path"() {

@@ -1,6 +1,5 @@
 package net.rubygrapefruit.platform.file
 
-import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.NativeException
 import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.IgnoreIf
@@ -11,11 +10,13 @@ import java.nio.file.attribute.PosixFileAttributeView
 import java.nio.file.attribute.PosixFileAttributes
 import java.nio.file.attribute.PosixFilePermission
 
-import static java.nio.file.attribute.PosixFilePermission.*
+import static java.nio.file.attribute.PosixFilePermission.OWNER_EXECUTE
+import static java.nio.file.attribute.PosixFilePermission.OWNER_READ
+import static java.nio.file.attribute.PosixFilePermission.OWNER_WRITE
 
 @IgnoreIf({ Platform.current().windows })
 class PosixFilesTest extends FilesTest {
-    final PosixFiles files = Native.get(PosixFiles.class)
+    final PosixFiles files = getIntegration(PosixFiles)
 
     @Override
     void assertIsFile(FileInfo stat, File file) {
@@ -58,8 +59,8 @@ class PosixFilesTest extends FilesTest {
 
     def "uses same instance for specialized file types"() {
         expect:
-        Native.get(PosixFiles.class) == files
-        Native.get(Files.class) == files
+        getIntegration(PosixFiles) == files
+        getIntegration(Files) == files
     }
 
     def "can stat a file with no read permissions"() {

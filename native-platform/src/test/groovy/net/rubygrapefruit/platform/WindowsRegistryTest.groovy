@@ -5,7 +5,7 @@ import spock.lang.IgnoreIf
 
 @IgnoreIf({!Platform.current().windows})
 class WindowsRegistryTest extends NativePlatformSpec {
-    def windowsRegistry = Native.get(WindowsRegistry)
+    def windowsRegistry = getIntegration(WindowsRegistry)
 
     def "can read string value"() {
         expect:

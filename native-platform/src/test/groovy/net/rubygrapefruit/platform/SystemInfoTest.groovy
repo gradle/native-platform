@@ -17,11 +17,11 @@
 package net.rubygrapefruit.platform
 
 class SystemInfoTest extends NativePlatformSpec {
-    final SystemInfo systemInfo = Native.get(SystemInfo.class)
+    final SystemInfo systemInfo = getIntegration(SystemInfo)
 
     def "caches system info instance"() {
         expect:
-        Native.get(SystemInfo.class) == systemInfo
+        getIntegration(SystemInfo) == systemInfo
     }
 
     def "can query OS details"() {

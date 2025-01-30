@@ -16,7 +16,6 @@
 
 package net.rubygrapefruit.platform.memory
 
-import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.NativePlatformSpec
 import net.rubygrapefruit.platform.internal.DefaultOsxMemoryInfo
 import net.rubygrapefruit.platform.internal.Platform
@@ -32,13 +31,13 @@ class OsxMemoryTest extends NativePlatformSpec {
 
     def "caches memory instance"() {
         expect:
-        def memory = Native.get(OsxMemory.class)
-        memory.is(Native.get(OsxMemory.class))
+        def memory = getIntegration(OsxMemory)
+        memory.is(getIntegration(OsxMemory))
     }
 
     def "can query OSX memory info"() {
         given:
-        def memory = Native.get(OsxMemory.class)
+        def memory = getIntegration(OsxMemory)
 
         when:
         def vmStatInfo = getFromVmStatCommand()
@@ -59,7 +58,7 @@ class OsxMemoryTest extends NativePlatformSpec {
     @Ignore
     def "indefinitely sample OSX memory info"() {
         given:
-        def memory = Native.get(OsxMemory.class)
+        def memory = getIntegration(OsxMemory)
         def conditions = new PollingConditions(timeout: Double.MAX_VALUE, initialDelay: 5, delay: 5)
 
         expect:

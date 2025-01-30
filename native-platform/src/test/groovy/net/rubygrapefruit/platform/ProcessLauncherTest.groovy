@@ -17,7 +17,7 @@
 package net.rubygrapefruit.platform
 
 class ProcessLauncherTest extends NativePlatformSpec {
-    final ProcessLauncher launcher = Native.get(ProcessLauncher)
+    final ProcessLauncher launcher = getIntegration(ProcessLauncher)
 
     def "can start a child process"() {
         def javaHome = System.getProperty("java.home")

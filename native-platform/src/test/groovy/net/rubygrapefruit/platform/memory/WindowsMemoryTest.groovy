@@ -16,7 +16,6 @@
 
 package net.rubygrapefruit.platform.memory
 
-import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.NativePlatformSpec
 import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.Requires
@@ -26,13 +25,13 @@ class WindowsMemoryTest extends NativePlatformSpec {
 
     def "caches memory instance"() {
         expect:
-        def memory = Native.get(WindowsMemory.class)
-        memory.is(Native.get(WindowsMemory.class))
+        def memory = getIntegration(WindowsMemory)
+        memory.is(getIntegration(WindowsMemory))
     }
 
     def "can query Windows memory info"() {
         given:
-        def memory = Native.get(WindowsMemory.class)
+        def memory = getIntegration(WindowsMemory)
 
         when:
         def memoryInfo = memory.memoryInfo

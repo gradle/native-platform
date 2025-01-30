@@ -16,7 +16,6 @@
 
 package net.rubygrapefruit.platform.internal
 
-import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.NativePlatformSpec
 import spock.lang.IgnoreIf
 
@@ -24,7 +23,7 @@ import spock.lang.IgnoreIf
 class NativeTypeInfoTest extends NativePlatformSpec {
     def "can fetch native type info"() {
         expect:
-        MutableTypeInfo typeInfo = Native.get(MutableTypeInfo.class)
+        def typeInfo = getIntegration(MutableTypeInfo)
         println "int: ${typeInfo.int_bytes}"
         println "u_long: ${typeInfo.u_long_bytes}"
         println "size_t: ${typeInfo.size_t_bytes}"

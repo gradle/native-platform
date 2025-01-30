@@ -15,7 +15,6 @@
  */
 package net.rubygrapefruit.platform.file
 
-import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.internal.Platform
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
@@ -36,7 +35,7 @@ abstract class FilesTest extends AbstractFilesTest {
     ])
     @Rule
     TemporaryFolder tmpDir
-    final def files = Native.get(Files.class)
+    final def files = getIntegration(Files.class)
 
     void assertIsFile(FileInfo stat, File file) {
         assert stat.type == FileInfo.Type.File
@@ -104,7 +103,7 @@ abstract class FilesTest extends AbstractFilesTest {
 
     def "caches file instance"() {
         expect:
-        Native.get(Files.class) == files
+        getIntegration(Files) == files
     }
 
     @Unroll
@@ -269,7 +268,7 @@ abstract class FilesTest extends AbstractFilesTest {
         stat.size == 0
 
         where:
-        fileSystem << Native.get(FileSystems.class).fileSystems
+        fileSystem << getIntegration(FileSystems).fileSystems
     }
 
     @Unroll

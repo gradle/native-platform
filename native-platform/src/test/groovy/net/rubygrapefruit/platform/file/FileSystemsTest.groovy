@@ -16,16 +16,15 @@
 
 package net.rubygrapefruit.platform.file
 
-import net.rubygrapefruit.platform.Native
+import net.rubygrapefruit.platform.NativePlatformSpec
 import net.rubygrapefruit.platform.internal.Platform
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import spock.lang.Requires
-import spock.lang.Specification
 
 import static org.junit.Assume.assumeTrue
 
-class FileSystemsTest extends Specification {
+class FileSystemsTest extends NativePlatformSpec {
     private static final List<String> EXPECTED_FILE_SYSTEM_TYPES = [
         // APFS on macOS
         'apfs',
@@ -43,11 +42,11 @@ class FileSystemsTest extends Specification {
 
     @Rule TemporaryFolder tmpDir
 
-    final FileSystems fileSystems = Native.get(FileSystems.class)
+    final FileSystems fileSystems = getIntegration(FileSystems)
 
     def "caches file systems instance"() {
         expect:
-        Native.get(FileSystems.class) == fileSystems
+        getIntegration(FileSystems) == fileSystems
     }
 
     def "can query filesystem details"() {
