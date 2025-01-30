@@ -20,15 +20,14 @@ import net.rubygrapefruit.platform.testfixture.JavaVersion
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import spock.lang.IgnoreIf
-import spock.lang.Specification
 
-class ProcessTest extends Specification {
+class ProcessTest extends NativePlatformSpec {
     @Rule TemporaryFolder tmpDir
-    final Process process = Native.get(Process.class)
+    final Process process = getIntegration(Process)
 
     def "caches process instance"() {
         expect:
-        Native.get(Process.class) == process
+        getIntegration(Process) == process
     }
 
     def "can get PID"() {

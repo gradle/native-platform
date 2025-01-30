@@ -49,6 +49,8 @@ import java.util.Date;
 import java.util.List;
 
 public class Main {
+    private static Native nativeIntegration;
+
     public static void main(String[] args) throws Exception {
         OptionParser optionParser = new OptionParser();
         optionParser.accepts("cache-dir", "The directory to cache native libraries in").withRequiredArg();
@@ -72,9 +74,13 @@ public class Main {
             System.exit(1);
         }
 
+        File cacheDir;
         if (result.has("cache-dir")) {
-            Native.init(new File(result.valueOf("cache-dir").toString()));
+            cacheDir = new File(result.valueOf("cache-dir").toString());
+        } else {
+            cacheDir = new File("cache-dir");
         }
+        nativeIntegration = Native.init(cacheDir);
 
         boolean ansi = result.has("ansi");
 
@@ -290,7 +296,7 @@ public class Main {
     }
 
     private static Terminals terminals(boolean ansi) {
-        Terminals terminals = Native.get(Terminals.class);
+        Terminals terminals = nativeIntegration.get(Terminals.class);
         if (ansi) {
             terminals = terminals.withAnsiOutput();
         }
@@ -299,7 +305,7 @@ public class Main {
 
     private static void input() {
         System.out.println();
-        Terminals terminals = Native.get(Terminals.class);
+        Terminals terminals = nativeIntegration.get(Terminals.class);
         if (!terminals.isTerminalInput()) {
             System.out.println("* Input not attached to terminal.");
             return;
@@ -328,15 +334,15 @@ public class Main {
         System.out.println("* JVM: " + System.getProperty("java.vm.vendor") + ' ' + System.getProperty("java.version"));
         System.out.println("* OS (JVM): " + System.getProperty("os.name") + ' ' + System.getProperty("os.version") + ' ' + System.getProperty("os.arch"));
 
-        SystemInfo systemInfo = Native.get(SystemInfo.class);
+        SystemInfo systemInfo = nativeIntegration.get(SystemInfo.class);
         System.out.println("* OS (Kernel): " + systemInfo.getKernelName() + ' ' + systemInfo.getKernelVersion() + ' ' + systemInfo.getArchitectureName() + " (" + systemInfo.getArchitecture() + ")");
         System.out.println("* Hostname: " + systemInfo.getHostname());
 
-        Process process = Native.get(Process.class);
+        Process process = nativeIntegration.get(Process.class);
         System.out.println("* PID: " + process.getProcessId());
 
         try {
-            MemoryInfo memory = Native.get(Memory.class).getMemoryInfo();
+            MemoryInfo memory = nativeIntegration.get(Memory.class).getMemoryInfo();
             System.out.println("* Available memory: " + memory.getAvailablePhysicalMemory());
             System.out.println("* Total memory: " + memory.getTotalPhysicalMemory());
         } catch (NativeIntegrationUnavailableException e) {
@@ -344,7 +350,7 @@ public class Main {
         }
 
         try {
-            WindowsMemoryInfo memory = Native.get(WindowsMemory.class).getMemoryInfo();
+            WindowsMemoryInfo memory = nativeIntegration.get(WindowsMemory.class).getMemoryInfo();
             System.out.println("* Windows Commit Limit: " + memory.getCommitLimit());
             System.out.println("* Windows Commit Total: " + memory.getCommitTotal());
         } catch (NativeIntegrationUnavailableException e) {
@@ -357,7 +363,7 @@ public class Main {
     private static void fileSystems() {
         System.out.println();
 
-        FileSystems fileSystems = Native.get(FileSystems.class);
+        FileSystems fileSystems = nativeIntegration.get(FileSystems.class);
         System.out.println("* File systems: ");
         for (FileSystemInfo fileSystem : fileSystems.getFileSystems()) {
             System.out.println(String.format("    * %s -> %s (type: %s %s, case sensitive: %s, case preserving: %s)",
@@ -379,7 +385,7 @@ public class Main {
     private static void ls(String path, boolean followLinks) {
         File dir = new File(path);
 
-        Files files = Native.get(Files.class);
+        Files files = nativeIntegration.get(Files.class);
         List<? extends DirEntry> entries = files.listDir(dir, followLinks);
         for (DirEntry entry : entries) {
             System.out.println();
@@ -400,7 +406,7 @@ public class Main {
     private static void stat(String path, boolean linkTarget) {
         File file = new File(path);
 
-        Files files = Native.get(Files.class);
+        Files files = nativeIntegration.get(Files.class);
         FileInfo stat = files.stat(file, linkTarget);
         System.out.println();
         System.out.println("* File: " + file);
@@ -423,7 +429,7 @@ public class Main {
 
     private static void stat(File file, PosixFileInfo stat) {
         if (stat.getType() == PosixFileInfo.Type.Symlink) {
-            System.out.println("* Symlink to: " + Native.get(PosixFiles.class).readLink(file));
+            System.out.println("* Symlink to: " + nativeIntegration.get(PosixFiles.class).readLink(file));
         }
         System.out.println("* UID: " + stat.getUid());
         System.out.println("* GID: " + stat.getGid());

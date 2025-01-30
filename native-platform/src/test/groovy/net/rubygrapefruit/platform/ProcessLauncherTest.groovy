@@ -16,10 +16,8 @@
 
 package net.rubygrapefruit.platform
 
-import spock.lang.Specification
-
-class ProcessLauncherTest extends Specification {
-    final ProcessLauncher launcher = Native.get(ProcessLauncher)
+class ProcessLauncherTest extends NativePlatformSpec {
+    final ProcessLauncher launcher = getIntegration(ProcessLauncher)
 
     def "can start a child process"() {
         def javaHome = System.getProperty("java.home")

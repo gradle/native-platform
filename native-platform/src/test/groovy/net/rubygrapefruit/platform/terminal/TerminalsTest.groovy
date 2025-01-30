@@ -16,21 +16,20 @@
 
 package net.rubygrapefruit.platform.terminal
 
-import net.rubygrapefruit.platform.Native
 import net.rubygrapefruit.platform.NativeException
+import net.rubygrapefruit.platform.NativePlatformSpec
+import net.rubygrapefruit.platform.internal.Platform
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
-import spock.lang.Specification
-import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.IgnoreIf
 
-class TerminalsTest extends Specification {
+class TerminalsTest extends NativePlatformSpec {
     @Rule TemporaryFolder tmpDir
-    final Terminals terminals = Native.get(Terminals.class)
+    final Terminals terminals = getIntegration(Terminals)
 
     def "caches terminals instance"() {
         expect:
-        Native.get(Terminals.class) == terminals
+        getIntegration(Terminals) == terminals
     }
 
     def "can check if attached to terminal"() {

@@ -31,38 +31,43 @@ import java.util.Map;
  */
 @ThreadSafe
 public class Native {
-    private static NativeLibraryLoader loader;
-    private static final Map<Class<?>, Object> integrations = new HashMap<Class<?>, Object>();
+    private final NativeLibraryLoader loader;
+    private final Map<Class<?>, Object> integrations = new HashMap<Class<?>, Object>();
 
-    private Native() {
+    private static Native instance;
+
+    private Native(NativeLibraryLoader loader) {
+        this.loader = loader;
     }
 
     /**
-     * Initialises the native integration, if not already initialized.
+     * Initialises the native integration.
      *
-     * @param extractDir The directory to extract native resources into. May be null, in which case a default is
-     * selected.
+     * @param extractDir The directory to extract native resources into.
      *
      * @throws NativeIntegrationUnavailableException When native integration is not available on the current machine.
-     * @throws NativeException On failure to load the native integration.
+     * @throws NativeException On failure to load the native integration or if the integration has already been initialized.
      */
     @ThreadSafe
-    static public void init(File extractDir) throws NativeIntegrationUnavailableException, NativeException {
+    static public Native init(File extractDir) throws NativeIntegrationUnavailableException, NativeException {
         synchronized (Native.class) {
-            if (loader == null) {
-                Platform platform = Platform.current();
-                try {
-                    loader = new NativeLibraryLoader(platform, new NativeLibraryLocator(extractDir, NativeVersion.VERSION));
-                    loader.load(platform.getLibraryName(), platform.getLibraryVariants());
-                    String nativeVersion = NativeLibraryFunctions.getVersion();
-                    if (!nativeVersion.equals(NativeVersion.VERSION)) {
-                        throw new NativeException(String.format("Unexpected native library version loaded. Expected %s, was %s.", NativeVersion.VERSION, nativeVersion));
-                    }
-                } catch (NativeException e) {
-                    throw e;
-                } catch (Throwable t) {
-                    throw new NativeException("Failed to initialise native integration.", t);
+            if (instance != null) {
+                throw new NativeException("Native integration already initialised.");
+            }
+            Platform platform = Platform.current();
+            try {
+                NativeLibraryLoader loader = new NativeLibraryLoader(platform, new NativeLibraryLocator(extractDir, NativeVersion.VERSION));
+                loader.load(platform.getLibraryName(), platform.getLibraryVariants());
+                String nativeVersion = NativeLibraryFunctions.getVersion();
+                if (!nativeVersion.equals(NativeVersion.VERSION)) {
+                    throw new NativeException(String.format("Unexpected native library version loaded. Expected %s, was %s.", NativeVersion.VERSION, nativeVersion));
                 }
+                instance = new Native(loader);
+                return instance;
+            } catch (NativeException e) {
+                throw e;
+            } catch (Throwable t) {
+                throw new NativeException("Failed to initialise native integration.", t);
             }
         }
     }
@@ -76,10 +81,9 @@ public class Native {
      * @throws NativeException On failure to load the native integration.
      */
     @ThreadSafe
-    public static <T extends NativeIntegration> T get(Class<T> type)
-            throws NativeIntegrationUnavailableException, NativeException {
-        init(null);
-        synchronized (Native.class) {
+    public <T extends NativeIntegration> T get(Class<T> type)
+        throws NativeIntegrationUnavailableException, NativeException {
+        synchronized (this) {
             Platform platform = Platform.current();
             Class<? extends T> canonicalType = platform.canonicalise(type);
             Object instance = integrations.get(canonicalType);

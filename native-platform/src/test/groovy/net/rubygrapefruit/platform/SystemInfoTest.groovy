@@ -16,17 +16,12 @@
 
 package net.rubygrapefruit.platform
 
-import org.junit.Rule
-import org.junit.rules.TemporaryFolder
-import spock.lang.Specification
-
-class SystemInfoTest extends Specification {
-    @Rule TemporaryFolder tmpDir
-    final SystemInfo systemInfo = Native.get(SystemInfo.class)
+class SystemInfoTest extends NativePlatformSpec {
+    final SystemInfo systemInfo = getIntegration(SystemInfo)
 
     def "caches system info instance"() {
         expect:
-        Native.get(SystemInfo.class) == systemInfo
+        getIntegration(SystemInfo) == systemInfo
     }
 
     def "can query OS details"() {
