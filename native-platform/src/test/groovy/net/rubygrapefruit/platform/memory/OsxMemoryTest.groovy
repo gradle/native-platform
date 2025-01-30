@@ -17,18 +17,18 @@
 package net.rubygrapefruit.platform.memory
 
 import net.rubygrapefruit.platform.Native
+import net.rubygrapefruit.platform.NativePlatformSpec
 import net.rubygrapefruit.platform.internal.DefaultOsxMemoryInfo
 import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.Ignore
 import spock.lang.IgnoreIf
-import spock.lang.Specification
 import spock.util.concurrent.PollingConditions
 
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 
 @IgnoreIf({ !Platform.current().macOs })
-class OsxMemoryTest extends Specification {
+class OsxMemoryTest extends NativePlatformSpec {
 
     def "caches memory instance"() {
         expect:

@@ -2,10 +2,9 @@ package net.rubygrapefruit.platform
 
 import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.IgnoreIf
-import spock.lang.Specification
 
 @IgnoreIf({!Platform.current().windows})
-class WindowsRegistryTest extends Specification {
+class WindowsRegistryTest extends NativePlatformSpec {
     def windowsRegistry = Native.get(WindowsRegistry)
 
     def "can read string value"() {

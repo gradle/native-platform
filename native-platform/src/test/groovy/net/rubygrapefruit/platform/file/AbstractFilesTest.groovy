@@ -16,8 +16,8 @@
 
 package net.rubygrapefruit.platform.file
 
+import net.rubygrapefruit.platform.NativePlatformSpec
 import net.rubygrapefruit.platform.internal.Platform
-import spock.lang.Specification
 
 import java.nio.file.LinkOption
 import java.nio.file.Paths
@@ -25,9 +25,17 @@ import java.nio.file.attribute.BasicFileAttributeView
 import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.attribute.PosixFileAttributes
 
-import static java.nio.file.attribute.PosixFilePermission.*
+import static java.nio.file.attribute.PosixFilePermission.GROUP_EXECUTE
+import static java.nio.file.attribute.PosixFilePermission.GROUP_READ
+import static java.nio.file.attribute.PosixFilePermission.GROUP_WRITE
+import static java.nio.file.attribute.PosixFilePermission.OTHERS_EXECUTE
+import static java.nio.file.attribute.PosixFilePermission.OTHERS_READ
+import static java.nio.file.attribute.PosixFilePermission.OTHERS_WRITE
+import static java.nio.file.attribute.PosixFilePermission.OWNER_EXECUTE
+import static java.nio.file.attribute.PosixFilePermission.OWNER_READ
+import static java.nio.file.attribute.PosixFilePermission.OWNER_WRITE
 
-class AbstractFilesTest extends Specification {
+class AbstractFilesTest extends NativePlatformSpec {
     BasicFileAttributes attributes(File file) {
         return java.nio.file.Files.getFileAttributeView(file.toPath(), BasicFileAttributeView, LinkOption.NOFOLLOW_LINKS).readAttributes()
     }

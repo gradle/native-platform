@@ -40,8 +40,7 @@ public class Native {
     /**
      * Initialises the native integration, if not already initialized.
      *
-     * @param extractDir The directory to extract native resources into. May be null, in which case a default is
-     * selected.
+     * @param extractDir The directory to extract native resources into.
      *
      * @throws NativeIntegrationUnavailableException When native integration is not available on the current machine.
      * @throws NativeException On failure to load the native integration.
@@ -49,37 +48,41 @@ public class Native {
     @ThreadSafe
     static public void init(File extractDir) throws NativeIntegrationUnavailableException, NativeException {
         synchronized (Native.class) {
-            if (loader == null) {
-                Platform platform = Platform.current();
-                try {
-                    loader = new NativeLibraryLoader(platform, new NativeLibraryLocator(extractDir, NativeVersion.VERSION));
-                    loader.load(platform.getLibraryName(), platform.getLibraryVariants());
-                    String nativeVersion = NativeLibraryFunctions.getVersion();
-                    if (!nativeVersion.equals(NativeVersion.VERSION)) {
-                        throw new NativeException(String.format("Unexpected native library version loaded. Expected %s, was %s.", NativeVersion.VERSION, nativeVersion));
-                    }
-                } catch (NativeException e) {
-                    throw e;
-                } catch (Throwable t) {
-                    throw new NativeException("Failed to initialise native integration.", t);
+            if (loader != null) {
+                throw new NativeException("Native integration already initialised.");
+            }
+            Platform platform = Platform.current();
+            try {
+                loader = new NativeLibraryLoader(platform, new NativeLibraryLocator(extractDir, NativeVersion.VERSION));
+                loader.load(platform.getLibraryName(), platform.getLibraryVariants());
+                String nativeVersion = NativeLibraryFunctions.getVersion();
+                if (!nativeVersion.equals(NativeVersion.VERSION)) {
+                    throw new NativeException(String.format("Unexpected native library version loaded. Expected %s, was %s.", NativeVersion.VERSION, nativeVersion));
                 }
+            } catch (NativeException e) {
+                throw e;
+            } catch (Throwable t) {
+                throw new NativeException("Failed to initialise native integration.", t);
             }
         }
     }
 
     /**
      * Locates a native integration of the given type.
+     * Must call {@link #init(File)} before calling this method.
      *
      * @return The native integration. Never returns null.
      * @throws NativeIntegrationUnavailableException When the given native integration is not available on the current
      * machine.
-     * @throws NativeException On failure to load the native integration.
+     * @throws NativeException On failure to load the native integration, or if {@link #init(File)} hasn't been called before.
      */
     @ThreadSafe
     public static <T extends NativeIntegration> T get(Class<T> type)
-            throws NativeIntegrationUnavailableException, NativeException {
-        init(null);
+        throws NativeIntegrationUnavailableException, NativeException {
         synchronized (Native.class) {
+            if (loader == null) {
+                throw new NativeException("Native integration not initialised.");
+            }
             Platform platform = Platform.current();
             Class<? extends T> canonicalType = platform.canonicalise(type);
             Object instance = integrations.get(canonicalType);

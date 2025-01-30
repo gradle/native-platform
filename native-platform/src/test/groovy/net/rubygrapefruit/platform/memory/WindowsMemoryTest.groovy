@@ -17,12 +17,12 @@
 package net.rubygrapefruit.platform.memory
 
 import net.rubygrapefruit.platform.Native
+import net.rubygrapefruit.platform.NativePlatformSpec
 import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.Requires
-import spock.lang.Specification
 
 @Requires({ Platform.current().windows })
-class WindowsMemoryTest extends Specification {
+class WindowsMemoryTest extends NativePlatformSpec {
 
     def "caches memory instance"() {
         expect:

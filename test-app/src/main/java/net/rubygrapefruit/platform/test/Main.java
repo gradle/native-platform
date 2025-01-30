@@ -72,9 +72,13 @@ public class Main {
             System.exit(1);
         }
 
+        File cacheDir;
         if (result.has("cache-dir")) {
-            Native.init(new File(result.valueOf("cache-dir").toString()));
+            cacheDir = new File(result.valueOf("cache-dir").toString());
+        } else {
+            cacheDir = new File("cache-dir");
         }
+        Native.init(cacheDir);
 
         boolean ansi = result.has("ansi");
 

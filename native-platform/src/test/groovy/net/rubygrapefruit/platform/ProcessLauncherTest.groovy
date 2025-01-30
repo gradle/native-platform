@@ -16,9 +16,7 @@
 
 package net.rubygrapefruit.platform
 
-import spock.lang.Specification
-
-class ProcessLauncherTest extends Specification {
+class ProcessLauncherTest extends NativePlatformSpec {
     final ProcessLauncher launcher = Native.get(ProcessLauncher)
 
     def "can start a child process"() {

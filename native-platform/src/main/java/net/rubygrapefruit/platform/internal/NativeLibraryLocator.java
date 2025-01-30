@@ -18,6 +18,7 @@ package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.NativeException;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -36,48 +37,36 @@ public class NativeLibraryLocator {
         this.version = version;
     }
 
+    @Nullable
     public File find(LibraryDef libraryDef) throws IOException {
         String resourceName = String.format("net/rubygrapefruit/platform/%s/%s", libraryDef.platform, libraryDef.name);
-        if (extractDir != null) {
-            File libFile = new File(extractDir, String.format("%s/%s/%s", version, libraryDef.platform, libraryDef.name));
-            File lockFile = new File(libFile.getParentFile(), libFile.getName() + ".lock");
-            lockFile.getParentFile().mkdirs();
-            lockFile.createNewFile();
-            RandomAccessFile lockFileAccess = new RandomAccessFile(lockFile, "rw");
-            try {
-                // Take exclusive lock on lock file
-                FileLock lock = lockFileAccess.getChannel().lock();
-                if (lockFile.length() > 0 && lockFileAccess.readBoolean()) {
-                    // Library has been extracted
-                    return libFile;
-                }
-                URL resource = getClass().getClassLoader().getResource(resourceName);
-                if (resource != null) {
-                    // Extract library and write marker to lock file
-                    libFile.getParentFile().mkdirs();
-                    copy(resource, libFile);
-                    lockFileAccess.seek(0);
-                    lockFileAccess.writeBoolean(true);
-                    return libFile;
-                }
-            } finally {
-                // Also releases lock
-                lockFileAccess.close();
-            }
-        } else {
-            URL resource = getClass().getClassLoader().getResource(resourceName);
-            if (resource != null) {
-                File libFile;
-                File libDir = File.createTempFile("native-platform", "dir");
-                libDir.delete();
-                libDir.mkdirs();
-                libFile = new File(libDir, libraryDef.name);
-                libFile.deleteOnExit();
-                copy(resource, libFile);
+        File libFile = new File(extractDir, String.format("%s/%s/%s", version, libraryDef.platform, libraryDef.name));
+        File lockFile = new File(libFile.getParentFile(), libFile.getName() + ".lock");
+        lockFile.getParentFile().mkdirs();
+        lockFile.createNewFile();
+        RandomAccessFile lockFileAccess = new RandomAccessFile(lockFile, "rw");
+        try {
+            // Take exclusive lock on lock file
+            FileLock lock = lockFileAccess.getChannel().lock();
+            if (lockFile.length() > 0 && lockFileAccess.readBoolean()) {
+                // Library has been extracted
                 return libFile;
             }
+            URL resource = getClass().getClassLoader().getResource(resourceName);
+            if (resource != null) {
+                // Extract library and write marker to lock file
+                libFile.getParentFile().mkdirs();
+                copy(resource, libFile);
+                lockFileAccess.seek(0);
+                lockFileAccess.writeBoolean(true);
+                return libFile;
+            } else {
+                return null;
+            }
+        } finally {
+            // Also releases lock
+            lockFileAccess.close();
         }
-        return null;
     }
 
     private static void copy(URL source, File dest) {

@@ -17,15 +17,14 @@
 package net.rubygrapefruit.platform.memory
 
 import net.rubygrapefruit.platform.Native
+import net.rubygrapefruit.platform.NativePlatformSpec
 import net.rubygrapefruit.platform.internal.Platform
-import spock.lang.IgnoreIf
 import spock.lang.Requires
-import spock.lang.Specification
 
 import java.lang.management.ManagementFactory
 
 @Requires({ Platform.current().macOs || Platform.current().windows })
-class MemoryTest extends Specification {
+class MemoryTest extends NativePlatformSpec {
     static long getJmxTotalPhysicalMemory() {
         ManagementFactory.operatingSystemMXBean.totalPhysicalMemorySize
     }

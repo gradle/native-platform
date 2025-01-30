@@ -17,11 +17,11 @@
 package net.rubygrapefruit.platform.internal
 
 import net.rubygrapefruit.platform.Native
+import net.rubygrapefruit.platform.NativePlatformSpec
 import spock.lang.IgnoreIf
-import spock.lang.Specification
 
 @IgnoreIf({Platform.current().windows})
-class NativeTypeInfoTest extends Specification {
+class NativeTypeInfoTest extends NativePlatformSpec {
     def "can fetch native type info"() {
         expect:
         MutableTypeInfo typeInfo = Native.get(MutableTypeInfo.class)

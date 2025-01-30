@@ -1,15 +1,14 @@
 package net.rubygrapefruit.platform.internal
 
 import net.rubygrapefruit.platform.NativeException
+import net.rubygrapefruit.platform.NativePlatformSpec
 import net.rubygrapefruit.platform.prompts.Prompter
 import net.rubygrapefruit.platform.terminal.TerminalInput
 import net.rubygrapefruit.platform.terminal.TerminalInputListener
 import net.rubygrapefruit.platform.terminal.Terminals
-import spock.lang.Specification
 import spock.lang.Unroll
 
-
-class PrompterTest extends Specification {
+class PrompterTest extends NativePlatformSpec {
     def terminals = Stub(Terminals)
 
     @Unroll
