@@ -135,7 +135,7 @@ public abstract class JniPlugin implements Plugin<Project> {
 
         project.getTasks().withType(CppCompile.class).configureEach(task ->
             task.includes(writeNativeVersionSources.flatMap(WriteNativeVersionSources::getGeneratedNativeHeaderDirectory)
-        ));
+            ));
         JavaPluginConvention javaPluginConvention = project.getConvention().getPlugin(JavaPluginConvention.class);
         javaPluginConvention.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME).java(javaSources ->
             javaSources.srcDir(writeNativeVersionSources.flatMap(WriteNativeVersionSources::getGeneratedJavaSourcesDir))
@@ -161,7 +161,7 @@ public abstract class JniPlugin implements Plugin<Project> {
                             Jar nativeJar = foundNativeJar == null
                                 ? project.getTasks().create(taskName, Jar.class, jar -> jar.getArchiveBaseName().set(artifactId + "-" + variantName))
                                 : foundNativeJar;
-                            if (foundNativeJar == null) {
+                            if (foundNativeJar==null) {
                                 project.getArtifacts().add("runtimeElements", nativeJar);
                                 project.getExtensions().configure(PublishingExtension.class, publishingExtension -> publishingExtension.publications(publications -> publications.create(variantName, MavenPublication.class, publication -> {
                                     publication.artifact(nativeJar);
@@ -247,8 +247,7 @@ public abstract class JniPlugin implements Plugin<Project> {
     }
 
     public static class JniRules extends RuleSource {
-        @Mutate
-        void createPlatforms(PlatformContainer platformContainer) {
+        @Mutate void createPlatforms(PlatformContainer platformContainer) {
             addPlatform(platformContainer, "osx_amd64", "osx", "amd64");
             addPlatform(platformContainer, "osx_aarch64", "osx", "aarch64");
             addPlatform(platformContainer, "linux_amd64", "linux", "amd64");
@@ -262,23 +261,28 @@ public abstract class JniPlugin implements Plugin<Project> {
         }
 
         @Mutate void createToolChains(NativeToolChainRegistry toolChainRegistry) {
-            toolChainRegistry.create("gcc", Gcc.class, toolChain -> {
-                // The core Gradle toolchain for gcc only targets x86 and x86_64 out of the box.
-                // https://github.com/gradle/gradle/blob/36614ee523e5906ddfa1fed9a5dc00a5addac1b0/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/gcc/AbstractGccCompatibleToolChain.java
-                toolChain.target("linux_aarch64");
-            });
-            toolChainRegistry.create("clang", Clang.class, toolChain -> {
-                // The core Gradle toolchain for Clang only targets x86 and x86_64 out of the box.
-                OperatingSystem os = new DefaultNativePlatform("current").getOperatingSystem();
-                if (os.isMacOsX()) {
-                    toolChain.target("osx_aarch64");
-                }
-            });
-            toolChainRegistry.create("visualCpp", VisualCpp.class);
+            if (toolChainRegistry.stream().noneMatch(toolChain -> toolChain.getName().equals("gcc"))) {
+                toolChainRegistry.create("gcc", Gcc.class, toolChain -> {
+                    // The core Gradle toolchain for gcc only targets x86 and x86_64 out of the box.
+                    // https://github.com/gradle/gradle/blob/36614ee523e5906ddfa1fed9a5dc00a5addac1b0/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/gcc/AbstractGccCompatibleToolChain.java
+                    toolChain.target("linux_aarch64");
+                });
+            }
+            if (toolChainRegistry.stream().noneMatch(toolChain -> toolChain.getName().equals("clang"))) {
+                toolChainRegistry.create("clang", Clang.class, toolChain -> {
+                    // The core Gradle toolchain for Clang only targets x86 and x86_64 out of the box.
+                    OperatingSystem os = new DefaultNativePlatform("current").getOperatingSystem();
+                    if (os.isMacOsX()) {
+                        toolChain.target("osx_aarch64");
+                    }
+                });
+            }
+            if (toolChainRegistry.stream().noneMatch(toolChain -> toolChain.getName().equals("visualCpp"))) {
+                toolChainRegistry.create("visualCpp", VisualCpp.class);
+            }
         }
 
-        @Mutate
-        void addComponentSourcesSetsToProjectSourceSet(ModelMap<Task> tasks, ModelMap<SourceComponentSpec> sourceContainer) {
+        @Mutate void addComponentSourcesSetsToProjectSourceSet(ModelMap<Task> tasks, ModelMap<SourceComponentSpec> sourceContainer) {
             sourceContainer.forEach(sources -> sources.getSources().withType(CppSourceSet.class).forEach(sourceSet ->
                 tasks.withType(WriteNativeVersionSources.class, task -> {
                     task.getNativeSources().from(sourceSet.getSource().getSourceDirectories());
