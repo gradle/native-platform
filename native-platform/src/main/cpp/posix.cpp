@@ -35,7 +35,11 @@
 #include <sys/utsname.h>
 #include <termios.h>
 #include <unistd.h>
-#include <sys/sysctl.h>
+#if defined(__linux__) && __GLIBC__ >= 2 && __GLIBC_MINOR__ >= 32
+    #include <sys/sysinfo.h>
+#else
+    #include <sys/sysctl.h>
+#endif
 
 jmethodID fileStatDetailsMethodId;
 
