@@ -62,6 +62,9 @@ public class MutableSystemInfo implements SystemInfo {
         if (machineArchitecture.equals("aarch64") || machineArchitecture.equals("arm64")) {
             return Architecture.aarch64;
         }
+        if (machineArchitecture.equals("e2k")) {
+            return Architecture.e2k;
+        }
         throw new NativeException(String.format("Cannot determine architecture from kernel architecture name '%s'.", machineArchitecture));
     }
 
