@@ -253,7 +253,7 @@ You should avoid using this release, and use 0.7 or later instead.
 
 ## Building
 
-This project uses (Gradle)[https://www.gradle.org] to build. Just run `gradlew` in the root of the source repo.
+This project uses [Gradle](https://www.gradle.org) to build. Just run `gradlew` in the root of the source repo.
 You will need Java 8 or later to run the tests.
 
 ### Ubuntu
