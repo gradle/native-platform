@@ -19,12 +19,9 @@ package net.rubygrapefruit.platform.terminal
 import net.rubygrapefruit.platform.NativeException
 import net.rubygrapefruit.platform.NativePlatformSpec
 import net.rubygrapefruit.platform.internal.Platform
-import org.junit.Rule
-import org.junit.rules.TemporaryFolder
 import spock.lang.IgnoreIf
 
 class TerminalsTest extends NativePlatformSpec {
-    @Rule TemporaryFolder tmpDir
     final Terminals terminals = getIntegration(Terminals)
 
     def "caches terminals instance"() {

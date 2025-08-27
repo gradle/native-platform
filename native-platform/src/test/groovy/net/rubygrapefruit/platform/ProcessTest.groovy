@@ -17,13 +17,24 @@
 package net.rubygrapefruit.platform
 
 import net.rubygrapefruit.platform.testfixture.JavaVersion
-import org.junit.Rule
-import org.junit.rules.TemporaryFolder
+import org.junit.jupiter.api.io.TempDir
+import org.junit.jupiter.api.BeforeEach
 import spock.lang.IgnoreIf
+import java.nio.file.Path
 
 class ProcessTest extends NativePlatformSpec {
-    @Rule TemporaryFolder tmpDir
-    final Process process = getIntegration(Process)
+    File tmpDir
+    Process process
+
+    @BeforeEach
+    void setup() {
+        tmpDir = File.createTempDir()
+        process = getIntegration(Process)
+    }
+
+    def cleanup() {
+        tmpDir?.deleteDir()
+    }
 
     def "caches process instance"() {
         expect:
@@ -38,7 +49,9 @@ class ProcessTest extends NativePlatformSpec {
     // Changing the working directory has no effect on Java 11+
     @IgnoreIf({ JavaVersion.majorVersion >= 11 })
     def "can get and change working directory"() {
-        def newDir = tmpDir.newFolder(dir).canonicalFile
+        def newDir = new File(tmpDir, dir)
+        newDir.mkdirs()
+        newDir = newDir.canonicalFile
         assert newDir.directory
 
         when:
@@ -64,7 +77,7 @@ class ProcessTest extends NativePlatformSpec {
     }
 
     def "cannot set working directory to a directory that does not exist"() {
-        def newDir = new File(tmpDir.root, "does not exist");
+        def newDir = new File(tmpDir, "does not exist");
 
         when:
         process.workingDirectory = newDir

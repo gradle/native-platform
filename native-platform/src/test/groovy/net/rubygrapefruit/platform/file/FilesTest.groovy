@@ -16,13 +16,12 @@
 package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.internal.Platform
-import org.junit.Rule
-import org.junit.rules.TemporaryFolder
+import org.junit.jupiter.api.Assumptions
 import spock.lang.IgnoreIf
 import spock.lang.Shared
+import org.junit.jupiter.api.BeforeEach
 import spock.lang.Unroll
-
-import static org.junit.Assume.assumeFalse
+import java.nio.file.Path
 
 abstract class FilesTest extends AbstractFilesTest {
     @Shared
@@ -33,9 +32,16 @@ abstract class FilesTest extends AbstractFilesTest {
             // Long name
             (0..25).inject("") { s, v -> s + "/1234567890" }
     ])
-    @Rule
-    TemporaryFolder tmpDir
+    File tmpDir
     final def files = getIntegration(Files.class)
+
+    void setup() {
+        tmpDir = File.createTempDir()
+    }
+
+    def cleanup() {
+        tmpDir?.deleteDir()
+    }
 
     void assertIsFile(FileInfo stat, File file) {
         assert stat.type == FileInfo.Type.File
@@ -108,7 +114,8 @@ abstract class FilesTest extends AbstractFilesTest {
 
     @Unroll
     def "can stat a file"() {
-        def dir = tmpDir.newFolder()
+        def dir = new File(tmpDir, "test-dir")
+        dir.mkdirs()
         def testFile = new File(dir, fileName)
         testFile.parentFile.mkdirs()
         testFile.text = 'hi'
@@ -126,7 +133,7 @@ abstract class FilesTest extends AbstractFilesTest {
 
     @Unroll
     def "follow links has no effect for stat of a file"() {
-        def testFile = tmpDir.newFile("test.txt")
+        def testFile = new File(tmpDir, "test.txt")
         testFile.text = 'hi'
 
         when:
@@ -141,7 +148,8 @@ abstract class FilesTest extends AbstractFilesTest {
 
     @Unroll
     def "can stat a directory"() {
-        def dir = tmpDir.newFolder()
+        def dir = new File(tmpDir, "test-dir")
+        dir.mkdirs()
         def testDir = new File(dir, fileName)
         testDir.mkdirs()
 
@@ -160,7 +168,8 @@ abstract class FilesTest extends AbstractFilesTest {
     def "can stat a directory symbolic link"() {
         assumeLongSymlinksSupported(fileName)
 
-        def dir = tmpDir.newFolder()
+        def dir = new File(tmpDir, "test-dir")
+        dir.mkdirs()
         def testDir = new File(dir, fileName)
         testDir.mkdirs()
 
@@ -184,7 +193,8 @@ abstract class FilesTest extends AbstractFilesTest {
     def "can stat a file symbolic link"() {
         assumeLongSymlinksSupported(fileName)
 
-        def dir = tmpDir.newFolder()
+        def dir = new File(tmpDir, "test-dir")
+        dir.mkdirs()
         def testFile = new File(dir, fileName)
         testFile.parentFile.mkdirs()
         testFile.text = 'hi'
@@ -209,7 +219,8 @@ abstract class FilesTest extends AbstractFilesTest {
     def "can stat a missing symbolic link"() {
         assumeLongSymlinksSupported(fileName)
 
-        def dir = tmpDir.newFolder()
+        def dir = new File(tmpDir, "test-dir")
+        dir.mkdirs()
         def testFile = new File(dir, fileName)
 
         def testLink = new File(dir, fileName + ".link")
@@ -230,7 +241,8 @@ abstract class FilesTest extends AbstractFilesTest {
 
     @Unroll
     def "follow links has no effect for stat of a directory"() {
-        def testDir = tmpDir.newFolder("test.txt")
+        def testDir = new File(tmpDir, "test.txt")
+        testDir.mkdirs()
 
         when:
         def stat = files.stat(testDir, followLinks)
@@ -273,7 +285,7 @@ abstract class FilesTest extends AbstractFilesTest {
 
     @Unroll
     def "can stat a missing file"() {
-        def testFile = new File(tmpDir.root, fileName)
+        def testFile = new File(tmpDir, fileName)
 
         when:
         def stat = files.stat(testFile)
@@ -287,7 +299,7 @@ abstract class FilesTest extends AbstractFilesTest {
 
     @Unroll
     def "can stat a missing file when something in the path matches an existing file = #dirName"() {
-        def testDir = tmpDir.newFile(dirName)
+        def testDir = new File(tmpDir, dirName)
         def testFile = new File(testDir, fileName)
 
         when:
@@ -305,7 +317,7 @@ abstract class FilesTest extends AbstractFilesTest {
 
     @Unroll
     def "follow links has no effect for stat of a missing file"() {
-        def testFile = new File(tmpDir.root, "nested/missing")
+        def testFile = new File(tmpDir, "nested/missing")
 
         when:
         def stat = files.stat(testFile, followLinks)
@@ -318,7 +330,8 @@ abstract class FilesTest extends AbstractFilesTest {
     }
 
     def "can stat a changing file"() {
-        def dir = tmpDir.newFolder()
+        def dir = new File(tmpDir, "test-dir")
+        dir.mkdirs()
         def testFile = new File(dir, "file")
 
         when:
@@ -359,7 +372,8 @@ abstract class FilesTest extends AbstractFilesTest {
     }
 
     def "can stat a renamed file"() {
-        def dir = tmpDir.newFolder()
+        def dir = new File(tmpDir, "test-dir")
+        dir.mkdirs()
         def testFile = new File(dir, "file")
         testFile.text = "123"
         def other = new File(dir, "renamed")
@@ -405,7 +419,8 @@ abstract class FilesTest extends AbstractFilesTest {
 
     @Unroll
     def "can list contents of an empty directory"() {
-        def dir = tmpDir.newFolder()
+        def dir = new File(tmpDir, "test-dir")
+        dir.mkdirs()
         def testFile = new File(dir, fileName)
         testFile.mkdirs()
 
@@ -421,7 +436,8 @@ abstract class FilesTest extends AbstractFilesTest {
 
     @Unroll
     def "can list contents of a directory"() {
-        def dir = tmpDir.newFolder()
+        def dir = new File(tmpDir, "test-dir")
+        dir.mkdirs()
         def testDir = new File(dir, fileName)
         testDir.mkdirs()
 
@@ -453,7 +469,8 @@ abstract class FilesTest extends AbstractFilesTest {
     def "can list contents of a directory with symbolic links"() {
         assumeLongSymlinksSupported(fileName)
 
-        def dir = tmpDir.newFolder()
+        def dir = new File(tmpDir, "test-dir")
+        dir.mkdirs()
         def testFile = new File(dir, fileName)
         testFile.mkdirs()
 
@@ -496,7 +513,8 @@ abstract class FilesTest extends AbstractFilesTest {
     def "can list contents of a directory with symbolic links and follow links option"() {
         assumeLongSymlinksSupported(fileName)
 
-        def dir = tmpDir.newFolder()
+        def dir = new File(tmpDir, "test-dir")
+        dir.mkdirs()
         def testFile = new File(dir, fileName)
         testFile.mkdirs()
 
@@ -535,7 +553,8 @@ abstract class FilesTest extends AbstractFilesTest {
     }
 
     def "follow links has no effect on list contents of a directory when the directory does not contain links"() {
-        def testFile = tmpDir.newFolder("test.dir")
+        def testFile = new File(tmpDir, "test.dir")
+        testFile.mkdirs()
         def childDir = new File(testFile, "dir.a")
         childDir.mkdirs()
         def childFile = new File(testFile, "file.b")
@@ -559,7 +578,7 @@ abstract class FilesTest extends AbstractFilesTest {
     }
 
     def "cannot list contents of file"() {
-        def testFile = tmpDir.newFile()
+        def testFile = File.createTempFile("test", ".txt", tmpDir)
 
         when:
         files.listDir(testFile)
@@ -571,7 +590,9 @@ abstract class FilesTest extends AbstractFilesTest {
 
     @Unroll
     def "cannot list contents of missing file"() {
-        def testFile = new File(tmpDir.newFolder(), fileName)
+        def tempSubDir = new File(tmpDir, "subdir")
+        tempSubDir.mkdirs()
+        def testFile = new File(tempSubDir, fileName)
 
         when:
         files.listDir(testFile)
@@ -588,6 +609,6 @@ abstract class FilesTest extends AbstractFilesTest {
         // We can't run this test with long paths on Windows, because the createDirectorySymbolicLink
         // and createFileSymbolicLink methods use the "mklink" command on that platform, and it is currently
         // limited to 260 character paths.
-        assumeFalse(Platform.current().windows && fileName.size() > 260)
+        Assumptions.assumeFalse(Platform.current().windows && fileName.size() > 260)
     }
 }
