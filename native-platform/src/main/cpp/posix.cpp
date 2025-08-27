@@ -35,7 +35,7 @@
 #include <sys/utsname.h>
 #include <termios.h>
 #include <unistd.h>
-#include <sys/sysctl.h>
+#include <sys/utsname.h>
 
 jmethodID fileStatDetailsMethodId;
 
