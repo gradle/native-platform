@@ -52,6 +52,7 @@ import org.gradle.nativeplatform.toolchain.VisualCpp;
 import org.gradle.platform.base.BinarySpec;
 import org.gradle.platform.base.PlatformContainer;
 import org.gradle.platform.base.SourceComponentSpec;
+import sun.tools.jar.resources.jar;
 
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
@@ -144,7 +145,6 @@ public abstract class JniPlugin implements Plugin<Project> {
 
     @SuppressWarnings("unchecked")
     private void configureNativeJars(Project project, VariantsExtension variants, boolean testVersionFromLocalRepository) {
-        TaskProvider<Jar> emptyZip = project.getTasks().register("emptyZip", Jar.class, jar -> jar.getArchiveClassifier().set("empty"));
         // We register the publications here, so they are available when the project is used as a composite build.
 // When we don't use the software model plugins anymore, then this can move out of the afterEvaluate block.
         project.afterEvaluate(ignored -> {
@@ -154,14 +154,15 @@ public abstract class JniPlugin implements Plugin<Project> {
             modelRegistry.realize("components", ModelMap.class)
                 .forEach(spec -> getBinaries(spec).withType(NativeBinarySpec.class)
                     .forEach(binary -> {
-                        if (variants.getVariantNames().get().contains(binaryToVariantName(binary)) && binary.isBuildable()) {
-                            String variantName = binaryToVariantName(binary);
+                        String variantName = binaryToVariantName(binary);
+                        if (variants.getVariantNames().get().contains(variantName) && binary.isBuildable()) {
                             String taskName = "jar-" + variantName;
                             Jar foundNativeJar = (Jar) project.getTasks().findByName(taskName);
-                            Jar nativeJar = foundNativeJar == null
+                            Jar nativeJar = foundNativeJar==null
                                 ? project.getTasks().create(taskName, Jar.class, jar -> jar.getArchiveBaseName().set(artifactId + "-" + variantName))
-                                : foundNativeJar;
+                                :foundNativeJar;
                             if (foundNativeJar==null) {
+                                TaskProvider<Jar> emptyZip = project.getTasks().register("emptyZip-" + variantName, Jar.class, jar -> jar.getArchiveClassifier().set("empty-" + variantName));
                                 project.getArtifacts().add("runtimeElements", nativeJar);
                                 project.getExtensions().configure(PublishingExtension.class, publishingExtension -> publishingExtension.publications(publications -> publications.create(variantName, MavenPublication.class, publication -> {
                                     publication.artifact(nativeJar);
@@ -247,7 +248,8 @@ public abstract class JniPlugin implements Plugin<Project> {
     }
 
     public static class JniRules extends RuleSource {
-        @Mutate void createPlatforms(PlatformContainer platformContainer) {
+        @Mutate
+        void createPlatforms(PlatformContainer platformContainer) {
             addPlatform(platformContainer, "osx_amd64", "osx", "amd64");
             addPlatform(platformContainer, "osx_aarch64", "osx", "aarch64");
             addPlatform(platformContainer, "linux_amd64", "linux", "amd64");
@@ -260,7 +262,8 @@ public abstract class JniPlugin implements Plugin<Project> {
             addPlatform(platformContainer, "windows_aarch64_min", "windows", "aarch64");
         }
 
-        @Mutate void createToolChains(NativeToolChainRegistry toolChainRegistry) {
+        @Mutate
+        void createToolChains(NativeToolChainRegistry toolChainRegistry) {
             if (toolChainRegistry.stream().noneMatch(toolChain -> toolChain.getName().equals("gcc"))) {
                 toolChainRegistry.create("gcc", Gcc.class, toolChain -> {
                     // The core Gradle toolchain for gcc only targets x86 and x86_64 out of the box.
@@ -282,7 +285,8 @@ public abstract class JniPlugin implements Plugin<Project> {
             }
         }
 
-        @Mutate void addComponentSourcesSetsToProjectSourceSet(ModelMap<Task> tasks, ModelMap<SourceComponentSpec> sourceContainer) {
+        @Mutate
+        void addComponentSourcesSetsToProjectSourceSet(ModelMap<Task> tasks, ModelMap<SourceComponentSpec> sourceContainer) {
             sourceContainer.forEach(sources -> sources.getSources().withType(CppSourceSet.class).forEach(sourceSet ->
                 tasks.withType(WriteNativeVersionSources.class, task -> {
                     task.getNativeSources().from(sourceSet.getSource().getSourceDirectories());
@@ -290,7 +294,8 @@ public abstract class JniPlugin implements Plugin<Project> {
                 })));
         }
 
-        @Mutate void configureBinaries(@Each NativeBinarySpecInternal binarySpec) {
+        @Mutate
+        void configureBinaries(@Each NativeBinarySpecInternal binarySpec) {
             DefaultNativePlatform currentPlatform = new DefaultNativePlatform("current");
             Architecture currentArch = currentPlatform.getArchitecture();
             NativePlatform targetPlatform = binarySpec.getTargetPlatform();
@@ -322,7 +327,8 @@ public abstract class JniPlugin implements Plugin<Project> {
             }
         }
 
-        @Mutate void configureSharedLibraryBinaries(@Each SharedLibraryBinarySpec binarySpec, ExtensionContainer extensions, ServiceRegistry serviceRegistry) {
+        @Mutate
+        void configureSharedLibraryBinaries(@Each SharedLibraryBinarySpec binarySpec, ExtensionContainer extensions, ServiceRegistry serviceRegistry) {
             // Only depend on variants which can be built on the current machine
             boolean onlyLocalVariants = serviceRegistry.get(ProviderFactory.class).gradleProperty("onlyLocalVariants").forUseAtConfigurationTime().isPresent();
             if (onlyLocalVariants && !binarySpec.isBuildable()) {
@@ -356,10 +362,12 @@ public abstract class JniPlugin implements Plugin<Project> {
         private List<String> detectedWarnings = new ArrayList<>();
 
         @Override
-        public void beforeSuite(TestDescriptor testDescriptor) {}
+        public void beforeSuite(TestDescriptor testDescriptor) {
+        }
 
         @Override
-        public void afterSuite(TestDescriptor testDescriptor, TestResult testResult) {}
+        public void afterSuite(TestDescriptor testDescriptor, TestResult testResult) {
+        }
 
         @Override
         public void beforeTest(TestDescriptor testDescriptor) {
@@ -373,7 +381,7 @@ public abstract class JniPlugin implements Plugin<Project> {
 
         @Override
         public void onOutput(CharSequence message) {
-            if (currentTest != null && message.toString().startsWith("WARNING")) {
+            if (currentTest!=null && message.toString().startsWith("WARNING")) {
                 detectedWarnings.add(String.format("%s (test: %s)", message, currentTest));
             }
         }
