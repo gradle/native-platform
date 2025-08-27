@@ -18,7 +18,9 @@ import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetOutput;
 import org.gradle.api.tasks.compile.GroovyCompile;
 import org.gradle.api.tasks.testing.Test;
+import org.gradle.internal.impldep.bsh.commands.dir;
 import org.gradle.process.ExecOperations;
+import org.jetbrains.annotations.NotNull;
 
 import javax.inject.Inject;
 import java.io.ByteArrayOutputStream;
@@ -48,11 +50,22 @@ public abstract class NativePlatformComponentPlugin implements Plugin<Project> {
 
     private void configureJavaCompatibility(Project project) {
         // Java 9 and later don't support targetting Java 5
-        JavaVersion compatibility = JavaVersion.current().isJava9Compatible() ? JavaVersion.VERSION_1_6 : JavaVersion.VERSION_1_5;
+        JavaVersion compatibility = getJavaVersion();
 
         JavaPluginExtension java = project.getExtensions().getByType(JavaPluginExtension.class);
         java.setSourceCompatibility(compatibility);
         java.setTargetCompatibility(compatibility);
+    }
+
+    private static @NotNull JavaVersion getJavaVersion() {
+        JavaVersion compatibility;
+        if (JavaVersion.current().isJava12Compatible()) {
+            return JavaVersion.VERSION_1_8;
+        }
+        if (JavaVersion.current().isJava9Compatible()) {
+            return JavaVersion.VERSION_1_6;
+        }
+        return JavaVersion.VERSION_1_5;
     }
 
     private void configureTestTasks(Project project) {
@@ -88,7 +101,7 @@ public abstract class NativePlatformComponentPlugin implements Plugin<Project> {
                         getExecOperations().exec(spec -> {
                             spec.commandLine(
                                 findmntPath,
-                                "-n",  "-o", "FSTYPE", "-T", mountPoint);
+                                "-n", "-o", "FSTYPE", "-T", mountPoint);
                             spec.setStandardOutput(outputStream);
                         }).assertNormalExitValue();
                         String detectedFileSystemType = new String(outputStream.toByteArray(), StandardCharsets.UTF_8).trim();
