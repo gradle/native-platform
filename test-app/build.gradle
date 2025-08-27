@@ -8,9 +8,9 @@ applicationName = 'native-platform-test'
 archivesBaseName = 'native-platform-test'
 
 if (versions.useRepo) {
-    configurations.all {
+    configurations.configureEach {
         resolutionStrategy.dependencySubstitution {
-            substitute project(':native-platform') with module("net.rubygrapefruit:native-platform:${version}")
+            substitute project(':native-platform') using module("net.rubygrapefruit:native-platform:${version}")
         }
     }
     configurations {

@@ -35,7 +35,12 @@
 #include <sys/utsname.h>
 #include <termios.h>
 #include <unistd.h>
-#include <sys/sysctl.h>
+#ifdef __linux__
+    #include <sys/utsname.h>
+    // Don't include sys/sysctl.h on Linux - it's deprecated
+#else
+    #include <sys/sysctl.h>  // Keep for BSD/macOS
+#endif
 
 jmethodID fileStatDetailsMethodId;
 
