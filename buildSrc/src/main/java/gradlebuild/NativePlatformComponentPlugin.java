@@ -57,15 +57,14 @@ public abstract class NativePlatformComponentPlugin implements Plugin<Project> {
         java.setTargetCompatibility(compatibility);
     }
 
-    private static @NotNull JavaVersion getJavaVersion() {
-        JavaVersion compatibility;
-        if (JavaVersion.current().isJava12Compatible()) {
-            return JavaVersion.VERSION_1_8;
-        }
-        if (JavaVersion.current().isJava9Compatible()) {
-            return JavaVersion.VERSION_1_6;
-        }
-        return JavaVersion.VERSION_1_5;
+    private static JavaVersion getJavaVersion() {
+//        if (JavaVersion.current().isJava12Compatible()) {
+//            return JavaVersion.VERSION_1_8;
+//        }
+//        if (JavaVersion.current().isJava9Compatible()) {
+//            return JavaVersion.VERSION_1_6;
+//        }
+        return JavaVersion.VERSION_1_8;
     }
 
     private void configureTestTasks(Project project) {
