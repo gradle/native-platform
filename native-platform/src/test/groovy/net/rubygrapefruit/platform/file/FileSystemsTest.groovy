@@ -18,11 +18,9 @@ package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.NativePlatformSpec
 import net.rubygrapefruit.platform.internal.Platform
-import org.junit.Rule
-import org.junit.rules.TemporaryFolder
+import org.junit.jupiter.api.io.TempDir
+import org.junit.jupiter.api.Assumptions
 import spock.lang.Requires
-
-import static org.junit.Assume.assumeTrue
 
 class FileSystemsTest extends NativePlatformSpec {
     private static final List<String> EXPECTED_FILE_SYSTEM_TYPES = [
@@ -40,7 +38,8 @@ class FileSystemsTest extends NativePlatformSpec {
         'NTFS'
     ]
 
-    @Rule TemporaryFolder tmpDir
+    @TempDir
+    File tmpDir
 
     final FileSystems fileSystems = getIntegration(FileSystems)
 
@@ -62,7 +61,7 @@ class FileSystemsTest extends NativePlatformSpec {
     @Requires({ Platform.current().linux })
     def "detects file systems of mount points correctly"() {
         def mountPoint = "/${fileSystemType}"
-        assumeTrue("Mount point for ${fileSystemType} exists", new File(mountPoint).exists())
+        Assumptions.assumeTrue(new File(mountPoint).exists(), "Mount point for ${fileSystemType} exists")
 
         when:
         def mountedFileSystems = fileSystems.fileSystems
