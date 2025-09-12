@@ -13,5 +13,4 @@ public interface NativeRulesUtils {
             platform.architecture(architecture);
         });
     }
-
 }

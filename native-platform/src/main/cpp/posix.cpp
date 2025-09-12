@@ -35,10 +35,11 @@
 #include <sys/utsname.h>
 #include <termios.h>
 #include <unistd.h>
-#if defined(__linux__) && __GLIBC__ >= 2 && __GLIBC_MINOR__ >= 32
-    #include <sys/sysinfo.h>
+#ifdef __linux__
+    #include <sys/utsname.h>
+    // Don't include sys/sysctl.h on Linux - it's deprecated
 #else
-    #include <sys/sysctl.h>
+    #include <sys/sysctl.h>  // Keep for BSD/macOS
 #endif
 
 jmethodID fileStatDetailsMethodId;

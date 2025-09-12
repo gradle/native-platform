@@ -47,8 +47,7 @@ public abstract class NativePlatformComponentPlugin implements Plugin<Project> {
     }
 
     private void configureJavaCompatibility(Project project) {
-        // Java 9 and later don't support targetting Java 5
-        JavaVersion compatibility = JavaVersion.current().isJava9Compatible() ? JavaVersion.VERSION_1_6 : JavaVersion.VERSION_1_5;
+        JavaVersion compatibility = JavaVersion.VERSION_1_8;
 
         JavaPluginExtension java = project.getExtensions().getByType(JavaPluginExtension.class);
         java.setSourceCompatibility(compatibility);
@@ -58,6 +57,7 @@ public abstract class NativePlatformComponentPlugin implements Plugin<Project> {
     private void configureTestTasks(Project project) {
         JavaPluginConvention javaPluginConvention = project.getConvention().getPlugin(JavaPluginConvention.class);
         project.getTasks().withType(Test.class).configureEach(test -> {
+            test.useJUnitPlatform();
             test.systemProperty(TEST_DIRECTORY_SYSTEM_PROPERTY, project.getLayout().getBuildDirectory().dir("test files").map(dir -> dir.getAsFile().getAbsoluteFile()).get());
 
             // Reconfigure the classpath for the test task here, so we can use dependency substitution on `testRuntimeClasspath`
@@ -88,7 +88,7 @@ public abstract class NativePlatformComponentPlugin implements Plugin<Project> {
                         getExecOperations().exec(spec -> {
                             spec.commandLine(
                                 findmntPath,
-                                "-n",  "-o", "FSTYPE", "-T", mountPoint);
+                                "-n", "-o", "FSTYPE", "-T", mountPoint);
                             spec.setStandardOutput(outputStream);
                         }).assertNormalExitValue();
                         String detectedFileSystemType = new String(outputStream.toByteArray(), StandardCharsets.UTF_8).trim();
@@ -103,7 +103,10 @@ public abstract class NativePlatformComponentPlugin implements Plugin<Project> {
         // This allows using dependency substitution for the root project.
         DependencyHandler dependencies = project.getDependencies();
         project.getDependencies().add("testImplementation", project.getDependencies().project(ImmutableMap.of("path", project.getPath())));
-        dependencies.add("testImplementation", "org.spockframework:spock-core:1.3-groovy-2.5");
+        dependencies.add("testImplementation", "org.spockframework:spock-core:2.3-groovy-3.0");
+        dependencies.add("testImplementation", "org.junit.jupiter:junit-jupiter-api:5.9.2");
+        dependencies.add("testRuntimeOnly", "org.junit.jupiter:junit-jupiter-engine:5.9.2");
+        dependencies.add("testRuntimeOnly", "org.junit.platform:junit-platform-launcher");
     }
 
     @Inject
