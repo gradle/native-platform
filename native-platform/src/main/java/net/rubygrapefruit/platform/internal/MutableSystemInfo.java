@@ -39,8 +39,7 @@ public class MutableSystemInfo implements SystemInfo {
             // On macOS, the architecture field contains the CPU name, not the architecture
             if (machineArchitecture.startsWith("Apple")) {
                 return "arm64";
-            }
-            if (machineArchitecture.startsWith("Intel")) {
+            } else if (machineArchitecture.contains("Intel") || machineArchitecture.startsWith("AMD")) {
                 return "x86_64";
             }
         }
