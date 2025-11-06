@@ -10,7 +10,7 @@ repositories {
 dependencies {
     implementation gradleApi()
     implementation 'org.apache.httpcomponents.client5:httpclient5:5.0.1'
-    implementation 'com.google.guava:guava:28.2-jre'
+    implementation 'com.google.guava:guava:32.0.0-jre'
 }
 
 java {
