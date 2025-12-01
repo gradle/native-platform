@@ -21,7 +21,7 @@ import jetbrains.buildServer.configs.kotlin.ParameterDisplay
 import jetbrains.buildServer.configs.kotlin.Project
 import jetbrains.buildServer.configs.kotlin.RelativeId
 import jetbrains.buildServer.configs.kotlin.buildSteps.gradle
-import java.util.Locale
+import java.util.*
 
 class Publishing(buildAndTest: List<BuildType>, buildReceiptSource: BuildType) : Project({
     name = "Publishing"
@@ -55,10 +55,23 @@ class NativePlatformPublishProject(releaseType: ReleaseType, buildAndTest: List<
     private val nativeLibraryNcursesJniBuilds = agentsForNcursesOnlyPublications.map { agent ->
         NativeLibraryPublishNcurses(releaseType, agent, buildAndTest, buildReceiptSource).also(::buildType)
     }
-    val publishApi = PublishJavaApi(releaseType, nativeLibraryAllJniBuilds + nativeLibraryNcursesJniBuilds, buildAndTest, buildReceiptSource)
+    val publishApi = PublishJavaApi(
+        releaseType,
+        agentForJavaPublication,
+        nativeLibraryAllJniBuilds + nativeLibraryNcursesJniBuilds,
+        buildAndTest,
+        buildReceiptSource
+    )
 }
 
-open class NativePlatformPublishSnapshot(releaseType: ReleaseType, uploadTasks: List<String>, buildAndTest: List<BuildType>, buildReceiptSource: BuildType, init: BuildType.() -> Unit) : BuildType({
+open class NativePlatformPublishSnapshot(
+    agent: Agent,
+    releaseType: ReleaseType,
+    uploadTasks: List<String>,
+    buildAndTest: List<BuildType>,
+    buildReceiptSource: BuildType,
+    init: BuildType.() -> Unit
+) : BuildType({
     params {
         param("ARTIFACTORY_USERNAME", releaseType.username)
         password("ARTIFACTORY_PASSWORD", releaseType.password, display = ParameterDisplay.HIDDEN)
@@ -81,7 +94,12 @@ open class NativePlatformPublishSnapshot(releaseType: ReleaseType, uploadTasks: 
         uploadTasks.forEach { task ->
             gradle {
                 name = "Gradle $task"
-                tasks = "clean $task -P${releaseType.gradleProperty}${if (releaseType.userProvidedVersion) "=%versionPostfix%" else ""}"
+                tasks =
+                    "clean $task -P${releaseType.gradleProperty}${if (releaseType.userProvidedVersion) "=%versionPostfix%" else ""} ${
+                        javaInstallationLocations(
+                            agent
+                        )
+                    }"
                 buildFile = ""
             }
         }
@@ -109,8 +127,19 @@ open class NativePlatformPublishSnapshot(releaseType: ReleaseType, uploadTasks: 
     init(this)
 })
 
-class NativeLibraryPublish(releaseType: ReleaseType = ReleaseType.Snapshot, agent: Agent, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
-    NativePlatformPublishSnapshot(releaseType, listOf(agent.publishJniTasks.trim()), buildAndTest, buildReceiptSource, {
+class NativeLibraryPublish(
+    releaseType: ReleaseType = ReleaseType.Snapshot,
+    agent: Agent,
+    buildAndTest: List<BuildType>,
+    buildReceiptSource: BuildType
+) :
+    NativePlatformPublishSnapshot(
+        agent,
+        releaseType,
+        listOf(agent.publishJniTasks.trim()),
+        buildAndTest,
+        buildReceiptSource,
+        {
         val extraQualification = if (agent.os is Linux)
             "general and ${agent.os.ncurses.toString().lowercase(Locale.ROOT)} "
         else ""
@@ -123,8 +152,19 @@ class NativeLibraryPublish(releaseType: ReleaseType = ReleaseType.Snapshot, agen
         """.trimIndent() + "\n$archiveReports"
     })
 
-class NativeLibraryPublishNcurses(releaseType: ReleaseType = ReleaseType.Snapshot, agent: Agent, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
-    NativePlatformPublishSnapshot(releaseType, listOf(":native-platform:uploadNcursesJni"), buildAndTest, buildReceiptSource, {
+class NativeLibraryPublishNcurses(
+    releaseType: ReleaseType = ReleaseType.Snapshot,
+    agent: Agent,
+    buildAndTest: List<BuildType>,
+    buildReceiptSource: BuildType
+) :
+    NativePlatformPublishSnapshot(
+        agent,
+        releaseType,
+        listOf(":native-platform:uploadNcursesJni"),
+        buildAndTest,
+        buildReceiptSource,
+        {
         val linuxOs: Linux = agent.os as Linux
         name = "Publish ${linuxOs.osType} ${agent.architecture} ${linuxOs.ncurses.toString().lowercase(Locale.ROOT)} only ${releaseType.name}"
         id = RelativeId("Publishing_Publish${linuxOs.osType}${agent.architecture}${linuxOs.ncurses}${releaseType.name}")
@@ -132,8 +172,15 @@ class NativeLibraryPublishNcurses(releaseType: ReleaseType = ReleaseType.Snapsho
         artifactRules = archiveReports
     })
 
-class PublishJavaApi(releaseType: ReleaseType = ReleaseType.Snapshot, nativeLibraryPublishingBuilds: List<NativePlatformPublishSnapshot>, buildAndTest: List<BuildType>, buildReceiptSource: BuildType) :
+class PublishJavaApi(
+    releaseType: ReleaseType = ReleaseType.Snapshot,
+    agent: Agent,
+    nativeLibraryPublishingBuilds: List<NativePlatformPublishSnapshot>,
+    buildAndTest: List<BuildType>,
+    buildReceiptSource: BuildType
+) :
     NativePlatformPublishSnapshot(
+        agent,
         releaseType,
         listOf(":native-platform:uploadMain", ":test-app:uploadMain"),
         buildAndTest,

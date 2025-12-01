@@ -98,7 +98,7 @@ public abstract class NativePlatformComponentPlugin implements Plugin<Project> {
         // This allows using dependency substitution for the root project.
         DependencyHandler dependencies = project.getDependencies();
         project.getDependencies().add("testImplementation", project.getDependencies().project(ImmutableMap.of("path", project.getPath())));
-        dependencies.add("testImplementation", "org.spockframework:spock-core:2.3-groovy-3.0");
+        dependencies.add("testImplementation", "org.spockframework:spock-core:2.3-groovy-4.0");
         dependencies.add("testImplementation", "org.junit.jupiter:junit-jupiter-api:5.9.2");
         dependencies.add("testRuntimeOnly", "org.junit.jupiter:junit-jupiter-engine:5.9.2");
         dependencies.add("testRuntimeOnly", "org.junit.platform:junit-platform-launcher");
