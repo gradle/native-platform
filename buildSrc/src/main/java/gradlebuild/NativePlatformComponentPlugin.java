@@ -2,16 +2,11 @@ package gradlebuild;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
-import org.gradle.api.Action;
-import org.gradle.api.JavaVersion;
-import org.gradle.api.Plugin;
-import org.gradle.api.Project;
-import org.gradle.api.Task;
+import org.gradle.api.*;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.dsl.DependencyHandler;
 import org.gradle.api.plugins.BasePlugin;
 import org.gradle.api.plugins.JavaPlugin;
-import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.SourceSet;
@@ -55,8 +50,8 @@ public abstract class NativePlatformComponentPlugin implements Plugin<Project> {
     }
 
     private void configureTestTasks(Project project) {
-        JavaPluginConvention javaPluginConvention = project.getConvention().getPlugin(JavaPluginConvention.class);
         project.getTasks().withType(Test.class).configureEach(test -> {
+            JavaPluginExtension javaPluginExtension = project.getExtensions().getByType(JavaPluginExtension.class);
             test.useJUnitPlatform();
             test.systemProperty(TEST_DIRECTORY_SYSTEM_PROPERTY, project.getLayout().getBuildDirectory().dir("test files").map(dir -> dir.getAsFile().getAbsoluteFile()).get());
 
@@ -64,10 +59,10 @@ public abstract class NativePlatformComponentPlugin implements Plugin<Project> {
             // to test an external dependency.
             // We omit `sourceSets.main.output` here and replace it with a test dependency on `project(':')` further down.
             Configuration testRuntimeClasspath = project.getConfigurations().getByName("testRuntimeClasspath");
-            SourceSetOutput testOutput = javaPluginConvention.getSourceSets().getByName(SourceSet.TEST_SOURCE_SET_NAME).getOutput();
+            SourceSetOutput testOutput = javaPluginExtension.getSourceSets().getByName(SourceSet.TEST_SOURCE_SET_NAME).getOutput();
             test.setClasspath(project.files(testRuntimeClasspath, testOutput));
 
-            Provider<String> agentName = project.getProviders().gradleProperty("agentName").forUseAtConfigurationTime();
+            Provider<String> agentName = project.getProviders().gradleProperty("agentName");
             test.systemProperty("agentName", agentName.getOrElse("Unknown"));
         });
 

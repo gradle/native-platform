@@ -3,7 +3,8 @@ package gradlebuild;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.dsl.RepositoryHandler;
-import org.gradle.api.plugins.BasePluginConvention;
+import org.gradle.api.plugins.BasePluginExtension;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.publish.Publication;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
@@ -32,7 +33,7 @@ public class PublishPlugin implements Plugin<Project> {
     private void configureVariants(Project project) {
         VariantsExtension variants = project.getExtensions().create("variants", VariantsExtension.class);
         variants.getGroupId().convention(project.provider(() -> project.getGroup().toString()));
-        variants.getArtifactId().convention(project.provider(() -> getArchivesBaseName(project)));
+        variants.getArtifactId().convention(getArchivesBaseName(project));
         variants.getVersion().convention(project.provider(() -> project.getVersion().toString()));
     }
 
@@ -100,9 +101,9 @@ public class PublishPlugin implements Plugin<Project> {
         return credentials;
     }
 
-    public static String getArchivesBaseName(Project project) {
-        BasePluginConvention convention = project.getConvention().findPlugin(BasePluginConvention.class);
-        return convention.getArchivesBaseName();
+    public static Provider<String> getArchivesBaseName(Project project) {
+        BasePluginExtension extension = project.getExtensions().getByType(BasePluginExtension.class);
+        return extension.getArchivesName();
     }
 
     public static File getLocalRepoDirectory(Project project) {

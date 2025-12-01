@@ -3,9 +3,14 @@ plugins {
     id('gradlebuild.native-platform-component')
 }
 
-mainClassName = 'net.rubygrapefruit.platform.test.Main'
-applicationName = 'native-platform-test'
-archivesBaseName = 'native-platform-test'
+application {
+    mainClass = 'net.rubygrapefruit.platform.test.Main'
+    applicationName = 'native-platform-test'
+}
+
+base {
+    archivesName = 'native-platform-test'
+}
 
 if (versions.useRepo) {
     configurations.configureEach {
