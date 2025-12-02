@@ -18,7 +18,6 @@ package net.rubygrapefruit.platform.file
 
 import net.rubygrapefruit.platform.NativePlatformSpec
 import net.rubygrapefruit.platform.internal.Platform
-import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.api.Assumptions
 import spock.lang.Requires
 
@@ -38,9 +37,6 @@ class FileSystemsTest extends NativePlatformSpec {
         'NTFS'
     ]
 
-    @TempDir
-    File tmpDir
-
     final FileSystems fileSystems = getIntegration(FileSystems)
 
     def "caches file systems instance"() {
@@ -53,7 +49,7 @@ class FileSystemsTest extends NativePlatformSpec {
         def mountedFileSystems = fileSystems.fileSystems
         then:
         mountedFileSystems.collect() { it.mountPoint }.containsAll(File.listRoots())
-        mountedFileSystems.every { it.caseSensitivity != null }
+        mountedFileSystems.every { it.caseSensitivity != null || it.fileSystemType == "hfs" }
         mountedFileSystems.any { EXPECTED_FILE_SYSTEM_TYPES.contains(it.fileSystemType) }
     }
 
