@@ -10,3 +10,6 @@ insert_final_newline = true
 
 [gradle/verification-metadata.xml]
 indent_size = 3
+
+[*.{json,yml,yaml}]
+indent_size = 2

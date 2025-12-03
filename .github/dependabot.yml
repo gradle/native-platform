@@ -9,3 +9,11 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    labels:
+      - "@dev-productivity"
+  - package-ecosystem: "maven"
+    directory: "/.teamcity"
+    schedule:
+      interval: "daily"
+    labels:
+      - "@dev-productivity"
