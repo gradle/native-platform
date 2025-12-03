@@ -95,11 +95,7 @@ open class NativePlatformPublishSnapshot(
             gradle {
                 name = "Gradle $task"
                 tasks =
-                    "clean $task -P${releaseType.gradleProperty}${if (releaseType.userProvidedVersion) "=%versionPostfix%" else ""} ${
-                        javaInstallationLocations(
-                            agent
-                        )
-                    }"
+                    "clean $task -P${releaseType.gradleProperty}${if (releaseType.userProvidedVersion) "=%versionPostfix%" else ""} ${javaInstallationLocations()}"
                 buildFile = ""
             }
         }
