@@ -13,7 +13,7 @@ import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.internal.project.ProjectInternal;
 import org.gradle.api.logging.StandardOutputListener;
 import org.gradle.api.plugins.ExtensionContainer;
-import org.gradle.api.plugins.JavaPluginConvention;
+import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.provider.ProviderFactory;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
@@ -82,7 +82,7 @@ public abstract class JniPlugin implements Plugin<Project> {
         // Enabling this property means that the tests will try to resolve an external dependency for native platform
         // and test that instead of building native platform for the current machine.
         // The external dependency can live in the file repository `incoming-repo`.
-        boolean testVersionFromLocalRepository = project.getProviders().gradleProperty("testVersionFromLocalRepository").forUseAtConfigurationTime().isPresent();
+        boolean testVersionFromLocalRepository = project.getProviders().gradleProperty("testVersionFromLocalRepository").isPresent();
         if (testVersionFromLocalRepository) {
             setupDependencySubstitutionForTestTask(project);
         }
@@ -136,8 +136,8 @@ public abstract class JniPlugin implements Plugin<Project> {
         project.getTasks().withType(CppCompile.class).configureEach(task ->
             task.includes(writeNativeVersionSources.flatMap(WriteNativeVersionSources::getGeneratedNativeHeaderDirectory)
             ));
-        JavaPluginConvention javaPluginConvention = project.getConvention().getPlugin(JavaPluginConvention.class);
-        javaPluginConvention.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME).java(javaSources ->
+        JavaPluginExtension javaPluginExtension = project.getExtensions().getByType(JavaPluginExtension.class);
+        javaPluginExtension.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME).java(javaSources ->
             javaSources.srcDir(writeNativeVersionSources.flatMap(WriteNativeVersionSources::getGeneratedJavaSourcesDir))
         );
     }
@@ -329,7 +329,7 @@ public abstract class JniPlugin implements Plugin<Project> {
         @Mutate
         void configureSharedLibraryBinaries(@Each SharedLibraryBinarySpec binarySpec, ExtensionContainer extensions, ServiceRegistry serviceRegistry) {
             // Only depend on variants which can be built on the current machine
-            boolean onlyLocalVariants = serviceRegistry.get(ProviderFactory.class).gradleProperty("onlyLocalVariants").forUseAtConfigurationTime().isPresent();
+            boolean onlyLocalVariants = serviceRegistry.get(ProviderFactory.class).gradleProperty("onlyLocalVariants").isPresent();
             if (onlyLocalVariants && !binarySpec.isBuildable()) {
                 return;
             }
