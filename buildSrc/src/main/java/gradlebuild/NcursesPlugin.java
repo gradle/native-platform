@@ -30,7 +30,7 @@ public class NcursesPlugin extends RuleSource {
         if (!os.isLinux()) {
             builder.add(NCURSES_5);
         } else {
-            for (String d : ImmutableList.of("/lib", "/lib64", "/lib/x86_64-linux-gnu", "/lib/aarch64-linux-gnu", "/usr/lib")) {
+            for (String d : ImmutableList.of("/lib", "/lib64", "/lib/x86_64-linux-gnu", "/lib/aarch64-linux-gnu", "/lib/e2k-linux-gnu", "/usr/lib")) {
                 File libDir = new File(d);
                 if (new File(libDir, "libncurses.so.6").isFile() || new File(libDir, "libncursesw.so.6").isFile()) {
                     builder.add(new NcursesVersion("6"));
@@ -52,6 +52,8 @@ public class NcursesPlugin extends RuleSource {
         addPlatform(platformContainer, "linux_amd64_ncurses6", "linux", "amd64");
         addPlatform(platformContainer, "linux_aarch64_ncurses5", "linux", "aarch64");
         addPlatform(platformContainer, "linux_aarch64_ncurses6", "linux", "aarch64");
+        addPlatform(platformContainer, "linux_e2k_ncurses5", "linux", "e2k");
+        addPlatform(platformContainer, "linux_e2k_ncurses6", "linux", "e2k");
     }
 
     @Mutate void configureBinaries(@Each NativeBinarySpecInternal binarySpec, Collection<NcursesVersion> ncursesVersions) {
@@ -80,6 +82,8 @@ public class NcursesPlugin extends RuleSource {
             // https://github.com/gradle/gradle/blob/36614ee523e5906ddfa1fed9a5dc00a5addac1b0/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/gcc/AbstractGccCompatibleToolChain.java
             toolChain.target("linux_aarch64_ncurses5");
             toolChain.target("linux_aarch64_ncurses6");
+            toolChain.target("linux_e2k_ncurses5");
+            toolChain.target("linux_e2k_ncurses6");
         });
     }
 
