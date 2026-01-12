@@ -90,17 +90,22 @@ Currently ported to OS X, Linux, FreeBSD and Windows. Support for Solaris is a w
 Include `native-platform.jar` and `native-platform-${os}-${arch}.jar` in your classpath. From Gradle, you can do
 this:
 
-    repositories {
-        jcenter()
+```kotlin
+repositories {
+    maven {
+        name = "Gradle public repository"
+        url = uri("https://repo.gradle.org/gradle/public")
+        content {
+            includeGroup("net.rubygrapefruit")
+            includeGroup("org.gradle.fileevents")
+        }
     }
+}
 
-    dependencies {
-        compile "net.rubygrapefruit:native-platform:0.21"
-    }
-
-You can also download the Jars from [bintray](https://bintray.com/adammurdoch/maven/net.rubygrapefruit%3Anative-platform)
-
-A test application is also available from [bintray](https://bintray.com/adammurdoch/maven/net.rubygrapefruit%3Anative-platform-test)
+dependencies {
+    compile "net.rubygrapefruit:native-platform:0.21"
+}
+```    
 
 Some sample code to use the terminal:
 
@@ -253,7 +258,7 @@ You should avoid using this release, and use 0.7 or later instead.
 
 ## Building
 
-This project uses (Gradle)[https://www.gradle.org] to build. Just run `gradlew` in the root of the source repo.
+This project uses [Gradle](https://www.gradle.org) to build. Just run `gradlew` in the root of the source repo.
 You will need Java 8 or later to run the tests.
 
 ### Ubuntu

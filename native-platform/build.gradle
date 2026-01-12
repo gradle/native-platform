@@ -13,9 +13,10 @@ nativeVersion {
 }
 
 dependencies {
-    implementation gradleApi()
     compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
     implementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
+    implementation 'org.apache.groovy:groovy:4.0.29'
+    testImplementation 'org.apache.groovy:groovy:4.0.29'
 }
 
 javadoc {
@@ -60,3 +61,17 @@ model {
         }
     }
 }
+
+test {
+    jvmArgs(
+        '--add-opens', 'java.base/java.util=ALL-UNNAMED',
+        '--add-opens', 'java.base/java.lang=ALL-UNNAMED'
+    )
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+

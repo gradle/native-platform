@@ -62,6 +62,8 @@ public abstract class Platform {
                         platform = new Linux32Bit();
                     } else if (arch.equals("aarch64")) {
                         platform = new LinuxAarch64();
+                    } else if (arch.equals("riscv64")) {
+                        platform = new LinuxRiscv64();
                     } else if (arch.equals("e2k")) {
                         platform = new LinuxE2K();
                     }
@@ -305,6 +307,13 @@ public abstract class Platform {
         @Override
         public String getId() {
             return "linux-aarch64";
+        }
+    }
+
+    private static class LinuxRiscv64 extends Linux {
+        @Override
+        public String getId() {
+            return "linux-riscv64";
         }
     }
 

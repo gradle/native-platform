@@ -21,7 +21,7 @@ package net.rubygrapefruit.platform;
  */
 @ThreadSafe
 public interface SystemInfo extends NativeIntegration {
-    enum Architecture { i386, amd64, aarch64, e2k }
+    enum Architecture { i386, amd64, aarch64, riscv64, e2k }
 
     /**
      * Returns the name of the kernel for the current operating system.
