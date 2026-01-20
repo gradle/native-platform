@@ -41,10 +41,11 @@ publishing {
 
 // Download and unpack the application to allow it to be tested
 tasks.register('download') {
+    def downloadDir = project.layout.buildDirectory.dir("download")
     doLast {
         copy {
             from(configurations.download.files.collect { zipTree(it) })
-            into("$buildDir/download")
+            into(downloadDir)
         }
     }
 }
@@ -52,4 +53,11 @@ tasks.register('download') {
 // Use System.in as input stream for the launched process to enable interactive input
 tasks.named("run", JavaExec) {
     standardInput = System.in
+}
+
+java {
+    toolchain {
+        // Configure Java 8, so we test that native-platform is compiled to Java 8
+        languageVersion = JavaLanguageVersion.of(8)
+    }
 }
