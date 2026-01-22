@@ -109,7 +109,10 @@ Java_net_rubygrapefruit_platform_internal_jni_TerminfoFunctions_initTerminal(JNI
 
         jclass destClass = env->GetObjectClass(capabilities);
         jfieldID field = env->GetFieldID(destClass, "terminalName", "Ljava/lang/String;");
-        jstring jtermType = char_to_java(env, termType, result);
+        jstring jtermType = str_to_jstring(env, termType, result);
+        if (jtermType == NULL) {
+            return;
+        }
         env->SetObjectField(capabilities, field, jtermType);
     }
     is_init = 1;

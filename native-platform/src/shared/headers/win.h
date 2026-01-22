@@ -27,6 +27,20 @@
 #include <intsafe.h>
 
 //
+// Converts the given Java string to a NULL terminated wchar_str. Should call free() when finished.
+//
+// Returns NULL on failure.
+//
+extern wchar_t* java_to_wchar(JNIEnv* env, jstring string, jobject result);
+
+//
+// Converts the given wchar_t string to a Java string.
+//
+// Returns NULL on failure.
+//
+extern jstring wchar_to_java(JNIEnv* env, const wchar_t* chars, size_t len, jobject result);
+
+//
 // Converts a Java string to a UNICODE path, including the Long Path prefix ("\\?\")
 // so that the resulting path supports paths longer than MAX_PATH (260 characters)
 //

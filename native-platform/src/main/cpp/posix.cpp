@@ -55,15 +55,31 @@ Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getSystemIn
     }
 
     jfieldID osNameField = env->GetFieldID(infoClass, "osName", "Ljava/lang/String;");
-    env->SetObjectField(info, osNameField, char_to_java(env, machine_info.sysname, result));
+    jstring osNameValue = str_to_jstring(env, machine_info.sysname, result);
+    if (osNameValue == NULL) {
+        return;
+    }
+    env->SetObjectField(info, osNameField, osNameValue);
     jfieldID osVersionField = env->GetFieldID(infoClass, "osVersion", "Ljava/lang/String;");
-    env->SetObjectField(info, osVersionField, char_to_java(env, machine_info.release, result));
+    jstring osVersionValue = str_to_jstring(env, machine_info.release, result);
+    if (osVersionValue == NULL) {
+        return;
+    }
+    env->SetObjectField(info, osVersionField, osVersionValue);
     jfieldID hostnameField = env->GetFieldID(infoClass, "hostname", "Ljava/lang/String;");
-    env->SetObjectField(info, hostnameField, char_to_java(env, machine_info.nodename, result));
+    jstring hostnameValue = str_to_jstring(env, machine_info.nodename, result);
+    if (hostnameValue == NULL) {
+        return;
+    }
+    env->SetObjectField(info, hostnameField, hostnameValue);
 
     jfieldID machineArchitectureField = env->GetFieldID(infoClass, "machineArchitecture", "Ljava/lang/String;");
 #ifndef __APPLE__
-    env->SetObjectField(info, machineArchitectureField, char_to_java(env, machine_info.machine, result));
+    jstring machineArchitectureValue = str_to_jstring(env, machine_info.machine, result);
+    if (machineArchitectureValue == NULL) {
+        return;
+    }
+    env->SetObjectField(info, machineArchitectureField, machineArchitectureValue);
 #else
     // On macOS, uname() reports the architecture of the current binary.
     // Instead, use a macOS specific sysctl() to query the CPU name, which can be mapped to the architecture
@@ -87,7 +103,12 @@ Java_net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions_getSystemIn
         mark_failed_with_errno(env, "could not query machine details", result);
         return;
     }
-    env->SetObjectField(info, machineArchitectureField, char_to_java(env, value, result));
+    jstring machineArchitectureValue = str_to_jstring(env, value, result);
+    if (machineArchitectureValue == NULL) {
+        free(value);
+        return;
+    }
+    env->SetObjectField(info, machineArchitectureField, machineArchitectureValue);
     free(value);
 #endif
 }
@@ -109,7 +130,7 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixTypeFunctions_getNativeTypeIn
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_chmod(JNIEnv* env, jclass target, jstring path, jint mode, jobject result) {
-    char* pathStr = java_to_char(env, path, result);
+    char* pathStr = jstring_to_str(env, path, result);
     if (pathStr == NULL) {
         return;
     }
@@ -152,7 +173,7 @@ void unpackStat(struct stat* source, file_stat_t* result) {
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_stat(JNIEnv* env, jclass target, jstring path, jboolean followLink, jobject dest, jobject result) {
     struct stat fileInfo;
-    char* pathStr = java_to_char(env, path, result);
+    char* pathStr = jstring_to_str(env, path, result);
     if (pathStr == NULL) {
         return;
     }
@@ -194,7 +215,7 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_readdir(JNIEnv*
         return;
     }
 
-    char* pathStr = java_to_char(env, path, result);
+    char* pathStr = jstring_to_str(env, path, result);
     if (pathStr == NULL) {
         return;
     }
@@ -246,7 +267,10 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_readdir(JNIEnv*
             unpackStat(&fileInfo, &fileResult);
         }
 
-        jstring childName = char_to_java(env, entry.d_name, result);
+        jstring childName = str_to_jstring(env, entry.d_name, result);
+        if (childName == NULL) {
+            break;
+        }
         env->CallVoidMethod(contents, mid, childName, fileResult.fileType, fileResult.size, fileResult.lastModified);
     }
 
@@ -256,11 +280,11 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_readdir(JNIEnv*
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_symlink(JNIEnv* env, jclass target, jstring path, jstring contents, jobject result) {
-    char* pathStr = java_to_char(env, path, result);
+    char* pathStr = jstring_to_str(env, path, result);
     if (pathStr == NULL) {
         return;
     }
-    char* contentStr = java_to_char(env, contents, result);
+    char* contentStr = jstring_to_str(env, contents, result);
     if (contentStr == NULL) {
         free(pathStr);
         return;
@@ -276,7 +300,7 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_symlink(JNIEnv*
 JNIEXPORT jstring JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_readlink(JNIEnv* env, jclass target, jstring path, jobject result) {
     struct stat link_info;
-    char* pathStr = java_to_char(env, path, result);
+    char* pathStr = jstring_to_str(env, path, result);
     if (pathStr == NULL) {
         return NULL;
     }
@@ -302,7 +326,7 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileFunctions_readlink(JNIEnv
         return NULL;
     }
     contents[link_info.st_size] = 0;
-    jstring contents_str = char_to_java(env, contents, result);
+    jstring contents_str = str_to_jstring(env, contents, result);
     free(contents);
     return contents_str;
 }
@@ -333,14 +357,14 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_getWorkingDi
         mark_failed_with_errno(env, "could not getcwd()", result);
         return NULL;
     }
-    jstring dir = char_to_java(env, path, result);
+    jstring dir = str_to_jstring(env, path, result);
     free(path);
     return dir;
 }
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_setWorkingDirectory(JNIEnv* env, jclass target, jstring dir, jobject result) {
-    char* path = java_to_char(env, dir, result);
+    char* path = jstring_to_str(env, dir, result);
     if (path == NULL) {
         return;
     }
@@ -352,25 +376,25 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_setWorkingDi
 
 JNIEXPORT jstring JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_getEnvironmentVariable(JNIEnv* env, jclass target, jstring var, jobject result) {
-    char* varStr = java_to_utf_char(env, var, result);
+    char* varStr = jstring_to_str(env, var, result);
     char* valueStr = getenv(varStr);
     free(varStr);
     if (valueStr == NULL) {
         return NULL;
     }
-    return utf_char_to_java(env, valueStr, result);
+    return str_to_jstring(env, valueStr, result);
 }
 
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions_setEnvironmentVariable(JNIEnv* env, jclass target, jstring var, jstring value, jobject result) {
-    char* varStr = java_to_utf_char(env, var, result);
+    char* varStr = jstring_to_str(env, var, result);
     if (varStr != NULL) {
         if (value == NULL) {
             if (setenv(varStr, "", 1) != 0) {
                 mark_failed_with_errno(env, "could not putenv()", result);
             }
         } else {
-            char* valueStr = java_to_utf_char(env, value, result);
+            char* valueStr = jstring_to_str(env, value, result);
             if (valueStr != NULL) {
                 if (setenv(varStr, valueStr, 1) != 0) {
                     mark_failed_with_errno(env, "could not putenv()", result);

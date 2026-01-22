@@ -63,48 +63,20 @@ extern void mark_failed_with_code(JNIEnv* env, const char* message, int error_co
  */
 extern int map_error_code(int error_code);
 
-/*
- * Converts the given Java string to a NULL terminated wchar_str. Should call free() when finished.
+/**
+ * Convert a jstring into a char*, guaranteeing that the result is null-terminated.
+ * The returned char* must be cleaned up by calling free().
  *
  * Returns NULL on failure.
  */
-extern wchar_t*
-java_to_wchar(JNIEnv* env, jstring string, jobject result);
+extern char* jstring_to_str(JNIEnv* env, jstring string, jobject result);
 
-/*
- * Converts the given wchar_t string to a Java string.
+/**
+ * Allocates a new jstring and fills it with the contents of the given null-terminated char*.
  *
  * Returns NULL on failure.
  */
-extern jstring wchar_to_java(JNIEnv* env, const wchar_t* chars, size_t len, jobject result);
-
-/*
- * Converts the given Java string to a NULL terminated char string. Should call free() when finished.
- *
- * Returns NULL on failure.
- */
-extern char* java_to_char(JNIEnv* env, jstring string, jobject result);
-
-/*
- * Converts the given NULL terminated char string to a Java string.
- *
- * Returns NULL on failure.
- */
-extern jstring char_to_java(JNIEnv* env, const char* chars, jobject result);
-
-/*
- * Converts the given Java string to a NULL terminated char string (encoded with modified UTF-8). Should call free() when finished.
- *
- * Returns NULL on failure.
- */
-extern char* java_to_utf_char(JNIEnv* env, jstring string, jobject result);
-
-/*
- * Converts the given NULL terminated char string (encoded with modified UTF-8) to a Java string.
- *
- * Returns NULL on failure.
- */
-extern jstring utf_char_to_java(JNIEnv* env, const char* chars, jobject result);
+extern jstring str_to_jstring(JNIEnv* env, const char* str, jobject result);
 
 typedef struct file_stat {
     jint fileType;

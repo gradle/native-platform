@@ -21,6 +21,7 @@ import net.rubygrapefruit.platform.internal.NativeLibraryLocator;
 import net.rubygrapefruit.platform.internal.Platform;
 import net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions;
 import net.rubygrapefruit.platform.internal.jni.NativeVersion;
+import net.rubygrapefruit.platform.internal.jni.StringEncodingHelper;
 
 import java.io.File;
 import java.util.HashMap;
@@ -63,6 +64,7 @@ public class Native {
                     throw new NativeException(String.format("Unexpected native library version loaded. Expected %s, was %s.", NativeVersion.VERSION, nativeVersion));
                 }
                 instance = new Native(loader);
+                StringEncodingHelper.initialize();
                 return instance;
             } catch (NativeException e) {
                 throw e;

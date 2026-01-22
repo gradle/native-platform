@@ -55,9 +55,18 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
         jboolean caseSensitive = JNI_TRUE;
         jboolean casePreserving = JNI_TRUE;
 
-        jstring mount_point = char_to_java(env, buf[i].f_mntonname, result);
-        jstring file_system_type = char_to_java(env, buf[i].f_fstypename, result);
-        jstring device_name = char_to_java(env, buf[i].f_mntfromname, result);
+        jstring mount_point = str_to_jstring(env, buf[i].f_mntonname, result);
+        if (mount_point == NULL) {
+            break;
+        }
+        jstring file_system_type = str_to_jstring(env, buf[i].f_fstypename, result);
+        if (file_system_type == NULL) {
+            break;
+        }
+        jstring device_name = str_to_jstring(env, buf[i].f_mntfromname, result);
+        if (device_name == NULL) {
+            break;
+        }
         jboolean remote = (buf[i].f_flags & MNT_LOCAL) == 0;
         env->CallVoidMethod(info, method, mount_point, file_system_type, device_name, remote, caseSensitive, casePreserving);
     }
