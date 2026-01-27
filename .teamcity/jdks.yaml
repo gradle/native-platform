@@ -13,8 +13,8 @@ jdks:
     os: "linux"
     arch: "amd64"
     vendor: "temurin"
-    version: "jdk-21.0.9+10"
-    sha256: "810d3773df7e0d6c4394e4e244b264c8b30e0b05a0acf542d065fd78a6b65c2f"
+    version: "jdk-21.0.10+7"
+    sha256: "ea3b9bd464d6dd253e9a7accf59f7ccd2a36e4aa69640b7251e3370caef896a4"
   - params:
       - "env.JDK8"
     os: "linux"
