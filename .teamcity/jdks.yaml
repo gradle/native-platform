@@ -28,8 +28,8 @@ jdks:
     os: "linux"
     arch: "aarch64"
     vendor: "temurin"
-    version: "jdk-21.0.9+10"
-    sha256: "edf0da4debe7cf475dbe320d174d6eed81479eb363f41e38a2efb740428c603a"
+    version: "jdk-21.0.10+7"
+    sha256: "357fee29fb0d5c079f6730db98b28942df13a6eed426f6c61cd4ad703ab27b9a"
   - params:
       - "env.JDK8"
     os: "windows"
@@ -58,8 +58,8 @@ jdks:
     os: "macos"
     arch: "amd64"
     vendor: "temurin"
-    version: "jdk-21.0.9+10"
-    sha256: "f803a3f5bce141f23ac699dfcda06a721f4b74f53bacb0f4bbe9bfcad54427d8"
+    version: "jdk-21.0.10+7"
+    sha256: "7484d5d4cdb02fc17a842ab86ddac2524a0365066659c46b2e258c64152379cd"
   - params:
       - "env.JDK8"
     os: "macos"
