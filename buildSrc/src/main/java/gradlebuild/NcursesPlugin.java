@@ -30,7 +30,8 @@ public class NcursesPlugin extends RuleSource {
         if (!os.isLinux()) {
             builder.add(NCURSES_5);
         } else {
-            for (String d : ImmutableList.of("/lib", "/lib64", "/lib/x86_64-linux-gnu", "/lib/aarch64-linux-gnu", "/lib/riscv64-linux-gnu", "/usr/lib")) {
+
+            for (String d : ImmutableList.of("/lib", "/lib64", "/lib/x86_64-linux-gnu", "/lib/aarch64-linux-gnu", "/lib/riscv64-linux-gnu", "/lib/e2k-linux-gnu", "/usr/lib")) {
                 File libDir = new File(d);
                 if (new File(libDir, "libncurses.so.6").isFile() || new File(libDir, "libncursesw.so.6").isFile()) {
                     builder.add(new NcursesVersion("6"));
@@ -54,6 +55,8 @@ public class NcursesPlugin extends RuleSource {
         addPlatform(platformContainer, "linux_aarch64_ncurses6", "linux", "aarch64");
         addPlatform(platformContainer, "linux_riscv64_ncurses5", "linux", "riscv64");
         addPlatform(platformContainer, "linux_riscv64_ncurses6", "linux", "riscv64");
+        addPlatform(platformContainer, "linux_e2k_ncurses5", "linux", "e2k");
+        addPlatform(platformContainer, "linux_e2k_ncurses6", "linux", "e2k");
     }
 
     @Mutate void configureBinaries(@Each NativeBinarySpecInternal binarySpec, Collection<NcursesVersion> ncursesVersions) {
@@ -84,6 +87,8 @@ public class NcursesPlugin extends RuleSource {
             toolChain.target("linux_aarch64_ncurses6");
             toolChain.target("linux_riscv64_ncurses5");
             toolChain.target("linux_riscv64_ncurses6");
+            toolChain.target("linux_e2k_ncurses5");
+            toolChain.target("linux_e2k_ncurses6");
         });
     }
 
