@@ -254,6 +254,7 @@ public abstract class JniPlugin implements Plugin<Project> {
             addPlatform(platformContainer, "linux_amd64", "linux", "amd64");
             addPlatform(platformContainer, "linux_aarch64", "linux", "aarch64");
             addPlatform(platformContainer, "linux_riscv64", "linux", "riscv64");
+            addPlatform(platformContainer, "linux_e2k", "linux", "e2k");
             addPlatform(platformContainer, "windows_i386", "windows", "i386");
             addPlatform(platformContainer, "windows_amd64", "windows", "amd64");
             addPlatform(platformContainer, "windows_aarch64", "windows", "aarch64");
@@ -270,6 +271,7 @@ public abstract class JniPlugin implements Plugin<Project> {
                     // https://github.com/gradle/gradle/blob/36614ee523e5906ddfa1fed9a5dc00a5addac1b0/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/gcc/AbstractGccCompatibleToolChain.java
                     toolChain.target("linux_aarch64");
                     toolChain.target("linux_riscv64");
+                    toolChain.target("linux_e2k");
                 });
             }
             if (toolChainRegistry.stream().noneMatch(toolChain -> toolChain.getName().equals("clang"))) {
