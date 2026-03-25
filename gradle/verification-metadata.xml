@@ -3,11 +3,10 @@
    <configuration>
       <verify-metadata>false</verify-metadata>
       <verify-signatures>true</verify-signatures>
+      <keyring-format>armored</keyring-format>
       <key-servers enabled="false"/>
       <trusted-artifacts>
          <trust group="net.rubygrapefruit"/>
-         <trust group="org.junit.jupiter"/>
-         <trust group="org.junit.platform"/>
          <trust file=".*-javadoc[.]jar" regex="true"/>
          <trust file=".*-sources[.]jar" regex="true"/>
          <trust file=".*-src[.]zip" regex="true"/>
@@ -18,74 +17,29 @@
             <trusting group="^org[.]apache[.]httpcomponents($|([.].*))" regex="true"/>
          </trusted-key>
          <trusted-key id="0A123C1ED3F13A6A0140E166C71FB765CD9DE313" group="org.apache.ant"/>
-         <trusted-key id="19BEAB2D799C020F17C69126B16698A4ADF4D638" group="org.checkerframework"/>
-         <trusted-key id="253E8E4C6FB28D11748115C1249DEE8E2C07A0A2" group="com.github.javaparser"/>
-         <trusted-key id="2DB4F1EF0FA761ECC4EA935C86FDC7E2A11262CB">
-            <trusting group="commons-beanutils"/>
-            <trusting group="commons-codec"/>
-            <trusting group="commons-io"/>
-            <trusting group="org.apache.commons"/>
-            <trusting group="xml-apis"/>
-         </trusted-key>
-         <trusted-key id="31FAE244A81D64507B47182E1B2718089CE964B8" group="com.thoughtworks.qdox"/>
-         <trusted-key id="34441E504A937F43EB0DAEF96A65176A0FB1CD0B">
-            <trusting group="org.apache.groovy"/>
-            <trusting group="org.apache.groovy" name="groovy"/>
-            <trusting group="org.codehaus.groovy"/>
-            <trusting group="org.codehaus.groovy" name="groovy"/>
-         </trusted-key>
-         <trusted-key id="475F3B8E59E6E63AA78067482C7B12F2A511E325">
-            <trusting group="ch.qos.logback"/>
-            <trusting group="org.slf4j"/>
-            <trusting group="org.slf4j" name="slf4j-api"/>
-         </trusted-key>
-         <trusted-key id="4DB1A49729B053CAF015CEE9A6ADFC93EF34893E" group="org.hamcrest"/>
-         <trusted-key id="517B94F8D0A46317A28D8AB30DA8A5EC02D11EAD" group="net.sf.jopt-simple"/>
-         <trusted-key id="694621A7227D8D5289699830ABE9F3126BB741C1" group="^com[.]google($|([.].*))" regex="true"/>
+         <trusted-key id="19BEAB2D799C020F17C69126B16698A4ADF4D638" group="org.checkerframework" name="checker-qual"/>
+         <trusted-key id="1BD97A6A154E7810EE0BC832E2F38302C8075E3D" group="io.github.gradle" name="gradle-org-conventions-plugin"/>
+         <trusted-key id="2DB4F1EF0FA761ECC4EA935C86FDC7E2A11262CB" group="commons-codec" name="commons-codec"/>
+         <trusted-key id="31FAE244A81D64507B47182E1B2718089CE964B8" group="com.thoughtworks.qdox" name="qdox"/>
+         <trusted-key id="34441E504A937F43EB0DAEF96A65176A0FB1CD0B" group="org.apache.groovy"/>
+         <trusted-key id="475F3B8E59E6E63AA78067482C7B12F2A511E325" group="org.slf4j" name="slf4j-api"/>
+         <trusted-key id="517B94F8D0A46317A28D8AB30DA8A5EC02D11EAD" group="net.sf.jopt-simple" name="jopt-simple"/>
+         <trusted-key id="694621A7227D8D5289699830ABE9F3126BB741C1" group="com.google.guava" name="failureaccess"/>
          <trusted-key id="6DE9B8077FBB2F8A019F4904BD17A565509DEE20" group="com.github.javaparser" name="javaparser-core"/>
-         <trusted-key id="7615AD56144DF2376F49D98B1669C4BB543E0445" group="com.google.errorprone"/>
-         <trusted-key id="7616EB882DAF57A11477AAF559A252FB1199D873" group="com.google.code.findbugs"/>
-         <trusted-key id="76E94E8FF0AB5AF3B6F8366972FEFD1572EB75E1" group="org.spockframework"/>
-         <trusted-key id="7B79ADD11F8A779FE90FD3D0893A028475557671">
-            <trusting group="com.gradle"/>
-            <trusting group="org.gradle"/>
-         </trusted-key>
-         <trusted-key id="7FAA0F2206DE228F0DB01AD741321490758AAD6F" group="org.codehaus.groovy"/>
-         <trusted-key id="AAEC735F7444A9FC055E206598DE3D829C24E9C7A8EEA6EFDEEB1962087FE811" group="org.junit.platform"/>
-         <trusted-key id="B801E2F8EF035068EC1139CC29579F18FA8FD93B" group="com.google.j2objc" name="j2objc-annotations"/>
-         <trusted-key id="BDB5FA4FE719D787FB3D3197F6D4A1D411E9D1AE">
-            <trusting group="com.google.guava"/>
-            <trusting group="^com[.]google($|([.].*))" regex="true"/>
-         </trusted-key>
-         <trusted-key id="CE8075A251547BEE249BC151A2115AE15F6B8B72" group="org.apache.ant"/>
-         <trusted-key id="E3A9F95079E84CE201F7CF60BEDE11EAF1164480" group="org.hamcrest"/>
-         <trusted-key id="FC2C31FC25FEDE4E7AD0D18C2BFD7825A8984FBE" group="com.github.javaparser" name="javaparser-core"/>
+         <trusted-key id="7616EB882DAF57A11477AAF559A252FB1199D873" group="com.google.code.findbugs" name="jsr305"/>
+         <trusted-key id="76E94E8FF0AB5AF3B6F8366972FEFD1572EB75E1" group="org.spockframework" name="spock-core"/>
+         <trusted-key id="7B79ADD11F8A779FE90FD3D0893A028475557671" group="com.gradle"/>
+         <trusted-key id="BDB5FA4FE719D787FB3D3197F6D4A1D411E9D1AE" group="com.google.guava"/>
+         <trusted-key id="E3A9F95079E84CE201F7CF60BEDE11EAF1164480" group="org.hamcrest" name="hamcrest"/>
+         <trusted-key id="EB1B3DE71713C9EC2E87CC26EE92349AD86DE446" group="com.google.j2objc" name="j2objc-annotations"/>
+         <trusted-key id="EE0CA873074092F806F59B65D364ABAA39A47320" group="com.google.errorprone" name="error_prone_annotations"/>
          <trusted-key id="FF6E2C001948C5F2F38B0CC385911F425EC61B51">
-            <trusting group="junit"/>
             <trusting group="org.apiguardian"/>
-            <trusting group="org.junit.jupiter"/>
-            <trusting group="org.junit.platform"/>
-            <trusting group="org.junit.vintage"/>
+            <trusting group="org.junit"/>
             <trusting group="org.opentest4j"/>
             <trusting group="^org[.]junit($|([.].*))" regex="true"/>
          </trusted-key>
       </trusted-keys>
    </configuration>
-   <components>
-      <component group="com.google.errorprone" name="error_prone_annotations" version="2.18.0">
-         <artifact name="error_prone_annotations-2.18.0.jar">
-            <pgp value="EE0CA873074092F806F59B65D364ABAA39A47320"/>
-         </artifact>
-      </component>
-      <component group="com.google.j2objc" name="j2objc-annotations" version="2.8">
-         <artifact name="j2objc-annotations-2.8.jar">
-            <pgp value="EB1B3DE71713C9EC2E87CC26EE92349AD86DE446"/>
-         </artifact>
-      </component>
-      <component group="io.github.gradle" name="develocity-conventions-plugin" version="0.12.1">
-         <artifact name="develocity-conventions-plugin-0.12.1.jar">
-            <sha256 value="f9c53f4dad78c9041b36324402260a8f13264140f96c02ffbb4bafc4157be95f" origin="Verified" reason="Artifact is not signed"/>
-         </artifact>
-      </component>
-   </components>
+   <components/>
 </verification-metadata>
