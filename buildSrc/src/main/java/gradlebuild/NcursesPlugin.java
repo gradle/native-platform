@@ -52,8 +52,8 @@ public class NcursesPlugin extends RuleSource {
         addPlatform(platformContainer, "linux_amd64_ncurses6", "linux", "amd64");
         addPlatform(platformContainer, "linux_aarch64_ncurses5", "linux", "aarch64");
         addPlatform(platformContainer, "linux_aarch64_ncurses6", "linux", "aarch64");
-        addPlatform(platformContainer, "linux_riscv64_ncurses5", "linux", "riscv64");
-        addPlatform(platformContainer, "linux_riscv64_ncurses6", "linux", "riscv64");
+        // addPlatform(platformContainer, "linux_riscv64_ncurses5", "linux", "riscv64"); // needs https://github.com/gradle/native-platform/issues/387
+        // addPlatform(platformContainer, "linux_riscv64_ncurses6", "linux", "riscv64"); // needs https://github.com/gradle/native-platform/issues/387
     }
 
     @Mutate void configureBinaries(@Each NativeBinarySpecInternal binarySpec, Collection<NcursesVersion> ncursesVersions) {
@@ -82,8 +82,8 @@ public class NcursesPlugin extends RuleSource {
             // https://github.com/gradle/gradle/blob/36614ee523e5906ddfa1fed9a5dc00a5addac1b0/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/gcc/AbstractGccCompatibleToolChain.java
             toolChain.target("linux_aarch64_ncurses5");
             toolChain.target("linux_aarch64_ncurses6");
-            toolChain.target("linux_riscv64_ncurses5");
-            toolChain.target("linux_riscv64_ncurses6");
+            // toolChain.target("linux_riscv64_ncurses5"); // needs https://github.com/gradle/native-platform/issues/387
+            // toolChain.target("linux_riscv64_ncurses6"); // needs https://github.com/gradle/native-platform/issues/387
         });
     }
 
