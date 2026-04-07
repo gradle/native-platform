@@ -1,6 +1,5 @@
 package gradlebuild;
 
-import org.gradle.api.JavaVersion;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.provider.ProviderFactory;
@@ -32,9 +31,6 @@ public abstract class VersioningPlugin implements Plugin<Project> {
     @Override
     public void apply(Project project) {
         VersionDetails.BuildType buildType = determineBuildType(project);
-        if (buildType != VersionDetails.BuildType.Dev && JavaVersion.current() != JavaVersion.VERSION_1_8) {
-            throw new RuntimeException("Java 8 is required to build a release of native-platform. Later versions are not supported.");
-        }
         String buildTimestamp = determineBuildTimestamp(project);
         writeBuildTimestamp(buildTimestamp, project);
         String version = determineVersion(buildType, buildTimestamp);
