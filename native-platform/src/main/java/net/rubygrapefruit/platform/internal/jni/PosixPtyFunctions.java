@@ -36,6 +36,8 @@ public class PosixPtyFunctions {
 
     public static native void closeFd(int fd, FunctionResult result);
 
+    public static native void setPtySize(int masterFd, int cols, int rows, FunctionResult result);
+
     public static native int nativeRead(int fd, byte[] buf, int off, int len, FunctionResult result);
 
     public static native int nativeWrite(int fd, byte[] buf, int off, int len, FunctionResult result);

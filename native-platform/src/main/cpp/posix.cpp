@@ -795,6 +795,22 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_closeFd(JNIEnv* 
     }
 }
 
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_setPtySize(
+        JNIEnv* env, jclass target, jint fd, jint cols, jint rows, jobject result) {
+    if (fd < 0) {
+        return;
+    }
+    struct winsize ws;
+    ws.ws_col = (unsigned short) cols;
+    ws.ws_row = (unsigned short) rows;
+    ws.ws_xpixel = 0;
+    ws.ws_ypixel = 0;
+    if (ioctl(fd, TIOCSWINSZ, &ws) != 0) {
+        mark_failed_with_errno(env, "could not set pty size", result);
+    }
+}
+
 JNIEXPORT jint JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_nativeRead(
         JNIEnv* env, jclass target,

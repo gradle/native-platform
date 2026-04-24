@@ -297,6 +297,68 @@ class PtyProcessLauncherTest extends NativePlatformSpec {
         pty?.close()
     }
 
+    def "initial terminal size is honored"() {
+        given:
+        def pty = launcher.start([shBinary(), "-c", "stty size"], System.getenv(), null, 120, 40)
+        def out = pty.inputStream.text
+        def exitCode = pty.waitFor()
+
+        expect:
+        exitCode == 0
+        out.contains("40 120")
+
+        cleanup:
+        pty?.close()
+    }
+
+    def "resize delivers SIGWINCH and new dimensions"() {
+        given:
+        def script = '''
+            trap 'stty size >&2; exit 0' WINCH
+            echo READY >&2
+            sleep 20 &
+            wait
+        '''
+        def pty = launcher.start([shBinary(), "-c", script], System.getenv(), null, 80, 24)
+        def drainer = Executors.newSingleThreadExecutor()
+        drainer.submit({ pty.inputStream.text } as Runnable)
+        def stderrReader = new BufferedReader(new InputStreamReader(pty.errorStream))
+        def readyLine = stderrReader.readLine()
+        assert readyLine?.contains("READY")
+
+        when:
+        pty.resize(132, 50)
+        def sizeLine = stderrReader.readLine()
+        def exitCode = pty.waitFor()
+
+        then:
+        exitCode == 0
+        sizeLine?.contains("50 132")
+
+        cleanup:
+        drainer?.shutdownNow()
+        pty?.close()
+    }
+
+    def "resize after child exit is harmless"() {
+        given:
+        def pty = launcher.start([trueBinary()], System.getenv(), null, 80, 24)
+        def drainer = Executors.newSingleThreadExecutor()
+        drainer.submit({ pty.inputStream.text } as Runnable)
+        pty.waitFor()
+        drainer.shutdown()
+        drainer.awaitTermination(5, TimeUnit.SECONDS)
+
+        when:
+        pty.resize(99, 99)
+
+        then:
+        noExceptionThrown()
+
+        cleanup:
+        pty?.close()
+    }
+
     def "write after child exit throws ProcessExitedException"() {
         given:
         def pty = launcher.start([shBinary(), "-c", "exit 0"], System.getenv(), null, 80, 24)

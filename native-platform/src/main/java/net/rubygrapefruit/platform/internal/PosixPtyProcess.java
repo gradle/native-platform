@@ -68,8 +68,13 @@ public class PosixPtyProcess implements PtyProcess {
     }
 
     @Override
-    public void resize(int cols, int rows) {
-        throw new UnsupportedOperationException("not yet implemented");
+    public synchronized void resize(int cols, int rows) {
+        int fd = masterFd;
+        if (fd < 0) {
+            return;
+        }
+        FunctionResult result = new FunctionResult();
+        PosixPtyFunctions.setPtySize(fd, cols, rows, result);
     }
 
     @Override
