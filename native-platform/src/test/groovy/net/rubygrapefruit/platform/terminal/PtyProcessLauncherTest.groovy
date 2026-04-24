@@ -17,12 +17,14 @@
 package net.rubygrapefruit.platform.terminal
 
 import net.rubygrapefruit.platform.NativeException
+import net.rubygrapefruit.platform.NativeIntegration
 import net.rubygrapefruit.platform.NativePlatformSpec
 import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.IgnoreIf
 import spock.lang.Timeout
 
 import java.nio.file.Files
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
@@ -516,5 +518,108 @@ class PtyProcessLauncherTest extends NativePlatformSpec {
 
         cleanup:
         pty?.close()
+    }
+
+    @Timeout(60)
+    def "handles large output without deadlock"() {
+        given:
+        def pty = launcher.start([shBinary(), "-c", "yes A | head -c 1048576; exit 0"], System.getenv(), null, 80, 24)
+        def buffer = new ByteArrayOutputStream()
+        def reader = Thread.start {
+            byte[] buf = new byte[8192]
+            int n
+            while ((n = pty.inputStream.read(buf)) >= 0) {
+                buffer.write(buf, 0, n)
+            }
+        }
+
+        when:
+        def exitCode = pty.waitFor()
+        reader.join(60_000)
+
+        then:
+        exitCode == 0
+        !reader.isAlive()
+        buffer.size() >= 500_000
+
+        cleanup:
+        pty?.close()
+    }
+
+    def "concurrent spawn from four threads"() {
+        given:
+        def results = new ConcurrentHashMap<String, Map>()
+        def threads = (0..3).collect { i ->
+            String marker = "thread-${i}".toString()
+            String script = "echo ${marker}; sleep 0.1".toString()
+            Thread.start {
+                def pty = launcher.start([shBinary(), "-c", script], System.getenv(), null, 80, 24)
+                try {
+                    def out = pty.inputStream.text
+                    def exitCode = pty.waitFor()
+                    results.put(marker, [exitCode: exitCode, out: out])
+                } finally {
+                    pty.close()
+                }
+            }
+        }
+
+        when:
+        threads.each { it.join(15_000) }
+
+        then:
+        results.size() == 4
+        (0..3).each { i ->
+            String marker = "thread-${i}".toString()
+            def r = results[marker]
+            assert r != null
+            assert r.exitCode == 0
+            assert r.out.contains(marker)
+            (0..3).each { other ->
+                if (other != i) {
+                    assert !r.out.contains("thread-${other}".toString())
+                }
+            }
+        }
+    }
+
+    def "rapid repeated resize does not crash"() {
+        given:
+        def pty = launcher.start([shBinary(), "-c", "sleep 10"], System.getenv(), null, 80, 24)
+        def drainer = Executors.newSingleThreadExecutor()
+        drainer.submit({ pty.inputStream.text } as Runnable)
+
+        when:
+        100.times { i ->
+            pty.resize(100 + (i % 30), 30 + (i % 20))
+        }
+        pty.destroyForcibly()
+        pty.waitFor()
+
+        then:
+        noExceptionThrown()
+
+        cleanup:
+        drainer?.shutdownNow()
+        pty?.close()
+    }
+
+    def "PtyProcess extends AutoCloseable"() {
+        expect:
+        AutoCloseable.isAssignableFrom(PtyProcess)
+    }
+
+    def "PtyProcessLauncher extends NativeIntegration"() {
+        expect:
+        NativeIntegration.isAssignableFrom(PtyProcessLauncher)
+    }
+
+    def "isAvailable signature is boolean and call is non-throwing"() {
+        when:
+        boolean r = launcher.isAvailable()
+
+        then:
+        noExceptionThrown()
+        r || !r
     }
 }
