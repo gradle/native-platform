@@ -517,6 +517,26 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnPty(
         fcntl(masterFd, F_SETFD, masterFlags | FD_CLOEXEC);
     }
 
+    int diagPipe[2] = {-1, -1};
+    if (pipe(diagPipe) != 0) {
+        mark_failed_with_errno(env, "could not create diagnostic pipe", result);
+        close(masterFd);
+        close(slaveFd);
+        for (jsize i = 0; i < argc; i++) {
+            free(argv[i]);
+        }
+        free(argv);
+        return 0;
+    }
+    int diagFlags = fcntl(diagPipe[0], F_GETFD);
+    if (diagFlags != -1) {
+        fcntl(diagPipe[0], F_SETFD, diagFlags | FD_CLOEXEC);
+    }
+    int diagWriteFlags = fcntl(diagPipe[1], F_GETFD);
+    if (diagWriteFlags != -1) {
+        fcntl(diagPipe[1], F_SETFD, diagWriteFlags | FD_CLOEXEC);
+    }
+
     struct winsize ws;
     ws.ws_col = (unsigned short) cols;
     ws.ws_row = (unsigned short) rows;
@@ -529,6 +549,8 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnPty(
         int savedErrno = errno;
         close(masterFd);
         close(slaveFd);
+        close(diagPipe[0]);
+        close(diagPipe[1]);
         for (jsize i = 0; i < argc; i++) {
             free(argv[i]);
         }
@@ -539,19 +561,32 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnPty(
     }
 
     if (pid == 0) {
+        close(diagPipe[0]);
+        int diagFd = diagPipe[1];
+        char stage = 0;
         if (setsid() < 0) {
+            stage = 'S'; int e = errno;
+            write(diagFd, &stage, 1); write(diagFd, &e, sizeof(e));
             _exit(126);
         }
         if (ioctl(slaveFd, TIOCSCTTY, 0) < 0) {
+            stage = 'T'; int e = errno;
+            write(diagFd, &stage, 1); write(diagFd, &e, sizeof(e));
             _exit(126);
         }
         if (dup2(slaveFd, 0) < 0) {
+            stage = '0'; int e = errno;
+            write(diagFd, &stage, 1); write(diagFd, &e, sizeof(e));
             _exit(126);
         }
         if (dup2(slaveFd, 1) < 0) {
+            stage = '1'; int e = errno;
+            write(diagFd, &stage, 1); write(diagFd, &e, sizeof(e));
             _exit(126);
         }
         if (dup2(slaveFd, 2) < 0) {
+            stage = '2'; int e = errno;
+            write(diagFd, &stage, 1); write(diagFd, &e, sizeof(e));
             _exit(126);
         }
         if (slaveFd > 2) {
@@ -561,10 +596,55 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnPty(
             close(masterFd);
         }
         execv(argv[0], argv);
+        stage = 'X'; int e = errno;
+        write(diagFd, &stage, 1); write(diagFd, &e, sizeof(e));
         _exit(127);
     }
 
     close(slaveFd);
+    close(diagPipe[1]);
+
+    char stage = 0;
+    int childErrno = 0;
+    ssize_t stageRead = 0;
+    ssize_t errnoRead = 0;
+    do {
+        stageRead = read(diagPipe[0], &stage, 1);
+    } while (stageRead == -1 && errno == EINTR);
+    if (stageRead == 1) {
+        do {
+            errnoRead = read(diagPipe[0], &childErrno, sizeof(childErrno));
+        } while (errnoRead == -1 && errno == EINTR);
+    }
+    close(diagPipe[0]);
+
+    if (stageRead == 1) {
+        char msg[512];
+        const char* stageName = "unknown";
+        switch (stage) {
+            case 'S': stageName = "setsid"; break;
+            case 'T': stageName = "TIOCSCTTY"; break;
+            case '0': stageName = "dup2(stdin)"; break;
+            case '1': stageName = "dup2(stdout)"; break;
+            case '2': stageName = "dup2(stderr)"; break;
+            case 'X': stageName = "execv"; break;
+        }
+        snprintf(msg, sizeof(msg), "child setup failed at %s (argv[0]=%s)",
+                 stageName, argv[0] ? argv[0] : "<null>");
+        int status = 0;
+        pid_t wret;
+        do {
+            wret = waitpid(pid, &status, 0);
+        } while (wret == -1 && errno == EINTR);
+        close(masterFd);
+        for (jsize i = 0; i < argc; i++) {
+            free(argv[i]);
+        }
+        free(argv);
+        errno = childErrno;
+        mark_failed_with_errno(env, msg, result);
+        return 0;
+    }
 
     for (jsize i = 0; i < argc; i++) {
         free(argv[i]);

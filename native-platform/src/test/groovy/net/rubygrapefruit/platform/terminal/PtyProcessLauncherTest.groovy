@@ -35,9 +35,11 @@ class PtyProcessLauncherTest extends NativePlatformSpec {
         result instanceof Boolean
     }
 
-    def "can start /usr/bin/true and observe exit code 0"() {
+    def "can start a trivial child process and observe exit code 0"() {
         given:
-        def pty = launcher.start(["/usr/bin/true"], System.getenv(), null, 80, 24)
+        def binary = ["/usr/bin/true", "/bin/true"].find { new File(it).canExecute() }
+        assert binary : "no 'true' binary found on the agent"
+        def pty = launcher.start([binary], System.getenv(), null, 80, 24)
 
         when:
         def exitCode = pty.waitFor()
