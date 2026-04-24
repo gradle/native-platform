@@ -196,7 +196,7 @@ class PtyProcessLauncherTest extends NativePlatformSpec {
     def "env isolation: child sees only passed environment"() {
         given:
         def env = ["PATH": "/bin:/usr/bin", "MARKER": "hello"]
-        def pty = launcher.start([shBinary(), "-c", 'echo "$MARKER|$UNSET_BY_PARENT"'], env, null, 80, 24)
+        def pty = launcher.start([shBinary(), "-c", 'echo "$MARKER|$UNSET_BY_PARENT"; sleep 0.2'], env, null, 80, 24)
         def out = pty.inputStream.text
         def exitCode = pty.waitFor()
 
@@ -220,7 +220,7 @@ class PtyProcessLauncherTest extends NativePlatformSpec {
     def "working directory: absolute path honored"() {
         given:
         def dir = new File(System.getProperty("java.io.tmpdir"))
-        def pty = launcher.start([shBinary(), "-c", "pwd -P"], System.getenv(), dir, 80, 24)
+        def pty = launcher.start([shBinary(), "-c", "pwd -P; sleep 0.2"], System.getenv(), dir, 80, 24)
         def out = pty.inputStream.text
         def exitCode = pty.waitFor()
 
@@ -235,7 +235,7 @@ class PtyProcessLauncherTest extends NativePlatformSpec {
 
     def "working directory: null means daemon cwd"() {
         given:
-        def pty = launcher.start([shBinary(), "-c", "pwd -P"], System.getenv(), null, 80, 24)
+        def pty = launcher.start([shBinary(), "-c", "pwd -P; sleep 0.2"], System.getenv(), null, 80, 24)
         def out = pty.inputStream.text
         def exitCode = pty.waitFor()
 
@@ -301,7 +301,7 @@ class PtyProcessLauncherTest extends NativePlatformSpec {
 
     def "initial terminal size is honored"() {
         given:
-        def pty = launcher.start([shBinary(), "-c", "stty size"], System.getenv(), null, 120, 40)
+        def pty = launcher.start([shBinary(), "-c", "stty size; sleep 0.2"], System.getenv(), null, 120, 40)
         def out = pty.inputStream.text
         def exitCode = pty.waitFor()
 
@@ -551,7 +551,7 @@ class PtyProcessLauncherTest extends NativePlatformSpec {
         def results = new ConcurrentHashMap<String, Map>()
         def threads = (0..3).collect { i ->
             String marker = "thread-${i}".toString()
-            String script = "echo ${marker}; sleep 0.1".toString()
+            String script = "echo ${marker}; sleep 0.3".toString()
             Thread.start {
                 def pty = launcher.start([shBinary(), "-c", script], System.getenv(), null, 80, 24)
                 try {
