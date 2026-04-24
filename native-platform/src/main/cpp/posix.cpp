@@ -573,7 +573,7 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnPty(
     }
     for (jsize i = 0; i < argc; i++) {
         jstring s = (jstring) env->GetObjectArrayElement(command, i);
-        argv[i] = java_to_char(env, s, result);
+        argv[i] = java_to_utf_char(env, s, result);
         env->DeleteLocalRef(s);
         if (argv[i] == NULL) {
             for (jsize j = 0; j < i; j++) free(argv[j]);
@@ -593,7 +593,7 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnPty(
     }
     for (jsize i = 0; i < envc; i++) {
         jstring s = (jstring) env->GetObjectArrayElement(environment, i);
-        envp[i] = java_to_char(env, s, result);
+        envp[i] = java_to_utf_char(env, s, result);
         env->DeleteLocalRef(s);
         if (envp[i] == NULL) {
             for (jsize j = 0; j < i; j++) free(envp[j]);
@@ -607,7 +607,7 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnPty(
 
     char* wdStr = NULL;
     if (workingDir != NULL) {
-        wdStr = java_to_char(env, workingDir, result);
+        wdStr = java_to_utf_char(env, workingDir, result);
         if (wdStr == NULL) {
             for (jsize i = 0; i < envc; i++) free(envp[i]);
             free(envp);
