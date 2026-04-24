@@ -20,6 +20,9 @@ import net.rubygrapefruit.platform.internal.FunctionResult;
 
 public class PosixPtyFunctions {
 
+    public static final int EIO = 5;
+    public static final int ENXIO = 6;
+
     public static native boolean isPtyAvailable();
 
     public static native long spawnPty(String[] command,
@@ -32,4 +35,8 @@ public class PosixPtyFunctions {
     public static native int waitPid(long pid, FunctionResult result);
 
     public static native void closeFd(int fd, FunctionResult result);
+
+    public static native int nativeRead(int fd, byte[] buf, int off, int len, FunctionResult result);
+
+    public static native int nativeWrite(int fd, byte[] buf, int off, int len, FunctionResult result);
 }

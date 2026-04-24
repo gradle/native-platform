@@ -52,6 +52,10 @@ public class FunctionResult {
         return failure;
     }
 
+    public int getErrno() {
+        return errno;
+    }
+
     public String getMessage() {
         if (errorCodeDescription != null && errorCodeDescription.length() > 0) {
             return String.format("%s (errno %d: %s)", message, errno, errorCodeDescription);

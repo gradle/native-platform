@@ -16,15 +16,36 @@
 
 package net.rubygrapefruit.platform.terminal
 
+import net.rubygrapefruit.platform.NativeException
 import net.rubygrapefruit.platform.NativePlatformSpec
 import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.IgnoreIf
 import spock.lang.Timeout
 
+import java.nio.file.Files
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+
 @Timeout(30)
 @IgnoreIf({ Platform.current().windows })
 class PtyProcessLauncherTest extends NativePlatformSpec {
     final PtyProcessLauncher launcher = getIntegration(PtyProcessLauncher)
+
+    private static String findExecutable(List<String> paths) {
+        paths.find { new File(it).canExecute() }
+    }
+
+    private static String trueBinary() {
+        def r = findExecutable(["/usr/bin/true", "/bin/true"])
+        assert r : "no 'true' binary found on the agent"
+        r
+    }
+
+    private static String shBinary() {
+        def r = findExecutable(["/bin/sh", "/usr/bin/sh"])
+        assert r : "no 'sh' binary found on the agent"
+        r
+    }
 
     def "isAvailable does not throw and returns a boolean"() {
         when:
@@ -37,15 +58,269 @@ class PtyProcessLauncherTest extends NativePlatformSpec {
 
     def "can start a trivial child process and observe exit code 0"() {
         given:
-        def binary = ["/usr/bin/true", "/bin/true"].find { new File(it).canExecute() }
-        assert binary : "no 'true' binary found on the agent"
-        def pty = launcher.start([binary], System.getenv(), null, 80, 24)
+        def pty = launcher.start([trueBinary()], System.getenv(), null, 80, 24)
 
         when:
         def exitCode = pty.waitFor()
 
         then:
         exitCode == 0
+
+        cleanup:
+        pty?.close()
+    }
+
+    def "child sees isatty(0) && isatty(1) && !isatty(2)"() {
+        given:
+        def script = 'r=0; test -t 0 && r=$((r|1)); test -t 1 && r=$((r|2)); test -t 2 && r=$((r|4)); exit $r'
+        def pty = launcher.start([shBinary(), "-c", script], System.getenv(), null, 80, 24)
+        def drainer = Executors.newSingleThreadExecutor()
+        drainer.submit({ pty.inputStream.text } as Runnable)
+
+        when:
+        def exitCode = pty.waitFor()
+
+        then:
+        exitCode == 3
+
+        cleanup:
+        drainer?.shutdownNow()
+        pty?.close()
+    }
+
+    def "exit-code decoding for normal exit"() {
+        given:
+        def pty = launcher.start([shBinary(), "-c", "exit 42"], System.getenv(), null, 80, 24)
+        def drainer = Executors.newSingleThreadExecutor()
+        drainer.submit({ pty.inputStream.text } as Runnable)
+
+        when:
+        def exitCode = pty.waitFor()
+
+        then:
+        exitCode == 42
+
+        cleanup:
+        drainer?.shutdownNow()
+        pty?.close()
+    }
+
+    def "exit-code decoding for signal kill"() {
+        given:
+        def pty = launcher.start([shBinary(), "-c", 'kill -TERM $$'], System.getenv(), null, 80, 24)
+        def drainer = Executors.newSingleThreadExecutor()
+        drainer.submit({ pty.inputStream.text } as Runnable)
+
+        when:
+        def exitCode = pty.waitFor()
+
+        then:
+        exitCode == 128 + 15
+
+        cleanup:
+        drainer?.shutdownNow()
+        pty?.close()
+    }
+
+    def "PATH resolution: absolute path is executed directly"() {
+        given:
+        def pty = launcher.start([trueBinary()], [:], null, 80, 24)
+
+        when:
+        def exitCode = pty.waitFor()
+
+        then:
+        exitCode == 0
+
+        cleanup:
+        pty?.close()
+    }
+
+    def "PATH resolution: relative name resolved via PATH"() {
+        given:
+        def env = ["PATH": "/usr/bin:/bin"]
+        def pty = launcher.start(["true"], env, null, 80, 24)
+
+        when:
+        def exitCode = pty.waitFor()
+
+        then:
+        exitCode == 0
+
+        cleanup:
+        pty?.close()
+    }
+
+    def "PATH resolution: empty entry means current directory"() {
+        given:
+        def tmpDir = Files.createTempDirectory("pty-cwd-").toFile()
+        def target = new File(tmpDir, "mytrue")
+        target.bytes = new File(trueBinary()).bytes
+        target.setExecutable(true)
+        def env = ["PATH": ":/nonexistent"]
+        def pty = launcher.start(["mytrue"], env, tmpDir, 80, 24)
+
+        when:
+        def exitCode = pty.waitFor()
+
+        then:
+        exitCode == 0
+
+        cleanup:
+        pty?.close()
+        tmpDir?.deleteDir()
+    }
+
+    def "PATH resolution: EACCES-only surfaces Permission denied"() {
+        given:
+        def tmpDir = Files.createTempDirectory("pty-eacces-").toFile()
+        def target = new File(tmpDir, "foo")
+        target.text = "not executable"
+        target.setExecutable(false)
+        def env = ["PATH": tmpDir.absolutePath]
+
+        when:
+        launcher.start(["foo"], env, null, 80, 24)
+
+        then:
+        def e = thrown(NativeException)
+        e.message.contains("Permission denied")
+        !e.message.contains("No such file or directory")
+
+        cleanup:
+        tmpDir?.deleteDir()
+    }
+
+    def "env isolation: child sees only passed environment"() {
+        given:
+        def env = ["PATH": "/bin:/usr/bin", "MARKER": "hello"]
+        def pty = launcher.start([shBinary(), "-c", 'echo "$MARKER|$UNSET_BY_PARENT"'], env, null, 80, 24)
+        def out = pty.inputStream.text
+        def exitCode = pty.waitFor()
+
+        expect:
+        exitCode == 0
+        out.readLines().last() == "hello|"
+
+        cleanup:
+        pty?.close()
+    }
+
+    def "env isolation: passing no PATH prevents PATH resolution"() {
+        when:
+        launcher.start(["true"], [:], null, 80, 24)
+
+        then:
+        def e = thrown(NativeException)
+        e.message != null
+    }
+
+    def "working directory: absolute path honored"() {
+        given:
+        def dir = new File(System.getProperty("java.io.tmpdir"))
+        def pty = launcher.start([shBinary(), "-c", "pwd -P"], System.getenv(), dir, 80, 24)
+        def out = pty.inputStream.text
+        def exitCode = pty.waitFor()
+
+        expect:
+        exitCode == 0
+        def observed = out.readLines().last().replaceAll("\\r", "")
+        observed == dir.canonicalPath
+
+        cleanup:
+        pty?.close()
+    }
+
+    def "working directory: null means daemon cwd"() {
+        given:
+        def pty = launcher.start([shBinary(), "-c", "pwd -P"], System.getenv(), null, 80, 24)
+        def out = pty.inputStream.text
+        def exitCode = pty.waitFor()
+
+        expect:
+        exitCode == 0
+        def observed = out.readLines().last().replaceAll("\\r", "")
+        observed == new File(".").canonicalPath
+
+        cleanup:
+        pty?.close()
+    }
+
+    def "working directory: non-existent path fails cleanly"() {
+        given:
+        def missing = new File("/does/not/exist/pty-test")
+
+        when:
+        launcher.start([trueBinary()], System.getenv(), missing, 80, 24)
+
+        then:
+        def e = thrown(NativeException)
+        e.message.toLowerCase().contains("no such file") || e.message.toLowerCase().contains("chdir")
+    }
+
+    def "stdout and stderr are received on separate streams"() {
+        given:
+        def pty = launcher.start([shBinary(), "-c", "echo OUT; echo ERR >&2"], System.getenv(), null, 80, 24)
+        def executor = Executors.newFixedThreadPool(2)
+        def outFuture = executor.submit({ pty.inputStream.text } as java.util.concurrent.Callable<String>)
+        def errFuture = executor.submit({ pty.errorStream.text } as java.util.concurrent.Callable<String>)
+        def exitCode = pty.waitFor()
+        def stdout = outFuture.get(10, TimeUnit.SECONDS)
+        def stderr = errFuture.get(10, TimeUnit.SECONDS)
+
+        expect:
+        exitCode == 0
+        stdout.contains("OUT")
+        !stdout.contains("ERR")
+        stderr.contains("ERR")
+        !stderr.contains("OUT")
+
+        cleanup:
+        executor?.shutdownNow()
+        pty?.close()
+    }
+
+    def "master read returns EOF after child exit (no IOException)"() {
+        given:
+        def pty = launcher.start([shBinary(), "-c", "echo done"], System.getenv(), null, 80, 24)
+
+        when:
+        def out = pty.inputStream.text
+        def exitCode = pty.waitFor()
+
+        then:
+        noExceptionThrown()
+        exitCode == 0
+        out.contains("done")
+
+        cleanup:
+        pty?.close()
+    }
+
+    def "write after child exit throws ProcessExitedException"() {
+        given:
+        def pty = launcher.start([shBinary(), "-c", "exit 0"], System.getenv(), null, 80, 24)
+        def drainer = Executors.newSingleThreadExecutor()
+        drainer.submit({ pty.inputStream.text } as Runnable)
+        pty.waitFor()
+        drainer.shutdown()
+        drainer.awaitTermination(5, TimeUnit.SECONDS)
+        Thread.sleep(100)
+
+        when:
+        def os = pty.outputStream
+        boolean thrown = false
+        try {
+            for (int i = 0; i < 1024; i++) {
+                os.write("x".bytes)
+                os.flush()
+            }
+        } catch (ProcessExitedException ignored) {
+            thrown = true
+        }
+
+        then:
+        thrown
 
         cleanup:
         pty?.close()

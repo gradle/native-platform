@@ -20,16 +20,18 @@ import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.internal.jni.PosixPtyFunctions;
 import net.rubygrapefruit.platform.terminal.PtyProcess;
 
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PosixPtyProcess implements PtyProcess {
     private final long pid;
-    private int masterFd;
-    private int stderrReadFd;
+    private volatile int masterFd;
+    private volatile int stderrReadFd;
     private final AtomicBoolean closed = new AtomicBoolean(false);
+    private final NativePtyInputStream inputStream;
+    private final NativePtyInputStream errorStream;
+    private final NativePtyOutputStream outputStream;
     private boolean exited;
     private int exitCode;
 
@@ -37,21 +39,32 @@ public class PosixPtyProcess implements PtyProcess {
         this.masterFd = masterFd;
         this.stderrReadFd = stderrReadFd;
         this.pid = pid;
+        this.inputStream = new NativePtyInputStream(this, false);
+        this.errorStream = new NativePtyInputStream(this, true);
+        this.outputStream = new NativePtyOutputStream(this);
+    }
+
+    public int getMasterFd() {
+        return masterFd;
+    }
+
+    public int getStderrReadFd() {
+        return stderrReadFd;
     }
 
     @Override
     public OutputStream getOutputStream() {
-        throw new UnsupportedOperationException("not yet implemented");
+        return outputStream;
     }
 
     @Override
     public InputStream getInputStream() {
-        throw new UnsupportedOperationException("not yet implemented");
+        return inputStream;
     }
 
     @Override
     public InputStream getErrorStream() {
-        return new ByteArrayInputStream(new byte[0]);
+        return errorStream;
     }
 
     @Override

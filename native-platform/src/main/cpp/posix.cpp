@@ -29,6 +29,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -467,6 +468,89 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_isPtyAvailable(J
     return JNI_TRUE;
 }
 
+static void diag_write(int fd, char stage, int err) {
+    write(fd, &stage, 1);
+    write(fd, &err, sizeof(err));
+}
+
+static const char* find_path_in_env(char** envp) {
+    if (envp == NULL) return NULL;
+    for (int i = 0; envp[i] != NULL; i++) {
+        if (strncmp(envp[i], "PATH=", 5) == 0) {
+            return envp[i] + 5;
+        }
+    }
+    return NULL;
+}
+
+static void child_search_and_exec(char** argv, char** envp, int diagFd) {
+    int err = 0;
+    if (strchr(argv[0], '/') != NULL) {
+        execve(argv[0], argv, envp);
+        err = errno;
+        diag_write(diagFd, 'X', err);
+        _exit(127);
+    }
+
+    const char* path = find_path_in_env(envp);
+    if (path == NULL) {
+        diag_write(diagFd, 'P', ENOENT);
+        _exit(127);
+    }
+
+    int sawEacces = 0;
+    int sawEnoexec = 0;
+    size_t cmdLen = strlen(argv[0]);
+    const char* p = path;
+    const char* end = path + strlen(path);
+
+    while (1) {
+        const char* colon = strchr(p, ':');
+        size_t dirLen = colon ? (size_t)(colon - p) : (size_t)(end - p);
+
+        char candidate[4096];
+        if (dirLen == 0) {
+            if (cmdLen + 1 > sizeof(candidate)) {
+                err = ENAMETOOLONG;
+            } else {
+                memcpy(candidate, argv[0], cmdLen);
+                candidate[cmdLen] = '\0';
+                execve(candidate, argv, envp);
+                err = errno;
+            }
+        } else {
+            if (dirLen + 1 + cmdLen + 1 > sizeof(candidate)) {
+                err = ENAMETOOLONG;
+            } else {
+                memcpy(candidate, p, dirLen);
+                candidate[dirLen] = '/';
+                memcpy(candidate + dirLen + 1, argv[0], cmdLen);
+                candidate[dirLen + 1 + cmdLen] = '\0';
+                execve(candidate, argv, envp);
+                err = errno;
+            }
+        }
+
+        if (err == EACCES) sawEacces = 1;
+        if (err == ENOEXEC) {
+            sawEnoexec = 1;
+            break;
+        }
+
+        if (colon == NULL) break;
+        p = colon + 1;
+    }
+
+    if (sawEnoexec) {
+        diag_write(diagFd, 'N', ENOEXEC);
+    } else if (sawEacces) {
+        diag_write(diagFd, 'E', EACCES);
+    } else {
+        diag_write(diagFd, 'F', ENOENT);
+    }
+    _exit(127);
+}
+
 JNIEXPORT jlong JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnPty(
         JNIEnv* env, jclass target,
@@ -492,171 +576,193 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnPty(
         argv[i] = java_to_char(env, s, result);
         env->DeleteLocalRef(s);
         if (argv[i] == NULL) {
-            for (jsize j = 0; j < i; j++) {
-                free(argv[j]);
-            }
+            for (jsize j = 0; j < i; j++) free(argv[j]);
             free(argv);
             return 0;
         }
     }
     argv[argc] = NULL;
 
+    jsize envc = environment != NULL ? env->GetArrayLength(environment) : 0;
+    char** envp = (char**) calloc((size_t)(envc + 1), sizeof(char*));
+    if (envp == NULL) {
+        mark_failed_with_message(env, "could not allocate envp", result);
+        for (jsize i = 0; i < argc; i++) free(argv[i]);
+        free(argv);
+        return 0;
+    }
+    for (jsize i = 0; i < envc; i++) {
+        jstring s = (jstring) env->GetObjectArrayElement(environment, i);
+        envp[i] = java_to_char(env, s, result);
+        env->DeleteLocalRef(s);
+        if (envp[i] == NULL) {
+            for (jsize j = 0; j < i; j++) free(envp[j]);
+            free(envp);
+            for (jsize j = 0; j < argc; j++) free(argv[j]);
+            free(argv);
+            return 0;
+        }
+    }
+    envp[envc] = NULL;
+
+    char* wdStr = NULL;
+    if (workingDir != NULL) {
+        wdStr = java_to_char(env, workingDir, result);
+        if (wdStr == NULL) {
+            for (jsize i = 0; i < envc; i++) free(envp[i]);
+            free(envp);
+            for (jsize i = 0; i < argc; i++) free(argv[i]);
+            free(argv);
+            return 0;
+        }
+    }
+
     int masterFd = -1;
     int slaveFd = -1;
-    if (openpty(&masterFd, &slaveFd, NULL, NULL, NULL) != 0) {
-        mark_failed_with_errno(env, "could not allocate pty", result);
-        for (jsize i = 0; i < argc; i++) {
-            free(argv[i]);
-        }
-        free(argv);
-        return 0;
-    }
-
-    int masterFlags = fcntl(masterFd, F_GETFD);
-    if (masterFlags != -1) {
-        fcntl(masterFd, F_SETFD, masterFlags | FD_CLOEXEC);
-    }
-
+    int stderrPipe[2] = {-1, -1};
     int diagPipe[2] = {-1, -1};
-    if (pipe(diagPipe) != 0) {
-        mark_failed_with_errno(env, "could not create diagnostic pipe", result);
-        close(masterFd);
-        close(slaveFd);
-        for (jsize i = 0; i < argc; i++) {
-            free(argv[i]);
-        }
-        free(argv);
-        return 0;
-    }
-    int diagFlags = fcntl(diagPipe[0], F_GETFD);
-    if (diagFlags != -1) {
-        fcntl(diagPipe[0], F_SETFD, diagFlags | FD_CLOEXEC);
-    }
-    int diagWriteFlags = fcntl(diagPipe[1], F_GETFD);
-    if (diagWriteFlags != -1) {
-        fcntl(diagPipe[1], F_SETFD, diagWriteFlags | FD_CLOEXEC);
-    }
+    pid_t pid = 0;
+    jlong returnPid = 0;
+    bool failed = false;
 
-    struct winsize ws;
-    ws.ws_col = (unsigned short) cols;
-    ws.ws_row = (unsigned short) rows;
-    ws.ws_xpixel = 0;
-    ws.ws_ypixel = 0;
-    ioctl(masterFd, TIOCSWINSZ, &ws);
-
-    pid_t pid = fork();
-    if (pid < 0) {
-        int savedErrno = errno;
-        close(masterFd);
-        close(slaveFd);
-        close(diagPipe[0]);
-        close(diagPipe[1]);
-        for (jsize i = 0; i < argc; i++) {
-            free(argv[i]);
-        }
-        free(argv);
-        errno = savedErrno;
-        mark_failed_with_errno(env, "could not fork", result);
-        return 0;
-    }
-
-    if (pid == 0) {
-        close(diagPipe[0]);
-        int diagFd = diagPipe[1];
-        char stage = 0;
-        if (setsid() < 0) {
-            stage = 'S'; int e = errno;
-            write(diagFd, &stage, 1); write(diagFd, &e, sizeof(e));
-            _exit(126);
-        }
-        if (ioctl(slaveFd, TIOCSCTTY, 0) < 0) {
-            stage = 'T'; int e = errno;
-            write(diagFd, &stage, 1); write(diagFd, &e, sizeof(e));
-            _exit(126);
-        }
-        if (dup2(slaveFd, 0) < 0) {
-            stage = '0'; int e = errno;
-            write(diagFd, &stage, 1); write(diagFd, &e, sizeof(e));
-            _exit(126);
-        }
-        if (dup2(slaveFd, 1) < 0) {
-            stage = '1'; int e = errno;
-            write(diagFd, &stage, 1); write(diagFd, &e, sizeof(e));
-            _exit(126);
-        }
-        if (dup2(slaveFd, 2) < 0) {
-            stage = '2'; int e = errno;
-            write(diagFd, &stage, 1); write(diagFd, &e, sizeof(e));
-            _exit(126);
-        }
-        if (slaveFd > 2) {
-            close(slaveFd);
-        }
-        if (masterFd > 2) {
-            close(masterFd);
-        }
-        execv(argv[0], argv);
-        stage = 'X'; int e = errno;
-        write(diagFd, &stage, 1); write(diagFd, &e, sizeof(e));
-        _exit(127);
-    }
-
-    close(slaveFd);
-    close(diagPipe[1]);
-
-    char stage = 0;
-    int childErrno = 0;
-    ssize_t stageRead = 0;
-    ssize_t errnoRead = 0;
     do {
-        stageRead = read(diagPipe[0], &stage, 1);
-    } while (stageRead == -1 && errno == EINTR);
-    if (stageRead == 1) {
-        do {
-            errnoRead = read(diagPipe[0], &childErrno, sizeof(childErrno));
-        } while (errnoRead == -1 && errno == EINTR);
-    }
-    close(diagPipe[0]);
-
-    if (stageRead == 1) {
-        char msg[512];
-        const char* stageName = "unknown";
-        switch (stage) {
-            case 'S': stageName = "setsid"; break;
-            case 'T': stageName = "TIOCSCTTY"; break;
-            case '0': stageName = "dup2(stdin)"; break;
-            case '1': stageName = "dup2(stdout)"; break;
-            case '2': stageName = "dup2(stderr)"; break;
-            case 'X': stageName = "execv"; break;
+        if (openpty(&masterFd, &slaveFd, NULL, NULL, NULL) != 0) {
+            mark_failed_with_errno(env, "could not allocate pty", result);
+            failed = true;
+            break;
         }
-        snprintf(msg, sizeof(msg), "child setup failed at %s (argv[0]=%s)",
-                 stageName, argv[0] ? argv[0] : "<null>");
-        int status = 0;
-        pid_t wret;
-        do {
-            wret = waitpid(pid, &status, 0);
-        } while (wret == -1 && errno == EINTR);
-        close(masterFd);
-        for (jsize i = 0; i < argc; i++) {
-            free(argv[i]);
+        {
+            int f = fcntl(masterFd, F_GETFD);
+            if (f != -1) fcntl(masterFd, F_SETFD, f | FD_CLOEXEC);
         }
-        free(argv);
-        errno = childErrno;
-        mark_failed_with_errno(env, msg, result);
-        return 0;
+        if (pipe(stderrPipe) != 0) {
+            mark_failed_with_errno(env, "could not create stderr pipe", result);
+            failed = true;
+            break;
+        }
+        {
+            int f = fcntl(stderrPipe[0], F_GETFD);
+            if (f != -1) fcntl(stderrPipe[0], F_SETFD, f | FD_CLOEXEC);
+        }
+        if (pipe(diagPipe) != 0) {
+            mark_failed_with_errno(env, "could not create diagnostic pipe", result);
+            failed = true;
+            break;
+        }
+        {
+            int f = fcntl(diagPipe[0], F_GETFD);
+            if (f != -1) fcntl(diagPipe[0], F_SETFD, f | FD_CLOEXEC);
+            f = fcntl(diagPipe[1], F_GETFD);
+            if (f != -1) fcntl(diagPipe[1], F_SETFD, f | FD_CLOEXEC);
+        }
+
+        struct winsize ws;
+        ws.ws_col = (unsigned short) cols;
+        ws.ws_row = (unsigned short) rows;
+        ws.ws_xpixel = 0;
+        ws.ws_ypixel = 0;
+        ioctl(masterFd, TIOCSWINSZ, &ws);
+
+        pid = fork();
+        if (pid < 0) {
+            mark_failed_with_errno(env, "could not fork", result);
+            failed = true;
+            break;
+        }
+
+        if (pid == 0) {
+            close(diagPipe[0]);
+            close(stderrPipe[0]);
+            int diagFd = diagPipe[1];
+
+            if (setsid() < 0) { diag_write(diagFd, 'S', errno); _exit(126); }
+            if (ioctl(slaveFd, TIOCSCTTY, 0) < 0) { diag_write(diagFd, 'T', errno); _exit(126); }
+            if (dup2(slaveFd, 0) < 0) { diag_write(diagFd, '0', errno); _exit(126); }
+            if (dup2(slaveFd, 1) < 0) { diag_write(diagFd, '1', errno); _exit(126); }
+            if (dup2(stderrPipe[1], 2) < 0) { diag_write(diagFd, '2', errno); _exit(126); }
+            if (slaveFd > 2) close(slaveFd);
+            if (masterFd > 2) close(masterFd);
+            if (stderrPipe[1] > 2) close(stderrPipe[1]);
+
+            if (wdStr != NULL && chdir(wdStr) < 0) {
+                diag_write(diagFd, 'D', errno);
+                _exit(126);
+            }
+
+            child_search_and_exec(argv, envp, diagFd);
+        }
+
+        close(slaveFd); slaveFd = -1;
+        close(stderrPipe[1]); stderrPipe[1] = -1;
+        close(diagPipe[1]); diagPipe[1] = -1;
+
+        char stage = 0;
+        int childErrno = 0;
+        ssize_t stageRead = 0;
+        do {
+            stageRead = read(diagPipe[0], &stage, 1);
+        } while (stageRead == -1 && errno == EINTR);
+        if (stageRead == 1) {
+            ssize_t r = 0;
+            do {
+                r = read(diagPipe[0], &childErrno, sizeof(childErrno));
+            } while (r == -1 && errno == EINTR);
+        }
+        close(diagPipe[0]); diagPipe[0] = -1;
+
+        if (stageRead == 1) {
+            char msg[512];
+            const char* stageName = "child setup failed";
+            switch (stage) {
+                case 'S': stageName = "setsid failed"; break;
+                case 'T': stageName = "TIOCSCTTY failed"; break;
+                case '0': stageName = "dup2(stdin) failed"; break;
+                case '1': stageName = "dup2(stdout) failed"; break;
+                case '2': stageName = "dup2(stderr) failed"; break;
+                case 'D': stageName = "could not chdir to working directory"; break;
+                case 'X': stageName = "could not execute command"; break;
+                case 'P': stageName = "command not found (no PATH in environment)"; break;
+                case 'F': stageName = "command not found"; break;
+                case 'E': stageName = "could not execute command"; break;
+                case 'N': stageName = "not an executable"; break;
+            }
+            const char* cmd = argc > 0 && argv[0] ? argv[0] : "<null>";
+            snprintf(msg, sizeof(msg), "%s: '%s'", stageName, cmd);
+
+            int status = 0;
+            pid_t wret;
+            do {
+                wret = waitpid(pid, &status, 0);
+            } while (wret == -1 && errno == EINTR);
+            errno = childErrno;
+            mark_failed_with_errno(env, msg, result);
+            failed = true;
+            break;
+        }
+
+        returnPid = (jlong) pid;
+    } while (0);
+
+    if (failed) {
+        if (masterFd >= 0) close(masterFd);
+        if (slaveFd >= 0) close(slaveFd);
+        if (stderrPipe[0] >= 0) close(stderrPipe[0]);
+        if (stderrPipe[1] >= 0) close(stderrPipe[1]);
+        if (diagPipe[0] >= 0) close(diagPipe[0]);
+        if (diagPipe[1] >= 0) close(diagPipe[1]);
+    } else {
+        jint fds[2];
+        fds[0] = masterFd;
+        fds[1] = stderrPipe[0];
+        env->SetIntArrayRegion(outFds, 0, 2, fds);
     }
 
-    for (jsize i = 0; i < argc; i++) {
-        free(argv[i]);
-    }
+    for (jsize i = 0; i < argc; i++) free(argv[i]);
     free(argv);
-
-    jint fds[2];
-    fds[0] = masterFd;
-    fds[1] = -1;
-    env->SetIntArrayRegion(outFds, 0, 2, fds);
-
-    return (jlong) pid;
+    for (jsize i = 0; i < envc; i++) free(envp[i]);
+    free(envp);
+    if (wdStr != NULL) free(wdStr);
+    return returnPid;
 }
 
 JNIEXPORT jint JNICALL
@@ -687,6 +793,77 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_closeFd(JNIEnv* 
     if (close(fd) != 0) {
         mark_failed_with_errno(env, "could not close fd", result);
     }
+}
+
+JNIEXPORT jint JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_nativeRead(
+        JNIEnv* env, jclass target,
+        jint fd, jbyteArray buf, jint off, jint len,
+        jobject result) {
+    if (fd < 0) {
+        mark_failed_with_message(env, "invalid fd", result);
+        return -1;
+    }
+    jbyte* data = env->GetByteArrayElements(buf, NULL);
+    if (data == NULL) {
+        mark_failed_with_message(env, "could not access byte array", result);
+        return -1;
+    }
+    ssize_t n;
+    do {
+        n = read(fd, data + off, (size_t) len);
+    } while (n == -1 && errno == EINTR);
+    int savedErrno = errno;
+    env->ReleaseByteArrayElements(buf, data, 0);
+    if (n == -1) {
+        if (savedErrno == EIO || savedErrno == ENXIO) {
+            return -1;
+        }
+        errno = savedErrno;
+        mark_failed_with_errno(env, "could not read from fd", result);
+        return -1;
+    }
+    if (n == 0) {
+        return -1;
+    }
+    return (jint) n;
+}
+
+JNIEXPORT jint JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_nativeWrite(
+        JNIEnv* env, jclass target,
+        jint fd, jbyteArray buf, jint off, jint len,
+        jobject result) {
+    if (fd < 0) {
+        mark_failed_with_message(env, "invalid fd", result);
+        return -1;
+    }
+    struct pollfd pfd;
+    pfd.fd = fd;
+    pfd.events = POLLOUT;
+    pfd.revents = 0;
+    if (poll(&pfd, 1, 0) > 0 && (pfd.revents & POLLHUP)) {
+        errno = EIO;
+        mark_failed_with_errno(env, "process has exited", result);
+        return -1;
+    }
+    jbyte* data = env->GetByteArrayElements(buf, NULL);
+    if (data == NULL) {
+        mark_failed_with_message(env, "could not access byte array", result);
+        return -1;
+    }
+    ssize_t n;
+    do {
+        n = write(fd, data + off, (size_t) len);
+    } while (n == -1 && errno == EINTR);
+    int savedErrno = errno;
+    env->ReleaseByteArrayElements(buf, data, JNI_ABORT);
+    if (n == -1) {
+        errno = savedErrno;
+        mark_failed_with_errno(env, "could not write to fd", result);
+        return -1;
+    }
+    return (jint) n;
 }
 
 JNIEXPORT jint JNICALL
