@@ -33,6 +33,7 @@ import net.rubygrapefruit.platform.internal.jni.TerminfoFunctions;
 import net.rubygrapefruit.platform.memory.Memory;
 import net.rubygrapefruit.platform.memory.OsxMemory;
 import net.rubygrapefruit.platform.memory.WindowsMemory;
+import net.rubygrapefruit.platform.terminal.PtyProcessLauncher;
 import net.rubygrapefruit.platform.terminal.Terminals;
 
 import java.util.Arrays;
@@ -237,6 +238,9 @@ public abstract class Platform {
             }
             if (type.equals(ProcessLauncher.class)) {
                 return type.cast(new WrapperProcessLauncher(new DefaultProcessLauncher()));
+            }
+            if (type.equals(PtyProcessLauncher.class)) {
+                return type.cast(new PosixPtyProcessLauncher());
             }
             if (type.equals(Terminals.class)) {
                 nativeLibraryLoader.load(getCursesLibraryName(), getCursesVariants());

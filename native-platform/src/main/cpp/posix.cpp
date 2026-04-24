@@ -23,18 +23,29 @@
 #include "net_rubygrapefruit_platform_internal_jni_NativeLibraryFunctions.h"
 #include "net_rubygrapefruit_platform_internal_jni_PosixFileFunctions.h"
 #include "net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions.h"
 #include "net_rubygrapefruit_platform_internal_jni_PosixTerminalFunctions.h"
 #include "net_rubygrapefruit_platform_internal_jni_PosixTypeFunctions.h"
 #include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
+#include <sys/wait.h>
 #include <termios.h>
 #include <unistd.h>
+#if defined(__APPLE__)
+    #include <util.h>
+#elif defined(__FreeBSD__)
+    #include <libutil.h>
+#else
+    #include <pty.h>
+#endif
 #ifdef __linux__
     #include <sys/utsname.h>
     // Don't include sys/sysctl.h on Linux - it's deprecated
@@ -438,6 +449,164 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixTerminalFunctions_resetInputM
         return;
     }
     tcsetattr(STDIN_FILENO, TCSANOW, &original_input_mode);
+}
+
+/*
+ * PTY functions
+ */
+
+JNIEXPORT jboolean JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_isPtyAvailable(JNIEnv* env, jclass target) {
+    int masterFd = -1;
+    int slaveFd = -1;
+    if (openpty(&masterFd, &slaveFd, NULL, NULL, NULL) != 0) {
+        return JNI_FALSE;
+    }
+    close(masterFd);
+    close(slaveFd);
+    return JNI_TRUE;
+}
+
+JNIEXPORT jlong JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnPty(
+        JNIEnv* env, jclass target,
+        jobjectArray command,
+        jobjectArray environment,
+        jstring workingDir,
+        jint cols, jint rows,
+        jintArray outFds,
+        jobject result) {
+    jsize argc = env->GetArrayLength(command);
+    if (argc < 1) {
+        mark_failed_with_message(env, "command array is empty", result);
+        return 0;
+    }
+
+    char** argv = (char**) calloc((size_t)(argc + 1), sizeof(char*));
+    if (argv == NULL) {
+        mark_failed_with_message(env, "could not allocate argv", result);
+        return 0;
+    }
+    for (jsize i = 0; i < argc; i++) {
+        jstring s = (jstring) env->GetObjectArrayElement(command, i);
+        argv[i] = java_to_char(env, s, result);
+        env->DeleteLocalRef(s);
+        if (argv[i] == NULL) {
+            for (jsize j = 0; j < i; j++) {
+                free(argv[j]);
+            }
+            free(argv);
+            return 0;
+        }
+    }
+    argv[argc] = NULL;
+
+    int masterFd = -1;
+    int slaveFd = -1;
+    if (openpty(&masterFd, &slaveFd, NULL, NULL, NULL) != 0) {
+        mark_failed_with_errno(env, "could not allocate pty", result);
+        for (jsize i = 0; i < argc; i++) {
+            free(argv[i]);
+        }
+        free(argv);
+        return 0;
+    }
+
+    int masterFlags = fcntl(masterFd, F_GETFD);
+    if (masterFlags != -1) {
+        fcntl(masterFd, F_SETFD, masterFlags | FD_CLOEXEC);
+    }
+
+    struct winsize ws;
+    ws.ws_col = (unsigned short) cols;
+    ws.ws_row = (unsigned short) rows;
+    ws.ws_xpixel = 0;
+    ws.ws_ypixel = 0;
+    ioctl(masterFd, TIOCSWINSZ, &ws);
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        int savedErrno = errno;
+        close(masterFd);
+        close(slaveFd);
+        for (jsize i = 0; i < argc; i++) {
+            free(argv[i]);
+        }
+        free(argv);
+        errno = savedErrno;
+        mark_failed_with_errno(env, "could not fork", result);
+        return 0;
+    }
+
+    if (pid == 0) {
+        if (setsid() < 0) {
+            _exit(126);
+        }
+        if (ioctl(slaveFd, TIOCSCTTY, 0) < 0) {
+            _exit(126);
+        }
+        if (dup2(slaveFd, 0) < 0) {
+            _exit(126);
+        }
+        if (dup2(slaveFd, 1) < 0) {
+            _exit(126);
+        }
+        if (dup2(slaveFd, 2) < 0) {
+            _exit(126);
+        }
+        if (slaveFd > 2) {
+            close(slaveFd);
+        }
+        if (masterFd > 2) {
+            close(masterFd);
+        }
+        execv(argv[0], argv);
+        _exit(127);
+    }
+
+    close(slaveFd);
+
+    for (jsize i = 0; i < argc; i++) {
+        free(argv[i]);
+    }
+    free(argv);
+
+    jint fds[2];
+    fds[0] = masterFd;
+    fds[1] = -1;
+    env->SetIntArrayRegion(outFds, 0, 2, fds);
+
+    return (jlong) pid;
+}
+
+JNIEXPORT jint JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_waitPid(JNIEnv* env, jclass target, jlong pid, jobject result) {
+    int status = 0;
+    pid_t ret;
+    do {
+        ret = waitpid((pid_t) pid, &status, 0);
+    } while (ret == -1 && errno == EINTR);
+    if (ret == -1) {
+        mark_failed_with_errno(env, "could not waitpid", result);
+        return -1;
+    }
+    if (WIFEXITED(status)) {
+        return WEXITSTATUS(status);
+    }
+    if (WIFSIGNALED(status)) {
+        return 128 + WTERMSIG(status);
+    }
+    return -1;
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_closeFd(JNIEnv* env, jclass target, jint fd, jobject result) {
+    if (fd < 0) {
+        return;
+    }
+    if (close(fd) != 0) {
+        mark_failed_with_errno(env, "could not close fd", result);
+    }
 }
 
 JNIEXPORT jint JNICALL

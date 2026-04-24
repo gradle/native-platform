@@ -317,6 +317,7 @@ public abstract class JniPlugin implements Plugin<Project> {
             } else if (targetOs.isLinux()) {
                 cppCompiler.getArgs().addAll(determineJniIncludes("linux"));
                 cppCompiler.args("-D_FILE_OFFSET_BITS=64");
+                linker.args("-lutil");
             } else if (targetOs.isWindows()) {
                 if (binarySpec.getName().contains("_min")) {
                     cppCompiler.define("WINDOWS_MIN");
@@ -325,6 +326,7 @@ public abstract class JniPlugin implements Plugin<Project> {
                 linker.args("Shlwapi.lib", "Advapi32.lib");
             } else if (targetOs.isFreeBSD()) {
                 cppCompiler.getArgs().addAll(determineJniIncludes("freebsd"));
+                linker.args("-lutil");
             }
         }
 
