@@ -260,7 +260,7 @@ class PtyProcessLauncherTest extends NativePlatformSpec {
 
     def "stdout and stderr are received on separate streams"() {
         given:
-        def pty = launcher.start([shBinary(), "-c", "echo OUT; echo ERR >&2"], System.getenv(), null, 80, 24)
+        def pty = launcher.start([shBinary(), "-c", "sleep 0.2; echo OUT; echo ERR >&2; sleep 0.2"], System.getenv(), null, 80, 24)
         def executor = Executors.newFixedThreadPool(2)
         def outFuture = executor.submit({ pty.inputStream.text } as java.util.concurrent.Callable<String>)
         def errFuture = executor.submit({ pty.errorStream.text } as java.util.concurrent.Callable<String>)
