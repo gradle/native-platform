@@ -22,6 +22,8 @@ public class PosixPtyFunctions {
 
     public static final int EIO = 5;
     public static final int ENXIO = 6;
+    public static final int SIGTERM = 15;
+    public static final int SIGKILL = 9;
 
     public static native boolean isPtyAvailable();
 
@@ -37,6 +39,8 @@ public class PosixPtyFunctions {
     public static native void closeFd(int fd, FunctionResult result);
 
     public static native void setPtySize(int masterFd, int cols, int rows, FunctionResult result);
+
+    public static native void killProcess(long pid, int signal, FunctionResult result);
 
     public static native int nativeRead(int fd, byte[] buf, int off, int len, FunctionResult result);
 

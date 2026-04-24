@@ -98,13 +98,21 @@ public class PosixPtyProcess implements PtyProcess {
     }
 
     @Override
-    public void destroy() {
-        throw new UnsupportedOperationException("not yet implemented");
+    public synchronized void destroy() {
+        if (exited || pid <= 0) {
+            return;
+        }
+        FunctionResult result = new FunctionResult();
+        PosixPtyFunctions.killProcess(pid, PosixPtyFunctions.SIGTERM, result);
     }
 
     @Override
-    public void destroyForcibly() {
-        throw new UnsupportedOperationException("not yet implemented");
+    public synchronized void destroyForcibly() {
+        if (exited || pid <= 0) {
+            return;
+        }
+        FunctionResult result = new FunctionResult();
+        PosixPtyFunctions.killProcess(pid, PosixPtyFunctions.SIGKILL, result);
     }
 
     @Override
@@ -121,19 +129,40 @@ public class PosixPtyProcess implements PtyProcess {
     }
 
     @Override
-    public synchronized void close() {
+    public void close() {
         if (!closed.compareAndSet(false, true)) {
             return;
         }
-        if (masterFd >= 0) {
-            FunctionResult result = new FunctionResult();
-            PosixPtyFunctions.closeFd(masterFd, result);
+        int master;
+        int stderr;
+        synchronized (this) {
+            master = masterFd;
             masterFd = -1;
-        }
-        if (stderrReadFd >= 0) {
-            FunctionResult result = new FunctionResult();
-            PosixPtyFunctions.closeFd(stderrReadFd, result);
+            stderr = stderrReadFd;
             stderrReadFd = -1;
+        }
+        if (master >= 0) {
+            FunctionResult result = new FunctionResult();
+            PosixPtyFunctions.closeFd(master, result);
+        }
+        if (stderr >= 0) {
+            FunctionResult result = new FunctionResult();
+            PosixPtyFunctions.closeFd(stderr, result);
+        }
+        synchronized (this) {
+            if (exited || pid <= 0) {
+                return;
+            }
+        }
+        FunctionResult killResult = new FunctionResult();
+        PosixPtyFunctions.killProcess(pid, PosixPtyFunctions.SIGKILL, killResult);
+        FunctionResult waitResult = new FunctionResult();
+        int code = PosixPtyFunctions.waitPid(pid, waitResult);
+        synchronized (this) {
+            if (!waitResult.isFailed()) {
+                exitCode = code;
+                exited = true;
+            }
         }
     }
 }

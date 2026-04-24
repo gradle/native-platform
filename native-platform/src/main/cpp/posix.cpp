@@ -811,6 +811,18 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_setPtySize(
     }
 }
 
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_killProcess(
+        JNIEnv* env, jclass target, jlong pid, jint signal, jobject result) {
+    if (pid <= 0) {
+        mark_failed_with_message(env, "invalid pid", result);
+        return;
+    }
+    if (kill((pid_t) -pid, signal) != 0 && errno != ESRCH) {
+        mark_failed_with_errno(env, "could not signal process group", result);
+    }
+}
+
 JNIEXPORT jint JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_nativeRead(
         JNIEnv* env, jclass target,

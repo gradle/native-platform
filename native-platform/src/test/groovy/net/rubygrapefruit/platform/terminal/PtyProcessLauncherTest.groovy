@@ -359,6 +359,136 @@ class PtyProcessLauncherTest extends NativePlatformSpec {
         pty?.close()
     }
 
+    def "destroy() sends SIGTERM"() {
+        given:
+        def pty = launcher.start([shBinary(), "-c", "exec sleep 60"], System.getenv(), null, 80, 24)
+        def drainer = Executors.newSingleThreadExecutor()
+        drainer.submit({ pty.inputStream.text } as Runnable)
+        Thread.sleep(200)
+
+        when:
+        pty.destroy()
+        def exitCode = pty.waitFor()
+
+        then:
+        exitCode == 128 + 15
+
+        cleanup:
+        drainer?.shutdownNow()
+        pty?.close()
+    }
+
+    def "destroyForcibly() kills a shell that traps SIGTERM"() {
+        given:
+        def pty = launcher.start([shBinary(), "-c", 'trap "" TERM; sleep 60'], System.getenv(), null, 80, 24)
+        def drainer = Executors.newSingleThreadExecutor()
+        drainer.submit({ pty.inputStream.text } as Runnable)
+        Thread.sleep(200)
+
+        when:
+        pty.destroyForcibly()
+        def exitCode = pty.waitFor()
+
+        then:
+        exitCode == 128 + 9
+
+        cleanup:
+        drainer?.shutdownNow()
+        pty?.close()
+    }
+
+    def "close() is idempotent"() {
+        given:
+        def pty = launcher.start([trueBinary()], System.getenv(), null, 80, 24)
+        def drainer = Executors.newSingleThreadExecutor()
+        drainer.submit({ pty.inputStream.text } as Runnable)
+        pty.waitFor()
+        drainer.shutdown()
+        drainer.awaitTermination(5, TimeUnit.SECONDS)
+
+        when:
+        pty.close()
+        pty.close()
+        pty.close()
+
+        then:
+        noExceptionThrown()
+    }
+
+    def "close() while a reader is blocked does not deadlock"() {
+        given:
+        def pty = launcher.start([shBinary(), "-c", "sleep 30"], System.getenv(), null, 80, 24)
+        Thread.sleep(100)
+        def readerException = new java.util.concurrent.atomic.AtomicReference<Throwable>()
+        def readerDone = new java.util.concurrent.CountDownLatch(1)
+        def reader = new Thread({
+            try {
+                def b = new byte[256]
+                while (pty.inputStream.read(b) >= 0) {
+                    // drain
+                }
+            } catch (Throwable t) {
+                readerException.set(t)
+            } finally {
+                readerDone.countDown()
+            }
+        })
+        reader.start()
+        Thread.sleep(200)
+
+        when:
+        pty.destroyForcibly()
+        pty.close()
+        def finished = readerDone.await(5, TimeUnit.SECONDS)
+
+        then:
+        finished
+    }
+
+    def "close() reaps the child"() {
+        given:
+        def pty = launcher.start([shBinary(), "-c", "sleep 60"], System.getenv(), null, 80, 24)
+
+        when:
+        pty.close()
+
+        then:
+        !pty.isAlive()
+    }
+
+    @IgnoreIf({ !new File("/proc/self/fd").exists() })
+    def "does not leak PTY master file descriptors across spawns"() {
+        given:
+        def ptyFds = {
+            def dir = new File("/proc/self/fd")
+            dir.listFiles()?.findAll { f ->
+                try {
+                    def target = java.nio.file.Files.readSymbolicLink(f.toPath()).toString()
+                    target.contains("/dev/ptmx") || target.contains("/dev/pts/")
+                } catch (Throwable ignored) {
+                    false
+                }
+            }?.collect { it.name } ?: []
+        }
+        5.times {
+            def p = launcher.start([trueBinary()], System.getenv(), null, 80, 24)
+            p.waitFor()
+            p.close()
+        }
+        def initial = ptyFds() as Set
+
+        when:
+        50.times {
+            def p = launcher.start([trueBinary()], System.getenv(), null, 80, 24)
+            p.waitFor()
+            p.close()
+        }
+        def finalSet = ptyFds() as Set
+
+        then:
+        (finalSet - initial).isEmpty()
+    }
+
     def "write after child exit throws ProcessExitedException"() {
         given:
         def pty = launcher.start([shBinary(), "-c", "exit 0"], System.getenv(), null, 80, 24)
