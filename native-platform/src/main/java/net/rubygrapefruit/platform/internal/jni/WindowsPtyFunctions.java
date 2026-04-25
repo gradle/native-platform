@@ -22,12 +22,37 @@ public class WindowsPtyFunctions {
 
     public static native boolean isConPtyAvailable();
 
-    public static native long spawnConPty(String[] command,
-                                          String[] environment,
-                                          String workingDir,
-                                          int cols, int rows,
-                                          long[] outHandles,
-                                          FunctionResult result);
+    /**
+     * Create the pseudo-console plus its master-side pipes. Does NOT spawn a
+     * child process — the caller is expected to attach a drainer thread to
+     * the returned read handle BEFORE calling {@link #spawnConPtyProcess}, so
+     * that ConPTY's startup VT output cannot back-pressure cmd.exe before
+     * anyone is reading.
+     *
+     * <p>{@code outHandles} layout on success: {@code [hPC, ptyReadHandle,
+     * ptyWriteHandle, stderrReadHandle]}. The stderr slot is reserved for a
+     * future split-stderr path and is currently always zero.</p>
+     */
+    public static native void createPseudoConsole(int cols, int rows,
+                                                  long[] outHandles,
+                                                  FunctionResult result);
+
+    /**
+     * Attach a child process to a previously-created pseudo-console.
+     *
+     * <p>The drainer on the master read handle MUST already be running before
+     * this call returns, or the child will block on its first VT write once
+     * the ConPTY pipe fills.</p>
+     *
+     * <p>{@code outHandles} layout on success: {@code [processHandle]}. The
+     * return value is the OS process id.</p>
+     */
+    public static native long spawnConPtyProcess(long hPC,
+                                                 String[] command,
+                                                 String[] environment,
+                                                 String workingDir,
+                                                 long[] outHandles,
+                                                 FunctionResult result);
 
     public static native void resizePseudoConsole(long hPC, int cols, int rows, FunctionResult result);
 

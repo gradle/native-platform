@@ -1274,18 +1274,20 @@ static wchar_t* build_environment_block(JNIEnv* env, jobjectArray environment) {
     return buffer;
 }
 
-JNIEXPORT jlong JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_spawnConPty(
+// Allocate the ConPTY plus its master-side pipes. We deliberately do NOT
+// fork the child here — the Java caller must start a drainer thread on the
+// returned ptyReadHandle BEFORE calling spawnConPtyProcess, otherwise
+// ConPTY's startup VT noise can fill the output pipe and stall cmd.exe on
+// its very first write.
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_createPseudoConsole(
         JNIEnv* env, jclass target,
-        jobjectArray command,
-        jobjectArray environment,
-        jstring workingDir,
         jint cols, jint rows,
         jlongArray outHandles,
         jobject result) {
     if (!resolve_conpty()) {
         mark_failed_with_message(env, "ConPTY is not available on this Windows version", result);
-        return 0;
+        return;
     }
 
     HANDLE inputRead = INVALID_HANDLE_VALUE;
@@ -1293,6 +1295,77 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_spawnConPty(
     HANDLE outputRead = INVALID_HANDLE_VALUE;
     HANDLE outputWrite = INVALID_HANDLE_VALUE;
     HPCON hPC = NULL;
+    BOOL ok = FALSE;
+
+    SECURITY_ATTRIBUTES sa;
+    sa.nLength = sizeof(sa);
+    sa.lpSecurityDescriptor = NULL;
+    sa.bInheritHandle = TRUE;
+
+    do {
+        if (!CreatePipe(&inputRead, &inputWrite, &sa, 65536)) {
+            mark_failed_with_errno(env, "could not create ConPTY input pipe", result);
+            break;
+        }
+        if (!CreatePipe(&outputRead, &outputWrite, &sa, 65536)) {
+            mark_failed_with_errno(env, "could not create ConPTY output pipe", result);
+            break;
+        }
+        // The master-side ends stay in this process; mark them non-inheritable
+        // so a concurrent CreateProcess on another thread cannot leak them.
+        SetHandleInformation(inputWrite, HANDLE_FLAG_INHERIT, 0);
+        SetHandleInformation(outputRead, HANDLE_FLAG_INHERIT, 0);
+
+        COORD size;
+        size.X = (SHORT) cols;
+        size.Y = (SHORT) rows;
+        HRESULT hr = pCreatePseudoConsole(size, inputRead, outputWrite, 0, &hPC);
+        if (FAILED(hr)) {
+            mark_failed_with_code(env, "CreatePseudoConsole failed", (int) hr, NULL, result);
+            break;
+        }
+
+        // ConPTY duplicates inputRead/outputWrite internally; the parent no
+        // longer needs its own copy.
+        CloseHandle(inputRead);  inputRead  = INVALID_HANDLE_VALUE;
+        CloseHandle(outputWrite); outputWrite = INVALID_HANDLE_VALUE;
+
+        jlong handles[4];
+        handles[0] = (jlong) (intptr_t) hPC;
+        handles[1] = (jlong) (intptr_t) outputRead;  // master reads child's stdout
+        handles[2] = (jlong) (intptr_t) inputWrite;  // master writes to child's stdin
+        handles[3] = 0;                              // stderr split not yet implemented
+        env->SetLongArrayRegion(outHandles, 0, 4, handles);
+        ok = TRUE;
+    } while (0);
+
+    if (!ok) {
+        if (hPC != NULL) pClosePseudoConsole(hPC);
+        if (inputRead != INVALID_HANDLE_VALUE) CloseHandle(inputRead);
+        if (inputWrite != INVALID_HANDLE_VALUE) CloseHandle(inputWrite);
+        if (outputRead != INVALID_HANDLE_VALUE) CloseHandle(outputRead);
+        if (outputWrite != INVALID_HANDLE_VALUE) CloseHandle(outputWrite);
+    }
+}
+
+// Attach a child process to an already-created ConPTY. The Java caller is
+// expected to have started a drainer thread on the master read handle before
+// calling this, see createPseudoConsole's contract.
+JNIEXPORT jlong JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_spawnConPtyProcess(
+        JNIEnv* env, jclass target,
+        jlong hPCArg,
+        jobjectArray command,
+        jobjectArray environment,
+        jstring workingDir,
+        jlongArray outHandles,
+        jobject result) {
+    if (!resolve_conpty() || hPCArg == 0) {
+        mark_failed_with_message(env, "ConPTY not available", result);
+        return 0;
+    }
+    HPCON hPC = (HPCON) (intptr_t) hPCArg;
+
     LPPROC_THREAD_ATTRIBUTE_LIST attrList = NULL;
     SIZE_T attrListSize = 0;
     wchar_t* cmdLine = NULL;
@@ -1301,65 +1374,36 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_spawnConPty(
     PROCESS_INFORMATION pi;
     ZeroMemory(&pi, sizeof(pi));
     BOOL processCreated = FALSE;
+    BOOL ok = FALSE;
 
-    SECURITY_ATTRIBUTES sa;
-    sa.nLength = sizeof(sa);
-    sa.lpSecurityDescriptor = NULL;
-    sa.bInheritHandle = TRUE;
-
-    if (!CreatePipe(&inputRead, &inputWrite, &sa, 65536)) {
-        mark_failed_with_errno(env, "could not create ConPTY input pipe", result);
-        goto cleanup;
-    }
-    if (!CreatePipe(&outputRead, &outputWrite, &sa, 65536)) {
-        mark_failed_with_errno(env, "could not create ConPTY output pipe", result);
-        goto cleanup;
-    }
-    SetHandleInformation(inputWrite, HANDLE_FLAG_INHERIT, 0);
-    SetHandleInformation(outputRead, HANDLE_FLAG_INHERIT, 0);
-
-    {
-        COORD size;
-        size.X = (SHORT) cols;
-        size.Y = (SHORT) rows;
-        HRESULT hr = pCreatePseudoConsole(size, inputRead, outputWrite, 0, &hPC);
-        if (FAILED(hr)) {
-            mark_failed_with_code(env, "CreatePseudoConsole failed", (int) hr, NULL, result);
-            goto cleanup;
+    do {
+        cmdLine = build_command_line(env, command);
+        if (cmdLine == NULL) {
+            mark_failed_with_message(env, "could not build command line", result);
+            break;
         }
-    }
+        envBlock = build_environment_block(env, environment);
+        if (workingDir != NULL) {
+            wdStr = java_to_wchar(env, workingDir, result);
+            if (wdStr == NULL) break;
+        }
 
-    CloseHandle(inputRead); inputRead = INVALID_HANDLE_VALUE;
-    CloseHandle(outputWrite); outputWrite = INVALID_HANDLE_VALUE;
+        InitializeProcThreadAttributeList(NULL, 1, 0, &attrListSize);
+        attrList = (LPPROC_THREAD_ATTRIBUTE_LIST) malloc(attrListSize);
+        if (attrList == NULL) {
+            mark_failed_with_message(env, "could not allocate attribute list", result);
+            break;
+        }
+        if (!InitializeProcThreadAttributeList(attrList, 1, 0, &attrListSize)) {
+            mark_failed_with_errno(env, "InitializeProcThreadAttributeList failed", result);
+            free(attrList); attrList = NULL;
+            break;
+        }
+        if (!UpdateProcThreadAttribute(attrList, 0, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE, hPC, sizeof(HPCON), NULL, NULL)) {
+            mark_failed_with_errno(env, "UpdateProcThreadAttribute failed", result);
+            break;
+        }
 
-    cmdLine = build_command_line(env, command);
-    if (cmdLine == NULL) {
-        mark_failed_with_message(env, "could not build command line", result);
-        goto cleanup;
-    }
-    envBlock = build_environment_block(env, environment);
-    if (workingDir != NULL) {
-        wdStr = java_to_wchar(env, workingDir, result);
-        if (wdStr == NULL) goto cleanup;
-    }
-
-    InitializeProcThreadAttributeList(NULL, 1, 0, &attrListSize);
-    attrList = (LPPROC_THREAD_ATTRIBUTE_LIST) malloc(attrListSize);
-    if (attrList == NULL) {
-        mark_failed_with_message(env, "could not allocate attribute list", result);
-        goto cleanup;
-    }
-    if (!InitializeProcThreadAttributeList(attrList, 1, 0, &attrListSize)) {
-        mark_failed_with_errno(env, "InitializeProcThreadAttributeList failed", result);
-        free(attrList); attrList = NULL;
-        goto cleanup;
-    }
-    if (!UpdateProcThreadAttribute(attrList, 0, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE, hPC, sizeof(HPCON), NULL, NULL)) {
-        mark_failed_with_errno(env, "UpdateProcThreadAttribute failed", result);
-        goto cleanup;
-    }
-
-    {
         STARTUPINFOEXW siEx;
         ZeroMemory(&siEx, sizeof(siEx));
         siEx.StartupInfo.cb = sizeof(siEx);
@@ -1369,22 +1413,18 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_spawnConPty(
         if (!CreateProcessW(NULL, cmdLine, NULL, NULL, FALSE, flags,
                             envBlock, wdStr, &siEx.StartupInfo, &pi)) {
             mark_failed_with_errno(env, "CreateProcessW failed", result);
-            goto cleanup;
+            break;
         }
         processCreated = TRUE;
-    }
 
-    if (pi.hThread != NULL) { CloseHandle(pi.hThread); pi.hThread = NULL; }
+        // We do not need the thread handle.
+        if (pi.hThread != NULL) { CloseHandle(pi.hThread); pi.hThread = NULL; }
 
-    {
-        jlong handles[5];
-        handles[0] = (jlong) (intptr_t) hPC;
-        handles[1] = (jlong) (intptr_t) outputRead;
-        handles[2] = (jlong) (intptr_t) inputWrite;
-        handles[3] = 0;
-        handles[4] = (jlong) (intptr_t) pi.hProcess;
-        env->SetLongArrayRegion(outHandles, 0, 5, handles);
-    }
+        jlong handles[1];
+        handles[0] = (jlong) (intptr_t) pi.hProcess;
+        env->SetLongArrayRegion(outHandles, 0, 1, handles);
+        ok = TRUE;
+    } while (0);
 
     if (attrList != NULL) {
         DeleteProcThreadAttributeList(attrList);
@@ -1393,26 +1433,15 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_spawnConPty(
     if (cmdLine != NULL) free(cmdLine);
     if (envBlock != NULL) free(envBlock);
     if (wdStr != NULL) free(wdStr);
+
+    if (!ok) {
+        if (processCreated) {
+            TerminateProcess(pi.hProcess, 1);
+            CloseHandle(pi.hProcess);
+        }
+        return 0;
+    }
     return (jlong) pi.dwProcessId;
-
-cleanup:
-    if (processCreated) {
-        TerminateProcess(pi.hProcess, 1);
-        CloseHandle(pi.hProcess);
-    }
-    if (attrList != NULL) {
-        DeleteProcThreadAttributeList(attrList);
-        free(attrList);
-    }
-    if (hPC != NULL) pClosePseudoConsole(hPC);
-    if (inputRead != INVALID_HANDLE_VALUE) CloseHandle(inputRead);
-    if (inputWrite != INVALID_HANDLE_VALUE) CloseHandle(inputWrite);
-    if (outputRead != INVALID_HANDLE_VALUE) CloseHandle(outputRead);
-    if (outputWrite != INVALID_HANDLE_VALUE) CloseHandle(outputWrite);
-    if (cmdLine != NULL) free(cmdLine);
-    if (envBlock != NULL) free(envBlock);
-    if (wdStr != NULL) free(wdStr);
-    return 0;
 }
 
 JNIEXPORT void JNICALL
@@ -1447,13 +1476,22 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_isConPtyAvaila
     return JNI_FALSE;
 }
 
-JNIEXPORT jlong JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_spawnConPty(
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_createPseudoConsole(
         JNIEnv* env, jclass target,
+        jint cols, jint rows,
+        jlongArray outHandles,
+        jobject result) {
+    mark_failed_with_message(env, "ConPTY is not available in the minimal Windows variant", result);
+}
+
+JNIEXPORT jlong JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_spawnConPtyProcess(
+        JNIEnv* env, jclass target,
+        jlong hPCArg,
         jobjectArray command,
         jobjectArray environment,
         jstring workingDir,
-        jint cols, jint rows,
         jlongArray outHandles,
         jobject result) {
     mark_failed_with_message(env, "ConPTY is not available in the minimal Windows variant", result);

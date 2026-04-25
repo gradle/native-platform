@@ -47,15 +47,37 @@ public class WindowsPtyProcessLauncher implements PtyProcessLauncher {
         }
         String dir = workingDir != null ? workingDir.getAbsolutePath() : null;
 
-        FunctionResult result = new FunctionResult();
-        long[] outHandles = new long[5];
-        long pid = WindowsPtyFunctions.spawnConPty(cmd, env, dir, cols, rows, outHandles, result);
-        if (result.isFailed()) {
-            throw new NativeException("Could not spawn ConPTY process: " + result.getMessage());
+        long[] ptyHandles = new long[4];
+        FunctionResult ptyResult = new FunctionResult();
+        WindowsPtyFunctions.createPseudoConsole(cols, rows, ptyHandles, ptyResult);
+        if (ptyResult.isFailed()) {
+            throw new NativeException("Could not create pseudo-console: " + ptyResult.getMessage());
         }
-        boolean stderrMerged = (outHandles[3] == 0);
-        return new WindowsPtyProcess(
-                outHandles[0], outHandles[1], outHandles[2],
-                outHandles[3], outHandles[4], pid, stderrMerged);
+        long hPC = ptyHandles[0];
+        long ptyReadHandle = ptyHandles[1];
+        long ptyWriteHandle = ptyHandles[2];
+        long stderrReadHandle = ptyHandles[3];
+
+        // Build the process before the child exists, so its drainer thread can
+        // attach to ptyReadHandle and start consuming ConPTY's startup VT
+        // output before CreateProcessW fires; otherwise cmd.exe's first write
+        // would block on a full pipe.
+        WindowsPtyProcess process = new WindowsPtyProcess(hPC, ptyReadHandle, ptyWriteHandle,
+                stderrReadHandle, /*processHandle=*/0L, /*pid=*/0L, /*stderrMerged=*/true);
+
+        long pid;
+        try {
+            long[] procHandles = new long[1];
+            FunctionResult procResult = new FunctionResult();
+            pid = WindowsPtyFunctions.spawnConPtyProcess(hPC, cmd, env, dir, procHandles, procResult);
+            if (procResult.isFailed()) {
+                throw new NativeException("Could not spawn ConPTY process: " + procResult.getMessage());
+            }
+            process.attachProcess(procHandles[0], pid);
+        } catch (Throwable t) {
+            process.close();
+            throw t;
+        }
+        return process;
     }
 }
