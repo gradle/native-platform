@@ -169,8 +169,16 @@ class WindowsPtyProcessLauncherTest extends NativePlatformSpec {
 
     @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
     def "env isolation: child sees only passed environment"() {
+        // cmd.exe needs SYSTEMROOT (and a sane PATH) to start at all — without
+        // them it exits 255 before running the /c command. So pass the minimum
+        // cmd.exe needs plus our test marker, and verify isolation by asserting
+        // a *different* daemon-only variable (COMPUTERNAME) is NOT visible.
         given:
-        def env = ["MARKER": "hello_marker"]
+        def env = [
+            "SYSTEMROOT": System.getenv("SYSTEMROOT") ?: System.getenv("SystemRoot") ?: "C:\\Windows",
+            "PATH": System.getenv("Path") ?: System.getenv("PATH") ?: "C:\\Windows\\System32",
+            "MARKER": "hello_marker",
+        ]
         def pty = launcher.start(["cmd.exe", "/c", "echo %MARKER%|%COMPUTERNAME%"], env, null, 80, 24)
 
         when:
@@ -205,6 +213,9 @@ class WindowsPtyProcessLauncherTest extends NativePlatformSpec {
 
     @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
     def "working directory: absolute path is honored"() {
+        // ConPTY emits OSC title-set + cursor escapes as part of terminal
+        // init, so the *last* line of output is not necessarily the `cd`
+        // result. Match any line in the captured output instead.
         given:
         def workDir = new File(System.getProperty("java.io.tmpdir"))
         def pty = launcher.start(["cmd.exe", "/c", "cd"], System.getenv(), workDir, 80, 24)
@@ -215,8 +226,8 @@ class WindowsPtyProcessLauncherTest extends NativePlatformSpec {
 
         then:
         exitCode == 0
-        def lastLine = out.readLines().findAll { !it.trim().isEmpty() }.last().trim()
-        lastLine.equalsIgnoreCase(workDir.canonicalPath)
+        def expected = workDir.canonicalPath
+        out.readLines().any { it.toLowerCase().contains(expected.toLowerCase()) }
 
         cleanup:
         pty?.close()
