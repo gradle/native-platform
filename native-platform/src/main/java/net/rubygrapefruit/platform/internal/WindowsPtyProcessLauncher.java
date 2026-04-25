@@ -56,24 +56,29 @@ public class WindowsPtyProcessLauncher implements PtyProcessLauncher {
         long hPC = ptyHandles[0];
         long ptyReadHandle = ptyHandles[1];
         long ptyWriteHandle = ptyHandles[2];
-        long stderrReadHandle = ptyHandles[3];
 
-        // Build the process before the child exists, so its drainer thread can
-        // attach to ptyReadHandle and start consuming ConPTY's startup VT
+        // Construct the process before the child exists so its stdout drainer
+        // can attach to ptyReadHandle and start consuming ConPTY's startup VT
         // output before CreateProcessW fires; otherwise cmd.exe's first write
-        // would block on a full pipe.
+        // would block on a full pipe. The stderr handle is filled in via
+        // attachProcess once spawnConPtyProcess returns: on Windows the stderr
+        // pipe is created inside the spawn so its inheritable write end can be
+        // included in the STARTUPINFOEX handle whitelist.
         WindowsPtyProcess process = new WindowsPtyProcess(hPC, ptyReadHandle, ptyWriteHandle,
-                stderrReadHandle, /*processHandle=*/0L, /*pid=*/0L, /*stderrMerged=*/true);
+                /*stderrReadHandle=*/0L, /*processHandle=*/0L, /*pid=*/0L, /*stderrMerged=*/true);
 
         long pid;
         try {
-            long[] procHandles = new long[1];
+            // Slot 0: process handle. Slot 1: stderr read handle, or 0 if
+            // CreateProcessW rejected the split-stderr handle list and the
+            // implementation fell back to merged stderr.
+            long[] procHandles = new long[2];
             FunctionResult procResult = new FunctionResult();
             pid = WindowsPtyFunctions.spawnConPtyProcess(hPC, cmd, env, dir, procHandles, procResult);
             if (procResult.isFailed()) {
                 throw new NativeException("Could not spawn ConPTY process: " + procResult.getMessage());
             }
-            process.attachProcess(procHandles[0], pid);
+            process.attachProcess(procHandles[0], pid, procHandles[1]);
         } catch (Throwable t) {
             process.close();
             throw t;

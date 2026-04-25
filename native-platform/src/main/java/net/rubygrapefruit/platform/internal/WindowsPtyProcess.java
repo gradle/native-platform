@@ -21,12 +21,14 @@ import net.rubygrapefruit.platform.internal.jni.WindowsPtyFunctions;
 import net.rubygrapefruit.platform.terminal.PtyProcess;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class WindowsPtyProcess implements PtyProcess {
     private static final long INVALID_HANDLE = -1L;
+    private static final InputStream EMPTY_STREAM = new ByteArrayInputStream(new byte[0]);
 
     private volatile long pid;
     private volatile long hPC;
@@ -34,9 +36,13 @@ public class WindowsPtyProcess implements PtyProcess {
     private volatile long ptyWriteHandle;
     private volatile long stderrReadHandle;
     private volatile long processHandle;
-    private final boolean stderrMerged;
+    private volatile boolean stderrMerged;
     private final AtomicBoolean closed = new AtomicBoolean(false);
-    private final Thread drainer;
+    private final BufferedPtyInputStream stdoutStream;
+    private final BufferedPtyInputStream stderrStream;
+    private final WindowsPtyOutputStream outputStream;
+    private final Thread stdoutDrainer;
+    private volatile Thread stderrDrainer;
     private boolean exited;
     private int exitCode;
 
@@ -50,47 +56,98 @@ public class WindowsPtyProcess implements PtyProcess {
         this.processHandle = processHandle;
         this.pid = pid;
         this.stderrMerged = stderrMerged;
-        // Start the drainer immediately, before the child process is attached
+        this.stdoutStream = new BufferedPtyInputStream();
+        this.stderrStream = new BufferedPtyInputStream();
+        this.outputStream = new WindowsPtyOutputStream(this);
+        // Start the stdout drainer immediately, before the child is attached
         // via attachProcess(). ConPTY emits its startup VT output as soon as
-        // the child runs, and would back-pressure the child if no one is
-        // reading from ptyReadHandle.
-        this.drainer = new Thread(this::drainLoop, "windows-pty-drainer");
-        this.drainer.setDaemon(true);
-        this.drainer.start();
+        // the child runs and would back-pressure the child if no one is
+        // reading from ptyReadHandle. The drainer feeds the buffered
+        // InputStream so callers see the bytes; if no caller reads, the bytes
+        // accumulate until close() — which is fine for short-lived children.
+        this.stdoutDrainer = startDrainer(this::drainStdout, "windows-pty-stdout-drainer");
     }
 
-    void attachProcess(long processHandle, long pid) {
+    void attachProcess(long processHandle, long pid, long stderrReadHandleArg) {
         synchronized (this) {
             this.processHandle = processHandle;
             this.pid = pid;
+            this.stderrReadHandle = stderrReadHandleArg;
+            this.stderrMerged = (stderrReadHandleArg == 0L || stderrReadHandleArg == INVALID_HANDLE);
+            if (!this.stderrMerged) {
+                this.stderrDrainer = startDrainer(this::drainStderr, "windows-pty-stderr-drainer");
+            } else {
+                this.stderrStream.signalEof();
+            }
         }
     }
 
-    private void drainLoop() {
+    private static Thread startDrainer(Runnable r, String name) {
+        Thread t = new Thread(r, name);
+        t.setDaemon(true);
+        t.start();
+        return t;
+    }
+
+    private void drainStdout() {
+        drain(this::currentReadHandle, stdoutStream);
+    }
+
+    private void drainStderr() {
+        drain(this::currentStderrHandle, stderrStream);
+    }
+
+    private long currentReadHandle() {
+        return ptyReadHandle;
+    }
+
+    private long currentStderrHandle() {
+        return stderrReadHandle;
+    }
+
+    private static void drain(java.util.function.LongSupplier handleSupplier, BufferedPtyInputStream sink) {
         byte[] buf = new byte[8192];
-        while (true) {
-            long h = ptyReadHandle;
-            if (h == 0 || h == INVALID_HANDLE) return;
-            FunctionResult r = new FunctionResult();
-            int n = WindowsPtyFunctions.nativeRead(h, buf, 0, buf.length, r);
-            if (n < 0) return;
-            if (r.isFailed()) return;
+        try {
+            while (true) {
+                long h = handleSupplier.getAsLong();
+                if (h == 0L || h == INVALID_HANDLE) {
+                    sink.signalEof();
+                    return;
+                }
+                FunctionResult r = new FunctionResult();
+                int n = WindowsPtyFunctions.nativeRead(h, buf, 0, buf.length, r);
+                if (r.isFailed()) {
+                    sink.signalError(new IOException(r.getMessage()));
+                    return;
+                }
+                if (n < 0) {
+                    sink.signalEof();
+                    return;
+                }
+                sink.appendChunk(buf, n);
+            }
+        } catch (Throwable t) {
+            sink.signalError(new IOException(t));
         }
+    }
+
+    public long getPtyWriteHandle() {
+        return ptyWriteHandle;
     }
 
     @Override
     public OutputStream getOutputStream() {
-        throw new UnsupportedOperationException("not yet implemented");
+        return outputStream;
     }
 
     @Override
     public InputStream getInputStream() {
-        throw new UnsupportedOperationException("not yet implemented");
+        return stdoutStream;
     }
 
     @Override
     public InputStream getErrorStream() {
-        return new ByteArrayInputStream(new byte[0]);
+        return stderrMerged ? EMPTY_STREAM : stderrStream;
     }
 
     @Override
@@ -158,6 +215,7 @@ public class WindowsPtyProcess implements PtyProcess {
         long stderrH;
         long pcH;
         long procH;
+        Thread stderrThread;
         synchronized (this) {
             readH = ptyReadHandle;
             ptyReadHandle = INVALID_HANDLE;
@@ -168,6 +226,7 @@ public class WindowsPtyProcess implements PtyProcess {
             pcH = hPC;
             hPC = INVALID_HANDLE;
             procH = processHandle;
+            stderrThread = stderrDrainer;
         }
 
         // Kill the child first so ConPTY's writer side stops producing.
@@ -177,7 +236,7 @@ public class WindowsPtyProcess implements PtyProcess {
         }
 
         // ClosePseudoConsole comes before CloseHandle on the master handles:
-        // ConPTY shuts down its writer end as part of teardown, our drainer's
+        // ConPTY shuts down its writer end as part of teardown, the drainer's
         // blocked ReadFile returns EOF, and the drainer exits cleanly. Closing
         // the master handles first while the drainer is still parked in
         // ReadFile would yank the handle from under an in-flight syscall, with
@@ -186,7 +245,8 @@ public class WindowsPtyProcess implements PtyProcess {
             WindowsPtyFunctions.closePseudoConsole(pcH, new FunctionResult());
         }
         try {
-            drainer.join(2000);
+            stdoutDrainer.join(2000);
+            if (stderrThread != null) stderrThread.join(2000);
         } catch (InterruptedException ignored) {
             Thread.currentThread().interrupt();
         }
@@ -215,5 +275,8 @@ public class WindowsPtyProcess implements PtyProcess {
                 processHandle = INVALID_HANDLE;
             }
         }
+
+        stdoutStream.signalEof();
+        stderrStream.signalEof();
     }
 }

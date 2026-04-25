@@ -1351,6 +1351,20 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_createPseudoCo
 // Attach a child process to an already-created ConPTY. The Java caller is
 // expected to have started a drainer thread on the master read handle before
 // calling this, see createPseudoConsole's contract.
+//
+// On the way in we also create a pipe whose write end the child inherits as
+// stderr. The first CreateProcessW attempt sets STARTF_USESTDHANDLES with
+// hStdError pointing at that write end and uses
+// PROC_THREAD_ATTRIBUTE_HANDLE_LIST to whitelist the inherited handle, which
+// keeps unrelated handles from leaking into the child. If that combination
+// is rejected — the interaction between PSEUDOCONSOLE + STARTF_USESTDHANDLES
+// is poorly documented and varies by Windows build — we fall back to a
+// merged stderr (ConPTY on all three child fds) and signal the caller via
+// outHandles[1] = 0 so the Java side knows getErrorStream() should be empty.
+//
+// outHandles layout on success:
+//   [0] processHandle
+//   [1] stderrReadHandle (0 if stderr was merged into the ConPTY)
 JNIEXPORT jlong JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_spawnConPtyProcess(
         JNIEnv* env, jclass target,
@@ -1371,6 +1385,9 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_spawnConPtyPro
     wchar_t* cmdLine = NULL;
     wchar_t* envBlock = NULL;
     wchar_t* wdStr = NULL;
+    HANDLE stderrRead = INVALID_HANDLE_VALUE;
+    HANDLE stderrWrite = INVALID_HANDLE_VALUE;
+    BOOL stderrSplit = FALSE;
     PROCESS_INFORMATION pi;
     ZeroMemory(&pi, sizeof(pi));
     BOOL processCreated = FALSE;
@@ -1388,20 +1405,52 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_spawnConPtyPro
             if (wdStr == NULL) break;
         }
 
-        InitializeProcThreadAttributeList(NULL, 1, 0, &attrListSize);
+        SECURITY_ATTRIBUTES sa;
+        sa.nLength = sizeof(sa);
+        sa.lpSecurityDescriptor = NULL;
+        sa.bInheritHandle = TRUE;
+        if (CreatePipe(&stderrRead, &stderrWrite, &sa, 65536)) {
+            // The parent's read end stays in this process; mark it
+            // non-inheritable so concurrent CreateProcess on another thread
+            // cannot leak it into an unrelated child.
+            SetHandleInformation(stderrRead, HANDLE_FLAG_INHERIT, 0);
+        } else {
+            // Pipe creation failed — fall through to the merged-stderr path
+            // rather than abort the spawn entirely.
+            stderrRead = INVALID_HANDLE_VALUE;
+            stderrWrite = INVALID_HANDLE_VALUE;
+        }
+
+        // Two attribute slots: PSEUDOCONSOLE (always) and HANDLE_LIST (only
+        // when we have a stderr write end we want to whitelist).
+        DWORD attrSlots = (stderrWrite != INVALID_HANDLE_VALUE) ? 2 : 1;
+        InitializeProcThreadAttributeList(NULL, attrSlots, 0, &attrListSize);
         attrList = (LPPROC_THREAD_ATTRIBUTE_LIST) malloc(attrListSize);
         if (attrList == NULL) {
             mark_failed_with_message(env, "could not allocate attribute list", result);
             break;
         }
-        if (!InitializeProcThreadAttributeList(attrList, 1, 0, &attrListSize)) {
+        if (!InitializeProcThreadAttributeList(attrList, attrSlots, 0, &attrListSize)) {
             mark_failed_with_errno(env, "InitializeProcThreadAttributeList failed", result);
             free(attrList); attrList = NULL;
             break;
         }
         if (!UpdateProcThreadAttribute(attrList, 0, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE, hPC, sizeof(HPCON), NULL, NULL)) {
-            mark_failed_with_errno(env, "UpdateProcThreadAttribute failed", result);
+            mark_failed_with_errno(env, "UpdateProcThreadAttribute (PSEUDOCONSOLE) failed", result);
             break;
+        }
+        HANDLE inheritList[1];
+        if (stderrWrite != INVALID_HANDLE_VALUE) {
+            inheritList[0] = stderrWrite;
+            if (!UpdateProcThreadAttribute(attrList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                           inheritList, sizeof(inheritList), NULL, NULL)) {
+                // HANDLE_LIST is what makes the bInheritHandles=TRUE
+                // call below safe (it restricts the inherited set to
+                // exactly stderrWrite). If we cannot set it, drop the
+                // split-stderr attempt.
+                CloseHandle(stderrRead); stderrRead = INVALID_HANDLE_VALUE;
+                CloseHandle(stderrWrite); stderrWrite = INVALID_HANDLE_VALUE;
+            }
         }
 
         STARTUPINFOEXW siEx;
@@ -1410,19 +1459,74 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_spawnConPtyPro
         siEx.lpAttributeList = attrList;
 
         DWORD flags = EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT;
-        if (!CreateProcessW(NULL, cmdLine, NULL, NULL, FALSE, flags,
-                            envBlock, wdStr, &siEx.StartupInfo, &pi)) {
-            mark_failed_with_errno(env, "CreateProcessW failed", result);
-            break;
+        BOOL createdSplit = FALSE;
+        if (stderrWrite != INVALID_HANDLE_VALUE) {
+            siEx.StartupInfo.dwFlags |= STARTF_USESTDHANDLES;
+            siEx.StartupInfo.hStdInput = NULL;
+            siEx.StartupInfo.hStdOutput = NULL;
+            siEx.StartupInfo.hStdError = stderrWrite;
+            // bInheritHandles MUST be TRUE for HANDLE_LIST to take effect.
+            if (CreateProcessW(NULL, cmdLine, NULL, NULL, TRUE, flags,
+                               envBlock, wdStr, &siEx.StartupInfo, &pi)) {
+                createdSplit = TRUE;
+                processCreated = TRUE;
+                stderrSplit = TRUE;
+            } else {
+                // Reset and retry merged. Some Windows builds reject the
+                // PSEUDOCONSOLE + STARTF_USESTDHANDLES + HANDLE_LIST combo.
+                siEx.StartupInfo.dwFlags &= ~STARTF_USESTDHANDLES;
+                siEx.StartupInfo.hStdError = NULL;
+                CloseHandle(stderrRead); stderrRead = INVALID_HANDLE_VALUE;
+                CloseHandle(stderrWrite); stderrWrite = INVALID_HANDLE_VALUE;
+                // Rebuild attribute list with only PSEUDOCONSOLE — the HANDLE_LIST
+                // we set is no longer valid because we just closed the handle.
+                DeleteProcThreadAttributeList(attrList);
+                free(attrList); attrList = NULL;
+                attrListSize = 0;
+                InitializeProcThreadAttributeList(NULL, 1, 0, &attrListSize);
+                attrList = (LPPROC_THREAD_ATTRIBUTE_LIST) malloc(attrListSize);
+                if (attrList == NULL) {
+                    mark_failed_with_message(env, "could not allocate attribute list", result);
+                    break;
+                }
+                if (!InitializeProcThreadAttributeList(attrList, 1, 0, &attrListSize)) {
+                    mark_failed_with_errno(env, "InitializeProcThreadAttributeList failed", result);
+                    free(attrList); attrList = NULL;
+                    break;
+                }
+                if (!UpdateProcThreadAttribute(attrList, 0, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
+                                               hPC, sizeof(HPCON), NULL, NULL)) {
+                    mark_failed_with_errno(env, "UpdateProcThreadAttribute (PSEUDOCONSOLE) failed", result);
+                    break;
+                }
+                siEx.lpAttributeList = attrList;
+            }
         }
-        processCreated = TRUE;
+
+        if (!createdSplit) {
+            if (!CreateProcessW(NULL, cmdLine, NULL, NULL, FALSE, flags,
+                                envBlock, wdStr, &siEx.StartupInfo, &pi)) {
+                mark_failed_with_errno(env, "CreateProcessW failed", result);
+                break;
+            }
+            processCreated = TRUE;
+        }
 
         // We do not need the thread handle.
         if (pi.hThread != NULL) { CloseHandle(pi.hThread); pi.hThread = NULL; }
 
-        jlong handles[1];
+        // Parent does not write to its copy of the stderr write end.
+        if (stderrSplit && stderrWrite != INVALID_HANDLE_VALUE) {
+            CloseHandle(stderrWrite);
+            stderrWrite = INVALID_HANDLE_VALUE;
+        }
+
+        jlong handles[2];
         handles[0] = (jlong) (intptr_t) pi.hProcess;
-        env->SetLongArrayRegion(outHandles, 0, 1, handles);
+        handles[1] = stderrSplit
+                ? (jlong) (intptr_t) stderrRead
+                : 0;
+        env->SetLongArrayRegion(outHandles, 0, 2, handles);
         ok = TRUE;
     } while (0);
 
@@ -1439,8 +1543,13 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_spawnConPtyPro
             TerminateProcess(pi.hProcess, 1);
             CloseHandle(pi.hProcess);
         }
+        if (stderrRead != INVALID_HANDLE_VALUE) CloseHandle(stderrRead);
+        if (stderrWrite != INVALID_HANDLE_VALUE) CloseHandle(stderrWrite);
         return 0;
     }
+    // On the merged-stderr success path we already closed both ends; on the
+    // split-stderr success path we already closed stderrWrite. Nothing left
+    // to clean up here.
     return (jlong) pi.dwProcessId;
 }
 
