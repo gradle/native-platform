@@ -606,9 +606,12 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_createPty(
     }
 }
 
-// Forks and execs the child inside an already-allocated PTY. Closes
-// slaveFd and stderrWriteFd in the parent regardless of outcome — the
-// child gets its own copies via fork.
+// Forks and execs the child inside an already-allocated PTY. On success,
+// the parent keeps slaveFd and stderrWriteFd open — Java closes them
+// from a watcher thread once waitpid has returned, so the slave stays
+// open through the child's own exit and FreeBSD's pty driver cannot
+// flush its line discipline buffer before the parent has read it.
+// On failure, both fds are closed here.
 JNIEXPORT jlong JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnInPty(
         JNIEnv* env, jclass target,
@@ -780,10 +783,13 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnInPty(
         returnPid = (jlong) pid;
     } while (0);
 
-    // Parent always closes the slave + stderr-write fds — the child has
-    // its own copies via fork.
-    close(slaveFd);
-    close(stderrWriteFd);
+    // On failure, close slave + stderr-write here. On success, leave
+    // them open — Java's watcher thread closes them after waitpid so
+    // the slave stays alive across the child's own exit.
+    if (failed) {
+        close(slaveFd);
+        close(stderrWriteFd);
+    }
     if (diagPipe[0] >= 0) close(diagPipe[0]);
     if (diagPipe[1] >= 0) close(diagPipe[1]);
 

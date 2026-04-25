@@ -23,59 +23,45 @@ import net.rubygrapefruit.platform.terminal.PtyProcess;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PosixPtyProcess implements PtyProcess {
     private volatile long pid;
     private volatile int masterFd;
+    private volatile int slaveFd;
     private volatile int stderrReadFd;
+    private volatile int stderrWriteFd;
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final BufferedPtyInputStream stdoutStream;
     private final BufferedPtyInputStream stderrStream;
     private final NativePtyOutputStream outputStream;
     private final Thread stdoutDrainer;
     private final Thread stderrDrainer;
-    private final CountDownLatch drainersReady;
+    private final Thread waiter;
+    private final Object exitLock = new Object();
     private boolean exited;
     private int exitCode;
 
-    public PosixPtyProcess(int masterFd, int stderrReadFd, long pid) {
+    public PosixPtyProcess(int masterFd, int slaveFd, int stderrReadFd, int stderrWriteFd) {
         this.masterFd = masterFd;
+        this.slaveFd = slaveFd;
         this.stderrReadFd = stderrReadFd;
-        this.pid = pid;
+        this.stderrWriteFd = stderrWriteFd;
+        this.pid = 0L;
         this.stdoutStream = new BufferedPtyInputStream();
         this.stderrStream = new BufferedPtyInputStream();
         this.outputStream = new NativePtyOutputStream(this);
-        this.drainersReady = new CountDownLatch(2);
-        // The drainers must be parked in nativeRead before the child can
-        // exit, otherwise FreeBSD-style PTYs that flush on slave close drop
-        // the child's output. The CountDownLatch at the head of each drainer
-        // closes the gap that Thread.start() alone leaves open between the
-        // OS thread existing and it reaching its first syscall — the caller
-        // (PosixPtyProcessLauncher) waits on awaitDrainersReady() before
-        // invoking spawnInPty.
         this.stdoutDrainer = startDrainer(masterFd, stdoutStream, "pty-stdout-drainer-" + masterFd);
         this.stderrDrainer = startDrainer(stderrReadFd, stderrStream, "pty-stderr-drainer-" + stderrReadFd);
+        this.waiter = new Thread(this::waitForChild, "pty-waiter");
+        this.waiter.setDaemon(true);
     }
 
-    private Thread startDrainer(int fd, BufferedPtyInputStream sink, String name) {
-        Thread t = new Thread(() -> {
-            drainersReady.countDown();
-            drain(fd, sink);
-        }, name);
+    private static Thread startDrainer(int fd, BufferedPtyInputStream sink, String name) {
+        Thread t = new Thread(() -> drain(fd, sink), name);
         t.setDaemon(true);
         t.start();
         return t;
-    }
-
-    void awaitDrainersReady() {
-        try {
-            drainersReady.await(5, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
     }
 
     private static void drain(int fd, BufferedPtyInputStream sink) {
@@ -100,8 +86,44 @@ public class PosixPtyProcess implements PtyProcess {
     }
 
     void attachPid(long pid) {
-        synchronized (this) {
-            this.pid = pid;
+        this.pid = pid;
+        this.waiter.start();
+    }
+
+    private void waitForChild() {
+        long childPid;
+        synchronized (exitLock) {
+            childPid = pid;
+        }
+        FunctionResult result = new FunctionResult();
+        int code = PosixPtyFunctions.waitPid(childPid, result);
+        synchronized (exitLock) {
+            if (!result.isFailed()) {
+                exitCode = code;
+            }
+            exited = true;
+            exitLock.notifyAll();
+        }
+        // Slave + stderr-write were held open in the parent until the child
+        // was reaped. Closing them now drops the slave's last reference, so
+        // master sees EOF and the drainers exit. Holding them this long is
+        // what closes the FreeBSD-style "discard on slave close before any
+        // reader is parked" race: the slave never fully closes until the
+        // parent decides to, and at that point the child is already gone
+        // and any pending output has flowed through the line discipline.
+        int s;
+        int sw;
+        synchronized (exitLock) {
+            s = slaveFd;
+            slaveFd = -1;
+            sw = stderrWriteFd;
+            stderrWriteFd = -1;
+        }
+        if (s >= 0) {
+            PosixPtyFunctions.closeFd(s, new FunctionResult());
+        }
+        if (sw >= 0) {
+            PosixPtyFunctions.closeFd(sw, new FunctionResult());
         }
     }
 
@@ -144,49 +166,52 @@ public class PosixPtyProcess implements PtyProcess {
     }
 
     @Override
-    public synchronized int waitFor() throws InterruptedException {
-        if (exited) {
+    public int waitFor() throws InterruptedException {
+        synchronized (exitLock) {
+            while (!exited) {
+                exitLock.wait();
+            }
             return exitCode;
         }
-        FunctionResult result = new FunctionResult();
-        int code = PosixPtyFunctions.waitPid(pid, result);
-        if (result.isFailed()) {
-            throw new NativeException("Could not wait for PTY process: " + result.getMessage());
-        }
-        exitCode = code;
-        exited = true;
-        return exitCode;
     }
 
     @Override
-    public synchronized void destroy() {
-        if (exited || pid <= 0) {
-            return;
+    public void destroy() {
+        long p;
+        synchronized (exitLock) {
+            if (exited || pid <= 0) return;
+            p = pid;
         }
         FunctionResult result = new FunctionResult();
-        PosixPtyFunctions.killProcess(pid, PosixPtyFunctions.SIGTERM, result);
+        PosixPtyFunctions.killProcess(p, PosixPtyFunctions.SIGTERM, result);
     }
 
     @Override
-    public synchronized void destroyForcibly() {
-        if (exited || pid <= 0) {
-            return;
+    public void destroyForcibly() {
+        long p;
+        synchronized (exitLock) {
+            if (exited || pid <= 0) return;
+            p = pid;
         }
         FunctionResult result = new FunctionResult();
-        PosixPtyFunctions.killProcess(pid, PosixPtyFunctions.SIGKILL, result);
+        PosixPtyFunctions.killProcess(p, PosixPtyFunctions.SIGKILL, result);
     }
 
     @Override
-    public synchronized boolean isAlive() {
-        return !exited;
-    }
-
-    @Override
-    public synchronized int exitValue() {
-        if (!exited) {
-            throw new IllegalStateException("Process has not exited");
+    public boolean isAlive() {
+        synchronized (exitLock) {
+            return !exited;
         }
-        return exitCode;
+    }
+
+    @Override
+    public int exitValue() {
+        synchronized (exitLock) {
+            if (!exited) {
+                throw new IllegalStateException("Process has not exited");
+            }
+            return exitCode;
+        }
     }
 
     @Override
@@ -194,25 +219,24 @@ public class PosixPtyProcess implements PtyProcess {
         if (!closed.compareAndSet(false, true)) {
             return;
         }
-        // Kill+reap before closing the master fd. The drainers are parked in
-        // read(masterFd) / read(stderrReadFd); on POSIX, close(fd) does not
-        // reliably unblock another thread's blocked read on that same fd, so
-        // we lean on the slave-side close instead — when the child dies the
-        // slave fds close, the master sees EOF/EIO, nativeRead returns -1,
-        // each drainer signals EOF and exits.
-        synchronized (this) {
-            if (!exited && pid > 0) {
-                FunctionResult killResult = new FunctionResult();
-                PosixPtyFunctions.killProcess(pid, PosixPtyFunctions.SIGKILL, killResult);
-                FunctionResult waitResult = new FunctionResult();
-                int code = PosixPtyFunctions.waitPid(pid, waitResult);
-                if (!waitResult.isFailed()) {
-                    exitCode = code;
-                    exited = true;
-                }
-            }
+        // Kill the child if still alive. The waiter thread will then return
+        // from waitpid, mark exited, close the parent's slave + stderr-write
+        // copies, the drainers see EOF and exit.
+        long p;
+        synchronized (exitLock) {
+            p = exited ? 0 : pid;
         }
-        joinDrainers();
+        if (p > 0) {
+            FunctionResult killResult = new FunctionResult();
+            PosixPtyFunctions.killProcess(p, PosixPtyFunctions.SIGKILL, killResult);
+        }
+        try {
+            waiter.join(5000);
+            stdoutDrainer.join(2000);
+            stderrDrainer.join(2000);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
 
         int master;
         int stderr;
@@ -223,21 +247,10 @@ public class PosixPtyProcess implements PtyProcess {
             stderrReadFd = -1;
         }
         if (master >= 0) {
-            FunctionResult result = new FunctionResult();
-            PosixPtyFunctions.closeFd(master, result);
+            PosixPtyFunctions.closeFd(master, new FunctionResult());
         }
         if (stderr >= 0) {
-            FunctionResult result = new FunctionResult();
-            PosixPtyFunctions.closeFd(stderr, result);
-        }
-    }
-
-    private void joinDrainers() {
-        try {
-            stdoutDrainer.join(2000);
-            stderrDrainer.join(2000);
-        } catch (InterruptedException ignored) {
-            Thread.currentThread().interrupt();
+            PosixPtyFunctions.closeFd(stderr, new FunctionResult());
         }
     }
 }
