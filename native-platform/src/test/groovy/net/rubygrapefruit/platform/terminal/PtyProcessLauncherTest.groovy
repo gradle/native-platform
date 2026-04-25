@@ -284,7 +284,7 @@ class PtyProcessLauncherTest extends NativePlatformSpec {
 
     def "master read returns EOF after child exit (no IOException)"() {
         given:
-        def pty = launcher.start([shBinary(), "-c", "echo done"], System.getenv(), null, 80, 24)
+        def pty = launcher.start([shBinary(), "-c", "echo done; sleep 0.2"], System.getenv(), null, 80, 24)
 
         when:
         def out = pty.inputStream.text
