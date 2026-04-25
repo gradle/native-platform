@@ -1307,11 +1307,11 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_spawnConPty(
     sa.lpSecurityDescriptor = NULL;
     sa.bInheritHandle = TRUE;
 
-    if (!CreatePipe(&inputRead, &inputWrite, &sa, 0)) {
+    if (!CreatePipe(&inputRead, &inputWrite, &sa, 65536)) {
         mark_failed_with_errno(env, "could not create ConPTY input pipe", result);
         goto cleanup;
     }
-    if (!CreatePipe(&outputRead, &outputWrite, &sa, 0)) {
+    if (!CreatePipe(&outputRead, &outputWrite, &sa, 65536)) {
         mark_failed_with_errno(env, "could not create ConPTY output pipe", result);
         goto cleanup;
     }
