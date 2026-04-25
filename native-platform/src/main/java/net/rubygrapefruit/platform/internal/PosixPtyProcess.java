@@ -90,18 +90,24 @@ public class PosixPtyProcess implements PtyProcess {
         this.waiter.start();
     }
 
-    /** Brief yield to give the drainer threads a chance to reach their
-     * first nativeRead syscall before the launcher proceeds to spawn.
-     * Even with PosixPtyProcess constructed before fork, the drainer
-     * threads are merely runnable until the OS scheduler picks them; on
-     * a loaded multi-tenant agent (4 concurrent launcher.start calls)
-     * the scheduler can leave a drainer parked-on-runqueue while the
-     * fork goes through, with a fast-exit child writing-and-dying
-     * before any read is issued. */
+    // WORKAROUND. POSIX gives no portable primitive for "wait until thread
+    // X has entered blocking syscall Y", and we need the drainer threads
+    // parked in their first nativeRead before the child can write-and-exit
+    // — otherwise strict POSIX implementations (FreeBSD's pty driver)
+    // flush the line discipline buffer and we lose the child's output.
+    // Linux and macOS preserve buffered output across slave close in their
+    // current pty drivers, so they don't observe the race and pay nothing.
+    // Anywhere else we sleep ~50 ms, which is empirically enough to let
+    // the drainer threads reach their syscall under 4-way concurrent
+    // spawn pressure, and only ~50 ms slower than the structural cost on
+    // the platforms that need it.
     void awaitDrainersScheduled() {
+        if (Platform.current().isLinux() || Platform.current().isMacOs()) {
+            return;
+        }
         Thread.yield();
         try {
-            Thread.sleep(5);
+            Thread.sleep(50);
         } catch (InterruptedException ignored) {
             Thread.currentThread().interrupt();
         }
