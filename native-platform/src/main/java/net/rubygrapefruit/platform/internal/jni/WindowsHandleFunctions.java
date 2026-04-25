@@ -6,4 +6,6 @@ public class WindowsHandleFunctions {
     public static native void markStandardHandlesUninheritable(FunctionResult result);
 
     public static native void restoreStandardHandles(FunctionResult result);
+
+    public static native int getProcessHandleCount();
 }

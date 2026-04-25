@@ -970,6 +970,15 @@ JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsHandleFunctions_restoreStandardHandles(JNIEnv* env, jclass target, jobject result) {
 }
 
+JNIEXPORT jint JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsHandleFunctions_getProcessHandleCount(JNIEnv* env, jclass target) {
+    DWORD count = 0;
+    if (!GetProcessHandleCount(GetCurrentProcess(), &count)) {
+        return -1;
+    }
+    return (jint) count;
+}
+
 HKEY get_key_from_ordinal(jint keyNum) {
     return keyNum == 0 ? HKEY_LOCAL_MACHINE : HKEY_CURRENT_USER;
 }

@@ -19,12 +19,15 @@ package net.rubygrapefruit.platform.terminal
 import net.rubygrapefruit.platform.NativeException
 import net.rubygrapefruit.platform.NativePlatformSpec
 import net.rubygrapefruit.platform.internal.Platform
+import net.rubygrapefruit.platform.internal.jni.WindowsHandleFunctions
 import net.rubygrapefruit.platform.internal.jni.WindowsPtyFunctions
 import spock.lang.IgnoreIf
 import spock.lang.Timeout
 
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 @Timeout(30)
 @IgnoreIf({ !Platform.current().windows })
@@ -456,6 +459,212 @@ exit 1
 
         cleanup:
         pty?.close()
+    }
+
+    // ---- Tier 6.3 — Lifecycle and resource safety ----
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "destroy() terminates a sleeping child within reasonable time"() {
+        given:
+        def pty = launcher.start(
+                ["powershell", "-NoProfile", "-Command", "Start-Sleep -Seconds 60"],
+                System.getenv(), null, 80, 24)
+        def drainer = Executors.newSingleThreadExecutor()
+        drainer.submit({ pty.inputStream.text } as Runnable)
+        Thread.sleep(500)
+
+        when:
+        long start = System.currentTimeMillis()
+        pty.destroy()
+        def exitCode = pty.waitFor()
+        long elapsed = System.currentTimeMillis() - start
+
+        then:
+        !pty.isAlive()
+        exitCode != 0
+        elapsed < 5_000
+
+        cleanup:
+        drainer?.shutdownNow()
+        pty?.close()
+    }
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "destroy() escalates to TerminateProcess when the child ignores Ctrl+C"() {
+        // PowerShell with TreatControlCAsInput=$true and an explicit
+        // CancelKeyPress handler that sets Cancel=$true delivers Ctrl+C as a
+        // regular character on stdin and short-circuits the cancel event, so
+        // Start-Sleep keeps running until the parent's grace window expires
+        // and TerminateProcess fires.
+        given:
+        def script = '''
+[Console]::TreatControlCAsInput = $true
+$null = Register-ObjectEvent -InputObject ([Console]) -EventName CancelKeyPress -Action { $eventArgs.Cancel = $true }
+Start-Sleep -Seconds 60
+'''
+        def pty = launcher.start(
+                ["powershell", "-NoProfile", "-Command", script],
+                System.getenv(), null, 80, 24)
+        def drainer = Executors.newSingleThreadExecutor()
+        drainer.submit({ pty.inputStream.text } as Runnable)
+        Thread.sleep(500)
+
+        when:
+        long start = System.currentTimeMillis()
+        pty.destroy()
+        def exitCode = pty.waitFor()
+        long elapsed = System.currentTimeMillis() - start
+
+        then:
+        !pty.isAlive()
+        // 500 ms grace + TerminateProcess should land well under 5 s.
+        elapsed < 5_000
+        // TerminateProcess uses exit code 1 on the destroyProcess fallback.
+        exitCode == 1
+
+        cleanup:
+        drainer?.shutdownNow()
+        pty?.close()
+    }
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "destroyForcibly() terminates immediately even when the child ignores Ctrl+C"() {
+        given:
+        def script = '''
+[Console]::TreatControlCAsInput = $true
+$null = Register-ObjectEvent -InputObject ([Console]) -EventName CancelKeyPress -Action { $eventArgs.Cancel = $true }
+Start-Sleep -Seconds 60
+'''
+        def pty = launcher.start(
+                ["powershell", "-NoProfile", "-Command", script],
+                System.getenv(), null, 80, 24)
+        def drainer = Executors.newSingleThreadExecutor()
+        drainer.submit({ pty.inputStream.text } as Runnable)
+        Thread.sleep(500)
+
+        when:
+        long start = System.currentTimeMillis()
+        pty.destroyForcibly()
+        def exitCode = pty.waitFor()
+        long elapsed = System.currentTimeMillis() - start
+
+        then:
+        !pty.isAlive()
+        // No grace period — termination should be near-instant.
+        elapsed < 2_000
+        exitCode == 1
+
+        cleanup:
+        drainer?.shutdownNow()
+        pty?.close()
+    }
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "close() is idempotent"() {
+        given:
+        def pty = launcher.start(["cmd.exe", "/c", "exit 0"], System.getenv(), null, 80, 24)
+        def drainer = Executors.newSingleThreadExecutor()
+        drainer.submit({ pty.inputStream.text } as Runnable)
+        pty.waitFor()
+        drainer.shutdown()
+        drainer.awaitTermination(5, TimeUnit.SECONDS)
+
+        when:
+        pty.close()
+        pty.close()
+        pty.close()
+
+        then:
+        noExceptionThrown()
+    }
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "close() unblocks a thread blocked in inputStream.read"() {
+        given:
+        def pty = launcher.start(
+                ["powershell", "-NoProfile", "-Command", "Start-Sleep -Seconds 60"],
+                System.getenv(), null, 80, 24)
+        Thread.sleep(300)
+        def readerException = new AtomicReference<Throwable>()
+        def readerDone = new CountDownLatch(1)
+        def reader = new Thread({
+            try {
+                byte[] b = new byte[256]
+                while (pty.inputStream.read(b) >= 0) {
+                    // drain
+                }
+            } catch (Throwable t) {
+                readerException.set(t)
+            } finally {
+                readerDone.countDown()
+            }
+        })
+        reader.start()
+        Thread.sleep(300)
+
+        when:
+        pty.destroyForcibly()
+        pty.close()
+        boolean finished = readerDone.await(5, TimeUnit.SECONDS)
+
+        then:
+        finished
+    }
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "close() with active read on a long-running child completes quickly"() {
+        given:
+        def pty = launcher.start(
+                ["powershell", "-NoProfile", "-Command", "Start-Sleep -Seconds 60"],
+                System.getenv(), null, 80, 24)
+        def drainer = Executors.newSingleThreadExecutor()
+        drainer.submit({ pty.inputStream.text } as Runnable)
+        Thread.sleep(500)
+
+        when:
+        long start = System.currentTimeMillis()
+        pty.close()
+        long elapsed = System.currentTimeMillis() - start
+
+        then:
+        !pty.isAlive()
+        elapsed < 5_000
+
+        cleanup:
+        drainer?.shutdownNow()
+    }
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "spawn/close loop does not leak HANDLEs"() {
+        // Warm up the JVM and any one-shot allocations so the baseline is
+        // stable; then run the measured loop and compare.
+        given:
+        5.times {
+            def p = launcher.start(["cmd.exe", "/c", "exit 0"], System.getenv(), null, 80, 24)
+            def d = Executors.newSingleThreadExecutor()
+            d.submit({ p.inputStream.text } as Runnable)
+            p.waitFor()
+            d.shutdownNow()
+            p.close()
+        }
+        int before = WindowsHandleFunctions.getProcessHandleCount()
+        assert before > 0
+
+        when:
+        50.times {
+            def p = launcher.start(["cmd.exe", "/c", "exit 0"], System.getenv(), null, 80, 24)
+            def d = Executors.newSingleThreadExecutor()
+            d.submit({ p.inputStream.text } as Runnable)
+            p.waitFor()
+            d.shutdownNow()
+            p.close()
+        }
+        int after = WindowsHandleFunctions.getProcessHandleCount()
+
+        then:
+        // Tolerance covers JVM-internal handles allocated during the loop
+        // (test-framework, GC, etc.). Per the plan, < 20 is expected.
+        (after - before) < 20
     }
 
     private static byte[] readAllBytes(InputStream input) {
