@@ -635,84 +635,58 @@ Start-Sleep -Seconds 60
     }
 
     @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
-    def "createPseudoConsole + closePseudoConsole loop does not leak HANDLEs"() {
-        // Diagnostic for the spawn/close leak test below. Exercises only the
-        // ConPTY allocate/free pair — no CreateProcessW, no Java drainer
-        // threads, no PtyProcess. If this rate is ≈ 0, the steady-state
-        // leak in the spawn/close test is in our process-spawn / drainer /
-        // close path. If this rate is ≈ 1 per iteration, the leak is
-        // CreatePseudoConsole / ClosePseudoConsole itself (a ConPTY
-        // artefact we cannot fix on our side).
+    def "spawn/close loop adds no HANDLEs beyond the ConPTY baseline"() {
+        // The Windows ConPTY API itself adds 1 HANDLE per
+        // CreatePseudoConsole/ClosePseudoConsole pair to
+        // GetProcessHandleCount on this CI configuration — verified by
+        // running the same loop with no CreateProcessW, no drainers, and
+        // no Java PtyProcess (see the per-iter rate logged below). It is
+        // a kernel/ConPTY-side artefact, not something a CloseHandle on
+        // the Java side can recover.
+        //
+        // What this test actually pins, then, is that the full
+        // spawn → drainer → watcher → CreateProcessW → close path adds
+        // *no further* per-spawn HANDLEs on top of that ConPTY baseline.
+        // A real bug (a missing CloseHandle on ptyReadHandle,
+        // ptyWriteHandle, processHandle, or pi.hThread) shows up as a
+        // higher rate than the ConPTY-only baseline.
         given:
-        def runOnce = {
+        def closeOnly = {
             long[] handles = new long[4]
-            def result = new net.rubygrapefruit.platform.internal.FunctionResult()
-            WindowsPtyFunctions.createPseudoConsole(80, 24, handles, result)
-            assert !result.failed : result.message
-            // Mirror the production close ordering: ClosePseudoConsole first
-            // (which closes ConPTY's writer end), then CloseHandle on the
-            // master read/write handles we hold.
+            def r = new net.rubygrapefruit.platform.internal.FunctionResult()
+            WindowsPtyFunctions.createPseudoConsole(80, 24, handles, r)
+            assert !r.failed : r.message
             WindowsPtyFunctions.closePseudoConsole(handles[0], new net.rubygrapefruit.platform.internal.FunctionResult())
             WindowsPtyFunctions.closeHandle(handles[1], new net.rubygrapefruit.platform.internal.FunctionResult())
             WindowsPtyFunctions.closeHandle(handles[2], new net.rubygrapefruit.platform.internal.FunctionResult())
         }
-        20.times { runOnce() }
-        int before = WindowsHandleFunctions.getProcessHandleCount()
-        assert before > 0
-
-        when:
-        50.times { runOnce() }
-        int after = WindowsHandleFunctions.getProcessHandleCount()
-
-        then:
-        double perIter = (after - before) / 50.0d
-        // Diagnostic — log the rate so the spawn/close leak hypothesis can
-        // be checked against this baseline without re-running the build.
-        println "[Tier 6.3.7] createPseudoConsole/closePseudoConsole HANDLE rate = ${perIter}/iter"
-        // Treat ≥ 0.5 / iter as "ConPTY internally leaks per session";
-        // anything below means ConPTY is clean and a non-zero rate in the
-        // spawn/close test below points at our code.
-        true
-    }
-
-    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
-    def "spawn/close loop does not leak HANDLEs unboundedly"() {
-        // GetProcessHandleCount is the cheapest signal but it counts every
-        // HANDLE in the JVM, not just the ones our PTY path owns. Every
-        // accounted-for HANDLE we open (pipes, HPCON, hProcess, hThread) is
-        // closed via the close()/ClosePseudoConsole path, but this CI
-        // configuration steadily reports a residue of ~1 HANDLE per spawn.
-        // System.gc() before measurement does not change the rate, so it is
-        // not Java daemon-Thread bookkeeping; the residue is a Windows /
-        // ConPTY internal artefact that ClosePseudoConsole does not return
-        // to the per-process handle count immediately.
-        //
-        // The contract we actually want to pin is "no unbounded leak per
-        // spawn" — a real bug (a missing CloseHandle on, say,
-        // ptyReadHandle, ptyWriteHandle, processHandle, or pi.hThread)
-        // shows up as a *multiple* of the baseline. So allow the observed
-        // baseline plus a margin and fail only on regressions that double
-        // it.
-        given:
-        20.times {
+        def spawnAndClose = {
             def p = launcher.start(["cmd.exe", "/c", "exit 0"], System.getenv(), null, 80, 24)
             p.waitFor()
             p.close()
         }
-        int before = WindowsHandleFunctions.getProcessHandleCount()
-        assert before > 0
+        20.times { closeOnly() }
+        20.times { spawnAndClose() }
+
+        int conptyBefore = WindowsHandleFunctions.getProcessHandleCount()
+        50.times { closeOnly() }
+        int conptyAfter = WindowsHandleFunctions.getProcessHandleCount()
+        double conptyRate = (conptyAfter - conptyBefore) / 50.0d
+        println "[Tier 6.3.7] ConPTY-only baseline HANDLE rate = ${conptyRate}/iter"
 
         when:
-        50.times {
-            def p = launcher.start(["cmd.exe", "/c", "exit 0"], System.getenv(), null, 80, 24)
-            p.waitFor()
-            p.close()
-        }
-        int after = WindowsHandleFunctions.getProcessHandleCount()
+        int spawnBefore = WindowsHandleFunctions.getProcessHandleCount()
+        50.times { spawnAndClose() }
+        int spawnAfter = WindowsHandleFunctions.getProcessHandleCount()
+        double spawnRate = (spawnAfter - spawnBefore) / 50.0d
+        println "[Tier 6.3.7] spawn+close HANDLE rate = ${spawnRate}/iter"
 
         then:
-        double perSpawn = (after - before) / 50.0d
-        perSpawn < 2.0d
+        // Adding the full process-spawn + drainer + watcher path on top of
+        // ConPTY must not introduce additional per-iter HANDLE growth.
+        // 0.5 of slack covers timing jitter in GetProcessHandleCount
+        // without masking a real per-spawn miss.
+        spawnRate < conptyRate + 0.5d
     }
 
     private static byte[] readAllBytes(InputStream input) {
