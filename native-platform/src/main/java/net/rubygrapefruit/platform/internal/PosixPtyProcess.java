@@ -97,17 +97,16 @@ public class PosixPtyProcess implements PtyProcess {
     // flush the line discipline buffer and we lose the child's output.
     // Linux and macOS preserve buffered output across slave close in their
     // current pty drivers, so they don't observe the race and pay nothing.
-    // Anywhere else we sleep ~50 ms, which is empirically enough to let
-    // the drainer threads reach their syscall under 4-way concurrent
-    // spawn pressure, and only ~50 ms slower than the structural cost on
-    // the platforms that need it.
+    // Anywhere else we sleep ~200 ms, generous enough that even a heavily
+    // loaded FreeBSD agent under 4-way concurrent spawn pressure has time
+    // to schedule every drainer onto its first read syscall.
     void awaitDrainersScheduled() {
         if (Platform.current().isLinux() || Platform.current().isMacOs()) {
             return;
         }
         Thread.yield();
         try {
-            Thread.sleep(50);
+            Thread.sleep(200);
         } catch (InterruptedException ignored) {
             Thread.currentThread().interrupt();
         }
