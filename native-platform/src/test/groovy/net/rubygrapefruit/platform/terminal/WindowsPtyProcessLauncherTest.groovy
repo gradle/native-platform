@@ -29,6 +29,7 @@ class WindowsPtyProcessLauncherTest extends NativePlatformSpec {
 
     static boolean conptyAvailable() {
         try {
+            getIntegration(PtyProcessLauncher)
             return WindowsPtyFunctions.isConPtyAvailable()
         } catch (Throwable ignored) {
             return false
