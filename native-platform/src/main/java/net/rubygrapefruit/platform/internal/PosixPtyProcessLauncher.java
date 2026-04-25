@@ -60,7 +60,15 @@ public class PosixPtyProcessLauncher implements PtyProcessLauncher {
         //    slave close is implementation-defined" race on FreeBSD.
         PosixPtyProcess process = new PosixPtyProcess(fds[0], fds[1], fds[2], fds[3]);
 
-        // 3. Fork+exec. On success the parent keeps slave + stderrWrite
+        // 3. Yield briefly so the drainer threads have a chance to be
+        //    scheduled and reach their first nativeRead syscall before the
+        //    child can run. Empirically, 4 concurrent launcher.start calls
+        //    on a loaded FreeBSD agent need this nudge — Thread.start
+        //    alone leaves a window where a drainer is runnable but not yet
+        //    parked when its child writes-and-exits.
+        process.awaitDrainersScheduled();
+
+        // 4. Fork+exec. On success the parent keeps slave + stderrWrite
         //    open and the process owns them; on failure the JNI side
         //    closes both.
         FunctionResult spawnResult = new FunctionResult();

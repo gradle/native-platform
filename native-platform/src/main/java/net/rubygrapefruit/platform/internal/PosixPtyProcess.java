@@ -90,6 +90,23 @@ public class PosixPtyProcess implements PtyProcess {
         this.waiter.start();
     }
 
+    /** Brief yield to give the drainer threads a chance to reach their
+     * first nativeRead syscall before the launcher proceeds to spawn.
+     * Even with PosixPtyProcess constructed before fork, the drainer
+     * threads are merely runnable until the OS scheduler picks them; on
+     * a loaded multi-tenant agent (4 concurrent launcher.start calls)
+     * the scheduler can leave a drainer parked-on-runqueue while the
+     * fork goes through, with a fast-exit child writing-and-dying
+     * before any read is issued. */
+    void awaitDrainersScheduled() {
+        Thread.yield();
+        try {
+            Thread.sleep(5);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
     /** Used by the launcher when spawnInPty failed and already closed the
      * parent's slave/stderrWrite fds. */
     void markSlaveAlreadyClosed() {
