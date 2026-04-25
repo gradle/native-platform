@@ -23,6 +23,8 @@ import net.rubygrapefruit.platform.terminal.PtyProcess;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PosixPtyProcess implements PtyProcess {
@@ -35,6 +37,7 @@ public class PosixPtyProcess implements PtyProcess {
     private final NativePtyOutputStream outputStream;
     private final Thread stdoutDrainer;
     private final Thread stderrDrainer;
+    private final CountDownLatch drainersReady;
     private boolean exited;
     private int exitCode;
 
@@ -45,20 +48,34 @@ public class PosixPtyProcess implements PtyProcess {
         this.stdoutStream = new BufferedPtyInputStream();
         this.stderrStream = new BufferedPtyInputStream();
         this.outputStream = new NativePtyOutputStream(this);
-        // Start drainers before the caller invokes attachPid() and therefore
-        // before the child can write a byte. POSIX leaves master-read after
-        // slave close implementation-defined (Linux/macOS preserve buffered
-        // output, FreeBSD discards it), so the only portable guarantee is
-        // that a read is parked on the master before the child can exit.
+        this.drainersReady = new CountDownLatch(2);
+        // The drainers must be parked in nativeRead before the child can
+        // exit, otherwise FreeBSD-style PTYs that flush on slave close drop
+        // the child's output. The CountDownLatch at the head of each drainer
+        // closes the gap that Thread.start() alone leaves open between the
+        // OS thread existing and it reaching its first syscall — the caller
+        // (PosixPtyProcessLauncher) waits on awaitDrainersReady() before
+        // invoking spawnInPty.
         this.stdoutDrainer = startDrainer(masterFd, stdoutStream, "pty-stdout-drainer-" + masterFd);
         this.stderrDrainer = startDrainer(stderrReadFd, stderrStream, "pty-stderr-drainer-" + stderrReadFd);
     }
 
-    private static Thread startDrainer(int fd, BufferedPtyInputStream sink, String name) {
-        Thread t = new Thread(() -> drain(fd, sink), name);
+    private Thread startDrainer(int fd, BufferedPtyInputStream sink, String name) {
+        Thread t = new Thread(() -> {
+            drainersReady.countDown();
+            drain(fd, sink);
+        }, name);
         t.setDaemon(true);
         t.start();
         return t;
+    }
+
+    void awaitDrainersReady() {
+        try {
+            drainersReady.await(5, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private static void drain(int fd, BufferedPtyInputStream sink) {

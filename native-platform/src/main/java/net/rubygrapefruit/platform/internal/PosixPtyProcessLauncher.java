@@ -58,7 +58,14 @@ public class PosixPtyProcessLauncher implements PtyProcessLauncher {
         //    and FreeBSD's pty driver discards it.
         PosixPtyProcess process = new PosixPtyProcess(fds[0], fds[2], 0L);
 
-        // 3. Fork+exec into the existing PTY. spawnInPty closes slaveFd and
+        // 3. Wait for both drainer threads to actually be entering nativeRead
+        //    before forking. Thread.start() returning is not sufficient on a
+        //    loaded system — without this barrier, four concurrent spawns on
+        //    FreeBSD intermittently lose output for whichever child exits
+        //    before its drainer is scheduled in.
+        process.awaitDrainersReady();
+
+        // 4. Fork+exec into the existing PTY. spawnInPty closes slaveFd and
         //    stderrWriteFd in the parent regardless of outcome.
         try {
             FunctionResult spawnResult = new FunctionResult();
