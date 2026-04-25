@@ -176,6 +176,9 @@ public abstract class Platform {
             if (type.equals(ProcessLauncher.class)) {
                 return type.cast(new WrapperProcessLauncher(new WindowsProcessLauncher(new DefaultProcessLauncher())));
             }
+            if (type.equals(PtyProcessLauncher.class)) {
+                return type.cast(new WindowsPtyProcessLauncher());
+            }
             if (type.equals(SystemInfo.class)) {
                 return type.cast(new DefaultSystemInfo());
             }

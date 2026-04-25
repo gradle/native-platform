@@ -25,6 +25,7 @@
 #include "net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions.h"
 #include "net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions.h"
 #include "net_rubygrapefruit_platform_internal_jni_WindowsHandleFunctions.h"
+#include "net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions.h"
 #include "net_rubygrapefruit_platform_internal_jni_WindowsRegistryFunctions.h"
 
 #define ALL_COLORS (FOREGROUND_BLUE | FOREGROUND_RED | FOREGROUND_GREEN)
@@ -1140,6 +1141,487 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsMemoryFunctions_getWindowsM
         (jlong) statex.ullTotalPhys,
         (jlong) statex.ullAvailPhys
         );
+}
+
+/*
+ * PTY (ConPTY) functions
+ */
+
+#ifndef WINDOWS_MIN
+
+#ifndef PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE
+#define PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE 0x00020016
+#endif
+
+typedef VOID* HPCON;
+typedef HRESULT (WINAPI *PFN_CreatePseudoConsole)(COORD, HANDLE, HANDLE, DWORD, HPCON*);
+typedef HRESULT (WINAPI *PFN_ResizePseudoConsole)(HPCON, COORD);
+typedef VOID    (WINAPI *PFN_ClosePseudoConsole)(HPCON);
+
+static PFN_CreatePseudoConsole pCreatePseudoConsole = NULL;
+static PFN_ResizePseudoConsole pResizePseudoConsole = NULL;
+static PFN_ClosePseudoConsole  pClosePseudoConsole  = NULL;
+static volatile LONG conpty_resolved = 0;
+static BOOL conpty_available = FALSE;
+
+static BOOL resolve_conpty() {
+    if (InterlockedCompareExchange(&conpty_resolved, 1, 0) == 0) {
+        HMODULE kernel32 = GetModuleHandleW(L"kernel32.dll");
+        if (kernel32 != NULL) {
+            pCreatePseudoConsole = (PFN_CreatePseudoConsole) GetProcAddress(kernel32, "CreatePseudoConsole");
+            pResizePseudoConsole = (PFN_ResizePseudoConsole) GetProcAddress(kernel32, "ResizePseudoConsole");
+            pClosePseudoConsole  = (PFN_ClosePseudoConsole)  GetProcAddress(kernel32, "ClosePseudoConsole");
+            conpty_available = (pCreatePseudoConsole && pResizePseudoConsole && pClosePseudoConsole) ? TRUE : FALSE;
+        }
+    }
+    return conpty_available;
+}
+
+JNIEXPORT jboolean JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_isConPtyAvailable(JNIEnv* env, jclass target) {
+    return resolve_conpty() ? JNI_TRUE : JNI_FALSE;
+}
+
+static wchar_t* build_command_line(JNIEnv* env, jobjectArray command) {
+    jsize argc = env->GetArrayLength(command);
+    size_t total = 1;
+    for (jsize i = 0; i < argc; i++) {
+        jstring s = (jstring) env->GetObjectArrayElement(command, i);
+        const jchar* chars = env->GetStringChars(s, NULL);
+        jsize len = env->GetStringLength(s);
+        bool needsQuote = false;
+        for (jsize k = 0; k < len; k++) {
+            jchar c = chars[k];
+            if (c == L' ' || c == L'\t' || c == L'"') { needsQuote = true; break; }
+        }
+        if (len == 0) needsQuote = true;
+        size_t entryLen = (size_t) len;
+        if (needsQuote) entryLen += 2;
+        for (jsize k = 0; k < len; k++) {
+            if (chars[k] == L'"' || chars[k] == L'\\') entryLen += 1;
+        }
+        total += entryLen + 1;
+        env->ReleaseStringChars(s, chars);
+        env->DeleteLocalRef(s);
+    }
+
+    wchar_t* buffer = (wchar_t*) malloc(total * sizeof(wchar_t));
+    if (buffer == NULL) return NULL;
+    wchar_t* w = buffer;
+    for (jsize i = 0; i < argc; i++) {
+        if (i > 0) *w++ = L' ';
+        jstring s = (jstring) env->GetObjectArrayElement(command, i);
+        const jchar* chars = env->GetStringChars(s, NULL);
+        jsize len = env->GetStringLength(s);
+        bool needsQuote = (len == 0);
+        for (jsize k = 0; k < len; k++) {
+            jchar c = chars[k];
+            if (c == L' ' || c == L'\t' || c == L'"') { needsQuote = true; break; }
+        }
+        if (needsQuote) *w++ = L'"';
+        int backslashRun = 0;
+        for (jsize k = 0; k < len; k++) {
+            jchar c = chars[k];
+            if (c == L'\\') {
+                backslashRun++;
+                *w++ = L'\\';
+            } else if (c == L'"') {
+                for (int bs = 0; bs < backslashRun; bs++) *w++ = L'\\';
+                *w++ = L'\\';
+                *w++ = L'"';
+                backslashRun = 0;
+            } else {
+                *w++ = (wchar_t) c;
+                backslashRun = 0;
+            }
+        }
+        if (needsQuote) {
+            for (int bs = 0; bs < backslashRun; bs++) *w++ = L'\\';
+            *w++ = L'"';
+        }
+        env->ReleaseStringChars(s, chars);
+        env->DeleteLocalRef(s);
+    }
+    *w = L'\0';
+    return buffer;
+}
+
+static wchar_t* build_environment_block(JNIEnv* env, jobjectArray environment) {
+    if (environment == NULL) return NULL;
+    jsize envc = env->GetArrayLength(environment);
+    if (envc == 0) return NULL;
+    size_t total = 1;
+    for (jsize i = 0; i < envc; i++) {
+        jstring s = (jstring) env->GetObjectArrayElement(environment, i);
+        total += (size_t) env->GetStringLength(s) + 1;
+        env->DeleteLocalRef(s);
+    }
+    wchar_t* buffer = (wchar_t*) malloc(total * sizeof(wchar_t));
+    if (buffer == NULL) return NULL;
+    wchar_t* w = buffer;
+    for (jsize i = 0; i < envc; i++) {
+        jstring s = (jstring) env->GetObjectArrayElement(environment, i);
+        const jchar* chars = env->GetStringChars(s, NULL);
+        jsize len = env->GetStringLength(s);
+        for (jsize k = 0; k < len; k++) {
+            *w++ = (wchar_t) chars[k];
+        }
+        *w++ = L'\0';
+        env->ReleaseStringChars(s, chars);
+        env->DeleteLocalRef(s);
+    }
+    *w = L'\0';
+    return buffer;
+}
+
+JNIEXPORT jlong JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_spawnConPty(
+        JNIEnv* env, jclass target,
+        jobjectArray command,
+        jobjectArray environment,
+        jstring workingDir,
+        jint cols, jint rows,
+        jlongArray outHandles,
+        jobject result) {
+    if (!resolve_conpty()) {
+        mark_failed_with_message(env, "ConPTY is not available on this Windows version", result);
+        return 0;
+    }
+
+    HANDLE inputRead = INVALID_HANDLE_VALUE;
+    HANDLE inputWrite = INVALID_HANDLE_VALUE;
+    HANDLE outputRead = INVALID_HANDLE_VALUE;
+    HANDLE outputWrite = INVALID_HANDLE_VALUE;
+    HPCON hPC = NULL;
+    LPPROC_THREAD_ATTRIBUTE_LIST attrList = NULL;
+    SIZE_T attrListSize = 0;
+    wchar_t* cmdLine = NULL;
+    wchar_t* envBlock = NULL;
+    wchar_t* wdStr = NULL;
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&pi, sizeof(pi));
+    BOOL processCreated = FALSE;
+
+    SECURITY_ATTRIBUTES sa;
+    sa.nLength = sizeof(sa);
+    sa.lpSecurityDescriptor = NULL;
+    sa.bInheritHandle = TRUE;
+
+    if (!CreatePipe(&inputRead, &inputWrite, &sa, 0)) {
+        mark_failed_with_errno(env, "could not create ConPTY input pipe", result);
+        goto cleanup;
+    }
+    if (!CreatePipe(&outputRead, &outputWrite, &sa, 0)) {
+        mark_failed_with_errno(env, "could not create ConPTY output pipe", result);
+        goto cleanup;
+    }
+    SetHandleInformation(inputWrite, HANDLE_FLAG_INHERIT, 0);
+    SetHandleInformation(outputRead, HANDLE_FLAG_INHERIT, 0);
+
+    {
+        COORD size;
+        size.X = (SHORT) cols;
+        size.Y = (SHORT) rows;
+        HRESULT hr = pCreatePseudoConsole(size, inputRead, outputWrite, 0, &hPC);
+        if (FAILED(hr)) {
+            mark_failed_with_code(env, "CreatePseudoConsole failed", (int) hr, NULL, result);
+            goto cleanup;
+        }
+    }
+
+    CloseHandle(inputRead); inputRead = INVALID_HANDLE_VALUE;
+    CloseHandle(outputWrite); outputWrite = INVALID_HANDLE_VALUE;
+
+    cmdLine = build_command_line(env, command);
+    if (cmdLine == NULL) {
+        mark_failed_with_message(env, "could not build command line", result);
+        goto cleanup;
+    }
+    envBlock = build_environment_block(env, environment);
+    if (workingDir != NULL) {
+        wdStr = java_to_wchar(env, workingDir, result);
+        if (wdStr == NULL) goto cleanup;
+    }
+
+    InitializeProcThreadAttributeList(NULL, 1, 0, &attrListSize);
+    attrList = (LPPROC_THREAD_ATTRIBUTE_LIST) malloc(attrListSize);
+    if (attrList == NULL) {
+        mark_failed_with_message(env, "could not allocate attribute list", result);
+        goto cleanup;
+    }
+    if (!InitializeProcThreadAttributeList(attrList, 1, 0, &attrListSize)) {
+        mark_failed_with_errno(env, "InitializeProcThreadAttributeList failed", result);
+        free(attrList); attrList = NULL;
+        goto cleanup;
+    }
+    if (!UpdateProcThreadAttribute(attrList, 0, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE, hPC, sizeof(HPCON), NULL, NULL)) {
+        mark_failed_with_errno(env, "UpdateProcThreadAttribute failed", result);
+        goto cleanup;
+    }
+
+    {
+        STARTUPINFOEXW siEx;
+        ZeroMemory(&siEx, sizeof(siEx));
+        siEx.StartupInfo.cb = sizeof(siEx);
+        siEx.lpAttributeList = attrList;
+
+        DWORD flags = EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT;
+        if (!CreateProcessW(NULL, cmdLine, NULL, NULL, FALSE, flags,
+                            envBlock, wdStr, &siEx.StartupInfo, &pi)) {
+            mark_failed_with_errno(env, "CreateProcessW failed", result);
+            goto cleanup;
+        }
+        processCreated = TRUE;
+    }
+
+    if (pi.hThread != NULL) { CloseHandle(pi.hThread); pi.hThread = NULL; }
+
+    {
+        jlong handles[5];
+        handles[0] = (jlong) (intptr_t) hPC;
+        handles[1] = (jlong) (intptr_t) outputRead;
+        handles[2] = (jlong) (intptr_t) inputWrite;
+        handles[3] = 0;
+        handles[4] = (jlong) (intptr_t) pi.hProcess;
+        env->SetLongArrayRegion(outHandles, 0, 5, handles);
+    }
+
+    if (attrList != NULL) {
+        DeleteProcThreadAttributeList(attrList);
+        free(attrList);
+    }
+    if (cmdLine != NULL) free(cmdLine);
+    if (envBlock != NULL) free(envBlock);
+    if (wdStr != NULL) free(wdStr);
+    return (jlong) pi.dwProcessId;
+
+cleanup:
+    if (processCreated) {
+        TerminateProcess(pi.hProcess, 1);
+        CloseHandle(pi.hProcess);
+    }
+    if (attrList != NULL) {
+        DeleteProcThreadAttributeList(attrList);
+        free(attrList);
+    }
+    if (hPC != NULL) pClosePseudoConsole(hPC);
+    if (inputRead != INVALID_HANDLE_VALUE) CloseHandle(inputRead);
+    if (inputWrite != INVALID_HANDLE_VALUE) CloseHandle(inputWrite);
+    if (outputRead != INVALID_HANDLE_VALUE) CloseHandle(outputRead);
+    if (outputWrite != INVALID_HANDLE_VALUE) CloseHandle(outputWrite);
+    if (cmdLine != NULL) free(cmdLine);
+    if (envBlock != NULL) free(envBlock);
+    if (wdStr != NULL) free(wdStr);
+    return 0;
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_resizePseudoConsole(
+        JNIEnv* env, jclass target, jlong hPC, jint cols, jint rows, jobject result) {
+    if (!resolve_conpty() || hPC == 0) {
+        mark_failed_with_message(env, "ConPTY not available", result);
+        return;
+    }
+    COORD size;
+    size.X = (SHORT) cols;
+    size.Y = (SHORT) rows;
+    HRESULT hr = pResizePseudoConsole((HPCON) (intptr_t) hPC, size);
+    if (FAILED(hr)) {
+        mark_failed_with_code(env, "ResizePseudoConsole failed", (int) hr, NULL, result);
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_closePseudoConsole(
+        JNIEnv* env, jclass target, jlong hPC, jobject result) {
+    if (!resolve_conpty() || hPC == 0) {
+        return;
+    }
+    pClosePseudoConsole((HPCON) (intptr_t) hPC);
+}
+
+#else // WINDOWS_MIN
+
+JNIEXPORT jboolean JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_isConPtyAvailable(JNIEnv* env, jclass target) {
+    return JNI_FALSE;
+}
+
+JNIEXPORT jlong JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_spawnConPty(
+        JNIEnv* env, jclass target,
+        jobjectArray command,
+        jobjectArray environment,
+        jstring workingDir,
+        jint cols, jint rows,
+        jlongArray outHandles,
+        jobject result) {
+    mark_failed_with_message(env, "ConPTY is not available in the minimal Windows variant", result);
+    return 0;
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_resizePseudoConsole(
+        JNIEnv* env, jclass target, jlong hPC, jint cols, jint rows, jobject result) {
+    mark_failed_with_message(env, "ConPTY is not available in the minimal Windows variant", result);
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_closePseudoConsole(
+        JNIEnv* env, jclass target, jlong hPC, jobject result) {
+}
+
+#endif // WINDOWS_MIN
+
+JNIEXPORT jint JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_waitForProcess(
+        JNIEnv* env, jclass target, jlong processHandle, jobject result) {
+    if (processHandle == 0) {
+        mark_failed_with_message(env, "invalid process handle", result);
+        return -1;
+    }
+    HANDLE h = (HANDLE) (intptr_t) processHandle;
+    DWORD wait = WaitForSingleObject(h, INFINITE);
+    if (wait == WAIT_FAILED) {
+        mark_failed_with_errno(env, "WaitForSingleObject failed", result);
+        return -1;
+    }
+    DWORD exitCode = 0;
+    if (!GetExitCodeProcess(h, &exitCode)) {
+        mark_failed_with_errno(env, "GetExitCodeProcess failed", result);
+        return -1;
+    }
+    return (jint) exitCode;
+}
+
+JNIEXPORT jboolean JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_hasProcessExited(
+        JNIEnv* env, jclass target, jlong processHandle, jintArray exitCode, jobject result) {
+    if (processHandle == 0) {
+        mark_failed_with_message(env, "invalid process handle", result);
+        return JNI_FALSE;
+    }
+    HANDLE h = (HANDLE) (intptr_t) processHandle;
+    DWORD wait = WaitForSingleObject(h, 0);
+    if (wait == WAIT_OBJECT_0) {
+        DWORD code = 0;
+        if (!GetExitCodeProcess(h, &code)) {
+            mark_failed_with_errno(env, "GetExitCodeProcess failed", result);
+            return JNI_FALSE;
+        }
+        jint codeJ = (jint) code;
+        env->SetIntArrayRegion(exitCode, 0, 1, &codeJ);
+        return JNI_TRUE;
+    }
+    if (wait == WAIT_TIMEOUT) {
+        return JNI_FALSE;
+    }
+    mark_failed_with_errno(env, "WaitForSingleObject failed", result);
+    return JNI_FALSE;
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_destroyProcess(
+        JNIEnv* env, jclass target, jlong processHandle, jlong ptyWriteHandle, jint gracePeriodMs, jobject result) {
+    if (processHandle == 0) return;
+    HANDLE h = (HANDLE) (intptr_t) processHandle;
+    if (ptyWriteHandle != 0 && gracePeriodMs > 0) {
+        HANDLE w = (HANDLE) (intptr_t) ptyWriteHandle;
+        char ctrlC = 0x03;
+        DWORD written = 0;
+        WriteFile(w, &ctrlC, 1, &written, NULL);
+        if (WaitForSingleObject(h, (DWORD) gracePeriodMs) == WAIT_OBJECT_0) {
+            return;
+        }
+    }
+    if (!TerminateProcess(h, 1)) {
+        if (GetLastError() != ERROR_ACCESS_DENIED) {
+            mark_failed_with_errno(env, "TerminateProcess failed", result);
+        }
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_cancelSynchronousIo(
+        JNIEnv* env, jclass target, jlong threadHandle, jobject result) {
+    if (threadHandle == 0) return;
+    HANDLE h = (HANDLE) (intptr_t) threadHandle;
+    if (!CancelSynchronousIo(h)) {
+        DWORD err = GetLastError();
+        if (err != ERROR_NOT_FOUND) {
+            mark_failed_with_errno(env, "CancelSynchronousIo failed", result);
+        }
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_closeHandle(
+        JNIEnv* env, jclass target, jlong handle, jobject result) {
+    if (handle == 0) return;
+    HANDLE h = (HANDLE) (intptr_t) handle;
+    if (h == INVALID_HANDLE_VALUE) return;
+    if (!CloseHandle(h)) {
+        mark_failed_with_errno(env, "CloseHandle failed", result);
+    }
+}
+
+JNIEXPORT jint JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_nativeRead(
+        JNIEnv* env, jclass target, jlong handle, jbyteArray buf, jint off, jint len, jobject result) {
+    if (handle == 0) {
+        mark_failed_with_message(env, "invalid handle", result);
+        return -1;
+    }
+    HANDLE h = (HANDLE) (intptr_t) handle;
+    jbyte* data = env->GetByteArrayElements(buf, NULL);
+    if (data == NULL) {
+        mark_failed_with_message(env, "could not access byte array", result);
+        return -1;
+    }
+    DWORD readBytes = 0;
+    BOOL ok = ReadFile(h, data + off, (DWORD) len, &readBytes, NULL);
+    DWORD err = ok ? 0 : GetLastError();
+    env->ReleaseByteArrayElements(buf, data, 0);
+    if (!ok) {
+        if (err == ERROR_BROKEN_PIPE || err == ERROR_PIPE_NOT_CONNECTED || err == ERROR_HANDLE_EOF) {
+            return -1;
+        }
+        if (err == ERROR_OPERATION_ABORTED) {
+            return -1;
+        }
+        SetLastError(err);
+        mark_failed_with_errno(env, "ReadFile failed", result);
+        return -1;
+    }
+    if (readBytes == 0) {
+        return -1;
+    }
+    return (jint) readBytes;
+}
+
+JNIEXPORT jint JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_nativeWrite(
+        JNIEnv* env, jclass target, jlong handle, jbyteArray buf, jint off, jint len, jobject result) {
+    if (handle == 0) {
+        mark_failed_with_message(env, "invalid handle", result);
+        return -1;
+    }
+    HANDLE h = (HANDLE) (intptr_t) handle;
+    jbyte* data = env->GetByteArrayElements(buf, NULL);
+    if (data == NULL) {
+        mark_failed_with_message(env, "could not access byte array", result);
+        return -1;
+    }
+    DWORD wrote = 0;
+    BOOL ok = WriteFile(h, data + off, (DWORD) len, &wrote, NULL);
+    DWORD err = ok ? 0 : GetLastError();
+    env->ReleaseByteArrayElements(buf, data, JNI_ABORT);
+    if (!ok) {
+        SetLastError(err);
+        mark_failed_with_errno(env, "WriteFile failed", result);
+        return -1;
+    }
+    return (jint) wrote;
 }
 
 #endif
