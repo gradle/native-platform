@@ -27,12 +27,29 @@ public class PosixPtyFunctions {
 
     public static native boolean isPtyAvailable();
 
-    public static native long spawnPty(String[] command,
-                                       String[] environment,
-                                       String workingDir,
-                                       int cols, int rows,
-                                       int[] outFds,
-                                       FunctionResult result);
+    /**
+     * Allocates the PTY pair plus the stderr pipe and applies the initial
+     * terminal size. Does not fork. Returns four fds in {@code outFds}:
+     * {@code [masterFd, slaveFd, stderrReadFd, stderrWriteFd]}. The caller
+     * is expected to start drainer threads on {@code masterFd} and
+     * {@code stderrReadFd} before invoking {@link #spawnInPty}, then hand
+     * {@code slaveFd} and {@code stderrWriteFd} to that call.
+     */
+    public static native void createPty(int cols, int rows,
+                                        int[] outFds,
+                                        FunctionResult result);
+
+    /**
+     * Forks and execs the child inside an existing PTY allocated by
+     * {@link #createPty}. Closes {@code slaveFd} and {@code stderrWriteFd}
+     * in the parent regardless of outcome — the child inherits its own
+     * copies via fork.
+     */
+    public static native long spawnInPty(int slaveFd, int stderrWriteFd,
+                                         String[] command,
+                                         String[] environment,
+                                         String workingDir,
+                                         FunctionResult result);
 
     public static native int waitPid(long pid, FunctionResult result);
 

@@ -43,12 +43,35 @@ public class PosixPtyProcessLauncher implements PtyProcessLauncher {
         }
         String dir = workingDir != null ? workingDir.getAbsolutePath() : null;
 
-        FunctionResult result = new FunctionResult();
-        int[] outFds = new int[]{-1, -1};
-        long pid = PosixPtyFunctions.spawnPty(cmd, env, dir, cols, rows, outFds, result);
-        if (result.isFailed()) {
-            throw new NativeException("Could not spawn PTY process: " + result.getMessage());
+        // 1. Allocate the PTY + stderr pipe. No fork yet.
+        int[] fds = new int[]{-1, -1, -1, -1}; // master, slave, stderrRead, stderrWrite
+        FunctionResult ptyResult = new FunctionResult();
+        PosixPtyFunctions.createPty(cols, rows, fds, ptyResult);
+        if (ptyResult.isFailed()) {
+            throw new NativeException("Could not create PTY: " + ptyResult.getMessage());
         }
-        return new PosixPtyProcess(outFds[0], outFds[1], pid);
+
+        // 2. Build the process with pid=0. Its constructor starts master-side
+        //    drainer threads on masterFd and stderrReadFd, so a read is parked
+        //    on the master before the child runs. Required for portability —
+        //    POSIX leaves master-read after slave close implementation-defined
+        //    and FreeBSD's pty driver discards it.
+        PosixPtyProcess process = new PosixPtyProcess(fds[0], fds[2], 0L);
+
+        // 3. Fork+exec into the existing PTY. spawnInPty closes slaveFd and
+        //    stderrWriteFd in the parent regardless of outcome.
+        try {
+            FunctionResult spawnResult = new FunctionResult();
+            long pid = PosixPtyFunctions.spawnInPty(
+                    fds[1], fds[3], cmd, env, dir, spawnResult);
+            if (spawnResult.isFailed()) {
+                throw new NativeException("Could not spawn PTY process: " + spawnResult.getMessage());
+            }
+            process.attachPid(pid);
+        } catch (Throwable t) {
+            process.close();
+            throw t;
+        }
+        return process;
     }
 }

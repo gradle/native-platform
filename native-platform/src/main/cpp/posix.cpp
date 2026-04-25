@@ -551,78 +551,20 @@ static void child_search_and_exec(char** argv, char** envp, int diagFd) {
     _exit(127);
 }
 
-JNIEXPORT jlong JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnPty(
+// Allocate the PTY pair plus the stderr pipe. Does not fork — the Java
+// caller starts master-side drainer threads on masterFd and stderrReadFd
+// before invoking spawnInPty. Required for portability: POSIX leaves the
+// master read after slave close implementation-defined and FreeBSD's pty
+// driver discards buffered output on slave close.
+JNIEXPORT void JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_createPty(
         JNIEnv* env, jclass target,
-        jobjectArray command,
-        jobjectArray environment,
-        jstring workingDir,
         jint cols, jint rows,
         jintArray outFds,
         jobject result) {
-    jsize argc = env->GetArrayLength(command);
-    if (argc < 1) {
-        mark_failed_with_message(env, "command array is empty", result);
-        return 0;
-    }
-
-    char** argv = (char**) calloc((size_t)(argc + 1), sizeof(char*));
-    if (argv == NULL) {
-        mark_failed_with_message(env, "could not allocate argv", result);
-        return 0;
-    }
-    for (jsize i = 0; i < argc; i++) {
-        jstring s = (jstring) env->GetObjectArrayElement(command, i);
-        argv[i] = java_to_utf_char(env, s, result);
-        env->DeleteLocalRef(s);
-        if (argv[i] == NULL) {
-            for (jsize j = 0; j < i; j++) free(argv[j]);
-            free(argv);
-            return 0;
-        }
-    }
-    argv[argc] = NULL;
-
-    jsize envc = environment != NULL ? env->GetArrayLength(environment) : 0;
-    char** envp = (char**) calloc((size_t)(envc + 1), sizeof(char*));
-    if (envp == NULL) {
-        mark_failed_with_message(env, "could not allocate envp", result);
-        for (jsize i = 0; i < argc; i++) free(argv[i]);
-        free(argv);
-        return 0;
-    }
-    for (jsize i = 0; i < envc; i++) {
-        jstring s = (jstring) env->GetObjectArrayElement(environment, i);
-        envp[i] = java_to_utf_char(env, s, result);
-        env->DeleteLocalRef(s);
-        if (envp[i] == NULL) {
-            for (jsize j = 0; j < i; j++) free(envp[j]);
-            free(envp);
-            for (jsize j = 0; j < argc; j++) free(argv[j]);
-            free(argv);
-            return 0;
-        }
-    }
-    envp[envc] = NULL;
-
-    char* wdStr = NULL;
-    if (workingDir != NULL) {
-        wdStr = java_to_utf_char(env, workingDir, result);
-        if (wdStr == NULL) {
-            for (jsize i = 0; i < envc; i++) free(envp[i]);
-            free(envp);
-            for (jsize i = 0; i < argc; i++) free(argv[i]);
-            free(argv);
-            return 0;
-        }
-    }
-
     int masterFd = -1;
     int slaveFd = -1;
     int stderrPipe[2] = {-1, -1};
-    int diagPipe[2] = {-1, -1};
-    pid_t pid = 0;
-    jlong returnPid = 0;
     bool failed = false;
 
     do {
@@ -644,6 +586,112 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnPty(
             int f = fcntl(stderrPipe[0], F_GETFD);
             if (f != -1) fcntl(stderrPipe[0], F_SETFD, f | FD_CLOEXEC);
         }
+
+        struct winsize ws;
+        ws.ws_col = (unsigned short) cols;
+        ws.ws_row = (unsigned short) rows;
+        ws.ws_xpixel = 0;
+        ws.ws_ypixel = 0;
+        ioctl(masterFd, TIOCSWINSZ, &ws);
+
+        jint fds[4] = { masterFd, slaveFd, stderrPipe[0], stderrPipe[1] };
+        env->SetIntArrayRegion(outFds, 0, 4, fds);
+    } while (0);
+
+    if (failed) {
+        if (masterFd >= 0) close(masterFd);
+        if (slaveFd >= 0) close(slaveFd);
+        if (stderrPipe[0] >= 0) close(stderrPipe[0]);
+        if (stderrPipe[1] >= 0) close(stderrPipe[1]);
+    }
+}
+
+// Forks and execs the child inside an already-allocated PTY. Closes
+// slaveFd and stderrWriteFd in the parent regardless of outcome — the
+// child gets its own copies via fork.
+JNIEXPORT jlong JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnInPty(
+        JNIEnv* env, jclass target,
+        jint slaveFd, jint stderrWriteFd,
+        jobjectArray command,
+        jobjectArray environment,
+        jstring workingDir,
+        jobject result) {
+    jsize argc = env->GetArrayLength(command);
+    if (argc < 1) {
+        close(slaveFd);
+        close(stderrWriteFd);
+        mark_failed_with_message(env, "command array is empty", result);
+        return 0;
+    }
+
+    char** argv = (char**) calloc((size_t)(argc + 1), sizeof(char*));
+    if (argv == NULL) {
+        close(slaveFd);
+        close(stderrWriteFd);
+        mark_failed_with_message(env, "could not allocate argv", result);
+        return 0;
+    }
+    for (jsize i = 0; i < argc; i++) {
+        jstring s = (jstring) env->GetObjectArrayElement(command, i);
+        argv[i] = java_to_utf_char(env, s, result);
+        env->DeleteLocalRef(s);
+        if (argv[i] == NULL) {
+            for (jsize j = 0; j < i; j++) free(argv[j]);
+            free(argv);
+            close(slaveFd);
+            close(stderrWriteFd);
+            return 0;
+        }
+    }
+    argv[argc] = NULL;
+
+    jsize envc = environment != NULL ? env->GetArrayLength(environment) : 0;
+    char** envp = (char**) calloc((size_t)(envc + 1), sizeof(char*));
+    if (envp == NULL) {
+        for (jsize i = 0; i < argc; i++) free(argv[i]);
+        free(argv);
+        close(slaveFd);
+        close(stderrWriteFd);
+        mark_failed_with_message(env, "could not allocate envp", result);
+        return 0;
+    }
+    for (jsize i = 0; i < envc; i++) {
+        jstring s = (jstring) env->GetObjectArrayElement(environment, i);
+        envp[i] = java_to_utf_char(env, s, result);
+        env->DeleteLocalRef(s);
+        if (envp[i] == NULL) {
+            for (jsize j = 0; j < i; j++) free(envp[j]);
+            free(envp);
+            for (jsize j = 0; j < argc; j++) free(argv[j]);
+            free(argv);
+            close(slaveFd);
+            close(stderrWriteFd);
+            return 0;
+        }
+    }
+    envp[envc] = NULL;
+
+    char* wdStr = NULL;
+    if (workingDir != NULL) {
+        wdStr = java_to_utf_char(env, workingDir, result);
+        if (wdStr == NULL) {
+            for (jsize i = 0; i < envc; i++) free(envp[i]);
+            free(envp);
+            for (jsize i = 0; i < argc; i++) free(argv[i]);
+            free(argv);
+            close(slaveFd);
+            close(stderrWriteFd);
+            return 0;
+        }
+    }
+
+    int diagPipe[2] = {-1, -1};
+    pid_t pid = 0;
+    jlong returnPid = 0;
+    bool failed = false;
+
+    do {
         if (pipe(diagPipe) != 0) {
             mark_failed_with_errno(env, "could not create diagnostic pipe", result);
             failed = true;
@@ -656,13 +704,6 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnPty(
             if (f != -1) fcntl(diagPipe[1], F_SETFD, f | FD_CLOEXEC);
         }
 
-        struct winsize ws;
-        ws.ws_col = (unsigned short) cols;
-        ws.ws_row = (unsigned short) rows;
-        ws.ws_xpixel = 0;
-        ws.ws_ypixel = 0;
-        ioctl(masterFd, TIOCSWINSZ, &ws);
-
         pid = fork();
         if (pid < 0) {
             mark_failed_with_errno(env, "could not fork", result);
@@ -672,17 +713,15 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnPty(
 
         if (pid == 0) {
             close(diagPipe[0]);
-            close(stderrPipe[0]);
             int diagFd = diagPipe[1];
 
             if (setsid() < 0) { diag_write(diagFd, 'S', errno); _exit(126); }
             if (ioctl(slaveFd, TIOCSCTTY, 0) < 0) { diag_write(diagFd, 'T', errno); _exit(126); }
             if (dup2(slaveFd, 0) < 0) { diag_write(diagFd, '0', errno); _exit(126); }
             if (dup2(slaveFd, 1) < 0) { diag_write(diagFd, '1', errno); _exit(126); }
-            if (dup2(stderrPipe[1], 2) < 0) { diag_write(diagFd, '2', errno); _exit(126); }
+            if (dup2(stderrWriteFd, 2) < 0) { diag_write(diagFd, '2', errno); _exit(126); }
             if (slaveFd > 2) close(slaveFd);
-            if (masterFd > 2) close(masterFd);
-            if (stderrPipe[1] > 2) close(stderrPipe[1]);
+            if (stderrWriteFd > 2) close(stderrWriteFd);
 
             if (wdStr != NULL && chdir(wdStr) < 0) {
                 diag_write(diagFd, 'D', errno);
@@ -692,8 +731,6 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnPty(
             child_search_and_exec(argv, envp, diagFd);
         }
 
-        close(slaveFd); slaveFd = -1;
-        close(stderrPipe[1]); stderrPipe[1] = -1;
         close(diagPipe[1]); diagPipe[1] = -1;
 
         char stage = 0;
@@ -743,26 +780,19 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnPty(
         returnPid = (jlong) pid;
     } while (0);
 
-    if (failed) {
-        if (masterFd >= 0) close(masterFd);
-        if (slaveFd >= 0) close(slaveFd);
-        if (stderrPipe[0] >= 0) close(stderrPipe[0]);
-        if (stderrPipe[1] >= 0) close(stderrPipe[1]);
-        if (diagPipe[0] >= 0) close(diagPipe[0]);
-        if (diagPipe[1] >= 0) close(diagPipe[1]);
-    } else {
-        jint fds[2];
-        fds[0] = masterFd;
-        fds[1] = stderrPipe[0];
-        env->SetIntArrayRegion(outFds, 0, 2, fds);
-    }
+    // Parent always closes the slave + stderr-write fds — the child has
+    // its own copies via fork.
+    close(slaveFd);
+    close(stderrWriteFd);
+    if (diagPipe[0] >= 0) close(diagPipe[0]);
+    if (diagPipe[1] >= 0) close(diagPipe[1]);
 
     for (jsize i = 0; i < argc; i++) free(argv[i]);
     free(argv);
     for (jsize i = 0; i < envc; i++) free(envp[i]);
     free(envp);
     if (wdStr != NULL) free(wdStr);
-    return returnPid;
+    return failed ? 0 : returnPid;
 }
 
 JNIEXPORT jint JNICALL
