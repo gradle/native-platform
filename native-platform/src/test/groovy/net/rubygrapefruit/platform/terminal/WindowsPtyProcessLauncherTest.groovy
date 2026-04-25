@@ -169,21 +169,31 @@ class WindowsPtyProcessLauncherTest extends NativePlatformSpec {
 
     @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
     def "env isolation: child sees only passed environment"() {
-        // cmd.exe needs a handful of variables (SystemRoot, ComSpec, PATH, …)
-        // to even start; an env containing only {MARKER} causes it to exit 255
-        // before reaching the /c command, which would mask the encoding test.
-        // Pass the daemon's env *minus* one specific variable plus a marker,
-        // and prove isolation via two assertions: the marker is visible in the
-        // child, and the omitted variable is *not* — cmd echoes the literal
-        // %name% for unset variables, so the literal appearing in the output
-        // is direct evidence the variable was not in the passed env block.
+        // Two non-obvious gotchas folded into one test:
+        //
+        // 1. cmd.exe needs a handful of bootstrap variables (SystemRoot,
+        //    ComSpec, PATH, …) to start. An env containing only {MARKER}
+        //    causes exit 255 before the /c command runs, masking the actual
+        //    env-block encoding test. Derive the env from System.getenv() so
+        //    cmd boots, then add MARKER on top.
+        //
+        // 2. `|` is cmd's pipe operator. `echo a|b` runs `b` as a command on
+        //    the right side of the pipe — for `b == %unset_var%` cmd reports
+        //    exit 255 from the failed pipeline. Using a colon separator
+        //    avoids the parsing rabbit hole entirely and still keeps the
+        //    boundary between substituted and literal segments visible.
+        //
+        // Isolation is verified by adding MARKER and looking up a freshly
+        // generated variable name we never put in the env block: cmd echoes
+        // the literal %name% for unset variables, so the literal appearing
+        // in the output is direct evidence the variable was not passed.
         given:
         def absentName = "NP_TEST_ABSENT_" + UUID.randomUUID().toString().replace("-", "_")
         def env = new HashMap<>(System.getenv())
         env.remove(absentName) // already absent, but explicit for the reader
         env.put("MARKER", "hello_marker")
         def pty = launcher.start(
-                ["cmd.exe", "/c", "echo %MARKER%|%" + absentName + "%"],
+                ["cmd.exe", "/c", "echo %MARKER%:%" + absentName + "%"],
                 env, null, 80, 24)
 
         when:
@@ -192,7 +202,7 @@ class WindowsPtyProcessLauncherTest extends NativePlatformSpec {
 
         then:
         exitCode == 0
-        out.contains("hello_marker|%" + absentName + "%")
+        out.contains("hello_marker:%" + absentName + "%")
 
         cleanup:
         pty?.close()
