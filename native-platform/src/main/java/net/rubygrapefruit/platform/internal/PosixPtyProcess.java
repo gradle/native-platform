@@ -16,21 +16,41 @@
 
 package net.rubygrapefruit.platform.internal;
 
-import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.internal.jni.PosixPtyFunctions;
 import net.rubygrapefruit.platform.terminal.PtyProcess;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * POSIX implementation of {@link PtyProcess}.
+ *
+ * <p>The launcher uses a two-fork "anchor" pattern (see
+ * {@link PosixPtyFunctions#spawnInPty}).  The anchor is the session leader
+ * with the slave PTY as its controlling terminal; the user command (the
+ * grandchild) runs as a regular member of the anchor's session and process
+ * group, so it receives {@code SIGWINCH} on resize but its exit does NOT
+ * trigger FreeBSD's {@code killjobc()} -> {@code VOP_REVOKE} ->
+ * {@code tty_flush(FWRITE)} flush of the master-readable output queue.</p>
+ *
+ * <p>The waiter thread reads the grandchild's exit status from
+ * {@code infoPipeReadFd} (written by the anchor after its
+ * {@code waitpid(grandchild)}), then closes {@code syncPipeWriteFd} to
+ * release the anchor.  Only at that point does the kernel run the revoke
+ * path on the slave, by which time the master drainer has already
+ * consumed every byte.</p>
+ */
 public class PosixPtyProcess implements PtyProcess {
-    private volatile long pid;
+    private volatile long pid;             // grandchild pid (the user command)
+    private volatile long anchorPid;
     private volatile int masterFd;
-    private volatile int slaveFd;
     private volatile int stderrReadFd;
-    private volatile int stderrWriteFd;
+    private volatile int infoPipeReadFd;
+    private volatile int syncPipeWriteFd;
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final BufferedPtyInputStream stdoutStream;
     private final BufferedPtyInputStream stderrStream;
@@ -42,12 +62,13 @@ public class PosixPtyProcess implements PtyProcess {
     private boolean exited;
     private int exitCode;
 
-    public PosixPtyProcess(int masterFd, int slaveFd, int stderrReadFd, int stderrWriteFd) {
+    public PosixPtyProcess(int masterFd, int stderrReadFd) {
         this.masterFd = masterFd;
-        this.slaveFd = slaveFd;
         this.stderrReadFd = stderrReadFd;
-        this.stderrWriteFd = stderrWriteFd;
+        this.infoPipeReadFd = -1;
+        this.syncPipeWriteFd = -1;
         this.pid = 0L;
+        this.anchorPid = 0L;
         this.stdoutStream = new BufferedPtyInputStream();
         this.stderrStream = new BufferedPtyInputStream();
         this.outputStream = new NativePtyOutputStream(this);
@@ -85,23 +106,136 @@ public class PosixPtyProcess implements PtyProcess {
         }
     }
 
-    void attachPid(long pid) {
-        this.pid = pid;
+    /**
+     * Records the anchor + grandchild handles produced by
+     * {@link PosixPtyFunctions#spawnInPty} and starts the waiter thread.
+     */
+    void attachAnchor(long grandchildPid, long anchorPid, int infoPipeReadFd, int syncPipeWriteFd) {
+        this.pid = grandchildPid;
+        this.anchorPid = anchorPid;
+        this.infoPipeReadFd = infoPipeReadFd;
+        this.syncPipeWriteFd = syncPipeWriteFd;
         this.waiter.start();
     }
 
-    /** Used by the launcher when spawnInPty failed and already closed the
-     * parent's slave/stderrWrite fds. */
-    void markSlaveAlreadyClosed() {
+    /**
+     * Used by the launcher when {@code spawnInPty} failed.  The native
+     * side has already closed slave + stderrWrite; here we close master +
+     * stderrRead so the drainers unblock, mark the process as exited so
+     * {@link #waitFor()} returns, and skip the normal waiter/anchor path.
+     */
+    void closeAfterSpawnFailure() {
         synchronized (exitLock) {
-            slaveFd = -1;
-            stderrWriteFd = -1;
             exited = true;
+            exitCode = -1;
             exitLock.notifyAll();
+        }
+        // No waiter has been started (attachAnchor was never called),
+        // so suppress the kill path in close() and tear down directly.
+        closed.set(true);
+        int master;
+        int stderr;
+        synchronized (this) {
+            master = masterFd;
+            masterFd = -1;
+            stderr = stderrReadFd;
+            stderrReadFd = -1;
+        }
+        if (master >= 0) {
+            PosixPtyFunctions.closeFd(master, new FunctionResult());
+        }
+        if (stderr >= 0) {
+            PosixPtyFunctions.closeFd(stderr, new FunctionResult());
+        }
+        try {
+            stdoutDrainer.join(2000);
+            stderrDrainer.join(2000);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
         }
     }
 
     private void waitForChild() {
+        long anchor;
+        synchronized (exitLock) {
+            anchor = anchorPid;
+        }
+        if (anchor > 0) {
+            waitForChildViaAnchor();
+        } else {
+            waitForChildViaWaitpid();
+        }
+    }
+
+    /**
+     * BSD-family path.  Read the 4-byte exit status the anchor writes
+     * after {@code waitpid(grandchild)}.  Native byte order matches the
+     * C++ side.  Then close the sync pipe to release the anchor and
+     * {@code waitPid} the anchor so it doesn't linger as a zombie.
+     */
+    private void waitForChildViaAnchor() {
+        int infoFd = infoPipeReadFd;
+        byte[] buf = new byte[4];
+        int total = 0;
+        boolean readOk = false;
+        if (infoFd >= 0) {
+            while (total < buf.length) {
+                FunctionResult r = new FunctionResult();
+                int n = PosixPtyFunctions.nativeRead(infoFd, buf, total, buf.length - total, r);
+                if (r.isFailed() || n <= 0) {
+                    break;
+                }
+                total += n;
+            }
+            readOk = (total == buf.length);
+        }
+        int code = readOk
+                ? ByteBuffer.wrap(buf).order(ByteOrder.nativeOrder()).getInt()
+                : -1;
+        synchronized (exitLock) {
+            exitCode = code;
+            exited = true;
+            exitLock.notifyAll();
+        }
+        // Release the anchor.  Closing the sync pipe write end unblocks
+        // its read; the anchor _exits, the kernel runs killjobc on it (no
+        // longer on the grandchild — that exited harmlessly inside the
+        // anchor's session), the slave PTY is revoked, and master sees
+        // EOF.  By this point the master drainer has already consumed
+        // everything the grandchild wrote.
+        int sync;
+        synchronized (this) {
+            sync = syncPipeWriteFd;
+            syncPipeWriteFd = -1;
+        }
+        if (sync >= 0) {
+            PosixPtyFunctions.closeFd(sync, new FunctionResult());
+        }
+        long anchor;
+        synchronized (exitLock) {
+            anchor = anchorPid;
+            anchorPid = 0;
+        }
+        if (anchor > 0) {
+            PosixPtyFunctions.waitPid(anchor, new FunctionResult());
+        }
+        int info;
+        synchronized (this) {
+            info = infoPipeReadFd;
+            infoPipeReadFd = -1;
+        }
+        if (info >= 0) {
+            PosixPtyFunctions.closeFd(info, new FunctionResult());
+        }
+    }
+
+    /**
+     * Linux / macOS path.  No anchor process: the child IS the session
+     * leader and the daemon waitpid's it directly.  These kernels don't
+     * synchronously flush the master-readable queue on session-leader
+     * exit, so no anchor is needed.
+     */
+    private void waitForChildViaWaitpid() {
         long childPid;
         synchronized (exitLock) {
             childPid = pid;
@@ -114,27 +248,6 @@ public class PosixPtyProcess implements PtyProcess {
             }
             exited = true;
             exitLock.notifyAll();
-        }
-        // Slave + stderr-write were held open in the parent until the child
-        // was reaped. Closing them now drops the slave's last reference, so
-        // master sees EOF and the drainers exit. Holding them this long is
-        // what closes the FreeBSD-style "discard on slave close before any
-        // reader is parked" race: the slave never fully closes until the
-        // parent decides to, and at that point the child is already gone
-        // and any pending output has flowed through the line discipline.
-        int s;
-        int sw;
-        synchronized (exitLock) {
-            s = slaveFd;
-            slaveFd = -1;
-            sw = stderrWriteFd;
-            stderrWriteFd = -1;
-        }
-        if (s >= 0) {
-            PosixPtyFunctions.closeFd(s, new FunctionResult());
-        }
-        if (sw >= 0) {
-            PosixPtyFunctions.closeFd(sw, new FunctionResult());
         }
     }
 
@@ -230,9 +343,9 @@ public class PosixPtyProcess implements PtyProcess {
         if (!closed.compareAndSet(false, true)) {
             return;
         }
-        // Kill the child if still alive. The waiter thread will then return
-        // from waitpid, mark exited, close the parent's slave + stderr-write
-        // copies, the drainers see EOF and exit.
+        // SIGKILL the grandchild if still alive.  The anchor will reap it
+        // and forward the exit status; the waiter then releases the anchor
+        // and the master sees EOF.
         long p;
         synchronized (exitLock) {
             p = exited ? 0 : pid;

@@ -30,6 +30,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <pthread.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -612,6 +613,57 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_createPty(
 // open through the child's own exit and FreeBSD's pty driver cannot
 // flush its line discipline buffer before the parent has read it.
 // On failure, both fds are closed here.
+// Helper: fully read N bytes from fd, retrying on EINTR.
+// Returns total bytes read; <N means short (peer closed early).
+static ssize_t full_read(int fd, void* buf, size_t want) {
+    ssize_t total = 0;
+    while ((size_t) total < want) {
+        ssize_t r = read(fd, (char*) buf + total, want - (size_t) total);
+        if (r < 0) {
+            if (errno == EINTR) continue;
+            break;
+        }
+        if (r == 0) break;
+        total += r;
+    }
+    return total;
+}
+
+// Helper: fully write N bytes to fd, retrying on EINTR.
+static int full_write(int fd, const void* buf, size_t want) {
+    size_t total = 0;
+    while (total < want) {
+        ssize_t w = write(fd, (const char*) buf + total, want - total);
+        if (w < 0) {
+            if (errno == EINTR) continue;
+            return -1;
+        }
+        total += (size_t) w;
+    }
+    return 0;
+}
+
+// Decode a waitpid status into the {WEXITSTATUS, 128+signal} convention.
+static int decode_wait_status(int status) {
+    if (WIFEXITED(status)) return WEXITSTATUS(status);
+    if (WIFSIGNALED(status)) return 128 + WTERMSIG(status);
+    return -1;
+}
+
+// Use the two-fork "anchor + grandchild" pattern only on BSD-family
+// kernels other than macOS.  Those kernels run a synchronous
+// killjobc()/VOP_REVOKE/tty_flush(FWRITE) pass on the slave PTY when
+// the controlling-tty session leader exits, which discards any
+// slave-to-master bytes the master has not yet read.  macOS shares the
+// 4.4BSD lineage but empirically preserves bytes (different
+// spec_revoke aliasing behaviour); Linux explicitly skips the vhangup
+// path for PTYs.  See PORTABILITY.md.
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
+  #define PTY_USE_ANCHOR 1
+#else
+  #define PTY_USE_ANCHOR 0
+#endif
+
 JNIEXPORT jlong JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnInPty(
         JNIEnv* env, jclass target,
@@ -619,7 +671,40 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnInPty(
         jobjectArray command,
         jobjectArray environment,
         jstring workingDir,
+        jlongArray outAux,
         jobject result) {
+    // outAux receives [anchorPid, infoPipeRead, syncPipeWrite] on success.
+    // The grandchild PID is returned via the JNI return value.
+    //
+    // Architecture: this JNI does TWO forks.
+    //   daemon -> anchor:    anchor calls setsid + ioctl(TIOCSCTTY, slaveFd).
+    //   anchor -> grandchild: grandchild dup2's slave/stderr-write and execs
+    //                         the user command.
+    // The anchor stays alive past the grandchild's exit (blocked on read of
+    // a sync pipe that the daemon closes when it has finished draining the
+    // master).  This prevents FreeBSD's killjobc() from running its
+    // synchronous VOP_REVOKE -> ttydev_close(FREVOKE) -> tty_flush(FWRITE)
+    // path on the slave PTY while there is still buffered output the master
+    // has not yet read, which is the data-loss bug documented in
+    // PORTABILITY.md.  Linux and macOS gain identical structural plumbing
+    // at trivial cost.
+    //
+    // Pipes (all CLOEXEC, anchor closes daemon-only ends after fork):
+    //   diagPipe : anchor + grandchild -> daemon, for setup/exec failures.
+    //              EOF when grandchild exec succeeds (CLOEXEC on grandchild's
+    //              copy + explicit close on anchor's copy).
+    //   infoPipe : anchor -> daemon, for grandchild PID and exit status.
+    //              Anchor writes 8-byte pid then 4-byte status.
+    //   syncPipe : daemon -> anchor.  Daemon closes its write end to release
+    //              the anchor.  Anchor reads from its read end (returns 0 on
+    //              EOF) and then _exits.
+    if (outAux == NULL || env->GetArrayLength(outAux) < 3) {
+        close(slaveFd);
+        close(stderrWriteFd);
+        mark_failed_with_message(env, "outAux array must have length >= 3", result);
+        return 0;
+    }
+
     jsize argc = env->GetArrayLength(command);
     if (argc < 1) {
         close(slaveFd);
@@ -690,9 +775,21 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnInPty(
     }
 
     int diagPipe[2] = {-1, -1};
-    pid_t pid = 0;
+    int infoPipe[2] = {-1, -1};
+    int syncPipe[2] = {-1, -1};
+    pid_t anchorPid = 0;
     jlong returnPid = 0;
     bool failed = false;
+    bool slaveClosed = false;
+
+    // Default outAux for the simple path: anchorPid = 0 signals to Java
+    // that this spawn is anchorless; the waiter falls back to the
+    // legacy waitpid-on-grandchild path.  The two fd slots are set to
+    // -1 to make accidental closeFd calls harmless.
+    {
+        jlong aux[3] = { 0, -1, -1 };
+        env->SetLongArrayRegion(outAux, 0, 3, aux);
+    }
 
     do {
         if (pipe(diagPipe) != 0) {
@@ -700,21 +797,275 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnInPty(
             failed = true;
             break;
         }
-        {
-            int f = fcntl(diagPipe[0], F_GETFD);
-            if (f != -1) fcntl(diagPipe[0], F_SETFD, f | FD_CLOEXEC);
-            f = fcntl(diagPipe[1], F_GETFD);
-            if (f != -1) fcntl(diagPipe[1], F_SETFD, f | FD_CLOEXEC);
+#if PTY_USE_ANCHOR
+        if (pipe(infoPipe) != 0) {
+            mark_failed_with_errno(env, "could not create info pipe", result);
+            failed = true;
+            break;
+        }
+        if (pipe(syncPipe) != 0) {
+            mark_failed_with_errno(env, "could not create sync pipe", result);
+            failed = true;
+            break;
+        }
+#endif
+        // CLOEXEC on every end so an unrelated fork+exec in the daemon can't
+        // leak these.  The anchor explicitly closes daemon-only ends after
+        // fork; the grandchild's diag write end closes on successful execve.
+        for (int p = 0; p < 2; p++) {
+            int f = fcntl(diagPipe[p], F_GETFD);
+            if (f != -1) fcntl(diagPipe[p], F_SETFD, f | FD_CLOEXEC);
+#if PTY_USE_ANCHOR
+            f = fcntl(infoPipe[p], F_GETFD);
+            if (f != -1) fcntl(infoPipe[p], F_SETFD, f | FD_CLOEXEC);
+            f = fcntl(syncPipe[p], F_GETFD);
+            if (f != -1) fcntl(syncPipe[p], F_SETFD, f | FD_CLOEXEC);
+#endif
         }
 
-        pid = fork();
-        if (pid < 0) {
+        anchorPid = fork();
+        if (anchorPid < 0) {
             mark_failed_with_errno(env, "could not fork", result);
             failed = true;
             break;
         }
 
-        if (pid == 0) {
+#if PTY_USE_ANCHOR
+        if (anchorPid == 0) {
+            // ===== ANCHOR =====
+            // Only async-signal-safe calls until the grandchild path
+            // execve's: setsid, ioctl, fork, dup2, close, chdir, _exit,
+            // read, write, waitpid, sigaction.  No malloc, no JNI.
+            //
+            // Reset signal handlers the daemon JVM installed.  Critically,
+            // the JVM may set SIGCHLD to SIG_IGN or to a handler that
+            // reaps any child via wait(-1) — both would cause our
+            // waitpid(grand) below to fail with ECHILD.  SIGPIPE may
+            // similarly be SIG_IGN; that one is benign for us but resetting
+            // is safer.  Resetting every signal we care about post-fork is
+            // standard practice for non-exec'ing forked helpers.
+            struct sigaction dfl;
+            memset(&dfl, 0, sizeof(dfl));
+            dfl.sa_handler = SIG_DFL;
+            sigemptyset(&dfl.sa_mask);
+            sigaction(SIGCHLD, &dfl, NULL);
+            sigaction(SIGPIPE, &dfl, NULL);
+            sigaction(SIGTERM, &dfl, NULL);
+            sigaction(SIGINT, &dfl, NULL);
+            sigaction(SIGHUP, &dfl, NULL);
+            sigaction(SIGQUIT, &dfl, NULL);
+            // Ignore SIGTTOU and SIGTTIN: tcsetpgrp on the slave below
+            // can raise SIGTTOU even though we're the session leader on
+            // some kernels (POSIX session-leader exemption is not
+            // universal), and SIGTSTP/SIGTTIN/SIGTTOU all default to
+            // stopping the process.  We don't read from / write to the
+            // tty after the initial setup, so ignoring these is safe.
+            struct sigaction ign;
+            memset(&ign, 0, sizeof(ign));
+            ign.sa_handler = SIG_IGN;
+            sigemptyset(&ign.sa_mask);
+            sigaction(SIGTTOU, &ign, NULL);
+            sigaction(SIGTTIN, &ign, NULL);
+            sigaction(SIGTSTP, &ign, NULL);
+            // Also unblock SIGCHLD specifically — the JVM blocks it on
+            // most threads except the process reaper, and the post-fork
+            // signal mask is inherited.
+            sigset_t unblock;
+            sigemptyset(&unblock);
+            sigaddset(&unblock, SIGCHLD);
+            pthread_sigmask(SIG_UNBLOCK, &unblock, NULL);
+
+            close(diagPipe[0]);
+            close(infoPipe[0]);
+            close(syncPipe[1]);
+            int diagFd = diagPipe[1];
+            int infoFd = infoPipe[1];
+            int syncFd = syncPipe[0];
+
+            if (setsid() < 0) { diag_write(diagFd, 'S', errno); _exit(126); }
+            if (ioctl(slaveFd, TIOCSCTTY, 0) < 0) { diag_write(diagFd, 'T', errno); _exit(126); }
+
+            pid_t grand = fork();
+            if (grand < 0) { diag_write(diagFd, 'A', errno); _exit(126); }
+
+            if (grand == 0) {
+                // ===== GRANDCHILD =====
+                // Move into our own process group so killProcess's
+                // kill(-grandchildPid, sig) targets us (and any
+                // descendants we spawn) but not the anchor.  Idempotent
+                // with the anchor-side setpgid below.
+                setpgid(0, 0);
+                close(infoFd);
+                close(syncFd);
+                if (dup2(slaveFd, 0) < 0) { diag_write(diagFd, '0', errno); _exit(126); }
+                if (dup2(slaveFd, 1) < 0) { diag_write(diagFd, '1', errno); _exit(126); }
+                if (dup2(stderrWriteFd, 2) < 0) { diag_write(diagFd, '2', errno); _exit(126); }
+                if (slaveFd > 2) close(slaveFd);
+                if (stderrWriteFd > 2) close(stderrWriteFd);
+
+                if (wdStr != NULL && chdir(wdStr) < 0) {
+                    diag_write(diagFd, 'D', errno);
+                    _exit(126);
+                }
+                child_search_and_exec(argv, envp, diagFd);
+                // not reached
+            }
+
+            // ===== ANCHOR (post-grandchild-fork) =====
+            // Mirror the grandchild's setpgid (race-free: whichever side
+            // runs first wins, the other is a no-op).
+            setpgid(grand, grand);
+            // Make the grandchild's pgrp the foreground pgrp of the
+            // controlling tty so it receives SIGWINCH/SIGINT/SIGTSTP and
+            // can read stdin without SIGTTIN.  The anchor is the session
+            // leader, so tcsetpgrp does not raise SIGTTOU on us.
+            tcsetpgrp(slaveFd, grand);
+            // Drop the slave + stderr-write copies the anchor inherited;
+            // the grandchild has its own dup'd copies on fds 0/1/2 and the
+            // daemon already closed its slave (see below).  The slave PTY's
+            // controlling-terminal status is held alive by this session's
+            // s_ttyvp reference, not by any open fd.
+            close(slaveFd);
+            close(stderrWriteFd);
+            // Close diag write end so the daemon can see exec-success EOF
+            // (the grandchild's copy has CLOEXEC and closes on execve).
+            close(diagFd);
+
+            // Send grandchild PID to daemon.
+            int64_t gpid = (int64_t) grand;
+            if (full_write(infoFd, &gpid, sizeof(gpid)) != 0) {
+                // Daemon went away.  Take the grandchild down with us.
+                kill(grand, SIGKILL);
+                int dummy;
+                do {} while (waitpid(grand, &dummy, 0) == -1 && errno == EINTR);
+                _exit(126);
+            }
+
+            // Wait for grandchild and forward its exit status.
+            int status = 0;
+            pid_t wret;
+            do { wret = waitpid(grand, &status, 0); } while (wret == -1 && errno == EINTR);
+            int32_t code = (int32_t) decode_wait_status(status);
+            (void) full_write(infoFd, &code, sizeof(code));
+            close(infoFd);
+
+            // Block until the daemon finishes draining the master and
+            // closes its end of the sync pipe.  Only THEN do we exit and
+            // let the kernel run killjobc() -> VOP_REVOKE on us; by this
+            // point t_outq has been fully consumed, so the synchronous
+            // tty_flush(FWRITE) discards nothing.
+            char tmp;
+            ssize_t r;
+            do { r = read(syncFd, &tmp, 1); } while (r < 0 && errno == EINTR);
+            // r == 0 (EOF, daemon closed its end) or r == 1 (a stray byte)
+            // both mean "you may exit now".
+            (void) r;
+            _exit(0);
+        }
+
+        // ===== DAEMON =====
+        // Close anchor-only ends.
+        close(diagPipe[1]); diagPipe[1] = -1;
+        close(infoPipe[1]); infoPipe[1] = -1;
+        close(syncPipe[0]); syncPipe[0] = -1;
+        // Anchor and grandchild have their own copies of slave + stderrWrite
+        // via fork; the daemon doesn't need them.  No deferred-close trick:
+        // the anchor is the structural fix, not a held-open slave fd.
+        close(slaveFd);
+        close(stderrWriteFd);
+        slaveClosed = true;
+
+        // Wait for the diag pipe.  EOF means anchor + grandchild exec
+        // succeeded; data means a setup or exec failure with stage+errno.
+        char stage = 0;
+        int childErrno = 0;
+        ssize_t stageRead = 0;
+        do {
+            stageRead = read(diagPipe[0], &stage, 1);
+        } while (stageRead == -1 && errno == EINTR);
+        if (stageRead == 1) {
+            ssize_t r = 0;
+            do {
+                r = read(diagPipe[0], &childErrno, sizeof(childErrno));
+            } while (r == -1 && errno == EINTR);
+        }
+        close(diagPipe[0]); diagPipe[0] = -1;
+
+        if (stageRead == 1) {
+            // Setup or exec failed.  Drain the info pipe (anchor may have
+            // already written pid + status if the failure was in the
+            // grandchild's exec), close our sync pipe end so the anchor
+            // exits, then reap.
+            char drain[16];
+            while (read(infoPipe[0], drain, sizeof(drain)) > 0) { }
+            close(infoPipe[0]); infoPipe[0] = -1;
+            close(syncPipe[1]); syncPipe[1] = -1;
+
+            int astatus = 0;
+            pid_t wret;
+            do {
+                wret = waitpid(anchorPid, &astatus, 0);
+            } while (wret == -1 && errno == EINTR);
+
+            char msg[512];
+            const char* stageName = "child setup failed";
+            switch (stage) {
+                case 'S': stageName = "setsid failed"; break;
+                case 'T': stageName = "TIOCSCTTY failed"; break;
+                case 'A': stageName = "could not fork grandchild"; break;
+                case '0': stageName = "dup2(stdin) failed"; break;
+                case '1': stageName = "dup2(stdout) failed"; break;
+                case '2': stageName = "dup2(stderr) failed"; break;
+                case 'D': stageName = "could not chdir to working directory"; break;
+                case 'X': stageName = "could not execute command"; break;
+                case 'P': stageName = "command not found (no PATH in environment)"; break;
+                case 'F': stageName = "command not found"; break;
+                case 'E': stageName = "could not execute command"; break;
+                case 'N': stageName = "not an executable"; break;
+            }
+            const char* cmd = argc > 0 && argv[0] ? argv[0] : "<null>";
+            snprintf(msg, sizeof(msg), "%s: '%s'", stageName, cmd);
+            errno = childErrno;
+            mark_failed_with_errno(env, msg, result);
+            failed = true;
+            break;
+        }
+
+        // Exec succeeded.  Read the grandchild PID from the info pipe.
+        int64_t gpid = 0;
+        ssize_t got = full_read(infoPipe[0], &gpid, sizeof(gpid));
+        if (got != (ssize_t) sizeof(gpid)) {
+            // Should not happen: anchor is contracted to write pid before
+            // closing info.  Treat as a setup failure and reap.
+            close(infoPipe[0]); infoPipe[0] = -1;
+            close(syncPipe[1]); syncPipe[1] = -1;
+            int astatus = 0;
+            pid_t wret;
+            do { wret = waitpid(anchorPid, &astatus, 0); } while (wret == -1 && errno == EINTR);
+            mark_failed_with_message(env, "anchor did not deliver child pid", result);
+            failed = true;
+            break;
+        }
+        returnPid = (jlong) gpid;
+
+        // Hand info-read and sync-write off to Java; the waiter thread will
+        // consume the exit status from infoPipe[0] and release the anchor by
+        // closing syncPipe[1].
+        jlong aux[3];
+        aux[0] = (jlong) anchorPid;
+        aux[1] = (jlong) infoPipe[0];
+        aux[2] = (jlong) syncPipe[1];
+        env->SetLongArrayRegion(outAux, 0, 3, aux);
+        infoPipe[0] = -1;
+        syncPipe[1] = -1;
+#else  // !PTY_USE_ANCHOR — Linux / macOS single-fork path
+        // The single-fork pattern: child becomes the session leader and
+        // execs the user command directly.  Linux skips the vhangup path
+        // for PTYs and macOS empirically preserves bytes through its
+        // revoke path, so the FreeBSD-style killjobc flush is not a
+        // concern.  The waiter thread will call waitpid(child) directly.
+        if (anchorPid == 0) {
+            // ===== CHILD =====
             close(diagPipe[0]);
             int diagFd = diagPipe[1];
 
@@ -725,16 +1076,23 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnInPty(
             if (dup2(stderrWriteFd, 2) < 0) { diag_write(diagFd, '2', errno); _exit(126); }
             if (slaveFd > 2) close(slaveFd);
             if (stderrWriteFd > 2) close(stderrWriteFd);
-
             if (wdStr != NULL && chdir(wdStr) < 0) {
                 diag_write(diagFd, 'D', errno);
                 _exit(126);
             }
-
             child_search_and_exec(argv, envp, diagFd);
+            // not reached
         }
 
+        // ===== DAEMON =====
         close(diagPipe[1]); diagPipe[1] = -1;
+        // Linux/macOS don't have the FreeBSD synchronous-flush bug, so
+        // the daemon can close slave + stderrWrite immediately.  The
+        // child has its own dup'd copies on fds 0/1/2; Java holds master
+        // and stderrRead.
+        close(slaveFd);
+        close(stderrWriteFd);
+        slaveClosed = true;
 
         char stage = 0;
         int childErrno = 0;
@@ -768,11 +1126,10 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnInPty(
             }
             const char* cmd = argc > 0 && argv[0] ? argv[0] : "<null>";
             snprintf(msg, sizeof(msg), "%s: '%s'", stageName, cmd);
-
-            int status = 0;
+            int astatus = 0;
             pid_t wret;
             do {
-                wret = waitpid(pid, &status, 0);
+                wret = waitpid(anchorPid, &astatus, 0);
             } while (wret == -1 && errno == EINTR);
             errno = childErrno;
             mark_failed_with_errno(env, msg, result);
@@ -780,18 +1137,26 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixPtyFunctions_spawnInPty(
             break;
         }
 
-        returnPid = (jlong) pid;
+        // Exec succeeded.  Return the child's pid.  outAux was already
+        // populated with [0, -1, -1] above so the Java attach() sees
+        // anchorPid == 0 and uses the legacy waitpid path.
+        returnPid = (jlong) anchorPid;
+#endif // PTY_USE_ANCHOR
     } while (0);
 
-    // On failure, close slave + stderr-write here. On success, leave
-    // them open — Java's watcher thread closes them after waitpid so
-    // the slave stays alive across the child's own exit.
-    if (failed) {
+    // Cleanup.  If the daemon branch ran, slave + stderrWrite are already
+    // closed (slaveClosed == true).  Otherwise (pipe-creation error, fork
+    // error, or argv/envp allocation failures earlier) we still own them.
+    if (failed && !slaveClosed) {
         close(slaveFd);
         close(stderrWriteFd);
     }
     if (diagPipe[0] >= 0) close(diagPipe[0]);
     if (diagPipe[1] >= 0) close(diagPipe[1]);
+    if (infoPipe[0] >= 0) close(infoPipe[0]);
+    if (infoPipe[1] >= 0) close(infoPipe[1]);
+    if (syncPipe[0] >= 0) close(syncPipe[0]);
+    if (syncPipe[1] >= 0) close(syncPipe[1]);
 
     for (jsize i = 0; i < argc; i++) free(argv[i]);
     free(argv);

@@ -43,7 +43,7 @@ public class PosixPtyProcessLauncher implements PtyProcessLauncher {
         }
         String dir = workingDir != null ? workingDir.getAbsolutePath() : null;
 
-        // 1. Allocate the PTY + stderr pipe. No fork yet.
+        // 1. Allocate the PTY + stderr pipe.  No fork yet.
         int[] fds = new int[]{-1, -1, -1, -1}; // master, slave, stderrRead, stderrWrite
         FunctionResult ptyResult = new FunctionResult();
         PosixPtyFunctions.createPty(cols, rows, fds, ptyResult);
@@ -51,32 +51,31 @@ public class PosixPtyProcessLauncher implements PtyProcessLauncher {
             throw new NativeException("Could not create PTY: " + ptyResult.getMessage());
         }
 
-        // 2. Construct the process before forking. The constructor starts
-        //    master-side drainer threads on masterFd and stderrReadFd, so
-        //    a read is on the way to being parked before the child can
-        //    write its first byte. Combined with the deferred parent-slave
-        //    close (the waiter holds slaveFd + stderrWriteFd open until
-        //    waitpid returns), this closes the POSIX "master read after
-        //    slave close is implementation-defined" race on FreeBSD.
-        PosixPtyProcess process = new PosixPtyProcess(fds[0], fds[1], fds[2], fds[3]);
+        // 2. Construct the process before forking.  The constructor starts
+        //    master-side drainer threads on masterFd and stderrReadFd so
+        //    they are scheduling onto their first read before the
+        //    grandchild can write its first byte.
+        PosixPtyProcess process = new PosixPtyProcess(fds[0], fds[2]);
 
-        // 3. Fork+exec. On success the parent keeps slave + stderrWrite
-        //    open and the process owns them; on failure the JNI side
-        //    closes both.
+        // 3. Two-fork spawn.  spawnInPty closes slave + stderrWrite in the
+        //    daemon regardless of outcome.  On success it returns the
+        //    grandchild pid and populates outAux with the anchor pid plus
+        //    the info-pipe-read and sync-pipe-write fds the waiter thread
+        //    uses to receive the exit status and release the anchor.
+        long[] outAux = new long[3];
         FunctionResult spawnResult = new FunctionResult();
         long pid = PosixPtyFunctions.spawnInPty(
-                fds[1], fds[3], cmd, env, dir, spawnResult);
+                fds[1], fds[3], cmd, env, dir, outAux, spawnResult);
         if (spawnResult.isFailed()) {
-            // slave + stderrWrite already closed by the JNI failure path;
-            // tell the process not to close them again.
-            process.markSlaveAlreadyClosed();
-            process.close();
+            // Slave + stderrWrite are already closed by the JNI failure
+            // path.  Master + stderrRead are still open and have drainer
+            // threads parked on them; closeAfterSpawnFailure releases them.
+            process.closeAfterSpawnFailure();
             throw new NativeException("Could not spawn PTY process: " + spawnResult.getMessage());
         }
 
-        // 4. Attach pid. Starts the waiter thread, which calls waitpid
-        //    and then closes the parent's slave + stderrWrite fds.
-        process.attachPid(pid);
+        // 4. Hand the anchor handles to the process and start the waiter.
+        process.attachAnchor(pid, outAux[0], (int) outAux[1], (int) outAux[2]);
         return process;
     }
 }
