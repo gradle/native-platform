@@ -26,6 +26,24 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * Windows ConPTY implementation of {@link PtyProcess}.
+ *
+ * <p>Mirrors the POSIX class structure. Two background threads run for the
+ * lifetime of the child:</p>
+ * <ul>
+ *   <li>The stdout drainer pulls bytes from the master read handle into a
+ *       {@link BufferedPtyInputStream}. Started immediately in the
+ *       constructor because ConPTY back-pressures the child until
+ *       <em>someone</em> reads from that pipe.</li>
+ *   <li>The child watcher waits for the child process via
+ *       {@code WaitForSingleObject} and, once it returns, calls
+ *       {@code ClosePseudoConsole} so ConPTY flushes any pending output
+ *       bytes and closes its writer side. The drainer then sees a broken
+ *       pipe and signals EOF, matching the POSIX behaviour where the
+ *       kernel hangs up the master fd on slave close.</li>
+ * </ul>
+ */
 public class WindowsPtyProcess implements PtyProcess {
     private static final long INVALID_HANDLE = -1L;
     private static final InputStream EMPTY_STREAM = new ByteArrayInputStream(new byte[0]);
@@ -43,6 +61,8 @@ public class WindowsPtyProcess implements PtyProcess {
     private final WindowsPtyOutputStream outputStream;
     private final Thread stdoutDrainer;
     private volatile Thread stderrDrainer;
+    private volatile Thread childWatcher;
+    private final Object exitLock = new Object();
     private boolean exited;
     private int exitCode;
 
@@ -59,19 +79,13 @@ public class WindowsPtyProcess implements PtyProcess {
         this.stdoutStream = new BufferedPtyInputStream();
         this.stderrStream = new BufferedPtyInputStream();
         this.outputStream = new WindowsPtyOutputStream(this);
-        // Start the stdout drainer immediately, before the child is attached
-        // via attachProcess(). ConPTY emits its startup VT output as soon as
-        // the child runs and would back-pressure the child if no one is
-        // reading from ptyReadHandle. The drainer feeds the buffered
-        // InputStream so callers see the bytes; if no caller reads, the bytes
-        // accumulate until close() — which is fine for short-lived children.
         this.stdoutDrainer = startDrainer(this::drainStdout, "windows-pty-stdout-drainer");
     }
 
-    void attachProcess(long processHandle, long pid, long stderrReadHandleArg) {
+    void attachProcess(long processHandleArg, long pidArg, long stderrReadHandleArg) {
         synchronized (this) {
-            this.processHandle = processHandle;
-            this.pid = pid;
+            this.processHandle = processHandleArg;
+            this.pid = pidArg;
             this.stderrReadHandle = stderrReadHandleArg;
             this.stderrMerged = (stderrReadHandleArg == 0L || stderrReadHandleArg == INVALID_HANDLE);
             if (!this.stderrMerged) {
@@ -79,6 +93,7 @@ public class WindowsPtyProcess implements PtyProcess {
             } else {
                 this.stderrStream.signalEof();
             }
+            this.childWatcher = startDrainer(this::watchChild, "windows-pty-child-watcher");
         }
     }
 
@@ -131,6 +146,46 @@ public class WindowsPtyProcess implements PtyProcess {
         }
     }
 
+    private void watchChild() {
+        long h;
+        synchronized (this) {
+            h = processHandle;
+        }
+        if (h == 0L || h == INVALID_HANDLE) {
+            return;
+        }
+        FunctionResult r = new FunctionResult();
+        int code = WindowsPtyFunctions.waitForProcess(h, r);
+        // ClosePseudoConsole flushes ConPTY's internal buffers, closes its
+        // writer end, then returns. The stdout drainer then sees a broken
+        // pipe and signals EOF on stdoutStream — without this, callers that
+        // read pty.inputStream until EOF (Groovy's `text`, etc.) hang on
+        // child exit because ConPTY does not auto-shutdown when the child
+        // dies. The same call also closes the input pipe, so any pending
+        // outputStream.write fails with ERROR_BROKEN_PIPE which
+        // WindowsPtyOutputStream surfaces as ProcessExitedException.
+        closePseudoConsoleOnce();
+        synchronized (exitLock) {
+            if (!r.isFailed()) {
+                exitCode = code;
+            }
+            exited = true;
+            exitLock.notifyAll();
+        }
+    }
+
+    private void closePseudoConsoleOnce() {
+        long h;
+        synchronized (this) {
+            h = hPC;
+            if (h == 0L || h == INVALID_HANDLE) {
+                return;
+            }
+            hPC = INVALID_HANDLE;
+        }
+        WindowsPtyFunctions.closePseudoConsole(h, new FunctionResult());
+    }
+
     public long getPtyWriteHandle() {
         return ptyWriteHandle;
     }
@@ -163,59 +218,98 @@ public class WindowsPtyProcess implements PtyProcess {
     }
 
     @Override
-    public synchronized int waitFor() throws InterruptedException {
-        if (exited) return exitCode;
-        long h = processHandle;
-        if (h == 0 || h == INVALID_HANDLE) {
-            throw new IllegalStateException("Process handle is closed");
+    public int waitFor() throws InterruptedException {
+        synchronized (exitLock) {
+            while (!exited) {
+                exitLock.wait();
+            }
+            return exitCode;
+        }
+    }
+
+    @Override
+    public void destroy() {
+        long h;
+        synchronized (this) {
+            if (processHandle == 0 || processHandle == INVALID_HANDLE) return;
+            h = processHandle;
+        }
+        synchronized (exitLock) {
+            if (exited) return;
         }
         FunctionResult result = new FunctionResult();
-        int code = WindowsPtyFunctions.waitForProcess(h, result);
-        if (result.isFailed()) {
-            throw new NativeException("Could not wait for process: " + result.getMessage());
+        WindowsPtyFunctions.destroyProcess(h, ptyWriteHandle, 500, result);
+    }
+
+    @Override
+    public void destroyForcibly() {
+        long h;
+        synchronized (this) {
+            if (processHandle == 0 || processHandle == INVALID_HANDLE) return;
+            h = processHandle;
         }
-        exitCode = code;
-        exited = true;
-        return exitCode;
-    }
-
-    @Override
-    public synchronized void destroy() {
-        if (exited || processHandle == 0 || processHandle == INVALID_HANDLE) return;
-        FunctionResult result = new FunctionResult();
-        WindowsPtyFunctions.destroyProcess(processHandle, ptyWriteHandle, 500, result);
-    }
-
-    @Override
-    public synchronized void destroyForcibly() {
-        if (exited || processHandle == 0 || processHandle == INVALID_HANDLE) return;
-        FunctionResult result = new FunctionResult();
-        WindowsPtyFunctions.destroyProcess(processHandle, 0, 0, result);
-    }
-
-    @Override
-    public synchronized boolean isAlive() {
-        return !exited;
-    }
-
-    @Override
-    public synchronized int exitValue() {
-        if (!exited) {
-            throw new IllegalStateException("Process has not exited");
+        synchronized (exitLock) {
+            if (exited) return;
         }
-        return exitCode;
+        FunctionResult result = new FunctionResult();
+        WindowsPtyFunctions.destroyProcess(h, 0, 0, result);
+    }
+
+    @Override
+    public boolean isAlive() {
+        synchronized (exitLock) {
+            return !exited;
+        }
+    }
+
+    @Override
+    public int exitValue() {
+        synchronized (exitLock) {
+            if (!exited) {
+                throw new IllegalStateException("Process has not exited");
+            }
+            return exitCode;
+        }
     }
 
     @Override
     public void close() {
         if (!closed.compareAndSet(false, true)) return;
 
+        // Make sure the child exits so the watcher releases. destroyProcess is
+        // a no-op once the child has already exited.
+        long procHandleSnapshot;
+        synchronized (this) {
+            procHandleSnapshot = processHandle;
+        }
+        if (procHandleSnapshot != 0 && procHandleSnapshot != INVALID_HANDLE) {
+            FunctionResult killResult = new FunctionResult();
+            WindowsPtyFunctions.destroyProcess(procHandleSnapshot, 0, 0, killResult);
+        }
+
+        // ClosePseudoConsole comes before CloseHandle on the master handles.
+        // The watcher may have already done it; closePseudoConsoleOnce makes
+        // both paths safe.
+        closePseudoConsoleOnce();
+
+        Thread watcher;
+        Thread stderrThread;
+        synchronized (this) {
+            watcher = childWatcher;
+            stderrThread = stderrDrainer;
+        }
+        try {
+            if (watcher != null) watcher.join(5000);
+            stdoutDrainer.join(2000);
+            if (stderrThread != null) stderrThread.join(2000);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+
         long readH;
         long writeH;
         long stderrH;
-        long pcH;
         long procH;
-        Thread stderrThread;
         synchronized (this) {
             readH = ptyReadHandle;
             ptyReadHandle = INVALID_HANDLE;
@@ -223,32 +317,7 @@ public class WindowsPtyProcess implements PtyProcess {
             ptyWriteHandle = INVALID_HANDLE;
             stderrH = stderrReadHandle;
             stderrReadHandle = INVALID_HANDLE;
-            pcH = hPC;
-            hPC = INVALID_HANDLE;
             procH = processHandle;
-            stderrThread = stderrDrainer;
-        }
-
-        // Kill the child first so ConPTY's writer side stops producing.
-        if (procH != 0 && procH != INVALID_HANDLE) {
-            FunctionResult killResult = new FunctionResult();
-            WindowsPtyFunctions.destroyProcess(procH, 0, 0, killResult);
-        }
-
-        // ClosePseudoConsole comes before CloseHandle on the master handles:
-        // ConPTY shuts down its writer end as part of teardown, the drainer's
-        // blocked ReadFile returns EOF, and the drainer exits cleanly. Closing
-        // the master handles first while the drainer is still parked in
-        // ReadFile would yank the handle from under an in-flight syscall, with
-        // results undocumented enough to avoid.
-        if (pcH != 0 && pcH != INVALID_HANDLE) {
-            WindowsPtyFunctions.closePseudoConsole(pcH, new FunctionResult());
-        }
-        try {
-            stdoutDrainer.join(2000);
-            if (stderrThread != null) stderrThread.join(2000);
-        } catch (InterruptedException ignored) {
-            Thread.currentThread().interrupt();
         }
 
         if (readH != 0 && readH != INVALID_HANDLE) {
@@ -260,18 +329,20 @@ public class WindowsPtyProcess implements PtyProcess {
         if (stderrH != 0 && stderrH != INVALID_HANDLE) {
             WindowsPtyFunctions.closeHandle(stderrH, new FunctionResult());
         }
-
-        synchronized (this) {
-            if (!exited && procH != 0 && procH != INVALID_HANDLE) {
-                FunctionResult waitResult = new FunctionResult();
-                int code = WindowsPtyFunctions.waitForProcess(procH, waitResult);
-                if (!waitResult.isFailed()) {
-                    exitCode = code;
-                    exited = true;
+        if (procH != 0 && procH != INVALID_HANDLE) {
+            synchronized (exitLock) {
+                if (!exited) {
+                    FunctionResult waitResult = new FunctionResult();
+                    int code = WindowsPtyFunctions.waitForProcess(procH, waitResult);
+                    if (!waitResult.isFailed()) {
+                        exitCode = code;
+                        exited = true;
+                        exitLock.notifyAll();
+                    }
                 }
             }
-            if (procH != 0 && procH != INVALID_HANDLE) {
-                WindowsPtyFunctions.closeHandle(procH, new FunctionResult());
+            WindowsPtyFunctions.closeHandle(procH, new FunctionResult());
+            synchronized (this) {
                 processHandle = INVALID_HANDLE;
             }
         }
