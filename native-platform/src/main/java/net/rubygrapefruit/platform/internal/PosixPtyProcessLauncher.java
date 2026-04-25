@@ -60,13 +60,7 @@ public class PosixPtyProcessLauncher implements PtyProcessLauncher {
         //    slave close is implementation-defined" race on FreeBSD.
         PosixPtyProcess process = new PosixPtyProcess(fds[0], fds[1], fds[2], fds[3]);
 
-        // 3. Workaround: wait long enough for the drainer threads to reach
-        //    their first nativeRead syscall before forking. No-op on Linux
-        //    and macOS, which don't observe the race; see the WORKAROUND
-        //    note on PosixPtyProcess.awaitDrainersScheduled.
-        process.awaitDrainersScheduled();
-
-        // 4. Fork+exec. On success the parent keeps slave + stderrWrite
+        // 3. Fork+exec. On success the parent keeps slave + stderrWrite
         //    open and the process owns them; on failure the JNI side
         //    closes both.
         FunctionResult spawnResult = new FunctionResult();
