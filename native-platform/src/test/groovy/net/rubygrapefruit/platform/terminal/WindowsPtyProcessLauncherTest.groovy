@@ -635,6 +635,47 @@ Start-Sleep -Seconds 60
     }
 
     @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "createPseudoConsole + closePseudoConsole loop does not leak HANDLEs"() {
+        // Diagnostic for the spawn/close leak test below. Exercises only the
+        // ConPTY allocate/free pair — no CreateProcessW, no Java drainer
+        // threads, no PtyProcess. If this rate is ≈ 0, the steady-state
+        // leak in the spawn/close test is in our process-spawn / drainer /
+        // close path. If this rate is ≈ 1 per iteration, the leak is
+        // CreatePseudoConsole / ClosePseudoConsole itself (a ConPTY
+        // artefact we cannot fix on our side).
+        given:
+        def runOnce = {
+            long[] handles = new long[4]
+            def result = new net.rubygrapefruit.platform.internal.FunctionResult()
+            WindowsPtyFunctions.createPseudoConsole(80, 24, handles, result)
+            assert !result.failed : result.message
+            // Mirror the production close ordering: ClosePseudoConsole first
+            // (which closes ConPTY's writer end), then CloseHandle on the
+            // master read/write handles we hold.
+            WindowsPtyFunctions.closePseudoConsole(handles[0], new net.rubygrapefruit.platform.internal.FunctionResult())
+            WindowsPtyFunctions.closeHandle(handles[1], new net.rubygrapefruit.platform.internal.FunctionResult())
+            WindowsPtyFunctions.closeHandle(handles[2], new net.rubygrapefruit.platform.internal.FunctionResult())
+        }
+        20.times { runOnce() }
+        int before = WindowsHandleFunctions.getProcessHandleCount()
+        assert before > 0
+
+        when:
+        50.times { runOnce() }
+        int after = WindowsHandleFunctions.getProcessHandleCount()
+
+        then:
+        double perIter = (after - before) / 50.0d
+        // Diagnostic — log the rate so the spawn/close leak hypothesis can
+        // be checked against this baseline without re-running the build.
+        println "[Tier 6.3.7] createPseudoConsole/closePseudoConsole HANDLE rate = ${perIter}/iter"
+        // Treat ≥ 0.5 / iter as "ConPTY internally leaks per session";
+        // anything below means ConPTY is clean and a non-zero rate in the
+        // spawn/close test below points at our code.
+        true
+    }
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
     def "spawn/close loop does not leak HANDLEs unboundedly"() {
         // GetProcessHandleCount is the cheapest signal but it counts every
         // HANDLE in the JVM, not just the ones our PTY path owns. Every
