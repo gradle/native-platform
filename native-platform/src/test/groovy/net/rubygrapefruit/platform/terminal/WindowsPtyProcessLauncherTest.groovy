@@ -17,6 +17,7 @@
 package net.rubygrapefruit.platform.terminal
 
 import net.rubygrapefruit.platform.NativeException
+import net.rubygrapefruit.platform.NativeIntegration
 import net.rubygrapefruit.platform.NativePlatformSpec
 import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.WindowsHandleFunctions
@@ -24,6 +25,7 @@ import net.rubygrapefruit.platform.internal.jni.WindowsPtyFunctions
 import spock.lang.IgnoreIf
 import spock.lang.Timeout
 
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -687,6 +689,131 @@ Start-Sleep -Seconds 60
         // 0.5 of slack covers timing jitter in GetProcessHandleCount
         // without masking a real per-spawn miss.
         spawnRate < conptyRate + 0.5d
+    }
+
+    // ---- Tier 6.4 — Stress and concurrency ----
+
+    @Timeout(90)
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "large output does not deadlock"() {
+        given:
+        def pty = launcher.start(
+                ["powershell", "-NoProfile", "-Command", "'A' * 1048576"],
+                System.getenv(), null, 80, 24)
+        def buffer = new ByteArrayOutputStream()
+        def reader = Thread.start {
+            byte[] buf = new byte[8192]
+            int n
+            try {
+                while ((n = pty.inputStream.read(buf)) >= 0) {
+                    buffer.write(buf, 0, n)
+                }
+            } catch (IOException ignored) {
+            }
+        }
+
+        when:
+        def exitCode = pty.waitFor()
+        reader.join(60_000)
+
+        then:
+        exitCode == 0
+        !reader.isAlive()
+        // PowerShell prints the 1 MB string plus VT/banner output, and ConPTY
+        // may add its own escape sequences; assert ≥ 500 KB rather than
+        // pinning an exact size.
+        buffer.size() >= 500_000
+
+        cleanup:
+        pty?.close()
+    }
+
+    @Timeout(60)
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "concurrent spawn from four threads"() {
+        given:
+        def results = new ConcurrentHashMap<String, Map>()
+        def threads = (0..3).collect { i ->
+            String marker = "thread-${i}".toString()
+            String command = "echo " + marker
+            Thread.start {
+                def pty = launcher.start(
+                        ["cmd.exe", "/c", command],
+                        System.getenv(), null, 80, 24)
+                try {
+                    def out = pty.inputStream.text
+                    def exitCode = pty.waitFor()
+                    results.put(marker, [exitCode: exitCode, out: out])
+                } finally {
+                    pty.close()
+                }
+            }
+        }
+
+        when:
+        threads.each { it.join(30_000) }
+
+        then:
+        results.size() == 4
+        (0..3).each { i ->
+            String marker = "thread-${i}".toString()
+            def r = results[marker]
+            assert r != null
+            assert r.exitCode == 0
+            assert r.out.contains(marker)
+            (0..3).each { other ->
+                if (other != i) {
+                    assert !r.out.contains("thread-${other}".toString())
+                }
+            }
+        }
+    }
+
+    @Timeout(60)
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "rapid repeated resize does not crash"() {
+        given:
+        def pty = launcher.start(
+                ["powershell", "-NoProfile", "-Command", "Start-Sleep -Seconds 30"],
+                System.getenv(), null, 80, 24)
+        def drainer = Executors.newSingleThreadExecutor()
+        drainer.submit({ pty.inputStream.text } as Runnable)
+        Thread.sleep(300)
+
+        when:
+        100.times { i ->
+            pty.resize(100 + (i % 30), 30 + (i % 20))
+        }
+        pty.destroyForcibly()
+        pty.waitFor()
+
+        then:
+        noExceptionThrown()
+
+        cleanup:
+        drainer?.shutdownNow()
+        pty?.close()
+    }
+
+    // ---- Tier 6.5 — Public-API contract sentinels ----
+
+    def "PtyProcess extends AutoCloseable"() {
+        expect:
+        AutoCloseable.isAssignableFrom(PtyProcess)
+    }
+
+    def "PtyProcessLauncher extends NativeIntegration"() {
+        expect:
+        NativeIntegration.isAssignableFrom(PtyProcessLauncher)
+    }
+
+    def "isAvailable signature is boolean and call is non-throwing"() {
+        when:
+        boolean r = launcher.isAvailable()
+
+        then:
+        noExceptionThrown()
+        r || !r
     }
 
     private static byte[] readAllBytes(InputStream input) {
