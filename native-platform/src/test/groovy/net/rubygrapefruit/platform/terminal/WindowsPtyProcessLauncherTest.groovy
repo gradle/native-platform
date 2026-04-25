@@ -636,15 +636,17 @@ Start-Sleep -Seconds 60
 
     @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
     def "spawn/close loop does not leak HANDLEs"() {
-        // Warm up the JVM and any one-shot allocations so the baseline is
-        // stable; then run the measured loop and compare.
+        // The WindowsPtyProcess constructor already starts a stdout drainer
+        // that consumes ConPTY's output, so the test does not need a
+        // per-iteration Executor — adding one would inflate the delta with
+        // a Thread handle per iteration that has nothing to do with the
+        // PTY's resource discipline. Warm up first so JIT-driven one-shot
+        // allocations land in the baseline, then measure the steady-state
+        // delta.
         given:
-        5.times {
+        20.times {
             def p = launcher.start(["cmd.exe", "/c", "exit 0"], System.getenv(), null, 80, 24)
-            def d = Executors.newSingleThreadExecutor()
-            d.submit({ p.inputStream.text } as Runnable)
             p.waitFor()
-            d.shutdownNow()
             p.close()
         }
         int before = WindowsHandleFunctions.getProcessHandleCount()
@@ -653,18 +655,17 @@ Start-Sleep -Seconds 60
         when:
         50.times {
             def p = launcher.start(["cmd.exe", "/c", "exit 0"], System.getenv(), null, 80, 24)
-            def d = Executors.newSingleThreadExecutor()
-            d.submit({ p.inputStream.text } as Runnable)
             p.waitFor()
-            d.shutdownNow()
             p.close()
         }
         int after = WindowsHandleFunctions.getProcessHandleCount()
 
         then:
-        // Tolerance covers JVM-internal handles allocated during the loop
-        // (test-framework, GC, etc.). Per the plan, < 20 is expected.
-        (after - before) < 20
+        // Per-spawn rate < 0.4 means we are not leaking a HANDLE on every
+        // iteration (the symptom of an unclosed pipe/process/thread/HPCON);
+        // a real leak shows up as ≈ 1 handle per iteration.
+        double perSpawn = (after - before) / 50.0d
+        perSpawn < 0.4d
     }
 
     private static byte[] readAllBytes(InputStream input) {
