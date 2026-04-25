@@ -340,6 +340,124 @@ class WindowsPtyProcessLauncherTest extends NativePlatformSpec {
         pty?.close()
     }
 
+    // ---- Tier 6.2 — Resize ----
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "initial PTY size is honored by the child"() {
+        // Uncommon dimensions to avoid coincidental matches with VT escape
+        // sequences emitted by ConPTY's terminal init.
+        given:
+        def pty = launcher.start(
+                ["powershell", "-NoProfile", "-Command",
+                 "[Console]::WindowWidth; [Console]::WindowHeight"],
+                System.getenv(), null, 121, 37)
+
+        when:
+        def out = pty.inputStream.text
+        def exitCode = pty.waitFor()
+
+        then:
+        exitCode == 0
+        out.contains("121")
+        out.contains("37")
+
+        cleanup:
+        pty?.close()
+    }
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "resize() propagates new dimensions to the child"() {
+        given:
+        def script = '''
+$lastW = [Console]::WindowWidth
+Write-Output ("INITIAL=" + $lastW)
+$deadline = (Get-Date).AddSeconds(20)
+while ((Get-Date) -lt $deadline) {
+    Start-Sleep -Milliseconds 100
+    $w = [Console]::WindowWidth
+    if ($w -ne $lastW) {
+        Write-Output ("RESIZED=" + $w)
+        exit 0
+    }
+}
+exit 1
+'''
+        def pty = launcher.start(
+                ["powershell", "-NoProfile", "-Command", script],
+                System.getenv(), null, 80, 24)
+        def collected = new StringBuilder()
+        def collectedLock = new Object()
+        def reader = Thread.start {
+            byte[] buf = new byte[4096]
+            int n
+            try {
+                while ((n = pty.inputStream.read(buf)) >= 0) {
+                    synchronized (collectedLock) {
+                        collected.append(new String(buf, 0, n))
+                    }
+                }
+            } catch (IOException ignored) {
+            }
+        }
+        // Wait until the child has reported its initial size, otherwise the
+        // resize() below races the child's first WindowWidth read.
+        def deadline = System.currentTimeMillis() + 15_000
+        boolean ready = false
+        while (System.currentTimeMillis() < deadline) {
+            synchronized (collectedLock) {
+                if (collected.toString().contains("INITIAL=80")) {
+                    ready = true
+                    break
+                }
+            }
+            Thread.sleep(100)
+        }
+        assert ready : "child never reported INITIAL=80; out=" + collected.toString()
+
+        when:
+        pty.resize(132, 50)
+        def deadline2 = System.currentTimeMillis() + 15_000
+        boolean sawResize = false
+        while (System.currentTimeMillis() < deadline2) {
+            synchronized (collectedLock) {
+                if (collected.toString().contains("RESIZED=132")) {
+                    sawResize = true
+                    break
+                }
+            }
+            Thread.sleep(100)
+        }
+        def exitCode = pty.waitFor()
+
+        then:
+        sawResize
+        exitCode == 0
+
+        cleanup:
+        reader?.join(2000)
+        pty?.close()
+    }
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "resize after child exit is harmless"() {
+        given:
+        def pty = launcher.start(["cmd.exe", "/c", "exit 0"], System.getenv(), null, 80, 24)
+        def drainer = Executors.newSingleThreadExecutor()
+        drainer.submit({ pty.inputStream.text } as Runnable)
+        pty.waitFor()
+        drainer.shutdown()
+        drainer.awaitTermination(5, TimeUnit.SECONDS)
+
+        when:
+        pty.resize(99, 99)
+
+        then:
+        noExceptionThrown()
+
+        cleanup:
+        pty?.close()
+    }
+
     private static byte[] readAllBytes(InputStream input) {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream()
         byte[] chunk = new byte[4096]
