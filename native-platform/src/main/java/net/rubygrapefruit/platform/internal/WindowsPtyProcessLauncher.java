@@ -25,6 +25,9 @@ import java.io.File;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Windows ConPTY implementation of {@link PtyProcessLauncher}.
+ */
 public class WindowsPtyProcessLauncher implements PtyProcessLauncher {
 
     @Override

@@ -18,14 +18,19 @@ package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.internal.jni.PosixPtyFunctions;
 import net.rubygrapefruit.platform.terminal.ProcessExitedException;
+import net.rubygrapefruit.platform.terminal.PtyProcess;
 
 import java.io.IOException;
 import java.io.OutputStream;
 
-public class NativePtyOutputStream extends OutputStream {
+/**
+ * {@link PtyProcess#getOutputStream()} for the POSIX PTY master fd.
+ * Translates post-exit write errors to {@link ProcessExitedException}.
+ */
+public class PosixPtyOutputStream extends OutputStream {
     private final PosixPtyProcess owner;
 
-    public NativePtyOutputStream(PosixPtyProcess owner) {
+    public PosixPtyOutputStream(PosixPtyProcess owner) {
         this.owner = owner;
     }
 

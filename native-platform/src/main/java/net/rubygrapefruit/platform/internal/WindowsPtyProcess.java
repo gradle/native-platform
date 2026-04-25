@@ -29,20 +29,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Windows ConPTY implementation of {@link PtyProcess}.
  *
- * <p>Mirrors the POSIX class structure. Two background threads run for the
- * lifetime of the child:</p>
- * <ul>
- *   <li>The stdout drainer pulls bytes from the master read handle into a
- *       {@link BufferedPtyInputStream}. Started immediately in the
- *       constructor because ConPTY back-pressures the child until
- *       <em>someone</em> reads from that pipe.</li>
- *   <li>The child watcher waits for the child process via
- *       {@code WaitForSingleObject} and, once it returns, calls
- *       {@code ClosePseudoConsole} so ConPTY flushes any pending output
- *       bytes and closes its writer side. The drainer then sees a broken
- *       pipe and signals EOF, matching the POSIX behaviour where the
- *       kernel hangs up the master fd on slave close.</li>
- * </ul>
+ * <p>The stdout drainer is started immediately because ConPTY
+ * back-pressures the child until someone reads from the master pipe.
+ * The child watcher calls {@code ClosePseudoConsole} once
+ * {@code WaitForSingleObject} returns so ConPTY flushes any pending
+ * output and the drainer sees a broken pipe — ConPTY's master read pipe
+ * does not EOF on child exit on its own, unlike the POSIX kernel's
+ * hangup of the master fd when the slave closes.</p>
  */
 public class WindowsPtyProcess implements PtyProcess {
     private static final long INVALID_HANDLE = -1L;
@@ -186,7 +179,7 @@ public class WindowsPtyProcess implements PtyProcess {
         WindowsPtyFunctions.closePseudoConsole(h, new FunctionResult());
     }
 
-    public long getPtyWriteHandle() {
+    long getPtyWriteHandle() {
         return ptyWriteHandle;
     }
 

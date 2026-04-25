@@ -18,10 +18,15 @@ package net.rubygrapefruit.platform.internal;
 
 import net.rubygrapefruit.platform.internal.jni.WindowsPtyFunctions;
 import net.rubygrapefruit.platform.terminal.ProcessExitedException;
+import net.rubygrapefruit.platform.terminal.PtyProcess;
 
 import java.io.IOException;
 import java.io.OutputStream;
 
+/**
+ * {@link PtyProcess#getOutputStream()} for the ConPTY input pipe.
+ * Translates post-exit write errors to {@link ProcessExitedException}.
+ */
 public class WindowsPtyOutputStream extends OutputStream {
     // Win32 LastError values that mean "the child exited (or closed its stdin)
     // and writes can no longer reach it". Both can surface from WriteFile on a

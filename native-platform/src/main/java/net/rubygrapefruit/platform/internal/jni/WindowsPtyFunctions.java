@@ -18,6 +18,9 @@ package net.rubygrapefruit.platform.internal.jni;
 
 import net.rubygrapefruit.platform.internal.FunctionResult;
 
+/**
+ * JNI bindings for the Windows ConPTY native code in {@code win.cpp}.
+ */
 public class WindowsPtyFunctions {
 
     public static native boolean isConPtyAvailable();
@@ -30,8 +33,9 @@ public class WindowsPtyFunctions {
      * anyone is reading.
      *
      * <p>{@code outHandles} layout on success: {@code [hPC, ptyReadHandle,
-     * ptyWriteHandle, stderrReadHandle]}. The stderr slot is reserved for a
-     * future split-stderr path and is currently always zero.</p>
+     * ptyWriteHandle, stderrReadHandle]}. The stderr slot is always 0 here;
+     * the actual stderr split happens inside {@link #spawnConPtyProcess}
+     * which has to create the pipe alongside {@code CreateProcessW}.</p>
      */
     public static native void createPseudoConsole(int cols, int rows,
                                                   long[] outHandles,
@@ -44,8 +48,10 @@ public class WindowsPtyFunctions {
      * this call returns, or the child will block on its first VT write once
      * the ConPTY pipe fills.</p>
      *
-     * <p>{@code outHandles} layout on success: {@code [processHandle]}. The
-     * return value is the OS process id.</p>
+     * <p>{@code outHandles} layout on success: {@code [processHandle,
+     * stderrReadHandle]}. The stderr read handle is 0 when the
+     * split-stderr attempt was rejected and the child runs with stderr
+     * merged into the ConPTY. The return value is the OS process id.</p>
      */
     public static native long spawnConPtyProcess(long hPC,
                                                  String[] command,
@@ -60,11 +66,7 @@ public class WindowsPtyFunctions {
 
     public static native int waitForProcess(long processHandle, FunctionResult result);
 
-    public static native boolean hasProcessExited(long processHandle, int[] exitCode, FunctionResult result);
-
     public static native void destroyProcess(long processHandle, long ptyWriteHandle, int gracePeriodMs, FunctionResult result);
-
-    public static native void cancelSynchronousIo(long threadHandle, FunctionResult result);
 
     public static native void closeHandle(long handle, FunctionResult result);
 

@@ -25,6 +25,9 @@ import java.io.File;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * POSIX implementation of {@link PtyProcessLauncher}.
+ */
 public class PosixPtyProcessLauncher implements PtyProcessLauncher {
 
     @Override

@@ -54,7 +54,7 @@ public class PosixPtyProcess implements PtyProcess {
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final BufferedPtyInputStream stdoutStream;
     private final BufferedPtyInputStream stderrStream;
-    private final NativePtyOutputStream outputStream;
+    private final PosixPtyOutputStream outputStream;
     private final Thread stdoutDrainer;
     private final Thread stderrDrainer;
     private final Thread waiter;
@@ -71,7 +71,7 @@ public class PosixPtyProcess implements PtyProcess {
         this.anchorPid = 0L;
         this.stdoutStream = new BufferedPtyInputStream();
         this.stderrStream = new BufferedPtyInputStream();
-        this.outputStream = new NativePtyOutputStream(this);
+        this.outputStream = new PosixPtyOutputStream(this);
         this.stdoutDrainer = startDrainer(masterFd, stdoutStream, "pty-stdout-drainer-" + masterFd);
         this.stderrDrainer = startDrainer(stderrReadFd, stderrStream, "pty-stderr-drainer-" + stderrReadFd);
         this.waiter = new Thread(this::waitForChild, "pty-waiter");
@@ -251,12 +251,8 @@ public class PosixPtyProcess implements PtyProcess {
         }
     }
 
-    public int getMasterFd() {
+    int getMasterFd() {
         return masterFd;
-    }
-
-    public int getStderrReadFd() {
-        return stderrReadFd;
     }
 
     @Override

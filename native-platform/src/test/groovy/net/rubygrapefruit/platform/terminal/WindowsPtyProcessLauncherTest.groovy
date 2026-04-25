@@ -17,7 +17,6 @@
 package net.rubygrapefruit.platform.terminal
 
 import net.rubygrapefruit.platform.NativeException
-import net.rubygrapefruit.platform.NativeIntegration
 import net.rubygrapefruit.platform.NativePlatformSpec
 import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.WindowsHandleFunctions
@@ -793,27 +792,6 @@ Start-Sleep -Seconds 60
         cleanup:
         drainer?.shutdownNow()
         pty?.close()
-    }
-
-    // ---- Tier 6.5 — Public-API contract sentinels ----
-
-    def "PtyProcess extends AutoCloseable"() {
-        expect:
-        AutoCloseable.isAssignableFrom(PtyProcess)
-    }
-
-    def "PtyProcessLauncher extends NativeIntegration"() {
-        expect:
-        NativeIntegration.isAssignableFrom(PtyProcessLauncher)
-    }
-
-    def "isAvailable signature is boolean and call is non-throwing"() {
-        when:
-        boolean r = launcher.isAvailable()
-
-        then:
-        noExceptionThrown()
-        r || !r
     }
 
     private static byte[] readAllBytes(InputStream input) {

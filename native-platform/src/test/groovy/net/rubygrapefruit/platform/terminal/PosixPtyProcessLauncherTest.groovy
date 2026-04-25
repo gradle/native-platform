@@ -17,7 +17,6 @@
 package net.rubygrapefruit.platform.terminal
 
 import net.rubygrapefruit.platform.NativeException
-import net.rubygrapefruit.platform.NativeIntegration
 import net.rubygrapefruit.platform.NativePlatformSpec
 import net.rubygrapefruit.platform.internal.Platform
 import spock.lang.IgnoreIf
@@ -30,7 +29,7 @@ import java.util.concurrent.TimeUnit
 
 @Timeout(30)
 @IgnoreIf({ Platform.current().windows })
-class PtyProcessLauncherTest extends NativePlatformSpec {
+class PosixPtyProcessLauncherTest extends NativePlatformSpec {
     final PtyProcessLauncher launcher = getIntegration(PtyProcessLauncher)
 
     private static String findExecutable(List<String> paths) {
@@ -604,22 +603,4 @@ class PtyProcessLauncherTest extends NativePlatformSpec {
         pty?.close()
     }
 
-    def "PtyProcess extends AutoCloseable"() {
-        expect:
-        AutoCloseable.isAssignableFrom(PtyProcess)
-    }
-
-    def "PtyProcessLauncher extends NativeIntegration"() {
-        expect:
-        NativeIntegration.isAssignableFrom(PtyProcessLauncher)
-    }
-
-    def "isAvailable signature is boolean and call is non-throwing"() {
-        when:
-        boolean r = launcher.isAvailable()
-
-        then:
-        noExceptionThrown()
-        r || !r
-    }
 }

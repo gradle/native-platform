@@ -1343,7 +1343,7 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_createPseudoCo
         handles[0] = (jlong) (intptr_t) hPC;
         handles[1] = (jlong) (intptr_t) outputRead;  // master reads child's stdout
         handles[2] = (jlong) (intptr_t) inputWrite;  // master writes to child's stdin
-        handles[3] = 0;                              // stderr split not yet implemented
+        handles[3] = 0;                              // stderr pipe is created later by spawnConPtyProcess
         env->SetLongArrayRegion(outHandles, 0, 4, handles);
         ok = TRUE;
     } while (0);
@@ -1650,32 +1650,6 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_waitForProcess
     return (jint) exitCode;
 }
 
-JNIEXPORT jboolean JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_hasProcessExited(
-        JNIEnv* env, jclass target, jlong processHandle, jintArray exitCode, jobject result) {
-    if (processHandle == 0) {
-        mark_failed_with_message(env, "invalid process handle", result);
-        return JNI_FALSE;
-    }
-    HANDLE h = (HANDLE) (intptr_t) processHandle;
-    DWORD wait = WaitForSingleObject(h, 0);
-    if (wait == WAIT_OBJECT_0) {
-        DWORD code = 0;
-        if (!GetExitCodeProcess(h, &code)) {
-            mark_failed_with_errno(env, "GetExitCodeProcess failed", result);
-            return JNI_FALSE;
-        }
-        jint codeJ = (jint) code;
-        env->SetIntArrayRegion(exitCode, 0, 1, &codeJ);
-        return JNI_TRUE;
-    }
-    if (wait == WAIT_TIMEOUT) {
-        return JNI_FALSE;
-    }
-    mark_failed_with_errno(env, "WaitForSingleObject failed", result);
-    return JNI_FALSE;
-}
-
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_destroyProcess(
         JNIEnv* env, jclass target, jlong processHandle, jlong ptyWriteHandle, jint gracePeriodMs, jobject result) {
@@ -1693,19 +1667,6 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_destroyProcess
     if (!TerminateProcess(h, 1)) {
         if (GetLastError() != ERROR_ACCESS_DENIED) {
             mark_failed_with_errno(env, "TerminateProcess failed", result);
-        }
-    }
-}
-
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsPtyFunctions_cancelSynchronousIo(
-        JNIEnv* env, jclass target, jlong threadHandle, jobject result) {
-    if (threadHandle == 0) return;
-    HANDLE h = (HANDLE) (intptr_t) threadHandle;
-    if (!CancelSynchronousIo(h)) {
-        DWORD err = GetLastError();
-        if (err != ERROR_NOT_FOUND) {
-            mark_failed_with_errno(env, "CancelSynchronousIo failed", result);
         }
     }
 }

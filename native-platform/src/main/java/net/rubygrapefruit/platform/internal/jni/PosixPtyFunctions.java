@@ -18,6 +18,9 @@ package net.rubygrapefruit.platform.internal.jni;
 
 import net.rubygrapefruit.platform.internal.FunctionResult;
 
+/**
+ * JNI bindings for the POSIX PTY native code in {@code posix.cpp}.
+ */
 public class PosixPtyFunctions {
 
     public static final int EIO = 5;
