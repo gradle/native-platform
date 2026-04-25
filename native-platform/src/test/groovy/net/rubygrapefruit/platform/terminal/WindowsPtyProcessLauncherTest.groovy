@@ -169,17 +169,22 @@ class WindowsPtyProcessLauncherTest extends NativePlatformSpec {
 
     @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
     def "env isolation: child sees only passed environment"() {
-        // cmd.exe needs SYSTEMROOT (and a sane PATH) to start at all — without
-        // them it exits 255 before running the /c command. So pass the minimum
-        // cmd.exe needs plus our test marker, and verify isolation by asserting
-        // a *different* daemon-only variable (COMPUTERNAME) is NOT visible.
+        // cmd.exe needs a handful of variables (SystemRoot, ComSpec, PATH, …)
+        // to even start; an env containing only {MARKER} causes it to exit 255
+        // before reaching the /c command, which would mask the encoding test.
+        // Pass the daemon's env *minus* one specific variable plus a marker,
+        // and prove isolation via two assertions: the marker is visible in the
+        // child, and the omitted variable is *not* — cmd echoes the literal
+        // %name% for unset variables, so the literal appearing in the output
+        // is direct evidence the variable was not in the passed env block.
         given:
-        def env = [
-            "SYSTEMROOT": System.getenv("SYSTEMROOT") ?: System.getenv("SystemRoot") ?: "C:\\Windows",
-            "PATH": System.getenv("Path") ?: System.getenv("PATH") ?: "C:\\Windows\\System32",
-            "MARKER": "hello_marker",
-        ]
-        def pty = launcher.start(["cmd.exe", "/c", "echo %MARKER%|%COMPUTERNAME%"], env, null, 80, 24)
+        def absentName = "NP_TEST_ABSENT_" + UUID.randomUUID().toString().replace("-", "_")
+        def env = new HashMap<>(System.getenv())
+        env.remove(absentName) // already absent, but explicit for the reader
+        env.put("MARKER", "hello_marker")
+        def pty = launcher.start(
+                ["cmd.exe", "/c", "echo %MARKER%|%" + absentName + "%"],
+                env, null, 80, 24)
 
         when:
         def out = pty.inputStream.text
@@ -187,7 +192,7 @@ class WindowsPtyProcessLauncherTest extends NativePlatformSpec {
 
         then:
         exitCode == 0
-        out.contains("hello_marker|%COMPUTERNAME%")
+        out.contains("hello_marker|%" + absentName + "%")
 
         cleanup:
         pty?.close()
