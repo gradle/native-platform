@@ -16,11 +16,15 @@
 
 package net.rubygrapefruit.platform.terminal
 
+import net.rubygrapefruit.platform.NativeException
 import net.rubygrapefruit.platform.NativePlatformSpec
 import net.rubygrapefruit.platform.internal.Platform
 import net.rubygrapefruit.platform.internal.jni.WindowsPtyFunctions
 import spock.lang.IgnoreIf
 import spock.lang.Timeout
+
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 @Timeout(30)
 @IgnoreIf({ !Platform.current().windows })
@@ -64,5 +68,259 @@ class WindowsPtyProcessLauncherTest extends NativePlatformSpec {
 
         cleanup:
         pty?.close()
+    }
+
+    // ---- Tier 6.1 — Core correctness ----
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "child writes to stdout and the master sees the bytes"() {
+        given:
+        def pty = launcher.start(["cmd.exe", "/c", "echo CONPTY_HELLO"], System.getenv(), null, 80, 24)
+
+        when:
+        def out = pty.inputStream.text
+        def exitCode = pty.waitFor()
+
+        then:
+        exitCode == 0
+        out.contains("CONPTY_HELLO")
+
+        cleanup:
+        pty?.close()
+    }
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "exit-code decoding for normal exit"() {
+        given:
+        def pty = launcher.start(["cmd.exe", "/c", "exit 42"], System.getenv(), null, 80, 24)
+        def drainer = Executors.newSingleThreadExecutor()
+        drainer.submit({ pty.inputStream.text } as Runnable)
+
+        when:
+        def exitCode = pty.waitFor()
+
+        then:
+        exitCode == 42
+
+        cleanup:
+        drainer?.shutdownNow()
+        pty?.close()
+    }
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "exit code 259 is not conflated with STILL_ACTIVE"() {
+        given:
+        def pty = launcher.start(["cmd.exe", "/c", "exit 259"], System.getenv(), null, 80, 24)
+        def drainer = Executors.newSingleThreadExecutor()
+        drainer.submit({ pty.inputStream.text } as Runnable)
+
+        when:
+        def exitCode = pty.waitFor()
+
+        then:
+        exitCode == 259
+
+        cleanup:
+        drainer?.shutdownNow()
+        pty?.close()
+    }
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "command-line quoting preserves arguments containing spaces"() {
+        given:
+        def message = "hello windows"
+        def pty = launcher.start(["cmd.exe", "/c", "echo", message], System.getenv(), null, 80, 24)
+
+        when:
+        def out = pty.inputStream.text
+        def exitCode = pty.waitFor()
+
+        then:
+        exitCode == 0
+        out.contains(message)
+
+        cleanup:
+        pty?.close()
+    }
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "command-line quoting preserves arguments with embedded double quotes"() {
+        // cmd's echo prints the raw command-line tail verbatim, including the
+        // backslash-escapes our quoting layer adds for CommandLineToArgvW. So
+        // the goal is to confirm CreateProcessW accepted the quoted string and
+        // the argument bytes survived the round trip; we don't try to assert
+        // any specific dequoted form because cmd doesn't apply CommandLineToArgvW.
+        given:
+        def message = 'he said "hi"'
+        def pty = launcher.start(["cmd.exe", "/c", "echo", message], System.getenv(), null, 80, 24)
+
+        when:
+        def out = pty.inputStream.text
+        def exitCode = pty.waitFor()
+
+        then:
+        exitCode == 0
+        out.contains("he said")
+        out.contains("hi")
+
+        cleanup:
+        pty?.close()
+    }
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "env isolation: child sees only passed environment"() {
+        given:
+        def env = ["MARKER": "hello_marker"]
+        def pty = launcher.start(["cmd.exe", "/c", "echo %MARKER%|%COMPUTERNAME%"], env, null, 80, 24)
+
+        when:
+        def out = pty.inputStream.text
+        def exitCode = pty.waitFor()
+
+        then:
+        exitCode == 0
+        out.contains("hello_marker|%COMPUTERNAME%")
+
+        cleanup:
+        pty?.close()
+    }
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "Unicode environment values survive the env block encoding"() {
+        given:
+        def env = ["UNI": "café"]
+        def pty = launcher.start(["cmd.exe", "/c", "echo %UNI%"], env, null, 80, 24)
+
+        when:
+        def out = new String(readAllBytes(pty.inputStream), "UTF-8")
+        def exitCode = pty.waitFor()
+
+        then:
+        exitCode == 0
+        out.contains("café")
+
+        cleanup:
+        pty?.close()
+    }
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "working directory: absolute path is honored"() {
+        given:
+        def workDir = new File(System.getProperty("java.io.tmpdir"))
+        def pty = launcher.start(["cmd.exe", "/c", "cd"], System.getenv(), workDir, 80, 24)
+
+        when:
+        def out = pty.inputStream.text
+        def exitCode = pty.waitFor()
+
+        then:
+        exitCode == 0
+        def lastLine = out.readLines().findAll { !it.trim().isEmpty() }.last().trim()
+        lastLine.equalsIgnoreCase(workDir.canonicalPath)
+
+        cleanup:
+        pty?.close()
+    }
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "working directory: non-existent path fails cleanly"() {
+        given:
+        def missing = new File("C:\\does\\not\\exist\\conpty-test")
+
+        when:
+        launcher.start(["cmd.exe", "/c", "exit 0"], System.getenv(), missing, 80, 24)
+
+        then:
+        def e = thrown(NativeException)
+        e.message != null
+        !e.message.toLowerCase().contains("could not create pseudo-console")
+    }
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "stream separation: stdout and stderr are received on independent streams or stderr is merged"() {
+        given:
+        def pty = launcher.start(["cmd.exe", "/c", "echo OUT_MSG & echo ERR_MSG 1>&2"], System.getenv(), null, 80, 24)
+        def executor = Executors.newFixedThreadPool(2)
+        def outFuture = executor.submit({ pty.inputStream.text } as java.util.concurrent.Callable<String>)
+        def errFuture = executor.submit({ pty.errorStream.text } as java.util.concurrent.Callable<String>)
+        def exitCode = pty.waitFor()
+        def stdout = outFuture.get(10, TimeUnit.SECONDS)
+        def stderr = errFuture.get(10, TimeUnit.SECONDS)
+
+        expect:
+        exitCode == 0
+        // Either: stderr split worked and ERR_MSG is on errorStream only; or stderr was
+        // merged into the ConPTY (acceptable per the public-API contract — see test 6.1.10).
+        if (!stderr.isEmpty()) {
+            assert stderr.contains("ERR_MSG")
+            assert !stderr.contains("OUT_MSG")
+            assert stdout.contains("OUT_MSG")
+            assert !stdout.contains("ERR_MSG")
+        } else {
+            assert stdout.contains("OUT_MSG")
+            assert stdout.contains("ERR_MSG")
+        }
+
+        cleanup:
+        executor?.shutdownNow()
+        pty?.close()
+    }
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "master read returns EOF after child exits without throwing"() {
+        given:
+        def pty = launcher.start(["cmd.exe", "/c", "echo done"], System.getenv(), null, 80, 24)
+
+        when:
+        def out = pty.inputStream.text
+        def exitCode = pty.waitFor()
+
+        then:
+        noExceptionThrown()
+        exitCode == 0
+        out.contains("done")
+
+        cleanup:
+        pty?.close()
+    }
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "write after child exit throws ProcessExitedException"() {
+        given:
+        def pty = launcher.start(["cmd.exe", "/c", "exit 0"], System.getenv(), null, 80, 24)
+        def drainer = Executors.newSingleThreadExecutor()
+        drainer.submit({ pty.inputStream.text } as Runnable)
+        pty.waitFor()
+        drainer.shutdown()
+        drainer.awaitTermination(5, TimeUnit.SECONDS)
+        Thread.sleep(200)
+
+        when:
+        def os = pty.outputStream
+        boolean thrown = false
+        try {
+            for (int i = 0; i < 1024; i++) {
+                os.write("x".bytes)
+                os.flush()
+            }
+        } catch (ProcessExitedException ignored) {
+            thrown = true
+        }
+
+        then:
+        thrown
+
+        cleanup:
+        pty?.close()
+    }
+
+    private static byte[] readAllBytes(InputStream input) {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream()
+        byte[] chunk = new byte[4096]
+        int n
+        while ((n = input.read(chunk)) >= 0) {
+            buffer.write(chunk, 0, n)
+        }
+        buffer.toByteArray()
     }
 }
