@@ -636,19 +636,20 @@ Start-Sleep -Seconds 60
 
     @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
     def "spawn/close loop does not leak HANDLEs"() {
-        // The WindowsPtyProcess constructor already starts a stdout drainer
-        // that consumes ConPTY's output, so the test does not need a
-        // per-iteration Executor — adding one would inflate the delta with
-        // a Thread handle per iteration that has nothing to do with the
-        // PTY's resource discipline. Warm up first so JIT-driven one-shot
-        // allocations land in the baseline, then measure the steady-state
-        // delta.
+        // Each WindowsPtyProcess starts daemon Threads (stdout drainer,
+        // optional stderr drainer, child watcher); their OS thread HANDLEs
+        // outlive close() until the JVM finalises the dead Thread objects.
+        // Force a GC + short pause around the measurements so the count
+        // reflects only HANDLEs the spawn/close path itself is responsible
+        // for, not JVM thread bookkeeping.
         given:
         20.times {
             def p = launcher.start(["cmd.exe", "/c", "exit 0"], System.getenv(), null, 80, 24)
             p.waitFor()
             p.close()
         }
+        System.gc()
+        Thread.sleep(300)
         int before = WindowsHandleFunctions.getProcessHandleCount()
         assert before > 0
 
@@ -658,12 +659,14 @@ Start-Sleep -Seconds 60
             p.waitFor()
             p.close()
         }
+        System.gc()
+        Thread.sleep(500)
         int after = WindowsHandleFunctions.getProcessHandleCount()
 
         then:
-        // Per-spawn rate < 0.4 means we are not leaking a HANDLE on every
-        // iteration (the symptom of an unclosed pipe/process/thread/HPCON);
-        // a real leak shows up as ≈ 1 handle per iteration.
+        // A real leak — an unclosed pipe, HPCON, or process HANDLE — would
+        // show up as ≈ 1 per spawn even after GC. Anything below that
+        // threshold is JVM-internal noise we accept.
         double perSpawn = (after - before) / 50.0d
         perSpawn < 0.4d
     }
