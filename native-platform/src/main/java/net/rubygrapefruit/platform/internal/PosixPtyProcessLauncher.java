@@ -51,29 +51,31 @@ public class PosixPtyProcessLauncher implements PtyProcessLauncher {
             throw new NativeException("Could not create PTY: " + ptyResult.getMessage());
         }
 
-        // 2. Fork+exec. On success the parent keeps slave + stderrWrite open;
-        //    PosixPtyProcess holds them and its waiter thread closes them
-        //    after waitpid returns. Keeping them open across the child's own
-        //    exit is what closes the POSIX "master read after slave close is
-        //    implementation-defined" race — the slave's refcount stays at
-        //    1 (parent) until we drop it deliberately, so FreeBSD's pty
-        //    driver cannot flush the line discipline buffer before the
-        //    parent has read it. On failure the JNI side closes both.
+        // 2. Construct the process before forking. The constructor starts
+        //    master-side drainer threads on masterFd and stderrReadFd, so
+        //    a read is on the way to being parked before the child can
+        //    write its first byte. Combined with the deferred parent-slave
+        //    close (the waiter holds slaveFd + stderrWriteFd open until
+        //    waitpid returns), this closes the POSIX "master read after
+        //    slave close is implementation-defined" race on FreeBSD.
+        PosixPtyProcess process = new PosixPtyProcess(fds[0], fds[1], fds[2], fds[3]);
+
+        // 3. Fork+exec. On success the parent keeps slave + stderrWrite
+        //    open and the process owns them; on failure the JNI side
+        //    closes both.
         FunctionResult spawnResult = new FunctionResult();
         long pid = PosixPtyFunctions.spawnInPty(
                 fds[1], fds[3], cmd, env, dir, spawnResult);
         if (spawnResult.isFailed()) {
-            // slave + stderrWrite already closed by the JNI failure path.
-            // Close the master + stderrRead too.
-            PosixPtyFunctions.closeFd(fds[0], new FunctionResult());
-            PosixPtyFunctions.closeFd(fds[2], new FunctionResult());
+            // slave + stderrWrite already closed by the JNI failure path;
+            // tell the process not to close them again.
+            process.markSlaveAlreadyClosed();
+            process.close();
             throw new NativeException("Could not spawn PTY process: " + spawnResult.getMessage());
         }
 
-        // 3. Hand off all four fds to the process. attachPid starts the
-        //    waiter thread, which is responsible for the deferred slave
-        //    close once the child has been reaped.
-        PosixPtyProcess process = new PosixPtyProcess(fds[0], fds[1], fds[2], fds[3]);
+        // 4. Attach pid. Starts the waiter thread, which calls waitpid
+        //    and then closes the parent's slave + stderrWrite fds.
         process.attachPid(pid);
         return process;
     }

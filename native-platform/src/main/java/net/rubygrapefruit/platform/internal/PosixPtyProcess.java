@@ -90,6 +90,17 @@ public class PosixPtyProcess implements PtyProcess {
         this.waiter.start();
     }
 
+    /** Used by the launcher when spawnInPty failed and already closed the
+     * parent's slave/stderrWrite fds. */
+    void markSlaveAlreadyClosed() {
+        synchronized (exitLock) {
+            slaveFd = -1;
+            stderrWriteFd = -1;
+            exited = true;
+            exitLock.notifyAll();
+        }
+    }
+
     private void waitForChild() {
         long childPid;
         synchronized (exitLock) {
