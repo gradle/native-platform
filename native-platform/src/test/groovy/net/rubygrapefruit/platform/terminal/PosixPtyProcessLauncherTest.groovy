@@ -490,6 +490,64 @@ class PosixPtyProcessLauncherTest extends NativePlatformSpec {
         (finalSet - initial).isEmpty()
     }
 
+    def "parent writes to master and child reads input on stdin"() {
+        given:
+        def script = 'IFS= read -r line; printf "got:%s\\n" "$line"'
+        def pty = launcher.start([shBinary(), "-c", script], System.getenv(), null, 80, 24)
+        def stdout = new ByteArrayOutputStream()
+        def reader = Thread.start {
+            byte[] buf = new byte[1024]
+            int n
+            while ((n = pty.inputStream.read(buf)) >= 0) {
+                stdout.write(buf, 0, n)
+            }
+        }
+
+        when:
+        pty.outputStream.write("hello\n".bytes)
+        pty.outputStream.flush()
+        def exitCode = pty.waitFor()
+        reader.join(5_000)
+
+        then:
+        exitCode == 0
+        !reader.isAlive()
+        stdout.toString().contains("got:hello")
+
+        cleanup:
+        pty?.close()
+    }
+
+    def "raw input bytes survive intact across the master-write path"() {
+        given:
+        def script = 'stty raw -echo; echo READY >&2; head -c 3 | od -A n -t x1'
+        def pty = launcher.start([shBinary(), "-c", script], System.getenv(), null, 80, 24)
+        def stdout = new ByteArrayOutputStream()
+        def reader = Thread.start {
+            byte[] buf = new byte[1024]
+            int n
+            while ((n = pty.inputStream.read(buf)) >= 0) {
+                stdout.write(buf, 0, n)
+            }
+        }
+        def stderrReader = new BufferedReader(new InputStreamReader(pty.errorStream))
+
+        when:
+        def ready = stderrReader.readLine()
+        pty.outputStream.write([0x1b, 0x5b, 0x41] as byte[])
+        pty.outputStream.flush()
+        def exitCode = pty.waitFor()
+        reader.join(5_000)
+
+        then:
+        exitCode == 0
+        ready == "READY"
+        stdout.toString().replaceAll('\\s+', ' ').trim().contains("1b 5b 41")
+
+        cleanup:
+        pty?.close()
+    }
+
     def "write after child exit throws ProcessExitedException"() {
         given:
         def pty = launcher.start([shBinary(), "-c", "exit 0"], System.getenv(), null, 80, 24)
