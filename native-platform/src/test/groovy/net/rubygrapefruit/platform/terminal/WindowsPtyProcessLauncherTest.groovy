@@ -344,6 +344,65 @@ class WindowsPtyProcessLauncherTest extends NativePlatformSpec {
         pty?.close()
     }
 
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "parent writes to master and child reads input on stdin"() {
+        given:
+        def script = '$line = Read-Host; "got:$line"'
+        def pty = launcher.start(["powershell", "-NoProfile", "-Command", script], System.getenv(), null, 80, 24)
+        def stdout = new ByteArrayOutputStream()
+        def reader = Thread.start {
+            byte[] buf = new byte[1024]
+            int n
+            while ((n = pty.inputStream.read(buf)) >= 0) {
+                stdout.write(buf, 0, n)
+            }
+        }
+
+        when:
+        pty.outputStream.write("hello\r\n".bytes)
+        pty.outputStream.flush()
+        def exitCode = pty.waitFor()
+        reader.join(10_000)
+
+        then:
+        exitCode == 0
+        !reader.isAlive()
+        stdout.toString().contains("got:hello")
+
+        cleanup:
+        pty?.close()
+    }
+
+    @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
+    def "raw input bytes survive intact across the master-write path"() {
+        given:
+        def script = '$b = [byte[]]::new(3); $null = [Console]::OpenStandardInput().Read($b, 0, 3); $b | %{ "{0:x2}" -f $_ }'
+        def pty = launcher.start(["powershell", "-NoProfile", "-Command", script], System.getenv(), null, 80, 24)
+        def stdout = new ByteArrayOutputStream()
+        def reader = Thread.start {
+            byte[] buf = new byte[1024]
+            int n
+            while ((n = pty.inputStream.read(buf)) >= 0) {
+                stdout.write(buf, 0, n)
+            }
+        }
+
+        when:
+        pty.outputStream.write([0x1b, 0x5b, 0x41] as byte[])
+        pty.outputStream.flush()
+        def exitCode = pty.waitFor()
+        reader.join(10_000)
+
+        then:
+        exitCode == 0
+        !reader.isAlive()
+        def out = stdout.toString()
+        out.contains("1b") && out.contains("5b") && out.contains("41")
+
+        cleanup:
+        pty?.close()
+    }
+
     // ---- Tier 6.2 — Resize ----
 
     @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
