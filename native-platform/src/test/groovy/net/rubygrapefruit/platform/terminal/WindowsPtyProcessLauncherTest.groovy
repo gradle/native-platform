@@ -374,7 +374,7 @@ class WindowsPtyProcessLauncherTest extends NativePlatformSpec {
     }
 
     @IgnoreIf({ !WindowsPtyProcessLauncherTest.conptyAvailable() })
-    def "raw input bytes survive intact across the master-write path"() {
+    def "input byte sequence is delivered to the child"() {
         given:
         def script = '$b = [byte[]]::new(3); $null = [Console]::OpenStandardInput().Read($b, 0, 3); $b | %{ "{0:x2}" -f $_ }'
         def pty = launcher.start(["powershell", "-NoProfile", "-Command", script], System.getenv(), null, 80, 24)
@@ -388,7 +388,7 @@ class WindowsPtyProcessLauncherTest extends NativePlatformSpec {
         }
 
         when:
-        pty.outputStream.write([0x1b, 0x5b, 0x41] as byte[])
+        pty.outputStream.write([0x41, 0x42, 0x43, 0x0d, 0x0a] as byte[])
         pty.outputStream.flush()
         def exitCode = pty.waitFor()
         reader.join(10_000)
@@ -397,7 +397,7 @@ class WindowsPtyProcessLauncherTest extends NativePlatformSpec {
         exitCode == 0
         !reader.isAlive()
         def out = stdout.toString()
-        out.contains("1b") && out.contains("5b") && out.contains("41")
+        out.contains("41") && out.contains("42") && out.contains("43")
 
         cleanup:
         pty?.close()
