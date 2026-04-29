@@ -112,8 +112,11 @@ class RawInputHelper {
     }
 
     private static String extractHex(String captured, int byteCount) {
+        def stripped = captured
+            .replaceAll(/\[[\x30-\x3F]*[\x20-\x2F]*[\x40-\x7E]/, "")  // CSI
+            .replaceAll(/\][^]*/, "")                     // OSC ... BEL
         def hexLine = ~/^[0-9a-f]{2}$/
-        def hexLines = captured.split('\\R')
+        def hexLines = stripped.split('\\R')
             .collect { it.trim() }
             .findAll { it ==~ hexLine }
         assert hexLines.size() == byteCount: "expected ${byteCount} hex lines, captured: ${captured}"

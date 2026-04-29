@@ -640,7 +640,9 @@ void init_input(JNIEnv* env, jobject result) {
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_rawInputMode(JNIEnv* env, jclass target, jobject result) {
     init_input(env, result);
-    DWORD mode = original_mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT);
+    DWORD mode = original_mode;
+    mode &= ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT | ENABLE_PROCESSED_INPUT);
+    mode |= ENABLE_VIRTUAL_TERMINAL_INPUT;
     if (!SetConsoleMode(console_buffer, mode)) {
         mark_failed_with_errno(env, "could not set console buffer mode", result);
     }
