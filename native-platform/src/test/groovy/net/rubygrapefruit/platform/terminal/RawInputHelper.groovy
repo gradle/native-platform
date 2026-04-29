@@ -16,28 +16,24 @@
 
 package net.rubygrapefruit.platform.terminal
 
+import groovy.transform.PackageScope
 import net.rubygrapefruit.platform.Native
+import net.rubygrapefruit.platform.internal.Platform
 
 import java.nio.file.Files
 
 /**
- * Subject process for tests that exercise {@link TerminalInput#rawMode()} end-to-end.
- *
- * <p>Launched as a child of a {@link PtyProcessLauncher}-managed PTY so its STDIN is a real
- * tty. Calls {@code rawMode()} on its own STDIN, prints a {@code READY} sentinel on stderr
- * to signal that raw mode is now in effect, then reads the requested number of bytes from
- * STDIN and prints each one as two lowercase hex digits on its own line to stdout.</p>
- *
- * <p>Tests drive bytes into the helper through the PTY master (the parent's
- * {@link PtyProcess#getOutputStream()}) and assert against the hex dump on stdout. This
- * pins what {@code rawMode()} actually delivers to the application's read syscalls,
- * rather than what bits the implementation sets internally.</p>
- *
- * <p>Argument: a single integer giving the number of bytes to read before the helper exits.
- * The helper does not write anything to stdout other than the hex dump; tests should
- * read stderr for the {@code READY} marker and stdout for the dump.</p>
+ * Test fixture for {@link TerminalInput#rawMode()} byte-transparency tests: subject
+ * via {@link #main}, harness via {@link #runWithInput}.
  */
 class RawInputHelper {
+    /**
+     * Subject entry point. Launched as the child of a {@link PtyProcessLauncher}-managed
+     * PTY so its STDIN is a real tty: it puts STDIN into raw mode, prints the ready
+     * sentinel on stdout to signal the parent, then reads {@code args[0]} bytes from
+     * STDIN and prints each one as two lowercase hex digits on its own line.
+     * Single-byte expectations follow {@code od -A n -t x1}.
+     */
     static void main(String[] args) {
         int count = Integer.parseInt(args[0])
         def cacheDir = Files.createTempDirectory("native-platform-raw-input-helper").toFile()
@@ -45,8 +41,8 @@ class RawInputHelper {
         def input = nativeIntegration.get(Terminals).getTerminalInput()
         input.rawMode()
         try {
-            System.err.println("READY")
-            System.err.flush()
+            System.out.println(READY_MARKER)
+            System.out.flush()
             for (int i = 0; i < count; i++) {
                 int b = System.in.read()
                 if (b == -1) {
@@ -58,5 +54,69 @@ class RawInputHelper {
         } finally {
             input.reset()
         }
+    }
+
+    @PackageScope
+    static String runWithInput(PtyProcessLauncher launcher, byte[] inputBytes) {
+        def pty = launcher.start(command(inputBytes.length), System.getenv(), null, 80, 24)
+        def stdout = new ByteArrayOutputStream()
+        def stdoutLock = new Object()
+        def reader = Thread.start {
+            byte[] buf = new byte[1024]
+            int n
+            while ((n = pty.inputStream.read(buf)) >= 0) {
+                synchronized (stdoutLock) {
+                    stdout.write(buf, 0, n)
+                }
+            }
+        }
+        try {
+            waitForReady(stdout, stdoutLock)
+            pty.outputStream.write(inputBytes)
+            pty.outputStream.flush()
+            def exitCode = pty.waitFor()
+            reader.join(10_000)
+            assert !reader.isAlive()
+            assert exitCode == 0: "helper exited with ${exitCode}; captured: ${stdout}"
+            return extractHex(stdout.toString(), inputBytes.length)
+        } finally {
+            pty?.close()
+        }
+    }
+
+    private static final String READY_MARKER = "RAW_INPUT_HELPER_READY"
+
+    private static List<String> command(int byteCount) {
+        def javaHome = System.getProperty("java.home")
+        def suffix = Platform.current().windows ? ".exe" : ""
+        def javaExe = "${javaHome}/bin/java${suffix}".toString()
+        def classpath = System.getProperty("java.class.path")
+        return [javaExe, "-cp", classpath, RawInputHelper.name, String.valueOf(byteCount)]
+    }
+
+    private static void waitForReady(ByteArrayOutputStream stdout, Object stdoutLock) {
+        long deadline = System.currentTimeMillis() + 10_000
+        while (System.currentTimeMillis() < deadline) {
+            String captured
+            synchronized (stdoutLock) {
+                captured = stdout.toString()
+            }
+            if (captured.contains(READY_MARKER)) {
+                return
+            }
+            Thread.sleep(50)
+        }
+        synchronized (stdoutLock) {
+            throw new AssertionError("timed out waiting for ${READY_MARKER}; captured: ${stdout}")
+        }
+    }
+
+    private static String extractHex(String captured, int byteCount) {
+        def hexLine = ~/^[0-9a-f]{2}$/
+        def hexLines = captured.split('\\R')
+            .collect { it.trim() }
+            .findAll { it ==~ hexLine }
+        assert hexLines.size() == byteCount: "expected ${byteCount} hex lines, captured: ${captured}"
+        return hexLines.join(" ")
     }
 }
