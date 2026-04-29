@@ -441,7 +441,13 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixTerminalFunctions_rawInputMod
     }
     struct termios new_mode;
     new_mode = original_input_mode;
-    new_mode.c_lflag &= ~(ICANON | ECHO);
+    new_mode.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
+    new_mode.c_oflag &= ~OPOST;
+    new_mode.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+    new_mode.c_cflag &= ~(CSIZE | PARENB);
+    new_mode.c_cflag |= CS8;
+    new_mode.c_cc[VMIN] = 1;
+    new_mode.c_cc[VTIME] = 0;
     tcsetattr(STDIN_FILENO, TCSANOW, &new_mode);
 }
 
