@@ -611,8 +611,15 @@ class PosixPtyProcessLauncherTest extends NativePlatformSpec {
         pty?.close()
     }
 
+    @Timeout(60)
     def "concurrent spawn from four threads"() {
         given:
+        // Headroom for the FreeBSD agent: four concurrent PTYs put the BSD anchor /
+        // killjobc / slave-revoke path under contention, occasionally stretching the
+        // master-EOF wait past the class-level 30s timeout. Linux and macOS finish in
+        // sub-second so the bigger budget costs nothing on the green path; it only
+        // matters when something is actually wrong. Per-thread 30s join on top so the
+        // assertion phase reports cleanly if a thread really has hung.
         def results = new ConcurrentHashMap<String, Map>()
         def threads = (0..3).collect { i ->
             String marker = "thread-${i}".toString()
@@ -630,7 +637,7 @@ class PosixPtyProcessLauncherTest extends NativePlatformSpec {
         }
 
         when:
-        threads.each { it.join(15_000) }
+        threads.each { it.join(30_000) }
 
         then:
         results.size() == 4
