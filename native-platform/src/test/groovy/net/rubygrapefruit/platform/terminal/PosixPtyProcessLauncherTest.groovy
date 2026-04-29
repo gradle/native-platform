@@ -492,7 +492,12 @@ class PosixPtyProcessLauncherTest extends NativePlatformSpec {
 
     def "parent writes to master and child reads input on stdin"() {
         given:
-        def script = 'IFS= read -r line; printf "got:%s\\n" "$line"'
+        // The child signals readiness on stderr before calling read; the parent waits
+        // for that marker before writing. Without the handshake the test relies on
+        // sh forking, exec'ing, parsing, and reaching the read syscall before the
+        // parent's write — a race window that BSD's slave-revoke timing has been
+        // observed to lose, surfacing as EIO on the master write.
+        def script = 'echo READY >&2; IFS= read -r line; printf "got:%s\\n" "$line"'
         def pty = launcher.start([shBinary(), "-c", script], System.getenv(), null, 80, 24)
         def stdout = new ByteArrayOutputStream()
         def reader = Thread.start {
@@ -502,14 +507,17 @@ class PosixPtyProcessLauncherTest extends NativePlatformSpec {
                 stdout.write(buf, 0, n)
             }
         }
+        def stderrReader = new BufferedReader(new InputStreamReader(pty.errorStream))
 
         when:
+        def ready = stderrReader.readLine()
         pty.outputStream.write("hello\n".bytes)
         pty.outputStream.flush()
         def exitCode = pty.waitFor()
         reader.join(5_000)
 
         then:
+        ready == "READY"
         exitCode == 0
         !reader.isAlive()
         stdout.toString().contains("got:hello")
