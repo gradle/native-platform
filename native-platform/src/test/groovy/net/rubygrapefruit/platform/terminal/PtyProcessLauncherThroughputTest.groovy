@@ -24,21 +24,23 @@ import spock.lang.Timeout
 /**
  * Throughput regression sentinel for the PTY relay layer.
  *
- * <p>The POSIX assertion is calibration-relative: in the same run we measure a baseline
- * by running <em>the same producer</em> ({@code dd if=/dev/zero}) through a plain
- * non-PTY pipe ({@link ProcessBuilder}), drained via the same Java {@link InputStream}
- * pattern as the PTY path. Comparing those two measurements isolates the cost of the
- * PTY relay layer (master/slave PTY, JNI {@code nativeRead}, BufferedPtyInputStream
- * queue) on top of an OS pipe + Java I/O baseline. The ratio is robust across CI agents
- * of differing absolute speed: a slow agent slows both legs proportionally.</p>
+ * <p>The assertion is calibration-relative: in the same run we measure a baseline by
+ * running <em>the same producer</em> ({@code dd if=/dev/zero} on POSIX, the PowerShell
+ * tight-write loop on Windows) through a plain non-PTY pipe ({@link ProcessBuilder}),
+ * drained via the same Java {@link InputStream} pattern as the PTY path. Comparing
+ * those two measurements isolates the cost of the PTY/ConPTY relay layer on top of
+ * an OS pipe + Java I/O baseline. The ratio is robust across CI agents of differing
+ * absolute speed: a slow agent slows both legs proportionally.</p>
  *
- * <p>Each PTY measurement is the median of three samples to absorb single-iteration
- * GC and scheduler jitter. The test is a sentinel, not a precise benchmark.</p>
+ * <p>Each measurement is the median of three samples and is preceded by warmup runs
+ * of the same code paths, so JIT and the kernel page cache are primed before timing
+ * starts. The test is a sentinel, not a precise benchmark.</p>
  *
- * <p>The Windows variant keeps a loose absolute floor for now: PowerShell's
- * {@code [Console]::Out} behavior differs between a regular pipe and ConPTY (encoding,
- * buffering), so the same-producer comparison is not apples-to-apples. A baseline-relative
- * Windows measurement is a Phase 2 follow-up.</p>
+ * <p>The Windows assertion is in a calibration phase: pinning PowerShell's
+ * {@code OutputEncoding} keeps the byte stream comparable between pipe and ConPTY,
+ * but we have no observed slowdown data for this comparison yet, so the floor is
+ * deliberately loose. A few CI runs of the {@code PTY-RELAY-RATIO-WINDOWS} println
+ * will inform a tightened floor in a follow-up.</p>
  */
 @Timeout(240)
 class PtyProcessLauncherThroughputTest extends NativePlatformSpec {
@@ -51,24 +53,44 @@ class PtyProcessLauncherThroughputTest extends NativePlatformSpec {
     private static final int WARMUP_RUNS = 3
 
     /**
-     * Test fails if PTY relay throughput is more than this many times slower than the
-     * baseline (same dd command, same drain loop, no PTY).
+     * Per-platform slowdown floors: the test fails if PTY relay throughput is more
+     * than this many times slower than the baseline (same dd command, same drain
+     * loop, no PTY).
      *
-     * <p>Initial local measurements (warm) cluster around 5x on macOS and 7x on Linux,
-     * so a tuned floor near ~15x would catch a ~2x relay regression on either kernel.
-     * Whether a single global floor or per-platform floors fit best depends on how
-     * tightly the actual TC agent fleet (Ubuntu / Amazon Linux / CentOS / FreeBSD /
-     * macOS amd64+arm64) clusters around those numbers.</p>
+     * <p>Tuned to roughly 1.5x of the observed maximum on each kernel from a single
+     * TC composite run. Catches roughly a 50% relay regression per platform without
+     * depending on absolute MB/s. The structural overhead is sharply different per
+     * kernel (a single global floor would have to be loose to pass the slowest
+     * platform, leaving the others under-constrained):</p>
+     * <ul>
+     *   <li>Linux / FreeBSD agents observed 2.88x to 5.41x; floor 8.</li>
+     *   <li>macOS agents observed 6.97x (amd64) and 12.31x (aarch64). Apple Silicon
+     *       has a much faster pipe baseline (~2.6 GB/s vs ~1 GB/s on other agents),
+     *       which inflates the ratio even though the relay itself runs faster
+     *       absolutely. Floor 18.</li>
+     * </ul>
      *
-     * <p>For this calibration phase the floor is deliberately loose so the
-     * {@code PTY-RELAY-RATIO-POSIX} println below collects real ratios across the
-     * fleet without blocking CI. After a few green TC runs we tighten the floor (or
-     * split per-platform) and remove the println.</p>
+     * <p>The {@code PTY-RELAY-RATIO-POSIX} println below stays in for now so a few
+     * more CI runs can confirm variance. Remove once we are confident the floors
+     * are not flaky.</p>
      *
-     * <p>TODO: tighten the floor toward ~1.5x of the observed CI maximum and remove
-     * the {@code PTY-RELAY-RATIO-POSIX} println.</p>
+     * <p>TODO: remove the {@code PTY-RELAY-RATIO-POSIX} println after enough runs
+     * confirm the floors hold without flakiness.</p>
      */
-    private static final int MAX_SLOWDOWN_VS_BASELINE = 50
+    private static final int MAX_SLOWDOWN_LINUX_FREEBSD = 8
+    private static final int MAX_SLOWDOWN_MACOS = 18
+    // Calibration phase: no observed CI ratios yet for the same-producer pipe vs ConPTY
+    // comparison. The floor is intentionally loose; tighten once 5 CI runs reveal real
+    // ratios via the PTY-RELAY-RATIO-WINDOWS println.
+    private static final int MAX_SLOWDOWN_WINDOWS = 1000
+
+    private static int maxSlowdownForCurrentPlatform() {
+        def p = Platform.current()
+        if (p.linux || p.freeBSD) return MAX_SLOWDOWN_LINUX_FREEBSD
+        if (p.macOs) return MAX_SLOWDOWN_MACOS
+        if (p.windows) return MAX_SLOWDOWN_WINDOWS
+        throw new IllegalStateException("Unsupported platform for throughput test: " + p)
+    }
 
     @IgnoreIf({ Platform.current().windows })
     def "POSIX: PTY relay throughput tracks pipe baseline"() {
@@ -101,21 +123,28 @@ class PtyProcessLauncherThroughputTest extends NativePlatformSpec {
         relayMedian.exitCode == 0
         relayMedian.received >= TOTAL_BYTES
         baselineMedian.exitCode == 0
-        slowdown <= MAX_SLOWDOWN_VS_BASELINE
+        slowdown <= maxSlowdownForCurrentPlatform()
     }
 
     @IgnoreIf({ !Platform.current().windows })
-    def "Windows: PTY relay throughput is non-trivial"() {
+    def "Windows: PTY relay throughput tracks pipe baseline"() {
         given:
         int frameCount = (MEGABYTES * 1024).intdiv(FRAME_KB)
-        // PowerShell tight-write loop via [Console]::Out (TextWriter). Earlier attempts
-        // using [Console]::OpenStandardOutput().Write(byte[]) with zero bytes produced
-        // only ~93 bytes through ConPTY; null bytes appear to get swallowed by the
-        // console-emulation layer somewhere between the .NET stream and the master pipe.
-        // Writing printable ASCII (newline-free 'A' characters) via TextWriter survives
-        // the ConPTY boundary and matches the character-stream nature of real TUI output.
+        // PowerShell tight-write loop via [Console]::Out (TextWriter). Pin OutputEncoding
+        // to UTF-8 (no BOM) so 'A' (0x41) is emitted as a single byte regardless of
+        // whether stdout is a pipe (baseline leg) or ConPTY (PTY leg). Without pinning,
+        // PowerShell's redirected-output default may differ from its console default
+        // (BOMs, UTF-16, console codepage) and the byte streams would not be comparable.
+        //
+        // Earlier attempts using [Console]::OpenStandardOutput().Write(byte[]) with null
+        // bytes produced only ~93 bytes through ConPTY; null bytes appear to get
+        // swallowed by the console-emulation layer somewhere between the .NET stream
+        // and the master pipe. Writing printable ASCII via TextWriter survives the
+        // ConPTY boundary and matches the character-stream nature of real TUI output.
+        //
         // Use -EncodedCommand to sidestep CommandLineToArgvW quoting fragility.
         def script = ("\$ErrorActionPreference='Stop'; " +
+            "[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding \$false; " +
             "\$s='A'*${FRAME_KB * 1024}; " +
             "for(\$i=0; \$i -lt ${frameCount}; \$i++){[Console]::Out.Write(\$s)}; " +
             "[Console]::Out.Flush()").toString()
@@ -124,16 +153,25 @@ class PtyProcessLauncherThroughputTest extends NativePlatformSpec {
         warmupWindows(cmd)
 
         when:
+        // Same producer through a plain pipe (no ConPTY) gives the baseline.
+        def baselines = (1..SAMPLE_COUNT).collect { runOneBaseline(cmd) }
+        def baselineMedian = baselines.sort { it.bytesPerSec }[SAMPLE_COUNT.intdiv(2)]
         def samples = (1..SAMPLE_COUNT).collect { runOneWindowsRelay(cmd) }
-        def median = samples.sort { it.bytesPerSec }[SAMPLE_COUNT.intdiv(2)]
-        double mbps = median.bytesPerSec / (1024.0d * 1024.0d)
+        def relayMedian = samples.sort { it.bytesPerSec }[SAMPLE_COUNT.intdiv(2)]
+        double slowdown = baselineMedian.bytesPerSec / relayMedian.bytesPerSec
 
-        // Calibration aid until Phase 2 delivers a baseline-relative Windows assertion.
-        println String.format("PTY-RELAY-MBPS-WINDOWS: %.2f MB/s", mbps)
+        // Calibration aid: surface real ratios across the TC fleet so we can pick a
+        // tight Windows floor in a follow-up.
+        println String.format(
+            "PTY-RELAY-RATIO-WINDOWS: relay=%.2f MB/s, baseline=%.2f MB/s, slowdown=%.2fx",
+            relayMedian.bytesPerSec / (1024.0d * 1024.0d),
+            baselineMedian.bytesPerSec / (1024.0d * 1024.0d),
+            slowdown)
 
         then:
-        median.exitCode == 0
-        mbps > 1.0d
+        relayMedian.exitCode == 0
+        baselineMedian.exitCode == 0
+        slowdown <= maxSlowdownForCurrentPlatform()
     }
 
     private static class Sample {
@@ -238,6 +276,7 @@ class PtyProcessLauncherThroughputTest extends NativePlatformSpec {
 
     private void warmupWindows(List<String> cmd) {
         WARMUP_RUNS.times { runOneWindowsRelay(cmd) }
+        WARMUP_RUNS.times { runOneBaseline(cmd) }
     }
 
     private static long drainInputStream(InputStream stream) {
