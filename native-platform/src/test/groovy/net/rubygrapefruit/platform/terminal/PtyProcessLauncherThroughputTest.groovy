@@ -81,19 +81,24 @@ class PtyProcessLauncherThroughputTest extends NativePlatformSpec {
     def "Windows: PTY relay throughput"() {
         given:
         int frameCount = (MEGABYTES * 1024).intdiv(FRAME_KB)
-        // PowerShell tight-write loop. Use -EncodedCommand (base64-UTF16LE) because the
-        // -Command "<inline>" form is fragile at the CommandLineToArgvW boundary.
-        // [Console]::OpenStandardOutput() returns a stream that writes raw bytes to the
-        // process's STD_OUTPUT_HANDLE — under ConPTY this is the daemon's master read pipe.
-        def script = "\$ErrorActionPreference='Stop'; \$o=[Console]::OpenStandardOutput(); \$b=[byte[]]::new(${FRAME_KB * 1024}); for(\$i=0; \$i -lt ${frameCount}; \$i++){\$o.Write(\$b, 0, \$b.Length)}; \$o.Flush()".toString()
+        // PowerShell tight-write loop via [Console]::Out (TextWriter). Earlier attempts
+        // using [Console]::OpenStandardOutput().Write(byte[]) with zero bytes produced
+        // only ~93 bytes through ConPTY — null bytes appear to get swallowed by the
+        // console-emulation layer somewhere between the .NET stream and the master pipe.
+        // Writing printable ASCII (newline-free 'A' characters) via TextWriter survives
+        // the ConPTY boundary and matches the character-stream nature of real TUI output.
+        // Use -EncodedCommand to sidestep CommandLineToArgvW quoting fragility.
+        def script = ("\$ErrorActionPreference='Stop'; " +
+            "\$s='A'*${FRAME_KB * 1024}; " +
+            "for(\$i=0; \$i -lt ${frameCount}; \$i++){[Console]::Out.Write(\$s)}; " +
+            "[Console]::Out.Flush()").toString()
         def encoded = Base64.encoder.encodeToString(script.getBytes("UTF-16LE"))
         def cmd = ['powershell.exe', '-NoProfile', '-EncodedCommand', encoded]
         warmup()
 
         when:
         def pty = launcher.start(cmd, System.getenv(), null, 80, 24)
-        // Drain stderr concurrently so we can surface PowerShell error output if it fails
-        // — a silent test failure on a remote agent is otherwise impossible to diagnose.
+        // Capture stderr concurrently to surface any PowerShell error output.
         def stderrCapture = new ByteArrayOutputStream()
         def stderrDrainer = Thread.start {
             try {
@@ -105,8 +110,11 @@ class PtyProcessLauncherThroughputTest extends NativePlatformSpec {
             } catch (Throwable ignored) {
             }
         }
+        // Capture the first chunk of stdout so a low-throughput failure can be diagnosed
+        // (showing whether we got VT init bytes only, error text, or partial output).
+        def firstChunk = new ByteArrayOutputStream()
         long start = System.nanoTime()
-        long received = drainStdout(pty)
+        long received = drainStdoutCapturingHead(pty, firstChunk, 256)
         int exitCode = pty.waitFor()
         long elapsedNanos = System.nanoTime() - start
         stderrDrainer.join(5000)
@@ -115,18 +123,39 @@ class PtyProcessLauncherThroughputTest extends NativePlatformSpec {
         double seconds = elapsedNanos / 1_000_000_000.0d
         double mbps = (received / (1024.0d * 1024.0d)) / seconds
         println "PTY-LAUNCHER-THROUGHPUT-WINDOWS: ${received} bytes in ${String.format('%.3f', seconds)}s = ${String.format('%.2f', mbps)} MB/s, exit=${exitCode}"
-        // Surface stderr on every run so diagnostics are visible even when the test passes
-        // (catching ConPTY VT init or other unexpected output).
         if (stderrCapture.size() > 0) {
             int show = Math.min(stderrCapture.size(), 2048)
             println "PTY-LAUNCHER-STDERR-WINDOWS (${stderrCapture.size()} bytes, first ${show}):"
             println new String(stderrCapture.toByteArray(), 0, show, "UTF-8")
+        }
+        if (firstChunk.size() > 0) {
+            byte[] head = firstChunk.toByteArray()
+            StringBuilder sb = new StringBuilder()
+            for (int i = 0; i < head.length; i++) {
+                sb.append(String.format("%02x ", head[i] & 0xFF))
+                if ((i + 1) % 16 == 0) sb.append('\n')
+            }
+            println "PTY-LAUNCHER-STDOUT-HEAD-HEX (first ${head.length} bytes):\n${sb}"
         }
         exitCode == 0
         mbps > 1.0d
 
         cleanup:
         pty?.close()
+    }
+
+    private static long drainStdoutCapturingHead(PtyProcess pty, ByteArrayOutputStream head, int headBytes) {
+        byte[] buf = new byte[64 * 1024]
+        long total = 0L
+        int n
+        while ((n = pty.inputStream.read(buf)) != -1) {
+            int remaining = headBytes - head.size()
+            if (remaining > 0) {
+                head.write(buf, 0, Math.min(n, remaining))
+            }
+            total += n
+        }
+        return total
     }
 
     private void warmup() {
