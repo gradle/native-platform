@@ -36,11 +36,11 @@ import spock.lang.Timeout
  * of the same code paths, so JIT and the kernel page cache are primed before timing
  * starts. The test is a sentinel, not a precise benchmark.</p>
  *
- * <p>The Windows assertion is in a calibration phase: pinning PowerShell's
- * {@code OutputEncoding} keeps the byte stream comparable between pipe and ConPTY,
- * but we have no observed slowdown data for this comparison yet, so the floor is
- * deliberately loose. A few CI runs of the {@code PTY-RELAY-RATIO-WINDOWS} println
- * will inform a tightened floor in a follow-up.</p>
+ * <p>Windows uses an absolute MB/s floor on the relay rather than a slowdown ratio.
+ * Calibration showed the PowerShell-via-pipe baseline is too unstable on Windows
+ * agents (4.5x variance dominated by PowerShell startup) to be a reliable
+ * denominator; the ConPTY relay's own MB/s is far more stable. The slowdown ratio
+ * is still printed for diagnostic visibility but is not asserted on.</p>
  */
 @Timeout(240)
 class PtyProcessLauncherThroughputTest extends NativePlatformSpec {
@@ -53,44 +53,52 @@ class PtyProcessLauncherThroughputTest extends NativePlatformSpec {
     private static final int WARMUP_RUNS = 3
 
     /**
-     * Per-platform slowdown floors: the test fails if PTY relay throughput is more
-     * than this many times slower than the baseline (same dd command, same drain
-     * loop, no PTY).
+     * Per-platform POSIX slowdown floors: the test fails if PTY relay throughput is
+     * more than this many times slower than the baseline (same dd command, same
+     * drain loop, no PTY).
      *
-     * <p>Tuned to roughly 1.5x of the observed maximum on each kernel from a single
-     * TC composite run. Catches roughly a 50% relay regression per platform without
-     * depending on absolute MB/s. The structural overhead is sharply different per
-     * kernel (a single global floor would have to be loose to pass the slowest
+     * <p>Tuned to roughly 1.7x of the observed maximum on each kernel across 5 TC
+     * runs per agent. Catches roughly a 1.7x relay regression per platform without
+     * depending on absolute MB/s. Structural overhead differs sharply between
+     * kernels (a single global floor would have to be loose to pass the slowest
      * platform, leaving the others under-constrained):</p>
      * <ul>
-     *   <li>Linux / FreeBSD agents observed 2.88x to 5.41x; floor 8.</li>
-     *   <li>macOS agents observed 6.97x (amd64) and 12.31x (aarch64). Apple Silicon
-     *       has a much faster pipe baseline (~2.6 GB/s vs ~1 GB/s on other agents),
-     *       which inflates the ratio even though the relay itself runs faster
-     *       absolutely. Floor 18.</li>
+     *   <li>Linux / FreeBSD agents observed 2.62x to 5.88x across 25 runs (max on
+     *       Ubuntu amd64). Floor 10 leaves ~1.7x headroom over the worst case.</li>
+     *   <li>macOS agents observed 6.88x (amd64; very stable) and 9.07-12.32x
+     *       (aarch64; ~36% variance) across 10 runs. Apple Silicon has a much
+     *       faster pipe baseline (~2 GB/s vs ~0.5-1 GB/s on other agents), which
+     *       inflates the ratio even though the relay itself runs faster
+     *       absolutely. Floor 20 leaves ~1.6x headroom over the worst case.</li>
      * </ul>
-     *
-     * <p>The {@code PTY-RELAY-RATIO-POSIX} println below stays in for now so a few
-     * more CI runs can confirm variance. Remove once we are confident the floors
-     * are not flaky.</p>
      *
      * <p>TODO: remove the {@code PTY-RELAY-RATIO-POSIX} println after enough runs
      * confirm the floors hold without flakiness.</p>
      */
-    private static final int MAX_SLOWDOWN_LINUX_FREEBSD = 8
-    private static final int MAX_SLOWDOWN_MACOS = 18
-    // Calibration phase: no observed CI ratios yet for the same-producer pipe vs ConPTY
-    // comparison. The floor is intentionally loose; tighten once 5 CI runs reveal real
-    // ratios via the PTY-RELAY-RATIO-WINDOWS println.
-    private static final int MAX_SLOWDOWN_WINDOWS = 1000
+    private static final int MAX_SLOWDOWN_LINUX_FREEBSD = 10
+    private static final int MAX_SLOWDOWN_MACOS = 20
 
     private static int maxSlowdownForCurrentPlatform() {
         def p = Platform.current()
         if (p.linux || p.freeBSD) return MAX_SLOWDOWN_LINUX_FREEBSD
         if (p.macOs) return MAX_SLOWDOWN_MACOS
-        if (p.windows) return MAX_SLOWDOWN_WINDOWS
-        throw new IllegalStateException("Unsupported platform for throughput test: " + p)
+        throw new IllegalStateException("Unsupported POSIX platform for throughput test: " + p)
     }
+
+    /**
+     * Windows uses an absolute MB/s floor on the relay, not a slowdown ratio. The
+     * pipe-baseline approach we use on POSIX is unreliable here: across 5 TC runs
+     * the PowerShell-via-pipe baseline swung from 13.78 MB/s to 61.72 MB/s (a 4.5x
+     * spread, dominated by PowerShell startup variance), while the ConPTY relay was
+     * stable at 1.12-1.48 MB/s (~32% spread). A noisy baseline can make the
+     * slowdown ratio look favorable when the relay is regressing, hiding real
+     * problems behind the wrong noise.
+     *
+     * <p>Floor of 0.7 MB/s leaves ~37% headroom over the slowest observed relay
+     * (1.12 MB/s) and ~46% over the median (~1.3 MB/s). Catches a meaningful
+     * regression while remaining immune to baseline variance.</p>
+     */
+    private static final double MIN_RELAY_MBPS_WINDOWS = 0.7d
 
     @IgnoreIf({ Platform.current().windows })
     def "POSIX: PTY relay throughput tracks pipe baseline"() {
@@ -127,7 +135,7 @@ class PtyProcessLauncherThroughputTest extends NativePlatformSpec {
     }
 
     @IgnoreIf({ !Platform.current().windows })
-    def "Windows: PTY relay throughput tracks pipe baseline"() {
+    def "Windows: PTY relay throughput is non-trivial"() {
         given:
         int frameCount = (MEGABYTES * 1024).intdiv(FRAME_KB)
         // PowerShell tight-write loop via [Console]::Out (TextWriter). Pin OutputEncoding
@@ -153,25 +161,28 @@ class PtyProcessLauncherThroughputTest extends NativePlatformSpec {
         warmupWindows(cmd)
 
         when:
-        // Same producer through a plain pipe (no ConPTY) gives the baseline.
+        // Same producer through a plain pipe (no ConPTY) for the printed diagnostic
+        // ratio. Not used for assertion: across 5 TC runs the PowerShell-via-pipe
+        // baseline swung 13-62 MB/s while the ConPTY relay was stable at 1.12-1.48
+        // MB/s, so a baseline-relative assertion would hide regressions behind
+        // baseline noise. We assert on the relay's absolute MB/s instead.
         def baselines = (1..SAMPLE_COUNT).collect { runOneBaseline(cmd) }
         def baselineMedian = baselines.sort { it.bytesPerSec }[SAMPLE_COUNT.intdiv(2)]
         def samples = (1..SAMPLE_COUNT).collect { runOneWindowsRelay(cmd) }
         def relayMedian = samples.sort { it.bytesPerSec }[SAMPLE_COUNT.intdiv(2)]
-        double slowdown = baselineMedian.bytesPerSec / relayMedian.bytesPerSec
+        double relayMbps = relayMedian.bytesPerSec / (1024.0d * 1024.0d)
+        double baselineMbps = baselineMedian.bytesPerSec / (1024.0d * 1024.0d)
 
-        // Calibration aid: surface real ratios across the TC fleet so we can pick a
-        // tight Windows floor in a follow-up.
+        // Diagnostic: keep printing the ratio so drift in either leg is visible
+        // over time, even though the assertion below is on relay MB/s only.
         println String.format(
             "PTY-RELAY-RATIO-WINDOWS: relay=%.2f MB/s, baseline=%.2f MB/s, slowdown=%.2fx",
-            relayMedian.bytesPerSec / (1024.0d * 1024.0d),
-            baselineMedian.bytesPerSec / (1024.0d * 1024.0d),
-            slowdown)
+            relayMbps, baselineMbps, baselineMedian.bytesPerSec / relayMedian.bytesPerSec)
 
         then:
         relayMedian.exitCode == 0
         baselineMedian.exitCode == 0
-        slowdown <= maxSlowdownForCurrentPlatform()
+        relayMbps >= MIN_RELAY_MBPS_WINDOWS
     }
 
     private static class Sample {
