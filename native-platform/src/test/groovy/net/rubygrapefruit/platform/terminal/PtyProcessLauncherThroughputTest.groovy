@@ -85,8 +85,15 @@ class PtyProcessLauncherThroughputTest extends NativePlatformSpec {
         // FRAME_COUNT times. [Console]::OpenStandardOutput() returns a raw stream backed
         // by the stdout handle; writes bypass PowerShell's pipeline buffering, giving us
         // dd-equivalent tight write timing through ConPTY.
-        def script = "\$o=[Console]::OpenStandardOutput(); \$b=[byte[]]::new(${FRAME_KB * 1024}); for(\$i=0; \$i -lt ${frameCount}; \$i++){\$o.Write(\$b, 0, \$b.Length)}; \$o.Flush()".toString()
-        def cmd = ['powershell.exe', '-NoProfile', '-Command', script]
+        //
+        // Use -EncodedCommand (base64-UTF16LE) instead of -Command "<inline>" because the
+        // inline form mangled at the CommandLineToArgvW boundary in our earlier run (only
+        // 93 bytes received when 20 MB was expected). EncodedCommand sidesteps all `;`/`$`/
+        // quote escaping. Use 'New-Object byte[] N' instead of '[byte[]]::new(N)' for
+        // compatibility with older PowerShell hosts that may be on the agent.
+        def script = "\$o=[Console]::OpenStandardOutput(); \$b=New-Object byte[] ${FRAME_KB * 1024}; for(\$i=0; \$i -lt ${frameCount}; \$i++){\$o.Write(\$b, 0, \$b.Length)}; \$o.Flush()".toString()
+        def encoded = Base64.encoder.encodeToString(script.getBytes("UTF-16LE"))
+        def cmd = ['powershell.exe', '-NoProfile', '-EncodedCommand', encoded]
         warmup()
 
         when:
