@@ -39,8 +39,9 @@ import spock.lang.Timeout
  * <p>Windows uses an absolute MB/s floor on the relay rather than a slowdown ratio.
  * Calibration showed the PowerShell-via-pipe baseline is too unstable on Windows
  * agents (4.5x variance dominated by PowerShell startup) to be a reliable
- * denominator; the ConPTY relay's own MB/s is far more stable. The slowdown ratio
- * is still printed for diagnostic visibility but is not asserted on.</p>
+ * denominator; the ConPTY relay's own MB/s is far more stable. The baseline is
+ * still measured to keep the test shape symmetric across platforms but is not
+ * asserted on.</p>
  */
 @Timeout(240)
 class PtyProcessLauncherThroughputTest extends NativePlatformSpec {
@@ -71,9 +72,6 @@ class PtyProcessLauncherThroughputTest extends NativePlatformSpec {
      *       inflates the ratio even though the relay itself runs faster
      *       absolutely. Floor 20 leaves ~1.6x headroom over the worst case.</li>
      * </ul>
-     *
-     * <p>TODO: remove the {@code PTY-RELAY-RATIO-POSIX} println after enough runs
-     * confirm the floors hold without flakiness.</p>
      */
     private static final int MAX_SLOWDOWN_LINUX_FREEBSD = 10
     private static final int MAX_SLOWDOWN_MACOS = 20
@@ -119,14 +117,6 @@ class PtyProcessLauncherThroughputTest extends NativePlatformSpec {
         def relayMedian = samples.sort { it.bytesPerSec }[SAMPLE_COUNT.intdiv(2)]
         double slowdown = baselineMedian.bytesPerSec / relayMedian.bytesPerSec
 
-        // Calibration aid: print so the first few CI runs surface actual ratios, then
-        // we tighten MAX_SLOWDOWN_VS_BASELINE and remove this line.
-        println String.format(
-            "PTY-RELAY-RATIO-POSIX: relay=%.2f MB/s, baseline=%.2f MB/s, slowdown=%.2fx",
-            relayMedian.bytesPerSec / (1024.0d * 1024.0d),
-            baselineMedian.bytesPerSec / (1024.0d * 1024.0d),
-            slowdown)
-
         then:
         relayMedian.exitCode == 0
         relayMedian.received >= TOTAL_BYTES
@@ -161,23 +151,17 @@ class PtyProcessLauncherThroughputTest extends NativePlatformSpec {
         warmupWindows(cmd)
 
         when:
-        // Same producer through a plain pipe (no ConPTY) for the printed diagnostic
-        // ratio. Not used for assertion: across 5 TC runs the PowerShell-via-pipe
-        // baseline swung 13-62 MB/s while the ConPTY relay was stable at 1.12-1.48
-        // MB/s, so a baseline-relative assertion would hide regressions behind
-        // baseline noise. We assert on the relay's absolute MB/s instead.
+        // Same producer through a plain pipe (no ConPTY) keeps the test shape
+        // symmetric with POSIX, but the baseline is not used for assertion on
+        // Windows: across 10 TC runs the PowerShell-via-pipe baseline swung
+        // 13-62 MB/s while the ConPTY relay was stable at 1.12-1.49 MB/s, so a
+        // baseline-relative assertion would hide regressions behind baseline noise.
+        // We assert on the relay's absolute MB/s instead.
         def baselines = (1..SAMPLE_COUNT).collect { runOneBaseline(cmd) }
         def baselineMedian = baselines.sort { it.bytesPerSec }[SAMPLE_COUNT.intdiv(2)]
         def samples = (1..SAMPLE_COUNT).collect { runOneWindowsRelay(cmd) }
         def relayMedian = samples.sort { it.bytesPerSec }[SAMPLE_COUNT.intdiv(2)]
         double relayMbps = relayMedian.bytesPerSec / (1024.0d * 1024.0d)
-        double baselineMbps = baselineMedian.bytesPerSec / (1024.0d * 1024.0d)
-
-        // Diagnostic: keep printing the ratio so drift in either leg is visible
-        // over time, even though the assertion below is on relay MB/s only.
-        println String.format(
-            "PTY-RELAY-RATIO-WINDOWS: relay=%.2f MB/s, baseline=%.2f MB/s, slowdown=%.2fx",
-            relayMbps, baselineMbps, baselineMedian.bytesPerSec / relayMedian.bytesPerSec)
 
         then:
         relayMedian.exitCode == 0
