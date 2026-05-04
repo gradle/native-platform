@@ -115,54 +115,28 @@ public class WindowsPtyProcess implements PtyProcess {
 
     private static void drain(java.util.function.LongSupplier handleSupplier, BufferedPtyInputStream sink) {
         byte[] buf = new byte[8192];
-        // Diagnostic counters for the relay throughput investigation: bytes drained from the
-        // ConPTY read handle, total wall time spent inside nativeRead (= ReadFile), and read
-        // count. Average bytes/read tells us how big the chunks the kernel returns are; total
-        // nativeRead time vs. wall localizes whether the producer or the consumer queue is the
-        // throughput bottleneck. Mirrors the POSIX-side instrumentation in PosixPtyProcess.drain.
-        long bytesRead = 0;
-        long readNanos = 0;
-        long readCount = 0;
         try {
             while (true) {
                 long h = handleSupplier.getAsLong();
                 if (h == 0L || h == INVALID_HANDLE) {
-                    reportDrainStats(bytesRead, readNanos, readCount);
                     sink.signalEof();
                     return;
                 }
                 FunctionResult r = new FunctionResult();
-                long readStart = System.nanoTime();
                 int n = WindowsPtyFunctions.nativeRead(h, buf, 0, buf.length, r);
-                readNanos += System.nanoTime() - readStart;
-                readCount++;
                 if (r.isFailed()) {
                     sink.signalError(new IOException(r.getMessage()));
                     return;
                 }
                 if (n < 0) {
-                    reportDrainStats(bytesRead, readNanos, readCount);
                     sink.signalEof();
                     return;
                 }
-                bytesRead += n;
                 sink.appendChunk(buf, n);
             }
         } catch (Throwable t) {
             sink.signalError(new IOException(t));
         }
-    }
-
-    private static void reportDrainStats(long bytes, long nanos, long reads) {
-        if (bytes == 0) {
-            return;
-        }
-        double seconds = nanos / 1_000_000_000.0;
-        double mbps = (bytes / (1024.0 * 1024.0)) / seconds;
-        double avgChunk = (double) bytes / reads;
-        System.err.println(String.format(
-            "PTY-NATIVE-DRAIN: %d bytes in %.3fs inside nativeRead = %.2f MB/s, %d reads, avg %.0f bytes/read",
-            bytes, seconds, mbps, reads, avgChunk));
     }
 
     private void watchChild() {

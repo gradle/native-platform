@@ -87,47 +87,23 @@ public class PosixPtyProcess implements PtyProcess {
 
     private static void drain(int fd, BufferedPtyInputStream sink) {
         byte[] buf = new byte[8192];
-        // Diagnostic counters for the relay throughput investigation: bytes drained from the master
-        // fd, total wall time spent inside nativeRead, and read count. Average bytes/read tells us
-        // how big the chunks the kernel returns are; total nativeRead time vs. wall localizes
-        // whether the producer (this thread) or the consumer queue is the throughput bottleneck.
-        long bytesRead = 0;
-        long readNanos = 0;
-        long readCount = 0;
         try {
             while (true) {
                 FunctionResult result = new FunctionResult();
-                long readStart = System.nanoTime();
                 int n = PosixPtyFunctions.nativeRead(fd, buf, 0, buf.length, result);
-                readNanos += System.nanoTime() - readStart;
-                readCount++;
                 if (result.isFailed()) {
                     sink.signalError(new IOException(result.getMessage()));
                     return;
                 }
                 if (n < 0) {
-                    reportDrainStats(bytesRead, readNanos, readCount);
                     sink.signalEof();
                     return;
                 }
-                bytesRead += n;
                 sink.appendChunk(buf, n);
             }
         } catch (Throwable t) {
             sink.signalError(new IOException(t));
         }
-    }
-
-    private static void reportDrainStats(long bytes, long nanos, long reads) {
-        if (bytes == 0) {
-            return;
-        }
-        double seconds = nanos / 1_000_000_000.0;
-        double mbps = (bytes / (1024.0 * 1024.0)) / seconds;
-        double avgChunk = (double) bytes / reads;
-        System.err.println(String.format(
-            "PTY-NATIVE-DRAIN: %d bytes in %.3fs inside nativeRead = %.2f MB/s, %d reads, avg %.0f bytes/read",
-            bytes, seconds, mbps, reads, avgChunk));
     }
 
     /**

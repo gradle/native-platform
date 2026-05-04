@@ -24,66 +24,93 @@ import spock.lang.Timeout
 /**
  * Throughput regression sentinel for the PTY relay layer.
  *
- * <p>Drives a synthetic high-rate child through {@link PtyProcessLauncher} and reports
- * wall-clock throughput. Sits in native-platform (rather than in Gradle) so we can iterate
- * against locally-built JNI variants on every TC agent (including {@code WindowsAmd64})
- * without needing a published native-platform jar — Gradle's CI agents cannot resolve an
- * unpublished {@code -dev} version, but native-platform's own TC pipeline builds and runs
- * tests against locally-built variants directly.</p>
+ * <p>The POSIX assertion is calibration-relative: in the same run we measure a baseline
+ * by running <em>the same producer</em> ({@code dd if=/dev/zero}) through a plain
+ * non-PTY pipe ({@link ProcessBuilder}), drained via the same Java {@link InputStream}
+ * pattern as the PTY path. Comparing those two measurements isolates the cost of the
+ * PTY relay layer (master/slave PTY, JNI {@code nativeRead}, BufferedPtyInputStream
+ * queue) on top of an OS pipe + Java I/O baseline. The ratio is robust across CI agents
+ * of differing absolute speed: a slow agent slows both legs proportionally.</p>
  *
- * <p>The hard floor below catches a catastrophic relay collapse; the printed MB/s line is
- * the figure to track when iterating on relay performance. The accompanying diagnostic
- * counter in {@code PosixPtyProcess.drain} / {@code WindowsPtyProcess.drain} prints
- * {@code PTY-NATIVE-DRAIN: <bytes> in <s> ... <reads>, avg <bytes/read>} on EOF, which
- * tells us the kernel-side chunk size — the actual rate-limiter we want to characterize
- * per-platform.</p>
+ * <p>Each PTY measurement is the median of three samples to absorb single-iteration
+ * GC and scheduler jitter. The test is a sentinel, not a precise benchmark.</p>
  *
- * <p>See Step 8 / Bug 8.2 in {@code PLAN_NATIVE_PLATFORM_TUI.md} for the full diagnosis.</p>
+ * <p>The Windows variant keeps a loose absolute floor for now: PowerShell's
+ * {@code [Console]::Out} behavior differs between a regular pipe and ConPTY (encoding,
+ * buffering), so the same-producer comparison is not apples-to-apples. A baseline-relative
+ * Windows measurement is a Phase 2 follow-up.</p>
  */
-@Timeout(120)
+@Timeout(240)
 class PtyProcessLauncherThroughputTest extends NativePlatformSpec {
     final PtyProcessLauncher launcher = getIntegration(PtyProcessLauncher)
 
     private static final int MEGABYTES = 20
     private static final int FRAME_KB = 80
+    private static final long TOTAL_BYTES = (long) MEGABYTES * 1024L * 1024L
+    private static final int SAMPLE_COUNT = 3
+    private static final int WARMUP_RUNS = 3
+
+    /**
+     * Test fails if PTY relay throughput is more than this many times slower than the
+     * baseline (same dd command, same drain loop, no PTY).
+     *
+     * <p>Initial local measurements (warm) cluster around 5x on macOS and 7x on Linux,
+     * so a tuned floor near ~15x would catch a ~2x relay regression on either kernel.
+     * Whether a single global floor or per-platform floors fit best depends on how
+     * tightly the actual TC agent fleet (Ubuntu / Amazon Linux / CentOS / FreeBSD /
+     * macOS amd64+arm64) clusters around those numbers.</p>
+     *
+     * <p>For this calibration phase the floor is deliberately loose so the
+     * {@code PTY-RELAY-RATIO-POSIX} println below collects real ratios across the
+     * fleet without blocking CI. After a few green TC runs we tighten the floor (or
+     * split per-platform) and remove the println.</p>
+     *
+     * <p>TODO: tighten the floor toward ~1.5x of the observed CI maximum and remove
+     * the {@code PTY-RELAY-RATIO-POSIX} println.</p>
+     */
+    private static final int MAX_SLOWDOWN_VS_BASELINE = 50
 
     @IgnoreIf({ Platform.current().windows })
-    def "POSIX: PTY relay throughput"() {
+    def "POSIX: PTY relay throughput tracks pipe baseline"() {
         given:
         int frameCount = (MEGABYTES * 1024).intdiv(FRAME_KB)
         // 'stty raw -echo' puts the slave into raw mode before dd runs, bypassing the
         // line discipline; 'exec dd' replaces sh so dd's stdout is the slave fd directly.
-        def cmd = ['/bin/sh', '-c', "stty raw -echo; exec dd if=/dev/zero bs=${FRAME_KB}K count=${frameCount} status=none".toString()]
-        warmup()
+        def ptyCmd = ['/bin/sh', '-c', "stty raw -echo; exec dd if=/dev/zero bs=${FRAME_KB}K count=${frameCount} status=none".toString()]
+        // Same producer, no PTY: dd writes to a regular pipe that ProcessBuilder hands us.
+        def baselineCmd = ['/bin/sh', '-c', "exec dd if=/dev/zero bs=${FRAME_KB}K count=${frameCount} status=none".toString()]
+        warmupPosix(ptyCmd, baselineCmd)
 
         when:
-        def pty = launcher.start(cmd, System.getenv(), null, 80, 24)
-        long start = System.nanoTime()
-        long received = drainStdout(pty)
-        int exitCode = pty.waitFor()
-        long elapsedNanos = System.nanoTime() - start
+        // Median both legs so a single-iteration jitter does not bias the ratio.
+        def baselines = (1..SAMPLE_COUNT).collect { runOneBaseline(baselineCmd) }
+        def baselineMedian = baselines.sort { it.bytesPerSec }[SAMPLE_COUNT.intdiv(2)]
+        def samples = (1..SAMPLE_COUNT).collect { runOnePosixRelay(ptyCmd) }
+        def relayMedian = samples.sort { it.bytesPerSec }[SAMPLE_COUNT.intdiv(2)]
+        double slowdown = baselineMedian.bytesPerSec / relayMedian.bytesPerSec
+
+        // Calibration aid: print so the first few CI runs surface actual ratios, then
+        // we tighten MAX_SLOWDOWN_VS_BASELINE and remove this line.
+        println String.format(
+            "PTY-RELAY-RATIO-POSIX: relay=%.2f MB/s, baseline=%.2f MB/s, slowdown=%.2fx",
+            relayMedian.bytesPerSec / (1024.0d * 1024.0d),
+            baselineMedian.bytesPerSec / (1024.0d * 1024.0d),
+            slowdown)
 
         then:
-        exitCode == 0
-        double seconds = elapsedNanos / 1_000_000_000.0d
-        double mbps = (received / (1024.0d * 1024.0d)) / seconds
-        println "PTY-LAUNCHER-THROUGHPUT-POSIX: ${received} bytes in ${String.format('%.3f', seconds)}s = ${String.format('%.2f', mbps)} MB/s"
-        // Loose floor — catches a hard collapse, not a regression on a specific rate.
-        // The printed figure (and the PTY-NATIVE-DRAIN line from the drainer) is what to
-        // track when iterating on relay performance.
-        mbps > 1.0d
-
-        cleanup:
-        pty?.close()
+        relayMedian.exitCode == 0
+        relayMedian.received >= TOTAL_BYTES
+        baselineMedian.exitCode == 0
+        slowdown <= MAX_SLOWDOWN_VS_BASELINE
     }
 
     @IgnoreIf({ !Platform.current().windows })
-    def "Windows: PTY relay throughput"() {
+    def "Windows: PTY relay throughput is non-trivial"() {
         given:
         int frameCount = (MEGABYTES * 1024).intdiv(FRAME_KB)
         // PowerShell tight-write loop via [Console]::Out (TextWriter). Earlier attempts
         // using [Console]::OpenStandardOutput().Write(byte[]) with zero bytes produced
-        // only ~93 bytes through ConPTY — null bytes appear to get swallowed by the
+        // only ~93 bytes through ConPTY; null bytes appear to get swallowed by the
         // console-emulation layer somewhere between the .NET stream and the master pipe.
         // Writing printable ASCII (newline-free 'A' characters) via TextWriter survives
         // the ConPTY boundary and matches the character-stream nature of real TUI output.
@@ -94,91 +121,130 @@ class PtyProcessLauncherThroughputTest extends NativePlatformSpec {
             "[Console]::Out.Flush()").toString()
         def encoded = Base64.encoder.encodeToString(script.getBytes("UTF-16LE"))
         def cmd = ['powershell.exe', '-NoProfile', '-EncodedCommand', encoded]
-        warmup()
+        warmupWindows(cmd)
 
         when:
-        def pty = launcher.start(cmd, System.getenv(), null, 80, 24)
-        // Capture stderr concurrently to surface any PowerShell error output.
-        def stderrCapture = new ByteArrayOutputStream()
-        def stderrDrainer = Thread.start {
-            try {
-                byte[] buf = new byte[8192]
-                int n
-                while ((n = pty.errorStream.read(buf)) != -1) {
-                    stderrCapture.write(buf, 0, n)
-                }
-            } catch (Throwable ignored) {
-            }
-        }
-        // Capture the first chunk of stdout so a low-throughput failure can be diagnosed
-        // (showing whether we got VT init bytes only, error text, or partial output).
-        def firstChunk = new ByteArrayOutputStream()
-        long start = System.nanoTime()
-        long received = drainStdoutCapturingHead(pty, firstChunk, 256)
-        int exitCode = pty.waitFor()
-        long elapsedNanos = System.nanoTime() - start
-        stderrDrainer.join(5000)
+        def samples = (1..SAMPLE_COUNT).collect { runOneWindowsRelay(cmd) }
+        def median = samples.sort { it.bytesPerSec }[SAMPLE_COUNT.intdiv(2)]
+        double mbps = median.bytesPerSec / (1024.0d * 1024.0d)
+
+        // Calibration aid until Phase 2 delivers a baseline-relative Windows assertion.
+        println String.format("PTY-RELAY-MBPS-WINDOWS: %.2f MB/s", mbps)
 
         then:
-        double seconds = elapsedNanos / 1_000_000_000.0d
-        double mbps = (received / (1024.0d * 1024.0d)) / seconds
-        println "PTY-LAUNCHER-THROUGHPUT-WINDOWS: ${received} bytes in ${String.format('%.3f', seconds)}s = ${String.format('%.2f', mbps)} MB/s, exit=${exitCode}"
-        if (stderrCapture.size() > 0) {
-            int show = Math.min(stderrCapture.size(), 2048)
-            println "PTY-LAUNCHER-STDERR-WINDOWS (${stderrCapture.size()} bytes, first ${show}):"
-            println new String(stderrCapture.toByteArray(), 0, show, "UTF-8")
-        }
-        if (firstChunk.size() > 0) {
-            byte[] head = firstChunk.toByteArray()
-            StringBuilder sb = new StringBuilder()
-            for (int i = 0; i < head.length; i++) {
-                sb.append(String.format("%02x ", head[i] & 0xFF))
-                if ((i + 1) % 16 == 0) sb.append('\n')
-            }
-            println "PTY-LAUNCHER-STDOUT-HEAD-HEX (first ${head.length} bytes):\n${sb}"
-        }
-        exitCode == 0
+        median.exitCode == 0
         mbps > 1.0d
-
-        cleanup:
-        pty?.close()
     }
 
-    private static long drainStdoutCapturingHead(PtyProcess pty, ByteArrayOutputStream head, int headBytes) {
-        byte[] buf = new byte[64 * 1024]
-        long total = 0L
-        int n
-        while ((n = pty.inputStream.read(buf)) != -1) {
-            int remaining = headBytes - head.size()
-            if (remaining > 0) {
-                head.write(buf, 0, Math.min(n, remaining))
-            }
-            total += n
-        }
-        return total
+    private static class Sample {
+        long received
+        long elapsedNanos
+        double bytesPerSec
+        int exitCode
     }
 
-    private void warmup() {
-        // Pre-run a trivial spawn so JIT, classloading, and PTY allocation paths are warm
-        // before we measure. The bytes produced are discarded.
-        def cmd = Platform.current().windows
-            ? ['cmd.exe', '/c', 'echo warm']
-            : ['/bin/sh', '-c', 'echo warm']
+    private Sample runOnePosixRelay(List<String> cmd) {
         def pty = launcher.start(cmd, System.getenv(), null, 80, 24)
         try {
-            byte[] buf = new byte[8192]
-            while (pty.inputStream.read(buf) != -1) { /* discard */ }
-            pty.waitFor()
+            long start = System.nanoTime()
+            long received = drainInputStream(pty.inputStream)
+            int exitCode = pty.waitFor()
+            long elapsedNanos = System.nanoTime() - start
+            return new Sample(
+                received: received,
+                elapsedNanos: elapsedNanos,
+                bytesPerSec: received / (elapsedNanos / 1_000_000_000.0d),
+                exitCode: exitCode
+            )
         } finally {
             pty.close()
         }
     }
 
-    private static long drainStdout(PtyProcess pty) {
+    private Sample runOneWindowsRelay(List<String> cmd) {
+        def pty = launcher.start(cmd, System.getenv(), null, 80, 24)
+        try {
+            // Drain stderr concurrently so a PowerShell error doesn't deadlock the test by
+            // filling the stderr pipe.
+            def stderrDrainer = Thread.start {
+                try {
+                    byte[] buf = new byte[8192]
+                    while (pty.errorStream.read(buf) != -1) { /* discard */ }
+                } catch (Throwable ignored) {
+                }
+            }
+            long start = System.nanoTime()
+            long received = drainInputStream(pty.inputStream)
+            int exitCode = pty.waitFor()
+            long elapsedNanos = System.nanoTime() - start
+            stderrDrainer.join(5000)
+            return new Sample(
+                received: received,
+                elapsedNanos: elapsedNanos,
+                bytesPerSec: received / (elapsedNanos / 1_000_000_000.0d),
+                exitCode: exitCode
+            )
+        } finally {
+            pty.close()
+        }
+    }
+
+    /**
+     * Runs the same producer command via {@link ProcessBuilder} (stdout = pipe, no PTY) and
+     * drains it through the same {@link InputStream} loop used for the PTY path. The
+     * resulting bytes/sec is the baseline against which the PTY relay's slowdown factor
+     * is asserted.
+     */
+    private static Sample runOneBaseline(List<String> cmd) {
+        def pb = new ProcessBuilder(cmd)
+        pb.redirectErrorStream(false)
+        long start = System.nanoTime()
+        def process = pb.start()
+        try {
+            // Drain stderr concurrently to avoid filling its pipe and stalling the producer.
+            def stderrDrainer = Thread.start {
+                try {
+                    byte[] buf = new byte[8192]
+                    while (process.errorStream.read(buf) != -1) { /* discard */ }
+                } catch (Throwable ignored) {
+                }
+            }
+            long received = drainInputStream(process.inputStream)
+            int exitCode = process.waitFor()
+            long elapsedNanos = System.nanoTime() - start
+            stderrDrainer.join(5000)
+            return new Sample(
+                received: received,
+                elapsedNanos: elapsedNanos,
+                bytesPerSec: received / (elapsedNanos / 1_000_000_000.0d),
+                exitCode: exitCode
+            )
+        } finally {
+            process.destroy()
+        }
+    }
+
+    /**
+     * Exercises the actual measurement code paths with representative byte volume so
+     * JIT compiles the drain loops, the launcher spawn path, and the ProcessBuilder
+     * pipe drain before we time anything. Without this, the first measured sample is
+     * cold and a cold baseline is ~3x slower than warm, which would make the slowdown
+     * ratio look artificially favorable.
+     */
+    private void warmupPosix(List<String> ptyCmd, List<String> baselineCmd) {
+        WARMUP_RUNS.times { runOnePosixRelay(ptyCmd) }
+        WARMUP_RUNS.times { runOneBaseline(baselineCmd) }
+    }
+
+    private void warmupWindows(List<String> cmd) {
+        WARMUP_RUNS.times { runOneWindowsRelay(cmd) }
+    }
+
+    private static long drainInputStream(InputStream stream) {
         byte[] buf = new byte[64 * 1024]
         long total = 0L
         int n
-        while ((n = pty.inputStream.read(buf)) != -1) {
+        while ((n = stream.read(buf)) != -1) {
             total += n
         }
         return total
