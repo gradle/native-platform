@@ -32,7 +32,23 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class BufferedPtyInputStream extends InputStream {
     private static final byte[] EOF_MARKER = new byte[0];
 
-    private final BlockingQueue<byte[]> chunks = new LinkedBlockingQueue<>();
+    /**
+     * Bounded queue capacity. Limits how many drained kernel chunks can sit in user-space
+     * before the producer (native drainer) blocks. This propagates backpressure to the PTY
+     * slave-write side, keeping the TUI's effective frame rate aligned with the consumer's
+     * actual drain rate. An unbounded queue (the previous default) lets the TUI race ahead
+     * by buffering many MB of frames, which produces "TUI says 100 fps but terminal lags"
+     * symptoms in real-world PTY relay use.
+     *
+     * <p>Sized small to keep backpressure pulses tight: with the dominant downstream buffer
+     * being kernel TCP send/receive (auto-tuned to several MB on macOS), the residual jitter
+     * we observe is coarse pulses where the consumer drains many chunks in rapid bursts and
+     * then parks for tens of ms. Shrinking the queue makes those pulses smaller-amplitude
+     * and more frequent, smoothing perceived jitter without touching the socket layer.</p>
+     */
+    private static final int CHUNK_QUEUE_CAPACITY = 16;
+
+    private final BlockingQueue<byte[]> chunks = new LinkedBlockingQueue<>(CHUNK_QUEUE_CAPACITY);
     private volatile IOException error;
     private byte[] current;
     private int currentOffset;
@@ -41,16 +57,30 @@ public class BufferedPtyInputStream extends InputStream {
         if (len <= 0) return;
         byte[] copy = new byte[len];
         System.arraycopy(buf, 0, copy, 0, len);
-        chunks.add(copy);
+        // Use put() (blocking) instead of add() so the producer thread waits when the queue
+        // is full rather than throwing — that wait is the backpressure we want.
+        try {
+            chunks.put(copy);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     public void signalEof() {
-        chunks.add(EOF_MARKER);
+        try {
+            chunks.put(EOF_MARKER);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     public void signalError(IOException e) {
         error = e;
-        chunks.add(EOF_MARKER);
+        try {
+            chunks.put(EOF_MARKER);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     @Override
