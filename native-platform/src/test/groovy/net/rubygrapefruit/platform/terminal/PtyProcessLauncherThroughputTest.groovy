@@ -81,33 +81,48 @@ class PtyProcessLauncherThroughputTest extends NativePlatformSpec {
     def "Windows: PTY relay throughput"() {
         given:
         int frameCount = (MEGABYTES * 1024).intdiv(FRAME_KB)
-        // PowerShell tight-write loop: write FRAME_KB-sized zero buffers to stdout
-        // FRAME_COUNT times. [Console]::OpenStandardOutput() returns a raw stream backed
-        // by the stdout handle; writes bypass PowerShell's pipeline buffering, giving us
-        // dd-equivalent tight write timing through ConPTY.
-        //
-        // Use -EncodedCommand (base64-UTF16LE) instead of -Command "<inline>" because the
-        // inline form mangled at the CommandLineToArgvW boundary in our earlier run (only
-        // 93 bytes received when 20 MB was expected). EncodedCommand sidesteps all `;`/`$`/
-        // quote escaping. Use 'New-Object byte[] N' instead of '[byte[]]::new(N)' for
-        // compatibility with older PowerShell hosts that may be on the agent.
-        def script = "\$o=[Console]::OpenStandardOutput(); \$b=New-Object byte[] ${FRAME_KB * 1024}; for(\$i=0; \$i -lt ${frameCount}; \$i++){\$o.Write(\$b, 0, \$b.Length)}; \$o.Flush()".toString()
+        // PowerShell tight-write loop. Use -EncodedCommand (base64-UTF16LE) because the
+        // -Command "<inline>" form is fragile at the CommandLineToArgvW boundary.
+        // [Console]::OpenStandardOutput() returns a stream that writes raw bytes to the
+        // process's STD_OUTPUT_HANDLE — under ConPTY this is the daemon's master read pipe.
+        def script = "\$ErrorActionPreference='Stop'; \$o=[Console]::OpenStandardOutput(); \$b=[byte[]]::new(${FRAME_KB * 1024}); for(\$i=0; \$i -lt ${frameCount}; \$i++){\$o.Write(\$b, 0, \$b.Length)}; \$o.Flush()".toString()
         def encoded = Base64.encoder.encodeToString(script.getBytes("UTF-16LE"))
         def cmd = ['powershell.exe', '-NoProfile', '-EncodedCommand', encoded]
         warmup()
 
         when:
         def pty = launcher.start(cmd, System.getenv(), null, 80, 24)
+        // Drain stderr concurrently so we can surface PowerShell error output if it fails
+        // — a silent test failure on a remote agent is otherwise impossible to diagnose.
+        def stderrCapture = new ByteArrayOutputStream()
+        def stderrDrainer = Thread.start {
+            try {
+                byte[] buf = new byte[8192]
+                int n
+                while ((n = pty.errorStream.read(buf)) != -1) {
+                    stderrCapture.write(buf, 0, n)
+                }
+            } catch (Throwable ignored) {
+            }
+        }
         long start = System.nanoTime()
         long received = drainStdout(pty)
         int exitCode = pty.waitFor()
         long elapsedNanos = System.nanoTime() - start
+        stderrDrainer.join(5000)
 
         then:
-        exitCode == 0
         double seconds = elapsedNanos / 1_000_000_000.0d
         double mbps = (received / (1024.0d * 1024.0d)) / seconds
-        println "PTY-LAUNCHER-THROUGHPUT-WINDOWS: ${received} bytes in ${String.format('%.3f', seconds)}s = ${String.format('%.2f', mbps)} MB/s"
+        println "PTY-LAUNCHER-THROUGHPUT-WINDOWS: ${received} bytes in ${String.format('%.3f', seconds)}s = ${String.format('%.2f', mbps)} MB/s, exit=${exitCode}"
+        // Surface stderr on every run so diagnostics are visible even when the test passes
+        // (catching ConPTY VT init or other unexpected output).
+        if (stderrCapture.size() > 0) {
+            int show = Math.min(stderrCapture.size(), 2048)
+            println "PTY-LAUNCHER-STDERR-WINDOWS (${stderrCapture.size()} bytes, first ${show}):"
+            println new String(stderrCapture.toByteArray(), 0, show, "UTF-8")
+        }
+        exitCode == 0
         mbps > 1.0d
 
         cleanup:
