@@ -75,3 +75,7 @@ java {
     }
 }
 
+tasks.withType(JavaCompile).configureEach {
+    // Release to 8, since it's used in gradle/gradle in workers
+    options.release = 8
+}
