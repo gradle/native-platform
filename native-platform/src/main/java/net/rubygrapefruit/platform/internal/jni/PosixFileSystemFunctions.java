@@ -21,4 +21,6 @@ import net.rubygrapefruit.platform.internal.FunctionResult;
 
 public class PosixFileSystemFunctions {
     public static native void listFileSystems(FileSystemList fileSystems, FunctionResult result);
+
+    public static native boolean isRemote(String path, FunctionResult result);
 }

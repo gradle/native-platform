@@ -96,6 +96,22 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
     free(buf);
 }
 
+JNIEXPORT jboolean JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_isRemote(JNIEnv* env, jclass target, jstring path, jobject result) {
+    char* pathStr = java_to_char(env, path, result);
+    if (pathStr == NULL) {
+        return JNI_FALSE;
+    }
+    struct statfs buf;
+    int retval = statfs(pathStr, &buf);
+    free(pathStr);
+    if (retval != 0) {
+        mark_failed_with_errno(env, "could not stat file system for path", result);
+        return JNI_FALSE;
+    }
+    return (buf.f_flags & MNT_LOCAL) == 0 ? JNI_TRUE : JNI_FALSE;
+}
+
 /**
  * Memory functions
  */

@@ -430,6 +430,19 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
     free(fileSystemName);
 }
 
+JNIEXPORT jboolean JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_isRemote(JNIEnv* env, jclass target, jstring path, jobject result) {
+    wchar_t* pathStr = java_to_wchar_path(env, path);
+    wchar_t volumeRoot[MAX_PATH + 1];
+    BOOL resolved = GetVolumePathNameW(pathStr, volumeRoot, MAX_PATH + 1);
+    free(pathStr);
+    if (!resolved) {
+        mark_failed_with_errno(env, "could not resolve volume for path", result);
+        return JNI_FALSE;
+    }
+    return GetDriveTypeW(volumeRoot) == DRIVE_REMOTE ? JNI_TRUE : JNI_FALSE;
+}
+
 JNIEXPORT void JNICALL
 Java_net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions_stat(JNIEnv* env, jclass target, jstring path, jboolean followLink, jobject dest, jobject result) {
     jclass destClass = env->GetObjectClass(dest);

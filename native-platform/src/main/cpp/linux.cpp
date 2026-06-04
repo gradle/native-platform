@@ -54,4 +54,12 @@ Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_listFileS
     endmntent(fp);
 }
 
+JNIEXPORT jboolean JNICALL
+Java_net_rubygrapefruit_platform_internal_jni_PosixFileSystemFunctions_isRemote(JNIEnv* env, jclass target, jstring path, jobject result) {
+    // listFileSystems never reports remoteness on Linux (it always passes JNI_FALSE), so for parity
+    // this returns false too. Network file systems on Linux are distinguished by their type, not a
+    // remote flag, which the caller checks separately.
+    return JNI_FALSE;
+}
+
 #endif

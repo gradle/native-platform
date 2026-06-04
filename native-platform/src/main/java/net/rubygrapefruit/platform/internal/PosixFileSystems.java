@@ -21,6 +21,7 @@ import net.rubygrapefruit.platform.file.FileSystems;
 import net.rubygrapefruit.platform.NativeException;
 import net.rubygrapefruit.platform.internal.jni.PosixFileSystemFunctions;
 
+import java.io.File;
 import java.util.List;
 
 public class PosixFileSystems implements FileSystems {
@@ -32,5 +33,14 @@ public class PosixFileSystems implements FileSystems {
             throw new NativeException(String.format("Could not query file systems: %s", result.getMessage()));
         }
         return fileSystems.fileSystems;
+    }
+
+    public boolean isRemote(File path) {
+        FunctionResult result = new FunctionResult();
+        boolean remote = PosixFileSystemFunctions.isRemote(path.getAbsolutePath(), result);
+        if (result.isFailed()) {
+            throw new NativeException(String.format("Could not query file system for %s: %s", path, result.getMessage()));
+        }
+        return remote;
     }
 }
