@@ -14,8 +14,12 @@
  * limitations under the License.
  */
 
-enum class Agent(val os: Os, val architecture: Architecture) {
-    UbuntuAmd64(os = Os.Ubuntu16, architecture = Architecture.Amd64),
+enum class Agent(val os: Os, val architecture: Architecture, val nativePublishContainer: String? = null) {
+    UbuntuAmd64(
+        os = Os.Ubuntu24,
+        architecture = Architecture.Amd64,
+        nativePublishContainer = "native-platform/ubuntu16-publish:local",
+    ),
     UbuntuAarch64(os = Os.Ubuntu16, architecture = Architecture.Aarch64),
     AmazonLinuxAmd64(os = Os.AmazonLinux, architecture = Architecture.Amd64),
     AmazonLinuxAarch64(os = Os.AmazonLinux, architecture = Architecture.Aarch64),
