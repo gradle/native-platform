@@ -1,76 +1,76 @@
-version: "v1"
+version: 'v1'
 jdks:
   - params:
-      - "env.JDK8"
-    os: "linux"
-    arch: "amd64"
-    vendor: "temurin"
-    version: "jdk8u492-b09"
-    sha256: "da257f161d7f8c6ca5b0e5d9e4090f65ac28c5e398072e68b8ae87988b1d1a2e"
+      - 'env.JDK8'
+    os: 'linux'
+    arch: 'amd64'
+    vendor: 'temurin'
+    version: 'jdk8u492-b09'
+    sha256: 'da257f161d7f8c6ca5b0e5d9e4090f65ac28c5e398072e68b8ae87988b1d1a2e'
   - params:
-      - "env.JAVA_HOME"
-      - "env.JDK21"
-    os: "linux"
-    arch: "amd64"
-    vendor: "temurin"
-    version: "jdk-21.0.11+10"
-    sha256: "4b2220e232a97997b436ca6ab15cbf70171ecff52958a46159dfa5a8c44ca4de"
+      - 'env.JAVA_HOME'
+      - 'env.JDK21'
+    os: 'linux'
+    arch: 'amd64'
+    vendor: 'temurin'
+    version: 'jdk-21.0.12+8'
+    sha256: 'e4446ff06a276155697597cc0f1b15da004ff083f4964a35271ecee567177370'
   - params:
-      - "env.JDK8"
-    os: "linux"
-    arch: "aarch64"
-    vendor: "temurin"
-    version: "jdk8u492-b09"
-    sha256: "3c2253b986909c20f79d6de7a0cb957f89c243df57615897836046e24d2e5257"
+      - 'env.JDK8'
+    os: 'linux'
+    arch: 'aarch64'
+    vendor: 'temurin'
+    version: 'jdk8u492-b09'
+    sha256: '3c2253b986909c20f79d6de7a0cb957f89c243df57615897836046e24d2e5257'
   - params:
-      - "env.JAVA_HOME"
-      - "env.JDK21"
-    os: "linux"
-    arch: "aarch64"
-    vendor: "temurin"
-    version: "jdk-21.0.11+10"
-    sha256: "8d498ec88e1c1989fab95c6784240ab92d011e29c54d20a3f9c324b13476f9ad"
+      - 'env.JAVA_HOME'
+      - 'env.JDK21'
+    os: 'linux'
+    arch: 'aarch64'
+    vendor: 'temurin'
+    version: 'jdk-21.0.12+8'
+    sha256: 'eba38e871b02d407897bfe017ea35352dfc1420ef6d2112425b0c67325ca509d'
   - params:
-      - "env.JDK8"
-    os: "windows"
-    arch: "amd64"
-    vendor: "temurin"
-    version: "jdk8u492-b09"
-    sha256: "1e33881ea6bfc1c532e3eaad1c1de7777169c0c1333e2b880621e0e0a16073b2"
+      - 'env.JDK8'
+    os: 'windows'
+    arch: 'amd64'
+    vendor: 'temurin'
+    version: 'jdk8u492-b09'
+    sha256: '1e33881ea6bfc1c532e3eaad1c1de7777169c0c1333e2b880621e0e0a16073b2'
   - params:
-      - "env.JAVA_HOME"
-      - "env.JDK21"
-    os: "windows"
-    arch: "amd64"
-    vendor: "temurin"
-    version: "jdk-21.0.11+10"
-    sha256: "d3625e7cadf23787ea540229544b6e2ab494b3b54da1801879e583e1dfee0a64"
+      - 'env.JAVA_HOME'
+      - 'env.JDK21'
+    os: 'windows'
+    arch: 'amd64'
+    vendor: 'temurin'
+    version: 'jdk-21.0.11+10'
+    sha256: 'd3625e7cadf23787ea540229544b6e2ab494b3b54da1801879e583e1dfee0a64'
   - params:
-      - "env.JDK8"
-    os: "macos"
-    arch: "amd64"
-    vendor: "temurin"
-    version: "jdk8u492-b09"
-    sha256: "dd2cc870118fe9fba136e48b2988cfa63d3bda46cc6f1646677cae27a1a02e99"
+      - 'env.JDK8'
+    os: 'macos'
+    arch: 'amd64'
+    vendor: 'temurin'
+    version: 'jdk8u492-b09'
+    sha256: 'dd2cc870118fe9fba136e48b2988cfa63d3bda46cc6f1646677cae27a1a02e99'
   - params:
-      - "env.JAVA_HOME"
-      - "env.JDK21"
-    os: "macos"
-    arch: "amd64"
-    vendor: "temurin"
-    version: "jdk-21.0.11+10"
-    sha256: "34180eb03e6d207c388cce3da668f6cc7cd7508c185c24782fadac2c9c0e66f9"
+      - 'env.JAVA_HOME'
+      - 'env.JDK21'
+    os: 'macos'
+    arch: 'amd64'
+    vendor: 'temurin'
+    version: 'jdk-21.0.11+10'
+    sha256: '34180eb03e6d207c388cce3da668f6cc7cd7508c185c24782fadac2c9c0e66f9'
   - params:
-      - "env.JDK8"
-    os: "macos"
-    arch: "aarch64"
-    vendor: "zulu"
-    version: "zulu8.78.0.19-ca-jdk8.0.412"
+      - 'env.JDK8'
+    os: 'macos'
+    arch: 'aarch64'
+    vendor: 'zulu'
+    version: 'zulu8.78.0.19-ca-jdk8.0.412'
   - params:
-      - "env.JAVA_HOME"
-      - "env.JDK21"
-    os: "macos"
-    arch: "aarch64"
-    vendor: "temurin"
-    version: "jdk-21.0.11+10"
-    sha256: "6ebcf221c9b41507b14c098e93c6ead6440b8d9bd154f8ec666c4c73abbdb201"
+      - 'env.JAVA_HOME'
+      - 'env.JDK21'
+    os: 'macos'
+    arch: 'aarch64'
+    vendor: 'temurin'
+    version: 'jdk-21.0.11+10'
+    sha256: '6ebcf221c9b41507b14c098e93c6ead6440b8d9bd154f8ec666c4c73abbdb201'
