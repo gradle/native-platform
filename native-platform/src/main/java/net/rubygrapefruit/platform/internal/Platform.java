@@ -173,7 +173,7 @@ public abstract class Platform {
                 return type.cast(new WindowsTerminals());
             }
             if (type.equals(ProcessLauncher.class)) {
-                return type.cast(new WrapperProcessLauncher(new WindowsProcessLauncher(new DefaultProcessLauncher())));
+                return type.cast(new WrapperProcessLauncher(new DefaultProcessLauncher()));
             }
             if (type.equals(SystemInfo.class)) {
                 return type.cast(new DefaultSystemInfo());

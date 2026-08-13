@@ -24,7 +24,6 @@
 #include "net_rubygrapefruit_platform_internal_jni_PosixProcessFunctions.h"
 #include "net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions.h"
 #include "net_rubygrapefruit_platform_internal_jni_WindowsFileFunctions.h"
-#include "net_rubygrapefruit_platform_internal_jni_WindowsHandleFunctions.h"
 #include "net_rubygrapefruit_platform_internal_jni_WindowsRegistryFunctions.h"
 
 #define ALL_COLORS (FOREGROUND_BLUE | FOREGROUND_RED | FOREGROUND_GREEN)
@@ -938,35 +937,6 @@ Java_net_rubygrapefruit_platform_internal_jni_WindowsConsoleFunctions_clearToEnd
     if (!FillConsoleOutputCharacterW(current_console, L' ', console_info.dwSize.X - console_info.dwCursorPosition.X, console_info.dwCursorPosition, &count)) {
         mark_failed_with_errno(env, "could not clear console", result);
     }
-}
-
-void uninheritStream(JNIEnv* env, DWORD stdInputHandle, jobject result) {
-    HANDLE streamHandle = GetStdHandle(stdInputHandle);
-    if (streamHandle == NULL) {
-        // We're not attached to a stdio (eg Desktop application). Ignore.
-        return;
-    }
-    if (streamHandle == INVALID_HANDLE_VALUE) {
-        mark_failed_with_errno(env, "could not get std handle", result);
-        return;
-    }
-    boolean ok = SetHandleInformation(streamHandle, HANDLE_FLAG_INHERIT, 0);
-    if (!ok) {
-        if (GetLastError() != ERROR_INVALID_PARAMETER && GetLastError() != ERROR_INVALID_HANDLE) {
-            mark_failed_with_errno(env, "could not change std handle", result);
-        }
-    }
-}
-
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsHandleFunctions_markStandardHandlesUninheritable(JNIEnv* env, jclass target, jobject result) {
-    uninheritStream(env, STD_INPUT_HANDLE, result);
-    uninheritStream(env, STD_OUTPUT_HANDLE, result);
-    uninheritStream(env, STD_ERROR_HANDLE, result);
-}
-
-JNIEXPORT void JNICALL
-Java_net_rubygrapefruit_platform_internal_jni_WindowsHandleFunctions_restoreStandardHandles(JNIEnv* env, jclass target, jobject result) {
 }
 
 HKEY get_key_from_ordinal(jint keyNum) {
