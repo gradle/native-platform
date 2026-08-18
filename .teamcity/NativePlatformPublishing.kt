@@ -91,11 +91,20 @@ open class NativePlatformPublishSnapshot(
     }
 
     steps {
+        val usesNativePublishContainer = !agent.nativePublishContainer.isNullOrBlank() &&
+            uploadTasks.any { it.isNativePublishTask() }
+        if (usesNativePublishContainer) {
+            buildNativePublishContainerImage(agent)
+        }
+
         uploadTasks.forEach { task ->
             gradle {
                 name = "Gradle $task"
                 tasks =
                     "clean $task -P${releaseType.gradleProperty}${if (releaseType.userProvidedVersion) "=%versionPostfix%" else ""} ${javaInstallationLocations()}"
+                if (usesNativePublishContainer && task.isNativePublishTask()) {
+                    useNativePublishContainer(agent)
+                }
                 buildFile = ""
             }
         }
