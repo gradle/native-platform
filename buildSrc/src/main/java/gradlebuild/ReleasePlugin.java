@@ -56,7 +56,8 @@ public class ReleasePlugin implements Plugin<Project> {
             sign.setEnabled(signArtifacts);
         });
         project.getExtensions().configure(SigningExtension.class, signing -> {
-            signing.useInMemoryPgpKeys(System.getenv("PGP_SIGNING_KEY"), System.getenv("PGP_SIGNING_KEY_PASSPHRASE"));
+            // Key ID required when signing with a subkey
+            signing.useInMemoryPgpKeys(System.getenv("PGP_SIGNING_KEY_ID"), System.getenv("PGP_SIGNING_KEY"), System.getenv("PGP_SIGNING_KEY_PASSPHRASE"));
             project.getExtensions().getByType(PublishingExtension.class).getPublications().configureEach(publication -> {
                 if (signArtifacts) {
                     signing.sign(publication);
