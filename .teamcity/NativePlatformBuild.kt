@@ -32,13 +32,32 @@ open class NativePlatformBuild(agent: Agent, buildReceiptSource: Boolean = false
     }
 
     steps {
+        val publishOnHost = agent.nativePublishContainer.isNullOrBlank() || agent.allPublishTasks.isBlank()
+        if (!publishOnHost) {
+            buildNativePublishContainerImage(agent)
+        }
+
         gradle {
-            tasks =
-                "clean build -PagentName=${agent.name}${agent.allPublishTasks} ${javaInstallationLocations()}"
+            tasks = buildString {
+                append("clean build -PagentName=${agent.name}")
+                if (publishOnHost) {
+                    append(agent.allPublishTasks)
+                }
+                append(" ${javaInstallationLocations()}")
+            }
             if (buildReceiptSource) {
                 gradleParams = "-PignoreIncomingBuildReceipt"
             }
             buildFile = ""
+        }
+
+        if (!publishOnHost) {
+            gradle {
+                name = "Publish (glibc 2.23 container)"
+                tasks = "${agent.allPublishTasks.trim()} ${javaInstallationLocations()}"
+                useNativePublishContainer(agent)
+                buildFile = ""
+            }
         }
     }
 
