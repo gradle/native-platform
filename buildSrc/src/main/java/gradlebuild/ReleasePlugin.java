@@ -6,7 +6,8 @@ import org.gradle.api.Task;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.tasks.TaskProvider;
-import org.gradle.authentication.http.BasicAuthentication;
+import org.gradle.api.credentials.HttpHeaderCredentials;
+import org.gradle.authentication.http.HttpHeaderAuthentication;
 import org.gradle.plugins.signing.Sign;
 import org.gradle.plugins.signing.SigningExtension;
 
@@ -42,9 +43,11 @@ public class ReleasePlugin implements Plugin<Project> {
             credentials.assertPresent();
             project.getRepositories().maven(repo -> {
                 repo.setUrl(releaseRepository.getUrl());
-                repo.getCredentials().setUsername(credentials.getUserName());
-                repo.getCredentials().setPassword(credentials.getApiKey());
-                repo.getAuthentication().create("basic", BasicAuthentication.class);
+                repo.credentials(HttpHeaderCredentials.class, headerCredentials -> {
+                    headerCredentials.setName("Authorization");
+                    headerCredentials.setValue("Bearer " + credentials.getToken());
+                });
+                repo.getAuthentication().create("header", HttpHeaderAuthentication.class);
             });
         });
 
