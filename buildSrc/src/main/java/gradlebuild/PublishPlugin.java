@@ -3,6 +3,7 @@ package gradlebuild;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.dsl.RepositoryHandler;
+import org.gradle.api.credentials.HttpHeaderCredentials;
 import org.gradle.api.plugins.BasePluginExtension;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.publish.Publication;
@@ -11,6 +12,7 @@ import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.tasks.TaskContainer;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.bundling.Jar;
+import org.gradle.authentication.http.HttpHeaderAuthentication;
 
 import java.io.File;
 import java.util.concurrent.Callable;
@@ -18,8 +20,7 @@ import java.util.stream.Stream;
 
 public class PublishPlugin implements Plugin<Project> {
     public static final String LOCAL_FILE_REPOSITORY_NAME = "LocalFile";
-    private static final String PUBLISH_USER_NAME_PROPERTY = "publishUserName";
-    private static final String PUBLISH_API_KEY_PROPERTY = "publishApiKey";
+    private static final String PUBLISH_TOKEN_PROPERTY = "publishToken";
 
     @Override
     public void apply(Project project) {
@@ -83,20 +84,18 @@ public class PublishPlugin implements Plugin<Project> {
             .forEach(repository -> repositories.maven(repo -> {
                 repo.setUrl(repository.getUrl());
                 repo.setName(repository.name());
-                repo.credentials(passwordCredentials -> {
-                    passwordCredentials.setUsername(credentials.getUserName());
-                    passwordCredentials.setPassword(credentials.getApiKey());
+                repo.credentials(HttpHeaderCredentials.class, headerCredentials -> {
+                    headerCredentials.setName("Authorization");
+                    headerCredentials.setValue("Bearer " + credentials.getToken());
                 });
+                repo.getAuthentication().create("header", HttpHeaderAuthentication.class);
             }));
     }
 
     private PublishRepositoryCredentials configureCredentials(Project project) {
         PublishRepositoryCredentials credentials = project.getExtensions().create("publishRepository", PublishRepositoryCredentials.class);
-        if (project.hasProperty(PUBLISH_USER_NAME_PROPERTY)) {
-            credentials.setUserName(project.property(PUBLISH_USER_NAME_PROPERTY).toString());
-        }
-        if (project.hasProperty(PUBLISH_API_KEY_PROPERTY)) {
-            credentials.setApiKey(project.property(PUBLISH_API_KEY_PROPERTY).toString());
+        if (project.hasProperty(PUBLISH_TOKEN_PROPERTY)) {
+            credentials.setToken(project.property(PUBLISH_TOKEN_PROPERTY).toString());
         }
         return credentials;
     }

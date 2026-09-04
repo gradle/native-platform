@@ -73,14 +73,12 @@ open class NativePlatformPublishSnapshot(
     init: BuildType.() -> Unit
 ) : BuildType({
     params {
-        param("ARTIFACTORY_USERNAME", releaseType.username)
-        password("ARTIFACTORY_PASSWORD", releaseType.password, display = ParameterDisplay.HIDDEN)
+        password("ARTIFACTORY_TOKEN", releaseType.token, display = ParameterDisplay.HIDDEN)
         if (releaseType.userProvidedVersion) {
             text("reverse.dep.*.$versionPostfixParameterName", "${releaseType.gradleProperty}-1", display = ParameterDisplay.PROMPT, allowEmpty = false)
         }
         param("env.GRADLE_INTERNAL_REPO_URL", "%gradle.internal.repository.url%")
-        param("env.ORG_GRADLE_PROJECT_publishUserName", "%ARTIFACTORY_USERNAME%")
-        param("env.ORG_GRADLE_PROJECT_publishApiKey", "%ARTIFACTORY_PASSWORD%")
+        password("env.ORG_GRADLE_PROJECT_publishToken", "%ARTIFACTORY_TOKEN%")
         param("env.PGP_SIGNING_KEY_ID", "%pgpSigningKeyId%")
         param("env.PGP_SIGNING_KEY", "%pgpSigningKey%")
         param("env.PGP_SIGNING_KEY_PASSPHRASE", "%pgpSigningPassphrase%")
