@@ -22,7 +22,7 @@ if (versions.useRepo) {
         download
     }
     dependencies {
-        download "$group:${archivesBaseName}:${version}"
+        download "$group:${base.archivesName.get()}:${version}"
     }
 }
 
