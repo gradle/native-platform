@@ -16,10 +16,13 @@
 
 import jetbrains.buildServer.configs.kotlin.BuildFeatures
 import jetbrains.buildServer.configs.kotlin.BuildType
+import jetbrains.buildServer.configs.kotlin.BuildSteps
 import jetbrains.buildServer.configs.kotlin.DslContext
 import jetbrains.buildServer.configs.kotlin.Requirements
 import jetbrains.buildServer.configs.kotlin.buildFeatures.commitStatusPublisher
 import jetbrains.buildServer.configs.kotlin.buildFeatures.freeDiskSpace
+import jetbrains.buildServer.configs.kotlin.buildSteps.GradleBuildStep
+import jetbrains.buildServer.configs.kotlin.buildSteps.script
 
 fun Requirements.requireAgent(agent: Agent) {
     agent.os.addAgentRequirements(this)
@@ -97,3 +100,26 @@ fun BuildFeatures.lowerRequiredFreeDiskSpace() {
         failBuild = false
     }
 }
+
+private const val nativePublishContainerDockerfile = ".teamcity/docker/native-publish-ubuntu16"
+
+fun BuildSteps.buildNativePublishContainerImage(agent: Agent) {
+    val containerImage = agent.nativePublishContainer ?: return
+    script {
+        name = "Build native publish container image"
+        scriptContent = """
+            #!/bin/bash
+            set -euo pipefail
+            docker build -t $containerImage $nativePublishContainerDockerfile
+        """.trimIndent()
+    }
+}
+
+fun GradleBuildStep.useNativePublishContainer(agent: Agent) {
+    val containerImage = agent.nativePublishContainer ?: return
+    dockerImage = containerImage
+    dockerPull = false
+}
+
+fun String.isNativePublishTask(): Boolean =
+    contains("uploadJni") || contains("uploadNcurses")
