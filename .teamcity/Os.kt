@@ -27,6 +27,13 @@ interface Os {
         }
     }
 
+    object Ubuntu24 : Linux(Ncurses.Ncurses6) {
+        override fun Requirements.additionalRequirements() {
+            contains(osDistributionNameParameter, "ubuntu")
+            contains(osDistributionVersionParameter, "24")
+        }
+    }
+
     object AmazonLinux : Linux(Ncurses.Ncurses6) {
         override fun Requirements.additionalRequirements() {
             contains(osDistributionNameParameter, "amazon")
