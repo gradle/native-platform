@@ -9,7 +9,7 @@ repositories {
 
 dependencies {
     implementation gradleApi()
-    implementation 'com.google.guava:guava:32.0.0-jre'
+    implementation 'com.google.guava:guava:33.7.1-jre'
 }
 
 java {
