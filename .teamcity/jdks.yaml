@@ -43,8 +43,8 @@ jdks:
     os: "windows"
     arch: "amd64"
     vendor: "temurin"
-    version: "jdk-21.0.12.1+1"
-    sha256: "f9d6e191ab098c0d416e7d588a24420a8621cd2f4720dab2459b8b7b2d2d8b4e"
+    version: "jdk-21.0.13+9"
+    sha256: "a4dbaa05fca4bd89d84584e58c459bd732efebb1722af80ab13c6516832004f9"
   - params:
       - "env.JDK8"
     os: "macos"
