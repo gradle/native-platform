@@ -72,8 +72,11 @@ class BuildTrigger(dependencies: List<BuildType>) : BuildType({
     triggers {
         vcs {
             branchFilter = """
-                +:*
-                -:pull/*
+                +:<default>
+                +:devprod/*
+                -:dependabot/*
+                +pr: github_role=MEMBER
+                -pr: source=dependabot/*
             """.trimIndent()
         }
     }
@@ -88,5 +91,6 @@ class BuildTrigger(dependencies: List<BuildType>) : BuildType({
 
     features {
         publishCommitStatus()
+        discoverPullRequests()
     }
 })
