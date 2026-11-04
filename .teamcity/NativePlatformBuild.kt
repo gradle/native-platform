@@ -44,6 +44,7 @@ open class NativePlatformBuild(agent: Agent, buildReceiptSource: Boolean = false
 
     features {
         publishCommitStatus()
+        discoverPullRequests()
         lowerRequiredFreeDiskSpace()
     }
 
