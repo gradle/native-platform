@@ -5,8 +5,8 @@ jdks:
     os: "linux"
     arch: "amd64"
     vendor: "temurin"
-    version: "jdk8u504-b01"
-    sha256: "9c70e102f527ac674ac2fe9c7d47b9a04e2d19842ba5ab8e9b33f368bbadfaea"
+    version: "jdk8u512-b09"
+    sha256: "fb3bfa869012419b562bb4235d0d83ec4f8c1dda62ae432ba20c6c3a7e43f7e4"
   - params:
       - "env.JAVA_HOME"
       - "env.JDK21"
@@ -20,8 +20,8 @@ jdks:
     os: "linux"
     arch: "aarch64"
     vendor: "temurin"
-    version: "jdk8u504-b01"
-    sha256: "57b7ed8af9d48542bb49ff7894448040b17bea0a48b41677d11ecaec6129768d"
+    version: "jdk8u512-b09"
+    sha256: "01263df22c4553f63146bbae807e70cd4628dd0d9ec7582f01cb2453f7c69aaa"
   - params:
       - "env.JAVA_HOME"
       - "env.JDK21"
@@ -35,8 +35,8 @@ jdks:
     os: "windows"
     arch: "amd64"
     vendor: "temurin"
-    version: "jdk8u504-b01"
-    sha256: "ea43d46ede95b51e44a12c66711706cddc762e0a766c54bccea18954e902b2aa"
+    version: "jdk8u512-b09"
+    sha256: "20f248ddd600f900cd9b235d50d54cdb27e7b750f140d381176a7612c53663cd"
   - params:
       - "env.JAVA_HOME"
       - "env.JDK21"
