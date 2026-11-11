@@ -65,7 +65,7 @@ jdks:
     os: "macos"
     arch: "aarch64"
     vendor: "zulu"
-    version: "zulu8.78.0.19-ca-jdk8.0.412"
+    version: "zulu8.98.0.111-ca-jdk8.0.512"
   - params:
       - "env.JAVA_HOME"
       - "env.JDK21"
