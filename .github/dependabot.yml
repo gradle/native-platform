@@ -11,9 +11,11 @@ updates:
       interval: "daily"
     labels:
       - "@dev-productivity"
+      - "dependencies"
   - package-ecosystem: "maven"
     directory: "/.teamcity"
     schedule:
       interval: "daily"
     labels:
       - "@dev-productivity"
+      - "dependencies"
