@@ -40,6 +40,7 @@ class NativePlatformCompatibilityTest(agent: Agent, buildDependencies: List<Buil
 
     features {
         publishCommitStatus()
+        discoverPullRequests()
         lowerRequiredFreeDiskSpace()
     }
 

@@ -18,8 +18,10 @@ import jetbrains.buildServer.configs.kotlin.BuildFeatures
 import jetbrains.buildServer.configs.kotlin.BuildType
 import jetbrains.buildServer.configs.kotlin.DslContext
 import jetbrains.buildServer.configs.kotlin.Requirements
+import jetbrains.buildServer.configs.kotlin.buildFeatures.PullRequests
 import jetbrains.buildServer.configs.kotlin.buildFeatures.commitStatusPublisher
 import jetbrains.buildServer.configs.kotlin.buildFeatures.freeDiskSpace
+import jetbrains.buildServer.configs.kotlin.buildFeatures.pullRequests
 
 fun Requirements.requireAgent(agent: Agent) {
     agent.os.addAgentRequirements(this)
@@ -49,6 +51,17 @@ val archiveReports = listOf(
     "buildSrc",
     "test-app"
 ).joinToString("\n") { "$it/build/reports/** => $it/reports" }
+
+fun BuildFeatures.discoverPullRequests() {
+    pullRequests {
+        vcsRootExtId = DslContext.settingsRoot.id?.value
+        provider = github {
+            authType = vcsRoot()
+            filterAuthorRole = PullRequests.GitHubRoleFilter.EVERYBODY
+            ignoreDrafts = false
+        }
+    }
+}
 
 fun BuildFeatures.publishCommitStatus() {
     commitStatusPublisher {
