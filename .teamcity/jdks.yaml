@@ -5,8 +5,8 @@ jdks:
     os: "linux"
     arch: "amd64"
     vendor: "temurin"
-    version: "jdk8u512-b09"
-    sha256: "fb3bfa869012419b562bb4235d0d83ec4f8c1dda62ae432ba20c6c3a7e43f7e4"
+    version: "jdk8u514-b01"
+    sha256: "27eda854481d20806d918b30cdd417c6bed4fd15882e24f3595dc8ae7fb5d095"
   - params:
       - "env.JAVA_HOME"
       - "env.JDK21"
